@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "com.unity.ai.assistant": "2.9.0-pre.2",
+    "com.unity.ugui": "2.0.0",
+    "com.unity.modules.ai": "1.0.0",
+    "com.unity.modules.imgui": "1.0.0",
+    "com.unity.modules.physics": "1.0.0",
+    "com.unity.modules.ui": "1.0.0",
+    "com.unity.modules.uielements": "1.0.0"
+  }
+}
