@@ -17,9 +17,20 @@
 
 ## ▶ Aktif adım: yok — sıradaki maddeyi seç
 
-`IMP` (Imperial çağ) **tamamlandı ve runtime doğrulandı** (O17). ARM+GAR+O16 görsel
-checkpoint commit edildi (`8c0333e`). Bir sonraki oturum master tablodaki en yüksek
-öncelikli ⬜ maddeden başlar.
+`CTRL` (Control group 1-9) **tamamlandı** (O18). Çekirdek ergonomi bloğunun ilk maddesi;
+sıradaki ergonomi adayları `IDLE` (idle-worker) ve `MMP` (minimap pan).
+
+### ✔️ `CTRL` — Control group (1-9) (P1) — tamam
+Spec: [07-ui-ux-qol.md](07-ui-ux-qol.md) §[P1]. 3 dosya: SelectionSystem (grup ata/seç
++ çift-bas odak), IsometricCameraRig (`FocusOn`), CommandSystem (Ctrl+digit guard).
+- **Ctrl+1..9** → seçili birimleri gruba ata (boş seçim no-op, grubu silmez)
+- **1..9** → grubu yeniden seç (yalnız bina seçili değilken — rakamlar bina seçiliyken
+  araştırma/ticarete ait); ölü/yanlış-takım üyeler otomatik temizlenir, garrisonlu üye
+  grupta kalır ama seçilmez
+- **Çift-bas (0.4s)** → kamerayı grup merkezine taşı (`IsometricCameraRig.FocusOn`, bounds clamp)
+- `CommandSystem` research+market hotkey'leri `CtrlHeld` iken atlanır (çakışma yok)
+- **0 error/0 warning**. MCP: `FocusOn` kamerayı taşıdı + out-of-bounds clamp finite;
+  ata/seç input-bağlı (klavye) olduğu için manuel Play doğrulaması gerekir.
 
 ### ✔️ `IMP` — Imperial (4.) çağ (P1) — tamam
 Spec: [05-tech-ages.md](05-tech-ages.md) §3 [P1]. Çağ ilerlemesi Castle → **Imperial**
@@ -79,7 +90,7 @@ MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ✅ Commit edildi (`
 | TIER | 05 | Imperial tier birimleri | ⬜ | — | |
 | DIFF | 06 | AI zorluk seviyeleri (Easy→Insane) | ⬜ | — | |
 | AIMS | 06 | AI Medic/Scout kullanımı | ⬜ | — | |
-| CTRL | 07 | Control group (1-9) | ⬜ | — | |
+| CTRL | 07 | Control group (1-9) | ✔️ | O18 | 0 err; FocusOn MCP doğrulandı; ata/seç input-bağlı manuel |
 | IDLE | 01/07 | Idle-worker butonu + döngü | ⬜ | — | |
 | MMP | 07 | Minimap click-to-pan + sağ-tık komut | ⬜ | — | |
 | SES | 08 | Ses sistemi temeli (AudioManager) | ⬜ | — | yüksek etki/izole |

@@ -72,6 +72,15 @@ public class IsometricCameraRig : MonoBehaviour
         }
     }
 
+    /// <summary>Snap the rig to look at a world point (clamped to pannable bounds).
+    /// Used by control-group double-tap to jump the camera to the selected army.</summary>
+    public void FocusOn(Vector3 worldPos)
+    {
+        _focus.x = Mathf.Clamp(worldPos.x, -bounds.x, bounds.x);
+        _focus.z = Mathf.Clamp(worldPos.z, -bounds.y, bounds.y);
+        Apply();
+    }
+
     public void Shake(float duration, float magnitude)
     {
         _shakeTimer    = Mathf.Max(_shakeTimer, duration);

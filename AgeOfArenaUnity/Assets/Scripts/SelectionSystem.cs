@@ -15,6 +15,13 @@ public class SelectionSystem : MonoBehaviour
 
     public readonly List<UnitEntity> Selected = new();
 
+    // Control groups: Ctrl+1..9 assigns the current selection, 1..9 re-selects it,
+    // a second tap within DoubleTapWindow jumps the camera to the group.
+    const float DoubleTapWindow = 0.4f;
+    readonly Dictionary<int, List<UnitEntity>> _groups = new();
+    int _lastGroupKey = -1;
+    float _lastGroupTime = -10f;
+
     Camera _cam;
     Vector2 _dragStart;
     bool _pointerDown;
@@ -37,6 +44,8 @@ public class SelectionSystem : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm != null && gm.placement != null && gm.placement.Active) return; // build mode owns the mouse
         if (gm != null && gm.command != null && gm.command.AttackMovePending) return; // attack-move picking owns the mouse
+
+        HandleControlGroups(gm);
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -142,6 +151,64 @@ public class SelectionSystem : MonoBehaviour
         for (int i = 0; i < Selected.Count; i++)
             if (Selected[i] != null) Selected[i].SetSelected(false, OwnColor);
         Selected.Clear();
+    }
+
+    // ── Control groups ─────────────────────────────────────────────────────────
+    void HandleControlGroups(GameManager gm)
+    {
+        bool ctrl = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        for (int n = 1; n <= 9; n++)
+        {
+            if (!Input.GetKeyDown(KeyCode.Alpha0 + n)) continue;
+            if (ctrl) AssignGroup(n);
+            // A bare digit recalls the group only when no building owns it (the command
+            // bar uses 1..9 for research/trade while a building is selected).
+            else if (gm == null || gm.selectedBuilding == null) SelectGroup(n);
+            return; // at most one digit per frame
+        }
+    }
+
+    /// <summary>Snapshot the current selection into control group <paramref name="n"/>.
+    /// An empty selection is a no-op (does not wipe an existing group).</summary>
+    void AssignGroup(int n)
+    {
+        var list = new List<UnitEntity>();
+        for (int i = 0; i < Selected.Count; i++)
+            if (Selected[i] != null && Selected[i].teamId == 0) list.Add(Selected[i]);
+        if (list.Count > 0) _groups[n] = list;
+    }
+
+    /// <summary>Re-select control group <paramref name="n"/>, pruning dead members. A
+    /// second tap within <see cref="DoubleTapWindow"/> re-centres the camera on it.</summary>
+    void SelectGroup(int n)
+    {
+        if (!_groups.TryGetValue(n, out var list)) return;
+        list.RemoveAll(u => u == null || u.teamId != 0);
+        if (list.Count == 0) { _groups.Remove(n); return; }
+
+        ClearSelection();
+        if (GameManager.Instance != null) GameManager.Instance.selectedBuilding = null;
+        for (int i = 0; i < list.Count; i++)
+        {
+            var u = list[i];
+            if (u.isGarrisoned) continue; // hidden inside a building — skip but keep in group
+            if (!Selected.Contains(u)) Select(u);
+        }
+
+        float t = Time.unscaledTime;
+        if (_lastGroupKey == n && t - _lastGroupTime <= DoubleTapWindow) FocusCameraOnSelection();
+        _lastGroupKey = n;
+        _lastGroupTime = t;
+    }
+
+    void FocusCameraOnSelection()
+    {
+        Vector3 sum = Vector3.zero; int c = 0;
+        for (int i = 0; i < Selected.Count; i++)
+            if (Selected[i] != null) { sum += Selected[i].transform.position; c++; }
+        if (c == 0) return;
+        var rig = _cam != null ? _cam.GetComponent<IsometricCameraRig>() : null;
+        if (rig != null) rig.FocusOn(sum / c);
     }
 
     /// <summary>True when the cursor is over an interactive uGUI element (the HUD).</summary>

@@ -31,6 +31,8 @@ public class CommandSystem : MonoBehaviour
             if (sel[i] != null) { AttackMovePending = true; return; }
     }
 
+    static bool CtrlHeld => Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+
     void Update()
     {
         if (_cam == null) _cam = Camera.main;
@@ -186,6 +188,7 @@ public class CommandSystem : MonoBehaviour
     /// (in the order shown in the HUD). Market keeps number keys for trading.</summary>
     void HandleResearchHotkeys()
     {
+        if (CtrlHeld) return; // Ctrl+digit is reserved for control-group assignment
         var gm = GameManager.Instance;
         var b = gm?.selectedBuilding;
         if (b == null || gm.research == null) return;
@@ -206,6 +209,7 @@ public class CommandSystem : MonoBehaviour
     /// <summary>When a finished Market is selected, number keys trade resources.</summary>
     void HandleMarketHotkeys()
     {
+        if (CtrlHeld) return; // Ctrl+digit is reserved for control-group assignment
         var gm = GameManager.Instance;
         var b = gm?.selectedBuilding;
         if (b == null || b.type != BuildingType.Market || b.underConstruction) return;
