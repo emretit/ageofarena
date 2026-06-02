@@ -17,12 +17,20 @@
 
 ## ▶ Aktif adım: yok — sıradaki maddeyi seç
 
-Çekirdek ergonomi bloğu **+ zafer döngüsü tamamlandı** (O18):
-- Ergonomi: `CTRL` (control group) + `IDLE` (idle-worker) + `MMP` (minimap pan/komut) + kamera mouse fix
-- Zafer döngüsü: `WON` (Wonder, Imperial-gated bina + 60s countdown) + `RLW` (relic-win, tüm relic 60s)
-  + `SCR` (composite skor sonuç ekranında). Artık 3 zafer yolu: fetih, anıt, kalıntı.
+O19'da görsel kalite + ses sistemi tamamlandı:
+- **ASSET**: Kenney CC0 Nature Kit (ağaç/kaya) + Castle Kit (kule/kapı/duvar) entegre
+- **VFX**: DamagePopup (yüzen hasar sayısı, altın kritik) + HitFlash (0.08s beyaz parlama)
+- **SES**: AudioManager singleton — sword/arrow/build_complete/unit_trained/unit_die sesleri
 
-Sıradaki aday: `DIFF` (AI zorluk seviyeleri) veya `STN` (attack stance) veya `TOW` (savunma kulesi).
+Sıradaki aday: `MONK`+`MON` (Monastery + Monk dönüştürme) · `DIFF` (AI zorluk Easy→Hard) · `BLC` (Blocky Char birim görseli)
+
+### ✔️ `O19-VIS` — Görsel Kalite 2: Kenney Asset + DamagePopup + HitFlash + Ses (O19) — tamam
+- **Nature Kit:** ağaç (tree_default/cone/blocks, scale 2.6-3.4) + kaya (rock_largeA-D, 1.4-2.2) entegre; prosedürel fallback
+- **Castle Kit:** Wall→wall-narrow, Gate→gate (2.8×, 90°), Castle→tower-square-base/mid/roof stack
+- **DamagePopup:** melee + ranged hit'te yüzen sayı; 0.75s float-fade, beyaz/altın kritik; billboard
+- **HitFlash:** vurulunca 0.08s beyaz emission (`UnitEntity.TakeDamage`)
+- **AudioManager singleton:** `com.unity.modules.audio` aktif; sword/arrow/build_complete/unit_trained/unit_die hook'landı
+- Commit `8338f8f`. **0 error / 0 warning.** Play doğrulandı.
 
 ### ✔️ `CTRL` — Control group (1-9) (P1) — tamam
 Spec: [07-ui-ux-qol.md](07-ui-ux-qol.md) §[P1]. 3 dosya: SelectionSystem (grup ata/seç

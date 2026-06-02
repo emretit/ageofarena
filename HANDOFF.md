@@ -625,14 +625,59 @@ Hata varsa düzelt, temizse devam et. Özellikle kontrol edilmesi gerekenler:
 
 ---
 
+## Oturum 19 (2026-06-02) — Görsel Kalite 2: Kenney CC0 Asset Entegrasyonu + DamagePopup + Ses ✅
+
+Plan: `~/.claude/plans/devam-edelim-detayl-bir-replicated-nebula.md`.
+
+### Yapılanlar
+
+**Kenney CC0 kitleri:** Nature Kit (329 FBX, per-material renkli) + Castle Kit (76 FBX, colormap atlas)
+`Resources/Kenney/` altına eklendi. `KenneyModels.Spawn(path, parent, pos, scale, yaw)` null-safe loader yazıldı.
+
+**Nature Kit → Doğal kaynaklar:**
+- `ResourceFactory.Tree()` → `tree_default/tree_cone/tree_blocks` (scale 2.6-3.4, rasgele yaw)
+- `ResourceFactory.GoldMine/StoneMine()` → `rock_largeA-D` kümesi (2-3 taş, scale 1.4-2.2)
+- Fallback: model null ise eski Prims kodu çalışır
+
+**Castle Kit → Bina görselleri:**
+- `BuildingFactory.Castle()` → `tower-square-base + mid + roof` merkez kule + 4 köşe `tower-square`
+- `BuildingFactory.Wall()` → `wall-narrow` (fallback: prosedürel)
+- `BuildingFactory.Gate()` → `gate` (scale 2.8, 90° yaw; fallback: prosedürel)
+- Collider + NavMeshObstacle mantığı değişmedi
+
+**DamagePopup.cs (yeni):**
+- Melee vuruşta ve Projectile hit'inde hedef üstünde yüzen hasar sayısı
+- 0.75s float+fade, beyaz normal / altın kritik (cavalry charge)
+- Billboard: her frame Camera.main'e dönük
+
+**HitFlash (UnitEntity.cs):**
+- `TakeDamage` → `HitFlash()` coroutine: 0.08s beyaz `_EmissionColor` parlama
+
+**AudioManager.cs (yeni, singleton):**
+- `com.unity.modules.audio` paketi etkinleştirildi (Package Manager)
+- 10-slot `AudioSource` pool, `SoundId` enum (Sword/Arrow/BuildComplete/UnitTrained/UnitDie/ButtonClick/UnitSelect)
+- Ses dosyaları (Kenney CC0 .ogg): `Resources/Audio/` altında
+- Hook'lar: CombatSystem (sword/arrow), Projectile (arrow), UnitEntity.Die, TrainingQueue.SpawnUnit, BuildSystem (bina tamamlandı)
+
+**Değişen/yeni dosyalar:**
+`KenneyModels.cs` (yeni), `DamagePopup.cs` (yeni), `AudioManager.cs` (yeni),
+`ResourceFactory.cs`, `BuildingFactory.cs`, `CombatSystem.cs`, `UnitEntity.cs`,
+`Projectile.cs`, `TrainingQueue.cs`, `BuildSystem.cs`, `WorldRoot.cs`.
+
+**Commit'ler:** `5ab4627` (kitleri ekle), `37c4bda` (tüm kalite sistemleri), `8338f8f` (scale fix).
+
+**Doğrulama:** 0 error / 0 warning. Play'de sahne kuruldu (4 takım + ağaçlar + madenler + binalar).
+DamagePopup/HitFlash/Ses play-mode'da aktif.
+
+---
+
 ## Yeni Oturumda Başlangıç Promptu
 
 ```
 Age of Arena Unity portuna devam.
 Proje: /Users/emreaydin/ageofarena/AgeOfArenaUnity/
 Unity'yi BU prompttan ÖNCE aç (yoksa MCP tool'ları yüklenmiyor).
-HANDOFF.md oku. Runtime O13+O14'te MCP ile doğrulandı (oyun oynanır; canlı savaş/ekonomi/eleme zinciri).
-İLK İŞ: mcp__unity__get_console_logs (type:Error) → eşzamanlı oturumun CommandSystem.cs'e eklediği
-rally-point yarım kaldıysa (CS0103 UpdateRallyFlag) build kırıktır; o özelliği tamamla VEYA o oturumla
-koordine ol. Build yeşilse "İçerik & Derinlik" yol haritasından devam: Faz A — Garnizon.
+HANDOFF.md oku. Son oturum O19: Kenney doğa/kale asset entegrasyonu + DamagePopup +
+HitFlash + AudioManager (sword/arrow/build/die ses). 0 error, commit 8338f8f.
+Sıradaki: PROGRESS.md'deki önceliğe bak (SES tamamlandı, MONK+MON veya DIFF veya Blocky Char).
 ```
