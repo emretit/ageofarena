@@ -13,41 +13,78 @@ public static class ResourceFactory
     const int GoldAmount = 800;
     const int StoneAmount = 600;
 
+    static readonly string[] TreeModels = { "Nature/tree_default", "Nature/tree_cone", "Nature/tree_blocks" };
+    static readonly string[] RockModels = { "Nature/rock_largeA", "Nature/rock_largeB", "Nature/rock_largeC", "Nature/rock_largeD" };
+
     public static ResourceNode Tree(Transform parent, Vector3 worldPos)
     {
         var g = new GameObject("Tree");
         g.transform.SetParent(parent, false);
         g.transform.position = worldPos;
-        var t = g.transform;
 
-        var trunkMat = Prims.Mat(Prims.Hex(0x5c3418));
-        var leafMat  = Prims.Mat(Prims.Hex(0x2a6020)); // deeper forest green
+        float s   = Random.Range(0.85f, 1.25f);
+        float yaw = Random.Range(0f, 360f);
+        string model = TreeModels[Random.Range(0, TreeModels.Length)];
 
-        Prims.Cylinder(t, new Vector3(0, 0.7f, 0), 0.25f, 1.4f, trunkMat);
-        Prims.Cone(t, new Vector3(0, 1.5f, 0), 1.3f, 1.4f, 7, leafMat);
-        Prims.Cone(t, new Vector3(0, 2.3f, 0), 1.0f, 1.2f, 7, leafMat);
-        Prims.Cone(t, new Vector3(0, 3.0f, 0), 0.7f, 1.0f, 7, leafMat);
+        var mesh = KenneyModels.Spawn(model, g.transform, Vector3.zero, s, yaw);
+        if (mesh == null)
+        {
+            // Fallback: procedural cone-stack tree.
+            var t = g.transform;
+            var trunkMat = Prims.Mat(Prims.Hex(0x5c3418));
+            var leafMat  = Prims.Mat(Prims.Hex(0x2a6020));
+            Prims.Cylinder(t, new Vector3(0, 0.7f, 0), 0.25f, 1.4f, trunkMat);
+            Prims.Cone(t, new Vector3(0, 1.5f, 0), 1.3f, 1.4f, 7, leafMat);
+            Prims.Cone(t, new Vector3(0, 2.3f, 0), 1.0f, 1.2f, 7, leafMat);
+            Prims.Cone(t, new Vector3(0, 3.0f, 0), 0.7f, 1.0f, 7, leafMat);
+            g.transform.localScale = Vector3.one * s;
+            g.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+        }
 
-        // per-tree variation
-        float s = Random.Range(0.85f, 1.25f);
-        t.localScale = new Vector3(s, s, s);
-        t.localRotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
-
-        Prims.BlobShadow(t, 0.7f);
+        Prims.BlobShadow(g.transform, 0.7f * s);
         Prims.EnableShadows(g);
         return Finish(g, ResourceKind.Wood, TreeWood);
     }
 
     public static ResourceNode GoldMine(Transform parent, Vector3 worldPos)
     {
-        var g = OrePile(parent, worldPos, "GoldMine", Prims.Hex(0xf2c14e), Prims.Hex(0xb8860b), 0.6f);
+        var g = KenneyRockPile(parent, worldPos, "GoldMine");
+        if (g == null) g = OrePile(parent, worldPos, "GoldMine", Prims.Hex(0xf2c14e), Prims.Hex(0xb8860b), 0.6f);
         return Finish(g, ResourceKind.Gold, GoldAmount);
     }
 
     public static ResourceNode StoneMine(Transform parent, Vector3 worldPos)
     {
-        var g = OrePile(parent, worldPos, "StoneMine", Prims.Hex(0xb9b9b9), Prims.Hex(0x7d7d7d), 0.1f);
+        var g = KenneyRockPile(parent, worldPos, "StoneMine");
+        if (g == null) g = OrePile(parent, worldPos, "StoneMine", Prims.Hex(0xb9b9b9), Prims.Hex(0x7d7d7d), 0.1f);
         return Finish(g, ResourceKind.Stone, StoneAmount);
+    }
+
+    static GameObject KenneyRockPile(Transform parent, Vector3 worldPos, string name)
+    {
+        var first = KenneyModels.Spawn(RockModels[0], null, Vector3.zero);
+        if (first == null) return null;
+        Object.Destroy(first);
+
+        var g = new GameObject(name);
+        g.transform.SetParent(parent, false);
+        g.transform.position = worldPos;
+
+        int count = Random.Range(2, 4);
+        for (int i = 0; i < count; i++)
+        {
+            float a = (i / (float)count) * Mathf.PI * 2f + Random.Range(-0.4f, 0.4f);
+            float d = Random.Range(0.2f, 0.55f);
+            float s = Random.Range(0.55f, 0.9f);
+            string rock = RockModels[Random.Range(0, RockModels.Length)];
+            KenneyModels.Spawn(rock, g.transform,
+                new Vector3(Mathf.Cos(a) * d, 0f, Mathf.Sin(a) * d), s,
+                Random.Range(0f, 360f));
+        }
+
+        Prims.BlobShadow(g.transform, 0.8f);
+        Prims.EnableShadows(g);
+        return g;
     }
 
     /// <summary>

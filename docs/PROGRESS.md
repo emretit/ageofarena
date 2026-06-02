@@ -17,8 +17,9 @@
 
 ## ▶ Aktif adım: yok — sıradaki maddeyi seç
 
-`CTRL` (Control group 1-9) **tamamlandı** (O18). Çekirdek ergonomi bloğunun ilk maddesi;
-sıradaki ergonomi adayları `IDLE` (idle-worker) ve `MMP` (minimap pan).
+Çekirdek ergonomi bloğu **tamamlandı** (O18): `CTRL` (control group) + `IDLE` (idle-worker)
++ `MMP` (minimap pan/komut) + kamera mouse fix (edge-scroll pan + mouseScrollDelta zoom).
+Sıradaki aday: zafer döngüsü (`WON`/`RLW`/`SCR`) veya `DIFF` (AI zorluk) veya `STN` (stance).
 
 ### ✔️ `CTRL` — Control group (1-9) (P1) — tamam
 Spec: [07-ui-ux-qol.md](07-ui-ux-qol.md) §[P1]. 3 dosya: SelectionSystem (grup ata/seç
@@ -91,8 +92,8 @@ MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ✅ Commit edildi (`
 | DIFF | 06 | AI zorluk seviyeleri (Easy→Insane) | ⬜ | — | |
 | AIMS | 06 | AI Medic/Scout kullanımı | ⬜ | — | |
 | CTRL | 07 | Control group (1-9) | ✔️ | O18 | 0 err; FocusOn MCP doğrulandı; ata/seç input-bağlı manuel |
-| IDLE | 01/07 | Idle-worker butonu + döngü | ⬜ | — | |
-| MMP | 07 | Minimap click-to-pan + sağ-tık komut | ⬜ | — | |
+| IDLE | 01/07 | Idle-worker butonu + döngü | ✔️ | O18 | 0 err; count+cycle MCP doğrulandı; '.' hotkey + HUD pill |
+| MMP | 07 | Minimap click-to-pan + sağ-tık komut | ✔️ | O18 | 0 err; inverse+MoveSelectedTo MCP doğrulandı; tık input-bağlı manuel |
 | SES | 08 | Ses sistemi temeli (AudioManager) | ⬜ | — | yüksek etki/izole |
 | SFX | 08 | Birim/bina/UI SFX seti | ⬜ | — | SES'e bağlı |
 | WON | 09 | Wonder zaferi | ⬜ | — | |

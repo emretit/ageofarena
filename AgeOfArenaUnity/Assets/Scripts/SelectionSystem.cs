@@ -46,6 +46,7 @@ public class SelectionSystem : MonoBehaviour
         if (gm != null && gm.command != null && gm.command.AttackMovePending) return; // attack-move picking owns the mouse
 
         HandleControlGroups(gm);
+        if (Input.GetKeyDown(KeyCode.Period)) SelectNextIdleWorker();
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -199,6 +200,44 @@ public class SelectionSystem : MonoBehaviour
         if (_lastGroupKey == n && t - _lastGroupTime <= DoubleTapWindow) FocusCameraOnSelection();
         _lastGroupKey = n;
         _lastGroupTime = t;
+    }
+
+    // ── Idle workers ───────────────────────────────────────────────────────────
+    int _idleCycle;
+
+    static bool IsIdleWorker(UnitEntity u)
+        => u != null && u.teamId == 0 && u.type == UnitType.Villager
+           && !u.isGarrisoned && u.state == UnitState.Idle;
+
+    /// <summary>Count of the player's idle villagers (drives the HUD indicator).</summary>
+    public int IdleVillagerCount()
+    {
+        var units = GameManager.Instance != null ? GameManager.Instance.units : null;
+        if (units == null) return 0;
+        int c = 0;
+        for (int i = 0; i < units.Count; i++) if (IsIdleWorker(units[i])) c++;
+        return c;
+    }
+
+    /// <summary>Select the next idle villager in a stable cycle and centre the camera
+    /// on it. No-op when none are idle.</summary>
+    public void SelectNextIdleWorker()
+    {
+        var units = GameManager.Instance != null ? GameManager.Instance.units : null;
+        if (units == null) return;
+        var idle = new List<UnitEntity>();
+        for (int i = 0; i < units.Count; i++) if (IsIdleWorker(units[i])) idle.Add(units[i]);
+        if (idle.Count == 0) return;
+
+        if (_idleCycle >= idle.Count) _idleCycle = 0;
+        var pick = idle[_idleCycle];
+        _idleCycle = (_idleCycle + 1) % idle.Count;
+
+        ClearSelection();
+        if (GameManager.Instance != null) GameManager.Instance.selectedBuilding = null;
+        Select(pick);
+        var rig = _cam != null ? _cam.GetComponent<IsometricCameraRig>() : null;
+        if (rig != null) rig.FocusOn(pick.transform.position);
     }
 
     void FocusCameraOnSelection()

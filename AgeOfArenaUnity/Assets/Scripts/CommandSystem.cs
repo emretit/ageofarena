@@ -287,6 +287,19 @@ public class CommandSystem : MonoBehaviour
         AttackMovePending = false;
     }
 
+    /// <summary>Public move order for the current selection to a world point. Used by
+    /// the minimap right-click; clears any running attack-move and drops a marker.</summary>
+    public void MoveSelectedTo(Vector3 point)
+    {
+        var gm = GameManager.Instance;
+        var selected = gm != null && gm.selection != null ? gm.selection.Selected : null;
+        if (selected == null || selected.Count == 0) return;
+        for (int i = 0; i < selected.Count; i++)
+            if (selected[i] != null) selected[i].attackMove = false;
+        MoveOrder(selected, point);
+        SpawnMarker(point, MoveColor);
+    }
+
     void MoveOrder(List<UnitEntity> selected, Vector3 point)
     {
         int n = selected.Count;

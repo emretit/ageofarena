@@ -77,6 +77,56 @@ public class MinimapSystem : MonoBehaviour
         irt.offsetMin = new Vector2(4, 4); irt.offsetMax = new Vector2(-4, -4);
         var img = imgGo.AddComponent<RawImage>();
         img.texture = _rt;
+
+        // A GraphicRaycaster makes clicks over the minimap register as "over UI",
+        // so SelectionSystem/CommandSystem bail out and we own the click here.
+        canvasGo.AddComponent<GraphicRaycaster>();
+    }
+
+    void Update()
+    {
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+        bool left  = Input.GetMouseButtonDown(0);
+        bool right = Input.GetMouseButtonDown(1);
+        if (!left && !right) return;
+
+        if (!TryMinimapPointToWorld(Input.mousePosition, out Vector3 world)) return;
+
+        if (left)
+        {
+            if (gm.cameraRig != null) gm.cameraRig.FocusOn(world);
+        }
+        else if (gm.command != null && gm.selection != null && gm.selection.Selected.Count > 0)
+        {
+            gm.command.MoveSelectedTo(world);
+        }
+    }
+
+    /// <summary>The minimap image rect in bottom-left (Input.mousePosition) space.</summary>
+    Rect ImageRectBottomLeft()
+    {
+        float scale  = Mathf.Min(Screen.width / 1920f, Screen.height / 1080f);
+        float px     = PanelPx * scale;
+        float margin = 16f * scale;
+        float pad    = 4f * scale;
+        float left   = Screen.width - margin - pad - px;
+        float bottom = margin + pad;
+        return new Rect(left, bottom, px, px);
+    }
+
+    /// <summary>Convert a screen-space click (bottom-left origin) inside the minimap
+    /// into a world XZ position. Inverse of <see cref="WorldToMinimap"/>.</summary>
+    bool TryMinimapPointToWorld(Vector2 screenPos, out Vector3 world)
+    {
+        world = default;
+        Rect r = ImageRectBottomLeft();
+        if (!r.Contains(screenPos)) return false;
+        float lx = (screenPos.x - r.x) / r.width;
+        float ly = (screenPos.y - r.y) / r.height;
+        float half = MapSize * 0.5f;
+        world = new Vector3(lx * MapSize - half, 0f, ly * MapSize - half);
+        return true;
     }
 
     void OnGUI()

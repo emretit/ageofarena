@@ -21,6 +21,7 @@ public class HUD : MonoBehaviour
 
     // Top bar
     Text _foodText, _woodText, _goldText, _stoneText, _popText, _ageText, _relicText;
+    Button _idleButton; Text _idleText;
 
     // ── Command bar ──────────────────────────────────────────────────────────
     RectTransform _cmdBar;
@@ -206,6 +207,35 @@ public class HUD : MonoBehaviour
         _ageText.fontStyle = FontStyle.Bold;
         _ageText.color = Prims.Hex(0xf2d59b);
         AddOutline(_ageText, 0.6f);
+
+        BuildIdleIndicator(bar);
+    }
+
+    /// <summary>Clickable "idle villager" pill, left of the age label. Hidden when none
+    /// are idle; click (or the '.' hotkey) cycles to the next idle villager.</summary>
+    void BuildIdleIndicator(RectTransform bar)
+    {
+        var rect = NewRect("IdleWorker", bar);
+        rect.anchorMin = rect.anchorMax = new Vector2(1, 0.5f);
+        rect.pivot = new Vector2(1, 0.5f);
+        rect.sizeDelta = new Vector2(170, 32);
+        rect.anchoredPosition = new Vector2(-300, 0);
+        var img = rect.gameObject.AddComponent<Image>();
+        img.color = new Color(0.16f, 0.40f, 0.18f, 0.92f);
+
+        _idleButton = rect.gameObject.AddComponent<Button>();
+        _idleButton.targetGraphic = img;
+        _idleButton.onClick.AddListener(() =>
+        {
+            var gm = GameManager.Instance;
+            if (gm != null && gm.selection != null) gm.selection.SelectNextIdleWorker();
+        });
+
+        _idleText = AddText(rect, "", TextAnchor.MiddleCenter);
+        _idleText.fontSize = 16;
+        _idleText.fontStyle = FontStyle.Bold;
+        AddOutline(_idleText, 0.6f);
+        rect.gameObject.SetActive(false);
     }
 
     void BuildCommandBar(Transform parent)
@@ -502,6 +532,15 @@ public class HUD : MonoBehaviour
             int mine  = total > 0 && gm.relicSystem != null ? gm.relicSystem.CountControlled(0) : 0;
             string rs = mine + "/" + total;
             if (_relicText.text != rs) _relicText.text = rs;
+        }
+
+        // Idle-villager pill: visible only when the player has idle workers.
+        if (_idleButton != null && gm.selection != null)
+        {
+            int idle = gm.selection.IdleVillagerCount();
+            if (_idleButton.gameObject.activeSelf != (idle > 0))
+                _idleButton.gameObject.SetActive(idle > 0);
+            if (idle > 0 && _idleText != null) _idleText.text = "Boşta köylü: " + idle + " (.)";
         }
 
         var b = gm.selectedBuilding;
