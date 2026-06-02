@@ -22,6 +22,7 @@ public class HUD : MonoBehaviour
     // Top bar
     Text _foodText, _woodText, _goldText, _stoneText, _popText, _ageText, _relicText;
     Button _idleButton; Text _idleText;
+    Text _victoryText; RectTransform _victoryRect;
 
     // ── Command bar ──────────────────────────────────────────────────────────
     RectTransform _cmdBar;
@@ -209,6 +210,26 @@ public class HUD : MonoBehaviour
         AddOutline(_ageText, 0.6f);
 
         BuildIdleIndicator(bar);
+        BuildVictoryBanner(parent);
+    }
+
+    /// <summary>Top-centre banner that shows the active victory countdown
+    /// (Wonder/relic). Hidden when no countdown is running.</summary>
+    void BuildVictoryBanner(Transform parent)
+    {
+        _victoryRect = NewRect("VictoryBanner", parent);
+        _victoryRect.anchorMin = new Vector2(0.5f, 1f);
+        _victoryRect.anchorMax = new Vector2(0.5f, 1f);
+        _victoryRect.pivot = new Vector2(0.5f, 1f);
+        _victoryRect.sizeDelta = new Vector2(520, 34);
+        _victoryRect.anchoredPosition = new Vector2(0, -64);
+        _victoryRect.gameObject.AddComponent<Image>().color = new Color(0.5f, 0.12f, 0.12f, 0.85f);
+        _victoryText = AddText(_victoryRect, "", TextAnchor.MiddleCenter);
+        _victoryText.fontSize = 18;
+        _victoryText.fontStyle = FontStyle.Bold;
+        _victoryText.color = Prims.Hex(0xffe08a);
+        AddOutline(_victoryText, 0.6f);
+        _victoryRect.gameObject.SetActive(false);
     }
 
     /// <summary>Clickable "idle villager" pill, left of the age label. Hidden when none
@@ -541,6 +562,15 @@ public class HUD : MonoBehaviour
             if (_idleButton.gameObject.activeSelf != (idle > 0))
                 _idleButton.gameObject.SetActive(idle > 0);
             if (idle > 0 && _idleText != null) _idleText.text = "Boşta köylü: " + idle + " (.)";
+        }
+
+        // Victory countdown banner: visible only while a Wonder/relic count is running.
+        if (_victoryRect != null)
+        {
+            string vs = gm.match != null ? gm.match.VictoryStatus : "";
+            bool showVictory = !string.IsNullOrEmpty(vs);
+            if (_victoryRect.gameObject.activeSelf != showVictory) _victoryRect.gameObject.SetActive(showVictory);
+            if (showVictory && _victoryText != null) _victoryText.text = vs;
         }
 
         var b = gm.selectedBuilding;
@@ -958,7 +988,7 @@ public class HUD : MonoBehaviour
     }
 
     /// <summary>Full-screen victory/defeat overlay shown by <see cref="MatchSystem"/>.</summary>
-    public void ShowGameOver(bool playerWon)
+    public void ShowGameOver(bool playerWon, string subtitle = "")
     {
         if (_gameOverShown || _canvasRoot == null) return;
         _gameOverShown = true;
@@ -978,11 +1008,23 @@ public class HUD : MonoBehaviour
         title.fontStyle = FontStyle.Bold;
         title.color = playerWon ? Prims.Hex(0x4caf50) : Prims.Hex(0xff5555);
 
+        if (!string.IsNullOrEmpty(subtitle))
+        {
+            var subRect = NewRect("GameOverSub", overlay);
+            subRect.anchorMin = new Vector2(0, 0.5f); subRect.anchorMax = new Vector2(1, 0.5f);
+            subRect.pivot = new Vector2(0.5f, 0.5f);
+            subRect.sizeDelta = new Vector2(0, 40);
+            subRect.anchoredPosition = new Vector2(0, -50);
+            var sub = AddText(subRect, subtitle, TextAnchor.MiddleCenter);
+            sub.fontSize = 26;
+            sub.color = Prims.Hex(0xf2d59b);
+        }
+
         var hintRect = NewRect("GameOverHint", overlay);
         hintRect.anchorMin = new Vector2(0, 0.5f); hintRect.anchorMax = new Vector2(1, 0.5f);
         hintRect.pivot = new Vector2(0.5f, 0.5f);
         hintRect.sizeDelta = new Vector2(0, 40);
-        hintRect.anchoredPosition = new Vector2(0, -60);
+        hintRect.anchoredPosition = new Vector2(0, -100);
         var hint = AddText(hintRect, "Yeniden baslatmak icin R", TextAnchor.MiddleCenter);
         hint.fontSize = 28;
         hint.color = new Color(0.85f, 0.85f, 0.85f, 1f);

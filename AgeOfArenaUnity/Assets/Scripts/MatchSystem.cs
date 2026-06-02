@@ -1,17 +1,32 @@
 using UnityEngine;
 
 /// <summary>
-/// Win/lose arbiter. A team is eliminated when its Town Center is destroyed.
-/// The player (team 0) loses if their TC falls; they win once no enemy team
-/// (1-3) has a Town Center left. On game over the simulation is frozen
-/// (<see cref="Time.timeScale"/> = 0) and <see cref="HUD.ShowGameOver"/> is shown;
-/// pressing R rebuilds the arena via <see cref="GameBootstrap.Restart"/>.
+/// Win/lose arbiter with three victory paths:
+///  • Conquest — a team is eliminated when its Town Center is destroyed; the player
+///    (team 0) loses if theirs falls and wins once no enemy (1-3) has a TC left.
+///  • Wonder — a team that finishes a <see cref="BuildingType.Wonder"/> and keeps it
+///    standing for <see cref="WonderHoldTime"/> wins; destroying it cancels the count.
+///  • Relics — a team that controls every relic on the map for <see cref="RelicHoldTime"/>
+///    wins; losing any relic resets the count.
+/// On game over the simulation freezes (<see cref="Time.timeScale"/> = 0) and
+/// <see cref="HUD.ShowGameOver"/> shows the result + score; pressing R restarts.
 /// </summary>
 public class MatchSystem : MonoBehaviour
 {
-    const float CheckInterval = 1f;
+    const float CheckInterval  = 1f;
+    const float WonderHoldTime = 60f; // seconds a finished Wonder must survive
+    const float RelicHoldTime  = 60f; // seconds a team must hold all relics
+
+    static readonly string[] TeamNames = { "Mavi (Sen)", "Kırmızı", "Yeşil", "Sarı" };
+
     float _timer = CheckInterval;
-    bool _over;
+    bool  _over;
+
+    readonly float[] _wonderTimer = new float[4];
+    readonly float[] _relicTimer  = new float[4];
+
+    /// <summary>Active victory-countdown line for the HUD top bar ("" = none).</summary>
+    public string VictoryStatus { get; private set; } = "";
 
     void Update()
     {
@@ -32,26 +47,88 @@ public class MatchSystem : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null) return;
 
-        var alive = new bool[4];
+        // ── Town Centers + Wonders alive per team ────────────────────────────────
+        var tcAlive    = new bool[4];
+        var hasWonder  = new bool[4];
         var bs = gm.buildings;
         for (int i = 0; i < bs.Count; i++)
         {
             var b = bs[i];
-            if (b == null || b.type != BuildingType.TownCenter || b.hp <= 0f) continue;
-            if (b.teamId >= 0 && b.teamId < 4) alive[b.teamId] = true;
+            if (b == null || b.hp <= 0f || b.teamId < 0 || b.teamId >= 4) continue;
+            if (b.type == BuildingType.TownCenter) tcAlive[b.teamId] = true;
+            else if (b.type == BuildingType.Wonder && !b.underConstruction) hasWonder[b.teamId] = true;
         }
 
-        bool playerAlive = alive[0];
-        bool anyEnemy = alive[1] || alive[2] || alive[3];
+        // ── Relic control per team (all relics held → countdown) ─────────────────
+        int totalRelics = gm.relics != null ? gm.relics.Count : 0;
 
-        if (!playerAlive)   End(false);
-        else if (!anyEnemy) End(true);
+        VictoryStatus = "";
+        for (int t = 0; t < 4; t++)
+        {
+            // Wonder countdown.
+            if (hasWonder[t]) _wonderTimer[t] += CheckInterval; else _wonderTimer[t] = 0f;
+            if (_wonderTimer[t] >= WonderHoldTime) { End(t == 0, "Anıt zaferi", gm); return; }
+
+            // Relic countdown — must hold every relic on the map.
+            bool holdsAllRelics = totalRelics > 0 && gm.relicSystem != null
+                                  && gm.relicSystem.CountControlled(t) == totalRelics;
+            if (holdsAllRelics) _relicTimer[t] += CheckInterval; else _relicTimer[t] = 0f;
+            if (_relicTimer[t] >= RelicHoldTime) { End(t == 0, "Kalıntı zaferi", gm); return; }
+
+            // Surface the most advanced countdown for this team to the HUD.
+            float w = _wonderTimer[t], r = _relicTimer[t];
+            if (w > 0f) SetStatus(t, "Anıt", WonderHoldTime - w);
+            else if (r > 0f) SetStatus(t, "Kalıntı", RelicHoldTime - r);
+        }
+
+        // ── Conquest ─────────────────────────────────────────────────────────────
+        bool playerAlive = tcAlive[0];
+        bool anyEnemy    = tcAlive[1] || tcAlive[2] || tcAlive[3];
+        if (!playerAlive)   End(false, "Fetih (TC yıkıldı)", gm);
+        else if (!anyEnemy) End(true,  "Fetih", gm);
     }
 
-    void End(bool playerWon)
+    /// <summary>Keep the single most-imminent countdown visible in the top bar.</summary>
+    void SetStatus(int team, string kind, float remaining)
+    {
+        string line = $"{kind} zaferi — {TeamNames[team]}: {Mathf.CeilToInt(remaining)}s";
+        // Prefer whichever countdown has less time left (more urgent).
+        if (VictoryStatus.Length == 0) { VictoryStatus = line; return; }
+    }
+
+    void End(bool playerWon, string reason, GameManager gm)
     {
         _over = true;
+        VictoryStatus = "";
         Time.timeScale = 0f;
-        GameManager.Instance?.hud?.ShowGameOver(playerWon);
+        int score = Score(gm, 0);
+        string subtitle = $"{reason} · Skorun: {score}";
+        gm.hud?.ShowGameOver(playerWon, subtitle);
+    }
+
+    /// <summary>Composite end-of-game score for a team: army, buildings, economy,
+    /// relics and age all contribute.</summary>
+    static int Score(GameManager gm, int team)
+    {
+        if (gm == null) return 0;
+        int units = 0, military = 0, blds = 0;
+        for (int i = 0; i < gm.units.Count; i++)
+        {
+            var u = gm.units[i];
+            if (u == null || u.teamId != team) continue;
+            units++;
+            if (u.type != UnitType.Villager) military++;
+        }
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b != null && b.teamId == team && b.hp > 0f) blds++;
+        }
+        var res = gm.teamRes != null && team < gm.teamRes.Length ? gm.teamRes[team] : null;
+        int resTotal = res != null ? res.food + res.wood + res.gold + res.stone : 0;
+        int relics = gm.relicSystem != null ? gm.relicSystem.CountControlled(team) : 0;
+        int age = gm.teamTech != null && team < gm.teamTech.Length ? (int)gm.teamTech[team].age : 0;
+
+        return units * 10 + military * 15 + blds * 25 + resTotal / 10 + relics * 100 + age * 75;
     }
 }

@@ -17,9 +17,12 @@
 
 ## ▶ Aktif adım: yok — sıradaki maddeyi seç
 
-Çekirdek ergonomi bloğu **tamamlandı** (O18): `CTRL` (control group) + `IDLE` (idle-worker)
-+ `MMP` (minimap pan/komut) + kamera mouse fix (edge-scroll pan + mouseScrollDelta zoom).
-Sıradaki aday: zafer döngüsü (`WON`/`RLW`/`SCR`) veya `DIFF` (AI zorluk) veya `STN` (stance).
+Çekirdek ergonomi bloğu **+ zafer döngüsü tamamlandı** (O18):
+- Ergonomi: `CTRL` (control group) + `IDLE` (idle-worker) + `MMP` (minimap pan/komut) + kamera mouse fix
+- Zafer döngüsü: `WON` (Wonder, Imperial-gated bina + 60s countdown) + `RLW` (relic-win, tüm relic 60s)
+  + `SCR` (composite skor sonuç ekranında). Artık 3 zafer yolu: fetih, anıt, kalıntı.
+
+Sıradaki aday: `DIFF` (AI zorluk seviyeleri) veya `STN` (attack stance) veya `TOW` (savunma kulesi).
 
 ### ✔️ `CTRL` — Control group (1-9) (P1) — tamam
 Spec: [07-ui-ux-qol.md](07-ui-ux-qol.md) §[P1]. 3 dosya: SelectionSystem (grup ata/seç
@@ -96,9 +99,9 @@ MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ✅ Commit edildi (`
 | MMP | 07 | Minimap click-to-pan + sağ-tık komut | ✔️ | O18 | 0 err; inverse+MoveSelectedTo MCP doğrulandı; tık input-bağlı manuel |
 | SES | 08 | Ses sistemi temeli (AudioManager) | ⬜ | — | yüksek etki/izole |
 | SFX | 08 | Birim/bina/UI SFX seti | ⬜ | — | SES'e bağlı |
-| WON | 09 | Wonder zaferi | ⬜ | — | |
-| SCR | 09 | Score sistemi | ⬜ | — | |
-| RLW | 09 | Relic-sayısı zaferi | ⬜ | — | |
+| WON | 09 | Wonder zaferi | ✔️ | O18 | 0 err; Imperial-gated bina + 60s countdown; MCP wiring doğrulandı |
+| SCR | 09 | Score sistemi | ✔️ | O18 | 0 err; composite skor (ordu+bina+ekonomi+relic+çağ) sonuç ekranında |
+| RLW | 09 | Relic-sayısı zaferi | ✔️ | O18 | 0 err; tüm relic'leri 60s tut → zafer; countdown banner |
 | TRD | 01 | Trade Cart + ticaret rotası | ⬜ | — | Market rolüne bağlı |
 | SAVE | 12 | Save / Load | ⬜ | — | |
 | MAP | 12 | Prosedürel harita üretimi | ⬜ | — | |

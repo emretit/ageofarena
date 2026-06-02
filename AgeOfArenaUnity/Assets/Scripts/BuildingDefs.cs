@@ -79,6 +79,10 @@ public static class BuildingDefs
         // Wall blocks pathfinding (carving NavMeshObstacle); Gate is a passable opening.
         new(BuildingType.Wall,          0,   10,  0,  0,   4f,  0,  200f, "Wall",          'W', true,  meleeArm: 10f, pierceArm: 10f),
         new(BuildingType.Gate,          0,   30,  0,  0,   8f,  0,  450f, "Gate",          'O', true),
+        // Wonder: an Imperial-age victory building — very expensive, slow to raise, and
+        // tough. Once finished it starts a victory countdown (MatchSystem); destroying it
+        // cancels the count. A third win condition alongside conquest and relics.
+        new(BuildingType.Wonder,        0,  500,800,600, 150f,  0, 3000f, "Anıt (Wonder)", 'Y', true,  minAge: Age.Imperial, meleeArm: 5f, pierceArm: 8f),
     };
 
     public static BuildingDef Get(BuildingType t)

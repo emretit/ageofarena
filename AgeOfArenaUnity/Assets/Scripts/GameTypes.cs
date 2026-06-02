@@ -11,7 +11,7 @@ public enum UnitType { Villager, Militia, Archer, Cavalry, Trebuchet, Scout, Med
 /// <summary>Damage class for the armor counter matrix. Siege bypasses both armor types.</summary>
 public enum DamageType { Melee, Pierce, Siege }
 
-public enum BuildingType { TownCenter, House, Barracks, ArcheryRange, Stable, Farm, LumberCamp, MiningCamp, Mill, Market, Castle, Wall, Gate }
+public enum BuildingType { TownCenter, House, Barracks, ArcheryRange, Stable, Farm, LumberCamp, MiningCamp, Mill, Market, Castle, Wall, Gate, Wonder }
 
 /// <summary>Tech progression tier. Higher ages gate buildings/units/techs.</summary>
 public enum Age { Dark, Feudal, Castle, Imperial }

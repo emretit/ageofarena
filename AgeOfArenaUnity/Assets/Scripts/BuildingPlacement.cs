@@ -142,6 +142,7 @@ public class BuildingPlacement : MonoBehaviour
         // Castle needs a bigger clearance; Wall/Gate use a small box so segments can
         // sit next to each other in a line; everything else uses the default footprint.
         Vector3 half =
+            _type == BuildingType.Wonder             ? new Vector3(2.8f, 1.0f, 2.8f) :
             _type == BuildingType.Castle             ? new Vector3(2.4f, 1.0f, 2.4f) :
             _type is BuildingType.Wall or BuildingType.Gate ? new Vector3(0.7f, 1.0f, 0.7f) :
             CheckHalf;
