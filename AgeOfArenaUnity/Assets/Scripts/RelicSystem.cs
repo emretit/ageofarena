@@ -14,8 +14,6 @@ public class RelicSystem : MonoBehaviour
     const float CaptureRange   = 3.5f;
     const float CaptureRangeSq = CaptureRange * CaptureRange;
 
-    GUIStyle _style;
-
     public void Tick(List<UnitEntity> units, List<RelicEntity> relics, float dt)
     {
         if (relics.Count == 0) return;
@@ -51,22 +49,5 @@ public class RelicSystem : MonoBehaviour
         for (int i = 0; i < gm.relics.Count; i++)
             if (gm.relics[i] != null && gm.relics[i].controllingTeam == teamId) n++;
         return n;
-    }
-
-    void OnGUI()
-    {
-        var gm = GameManager.Instance;
-        if (gm == null || gm.relics.Count == 0) return;
-
-        _style ??= new GUIStyle(GUI.skin.label)
-        {
-            fontSize = 15,
-            fontStyle = FontStyle.Bold,
-            alignment = TextAnchor.MiddleLeft,
-        };
-        _style.normal.textColor = new Color(1f, 0.82f, 0.2f);
-
-        int mine = CountControlled(0);
-        GUI.Label(new Rect(16, 44, 260, 22), $"Relikler: {mine}/{gm.relics.Count}  (+altın)", _style);
     }
 }

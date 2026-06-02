@@ -20,7 +20,7 @@ public class HUD : MonoBehaviour
     bool _gameOverShown;
 
     // Top bar
-    Text _foodText, _woodText, _goldText, _stoneText, _popText, _ageText;
+    Text _foodText, _woodText, _goldText, _stoneText, _popText, _ageText, _relicText;
 
     // ── Command bar ──────────────────────────────────────────────────────────
     RectTransform _cmdBar;
@@ -30,7 +30,7 @@ public class HUD : MonoBehaviour
     RectTransform _hpBarBg, _hpBarFill;
     Image _hpBarFillImg;
     // Right command card
-    RectTransform _cardRoot, _progressFill;
+    RectTransform _cardRoot, _gridRoot, _progressFill;
     Image _progressFillImg;
     Text _queueText;
 
@@ -53,9 +53,10 @@ public class HUD : MonoBehaviour
     int _lastQueueCount = -1;
 
     const int   Cols   = 5;
-    const float BtnW   = 62f, BtnH = 62f, Gap = 6f;
-    const float BarH   = 190f;
-    const float LeftW  = 260f;
+    const int   Rows   = 3;            // fixed AoE-style slot grid (Cols×Rows)
+    const float BtnW   = 60f, BtnH = 60f, Gap = 6f;
+    const float BarH   = 210f;
+    const float LeftW  = 240f;
 
     // Command-button category colors.
     static readonly Color TrainCol  = Prims.Hex(0x3a6ea5);
@@ -142,6 +143,10 @@ public class HUD : MonoBehaviour
         var scaler = canvasGo.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        // Balance width/height matching so the bar keeps its proportions across
+        // ultrawide and 4:3 alike (match=0 would only track width).
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        scaler.matchWidthOrHeight = 0.5f;
 
         // uGUI buttons need a raycaster on the canvas + a scene EventSystem.
         canvasGo.AddComponent<GraphicRaycaster>();
@@ -170,7 +175,7 @@ public class HUD : MonoBehaviour
         bar.pivot     = new Vector2(0.5f, 1);
         bar.sizeDelta = new Vector2(0, 56);
         bar.anchoredPosition = Vector2.zero;
-        bar.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.45f);
+        bar.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.55f);
 
         float x = 24f;
         _foodText  = AddEntry(bar, ref x, Prims.Hex(0xd64545), "Food");
@@ -178,6 +183,8 @@ public class HUD : MonoBehaviour
         _goldText  = AddEntry(bar, ref x, Prims.Hex(0xf2c14e), "Gold");
         _stoneText = AddEntry(bar, ref x, Prims.Hex(0xb9b9b9), "Stone");
         _popText   = AddEntry(bar, ref x, Prims.Hex(0x6fa8dc), "Pop");
+        _relicText = AddEntry(bar, ref x, Prims.Hex(0xe0b84b), "Relic");
+        _relicText.color = Prims.Hex(0xf2d59b);
 
         var ageRect = NewRect("AgeText", bar);
         ageRect.anchorMin = new Vector2(1, 0.5f); ageRect.anchorMax = new Vector2(1, 0.5f);
@@ -188,6 +195,7 @@ public class HUD : MonoBehaviour
         _ageText.fontSize = 20;
         _ageText.fontStyle = FontStyle.Bold;
         _ageText.color = Prims.Hex(0xf2d59b);
+        AddOutline(_ageText, 0.6f);
     }
 
     void BuildCommandBar(Transform parent)
@@ -198,7 +206,15 @@ public class HUD : MonoBehaviour
         _cmdBar.pivot     = new Vector2(0.5f, 0);
         _cmdBar.sizeDelta = new Vector2(0, BarH);
         _cmdBar.anchoredPosition = Vector2.zero;
-        _cmdBar.gameObject.AddComponent<Image>().color = new Color(0.04f, 0.05f, 0.06f, 0.82f);
+        _cmdBar.gameObject.AddComponent<Image>().color = new Color(0.05f, 0.06f, 0.08f, 0.9f);
+
+        // Thin gold accent along the top edge gives the bar a crisp boundary.
+        var topLine = NewRect("BarTopAccent", _cmdBar);
+        topLine.anchorMin = new Vector2(0, 1); topLine.anchorMax = new Vector2(1, 1);
+        topLine.pivot = new Vector2(0.5f, 1);
+        topLine.sizeDelta = new Vector2(0, 2);
+        topLine.anchoredPosition = Vector2.zero;
+        topLine.gameObject.AddComponent<Image>().color = new Color(0.78f, 0.64f, 0.28f, 0.9f);
 
         // ── Left info panel ──
         var left = NewRect("InfoPanel", _cmdBar);
@@ -207,6 +223,14 @@ public class HUD : MonoBehaviour
         left.sizeDelta = new Vector2(LeftW, 0);
         left.anchoredPosition = Vector2.zero;
         left.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.35f);
+
+        // Vertical divider between the info panel and the command grid.
+        var sep = NewRect("InfoSep", _cmdBar);
+        sep.anchorMin = new Vector2(0, 0); sep.anchorMax = new Vector2(0, 1);
+        sep.pivot = new Vector2(0.5f, 0.5f);
+        sep.sizeDelta = new Vector2(2, -20);
+        sep.anchoredPosition = new Vector2(LeftW, 0);
+        sep.gameObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.08f);
 
         var nameRect = NewRect("InfoName", left);
         nameRect.anchorMin = new Vector2(0, 1); nameRect.anchorMax = new Vector2(1, 1);
@@ -243,19 +267,13 @@ public class HUD : MonoBehaviour
         _hpText = AddText(_hpBarBg, "", TextAnchor.MiddleCenter);
         _hpText.fontSize = 12; _hpText.fontStyle = FontStyle.Bold;
 
-        // ── Right command card ──
-        _cardRoot = NewRect("CommandCard", _cmdBar);
-        _cardRoot.anchorMin = new Vector2(0, 0); _cardRoot.anchorMax = new Vector2(1, 1);
-        _cardRoot.pivot = new Vector2(0.5f, 0.5f);
-        _cardRoot.offsetMin = new Vector2(LeftW + 12f, 8f);
-        _cardRoot.offsetMax = new Vector2(-16f, -8f);
-
-        // Progress bar pinned to the bottom of the card.
-        var progBg = NewRect("ProgressBg", _cardRoot);
-        progBg.anchorMin = new Vector2(0, 0); progBg.anchorMax = new Vector2(1, 0);
-        progBg.pivot = new Vector2(0.5f, 0);
-        progBg.sizeDelta = new Vector2(0, 14);
-        progBg.anchoredPosition = new Vector2(0, 0);
+        // Training / research progress lives in the info panel (below the HP bar)
+        // so the command card can be a clean, fixed slot grid.
+        var progBg = NewRect("ProgressBg", left);
+        progBg.anchorMin = new Vector2(0, 1); progBg.anchorMax = new Vector2(1, 1);
+        progBg.pivot = new Vector2(0.5f, 1);
+        progBg.sizeDelta = new Vector2(-20, 12);
+        progBg.anchoredPosition = new Vector2(0, -100);
         progBg.gameObject.AddComponent<Image>().color = new Color(0.15f, 0.15f, 0.15f, 1f);
 
         _progressFill = NewRect("ProgressFill", progBg);
@@ -266,13 +284,41 @@ public class HUD : MonoBehaviour
         _progressFillImg = _progressFill.gameObject.AddComponent<Image>();
         _progressFillImg.color = Prims.Hex(0x4caf50);
 
-        var queueRect = NewRect("QueueText", _cardRoot);
-        queueRect.anchorMin = new Vector2(0, 0); queueRect.anchorMax = new Vector2(1, 0);
-        queueRect.pivot = new Vector2(0.5f, 0);
-        queueRect.sizeDelta = new Vector2(0, 18);
-        queueRect.anchoredPosition = new Vector2(0, 18);
+        var queueRect = NewRect("QueueText", left);
+        queueRect.anchorMin = new Vector2(0, 1); queueRect.anchorMax = new Vector2(1, 1);
+        queueRect.pivot = new Vector2(0.5f, 1);
+        queueRect.sizeDelta = new Vector2(-20, 18);
+        queueRect.anchoredPosition = new Vector2(0, -116);
         _queueText = AddText(queueRect, "", TextAnchor.MiddleLeft);
         _queueText.fontSize = 13; _queueText.color = new Color(0.7f, 0.9f, 1f, 1f);
+
+        // ── Right command card: a fixed Cols×Rows slot grid (AoE-style). The grid
+        // is vertically centred; empty slots show a dark frame, commands fill the
+        // first N slots so the panel always reads as deliberate. ──
+        _cardRoot = NewRect("CommandCard", _cmdBar);
+        _cardRoot.anchorMin = new Vector2(0, 0); _cardRoot.anchorMax = new Vector2(1, 1);
+        _cardRoot.pivot = new Vector2(0.5f, 0.5f);
+        _cardRoot.offsetMin = new Vector2(LeftW + 14f, 8f);
+        _cardRoot.offsetMax = new Vector2(-16f, -8f);
+
+        float gridW = Cols * BtnW + (Cols - 1) * Gap;
+        float gridH = Rows * BtnH + (Rows - 1) * Gap;
+        _gridRoot = NewRect("Grid", _cardRoot);
+        _gridRoot.anchorMin = new Vector2(0, 0.5f); _gridRoot.anchorMax = new Vector2(0, 0.5f);
+        _gridRoot.pivot = new Vector2(0, 0.5f);
+        _gridRoot.sizeDelta = new Vector2(gridW, gridH);
+        _gridRoot.anchoredPosition = Vector2.zero;
+
+        for (int i = 0; i < Cols * Rows; i++)
+        {
+            int col = i % Cols, row = i / Cols;
+            var slot = NewRect("Slot" + i, _gridRoot);
+            slot.anchorMin = slot.anchorMax = new Vector2(0, 1);
+            slot.pivot = new Vector2(0, 1);
+            slot.sizeDelta = new Vector2(BtnW, BtnH);
+            slot.anchoredPosition = new Vector2(col * (BtnW + Gap), -row * (BtnH + Gap));
+            slot.gameObject.AddComponent<Image>().color = new Color(0.11f, 0.12f, 0.14f, 0.65f);
+        }
 
         _cmdBar.gameObject.SetActive(false);
     }
@@ -285,7 +331,7 @@ public class HUD : MonoBehaviour
         int col = index % Cols;
         int row = index / Cols;
 
-        var rt = NewRect("Btn_" + title, _cardRoot);
+        var rt = NewRect("Btn_" + title, _gridRoot);
         rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
         rt.pivot = new Vector2(0, 1);
         rt.sizeDelta = new Vector2(BtnW, BtnH);
@@ -310,9 +356,10 @@ public class HUD : MonoBehaviour
         titleRect.anchorMin = new Vector2(0, 0); titleRect.anchorMax = new Vector2(1, 1);
         titleRect.offsetMin = new Vector2(2, 12); titleRect.offsetMax = new Vector2(-2, -10);
         var tt = AddText(titleRect, title, TextAnchor.MiddleCenter);
-        tt.fontSize = 12; tt.fontStyle = FontStyle.Bold;
+        tt.fontSize = 13; tt.fontStyle = FontStyle.Bold;
         tt.horizontalOverflow = HorizontalWrapMode.Wrap;
         tt.verticalOverflow = VerticalWrapMode.Truncate;
+        AddOutline(tt);
 
         // Cost (bottom)
         if (!string.IsNullOrEmpty(cost))
@@ -323,20 +370,22 @@ public class HUD : MonoBehaviour
             costRect.sizeDelta = new Vector2(0, 14);
             costRect.anchoredPosition = new Vector2(0, 2);
             var ct = AddText(costRect, cost, TextAnchor.MiddleCenter);
-            ct.fontSize = 10; ct.color = new Color(1f, 0.95f, 0.7f, 1f);
+            ct.fontSize = 11; ct.color = new Color(1f, 0.95f, 0.7f, 1f);
+            AddOutline(ct, 0.6f);
         }
 
-        // Hotkey badge (top-left)
+        // Hotkey badge (top-left) — dark chip so the letter stays legible on any color.
         if (!string.IsNullOrEmpty(hotkey))
         {
             var hkRect = NewRect("Hotkey", rt);
             hkRect.anchorMin = new Vector2(0, 1); hkRect.anchorMax = new Vector2(0, 1);
             hkRect.pivot = new Vector2(0, 1);
-            hkRect.sizeDelta = new Vector2(20, 14);
-            hkRect.anchoredPosition = new Vector2(2, -1);
-            var ht = AddText(hkRect, hotkey, TextAnchor.UpperLeft);
-            ht.fontSize = 11; ht.fontStyle = FontStyle.Bold;
-            ht.color = new Color(1f, 1f, 1f, 0.85f);
+            hkRect.sizeDelta = new Vector2(19, 17);
+            hkRect.anchoredPosition = new Vector2(3, -3);
+            hkRect.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.5f);
+            var ht = AddText(hkRect, hotkey, TextAnchor.MiddleCenter);
+            ht.fontSize = 12; ht.fontStyle = FontStyle.Bold;
+            ht.color = new Color(1f, 1f, 1f, 0.92f);
         }
 
         return new CommandSlot { btn = btn, bg = bg, baseColor = color, affordable = affordable };
@@ -348,6 +397,15 @@ public class HUD : MonoBehaviour
     {
         var gm = GameManager.Instance;
         if (gm == null || _cmdBar == null) return;
+
+        // Relics held readout in the top bar (replaces RelicSystem's IMGUI label).
+        if (_relicText != null)
+        {
+            int total = gm.relics != null ? gm.relics.Count : 0;
+            int mine  = total > 0 && gm.relicSystem != null ? gm.relicSystem.CountControlled(0) : 0;
+            string rs = mine + "/" + total;
+            if (_relicText.text != rs) _relicText.text = rs;
+        }
 
         var b = gm.selectedBuilding;
         var sel = gm.selection != null ? gm.selection.Selected : null;
@@ -591,6 +649,8 @@ public class HUD : MonoBehaviour
         v.sizeDelta = new Vector2(70, 30);
         v.anchoredPosition = new Vector2(x, 0);
         var t = AddText(v, "0", TextAnchor.MiddleLeft);
+        t.fontStyle = FontStyle.Bold;
+        AddOutline(t, 0.6f);
         x += 88f;
         return t;
     }
@@ -669,7 +729,19 @@ public class HUD : MonoBehaviour
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    static Color Dim(Color c) => new Color(c.r * 0.32f, c.g * 0.32f, c.b * 0.32f, 1f);
+    // Disabled tint: fade toward a dark slate while keeping a faint hint of the
+    // category hue. A flat ×0.32 crushed teal/blue almost to black; lerping reads
+    // clearly as "greyed out" without losing the colour cue.
+    static readonly Color DisabledBase = new Color(0.17f, 0.18f, 0.21f, 1f);
+    static Color Dim(Color c) => Color.Lerp(c, DisabledBase, 0.72f);
+
+    /// <summary>Black outline for legibility of label text over coloured buttons.</summary>
+    static void AddOutline(Text t, float alpha = 0.7f)
+    {
+        var o = t.gameObject.AddComponent<Outline>();
+        o.effectColor = new Color(0f, 0f, 0f, alpha);
+        o.effectDistance = new Vector2(1f, -1f);
+    }
 
     static string AgeName(Age a) => a switch
     {
