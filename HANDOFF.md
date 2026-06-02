@@ -671,13 +671,36 @@ DamagePopup/HitFlash/Ses play-mode'da aktif.
 
 ---
 
+---
+
+## Oturum 21 (2026-06-02) — P1 Backlog Temizliği ✅
+
+**Tüm kalan P1 maddeleri tek oturumda kapatıldı.** 13 dosya, commit `6e9ac2d`.
+
+| Madde | Ne yapıldı |
+|---|---|
+| **TOW** | `WatchTower` BuildingType+Def+Factory; 6u menzil 7dmg Feudal; BuildingCombatSystem generic |
+| **BLK** | `Blacksmith` binası; Forging/Fletching/ScaleMail/Bodkin Blacksmith'e taşındı |
+| **MON** | `Monastery` binası (Castle Age); `MonasteryTrainables` = Monk |
+| **MONK** | `UnitType.Monk`; `UnitFactory.Monk()` (cübbeli rahip); `CombatSystem.StepConvert` 4s dönüştürme |
+| **STN** | `AttackStance` enum (Aggressive/Defensive/StandGround/NoAttack); `UnitEntity.stance`; StandGround kovalamaz; HUD Q butonu |
+| **TIER** | Champion/Arbalest/Paladin `TechType`+`TechDefs`+`TechState` bonusları (Imperial gated) |
+| **UNI** | `University` binası (Castle Age); Masonry+Fortified bina armor techleri |
+| **AIMS** | `EnemyAI.CommandAttack`: Medic ordu merkezinde; Scout bağımsız keşif |
+| **FORM** | Zaten O15'te mevcuttu (CommandSystem MoveOrder grid 1.5u) |
+| **SFX** | SelectionSystem PlaySelectSound + HUD MakeButton click zaten aktif |
+
+**0 error / 0 warning. Play'de doğrulandı.**
+
+---
+
 ## Yeni Oturumda Başlangıç Promptu
 
 ```
 Age of Arena Unity portuna devam.
 Proje: /Users/emreaydin/ageofarena/AgeOfArenaUnity/
 Unity'yi BU prompttan ÖNCE aç (yoksa MCP tool'ları yüklenmiyor).
-HANDOFF.md oku. Son oturum O19: Kenney doğa/kale asset entegrasyonu + DamagePopup +
-HitFlash + AudioManager (sword/arrow/build/die ses). 0 error, commit 8338f8f.
-Sıradaki: PROGRESS.md'deki önceliğe bak (SES tamamlandı, MONK+MON veya DIFF veya Blocky Char).
+HANDOFF.md oku. Son oturum O21: TÜM P1 maddeler tamamlandı (commit 6e9ac2d).
+TOW/BLK/MON/MONK/STN/TIER/UNI/AIMS + O19 Kenney/DamagePopup/AudioManager.
+0 error. Sıradaki: P2 — TRD (Trade Cart), VET (Veterancy), ANIM (animasyon), SAVE.
 ```

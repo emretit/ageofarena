@@ -15,14 +15,13 @@
 
 ---
 
-## ▶ Aktif adım: yok — sıradaki maddeyi seç
+## ▶ Aktif adım: yok — P1 TAMAMLANDI ✅
 
-O19'da görsel kalite + ses sistemi tamamlandı:
-- **ASSET**: Kenney CC0 Nature Kit (ağaç/kaya) + Castle Kit (kule/kapı/duvar) entegre
-- **VFX**: DamagePopup (yüzen hasar sayısı, altın kritik) + HitFlash (0.08s beyaz parlama)
-- **SES**: AudioManager singleton — sword/arrow/build_complete/unit_trained/unit_die sesleri
+**O21 (2026-06-02):** P1 backlog'daki tüm kalan ⬜ maddeler uygulandı (commit `6e9ac2d`):
+TOW · BLK · MON · STN · MONK · TIER · UNI · AIMS. FORM ve SFX zaten mevcuttu.
 
-Sıradaki aday: `MONK`+`MON` (Monastery + Monk dönüştürme) · `DIFF` (AI zorluk Easy→Hard) · `BLC` (Blocky Char birim görseli)
+**Tüm P1 maddeler ✔️.** Sıradaki: P2 veya yeni özellik.
+- P2 önerileri: `TRD` (Trade Cart) · `VET` (Veterancy) · `ANIM` (birim animasyonu) · `SAVE` (kayıt)
 
 ### ✔️ `O19-VIS` — Görsel Kalite 2: Kenney Asset + DamagePopup + HitFlash + Ses (O19) — tamam
 - **Nature Kit:** ağaç (tree_default/cone/blocks, scale 2.6-3.4) + kaya (rock_largeA-D, 1.4-2.2) entegre; prosedürel fallback
@@ -90,23 +89,23 @@ MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ✅ Commit edildi (`
 | ID | Doc | Madde | Durum | Oturum | Not/commit |
 |---|---|---|---|---|---|
 | ARM | 02/04 | Zırh tipleri + counter matrisi (spear>cav>archer) | ✔️ | O16 | 0 err; 6 kriter MCP; commit `8c0333e` |
-| MONK | 02/03 | Monk (dönüştürme + relic taşıma) | ⬜ | — | Monastery'ye bağlı |
-| TOW | 03 | Watch/Bombard Tower | ⬜ | — | |
+| MONK | 02/03 | Monk (dönüştürme + relic taşıma) | ✔️ | O21 | UnitFactory.Monk; StepConvert 4s; takım geçişi; commit `6e9ac2d` |
+| TOW | 03 | Watch/Bombard Tower | ✔️ | O21 | WatchTower (6u range, 7dmg, Feudal); BuildingCombatSystem generic; commit `6e9ac2d` |
 | REP | 03 | Repair (köylü tamir) | ✔️ | O15 | BuildSystem.StepRepair; köylü hasarlı binaya sağ-tık (O15 handoff) |
-| BLK | 03/05 | Blacksmith + askeri tech taşıma | ⬜ | — | |
-| MON | 03 | Monastery binası | ⬜ | — | |
-| STN | 04/07 | Attack stance (aggressive/defensive/stand/no-attack) | ⬜ | — | |
-| FORM | 04 | Formasyon kohezyonu | ⬜ | — | |
+| BLK | 03/05 | Blacksmith + askeri tech taşıma | ✔️ | O21 | Blacksmith binası; Forging/Fletching/ScaleMail/Bodkin → Blacksmith; commit `6e9ac2d` |
+| MON | 03 | Monastery binası | ✔️ | O21 | Monastery (Castle Age); Monk üretir (gold 100, 30s); commit `6e9ac2d` |
+| STN | 04/07 | Attack stance (aggressive/defensive/stand/no-attack) | ✔️ | O21 | AttackStance enum; StandGround kovalamaz; HUD Q butonu; commit `6e9ac2d` |
+| FORM | 04 | Formasyon kohezyonu | ✔️ | O15 | CommandSystem.MoveOrder grid (1.5u aralık); zaten mevcuttu |
 | IMP | 05 | Imperial (4.) çağ | ✔️ | O17 | 0 err; MCP doğrulandı; içerik TIER/UNI'ye bırakıldı |
-| UNI | 05 | University binası + tech | ⬜ | — | |
-| TIER | 05 | Imperial tier birimleri | ⬜ | — | |
+| UNI | 05 | University binası + tech | ✔️ | O21 | University (Castle Age); Masonry+Fortified bina armor; commit `6e9ac2d` |
+| TIER | 05 | Imperial tier birimleri | ✔️ | O21 | Champion/Arbalest/Paladin (TechDefs+TechState stat bonusları); commit `6e9ac2d` |
 | DIFF | 06 | AI zorluk seviyeleri (Easy→Insane) | ✔️ | O20 | 0 err; çarpan katmanı + HUD cycle pill; toplu test sona bırakıldı |
-| AIMS | 06 | AI Medic/Scout kullanımı | ⬜ | — | |
+| AIMS | 06 | AI Medic/Scout kullanımı | ✔️ | O21 | Medic ordu merkezinde; Scout bağımsız keşif; commit `6e9ac2d` |
 | CTRL | 07 | Control group (1-9) | ✔️ | O18 | 0 err; FocusOn MCP doğrulandı; ata/seç input-bağlı manuel |
 | IDLE | 01/07 | Idle-worker butonu + döngü | ✔️ | O18 | 0 err; count+cycle MCP doğrulandı; '.' hotkey + HUD pill |
 | MMP | 07 | Minimap click-to-pan + sağ-tık komut | ✔️ | O18 | 0 err; inverse+MoveSelectedTo MCP doğrulandı; tık input-bağlı manuel |
 | SES | 08 | Ses sistemi temeli (AudioManager) | ✔️ | O19 | AudioManager singleton; 7 ses; sword/arrow/build/die/trained; commit `37c4bda` |
-| SFX | 08 | Birim/bina/UI SFX seti | 🟡 | O19 | Temel SFX tamam; select/button_click hookları kaldı |
+| SFX | 08 | Birim/bina/UI SFX seti | ✔️ | O19+O21 | select/button_click O19'da aktif; MakeButton hook O21'de doğrulandı |
 | WON | 09 | Wonder zaferi | ✔️ | O18 | 0 err; Imperial-gated bina + 60s countdown; MCP wiring doğrulandı |
 | SCR | 09 | Score sistemi | ✔️ | O18 | 0 err; composite skor (ordu+bina+ekonomi+relic+çağ) sonuç ekranında |
 | RLW | 09 | Relic-sayısı zaferi | ✔️ | O18 | 0 err; tüm relic'leri 60s tut → zafer; countdown banner |
