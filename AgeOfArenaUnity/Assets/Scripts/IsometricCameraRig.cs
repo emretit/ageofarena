@@ -9,10 +9,11 @@ using UnityEngine;
 public class IsometricCameraRig : MonoBehaviour
 {
     public float panSpeed = 25f;
-    public float zoomSpeed = 8f;
+    public float zoomSpeed = 4f;      // orthographic units per mouse-wheel notch
     public float minSize = 6f;
     public float maxSize = 30f;
     public float rotateSpeed = 90f;
+    public float edgeMargin = 10f;    // px from a screen edge that triggers edge-scroll pan
     public Vector2 bounds = new Vector2(60, 60); // half-extents of pannable area
 
     Camera _cam;
@@ -23,6 +24,29 @@ public class IsometricCameraRig : MonoBehaviour
 
     float _shakeTimer;
     float _shakeMagnitude;
+
+    /// <summary>Combined pan intent on the ground plane: WASD/arrow keys plus mouse
+    /// edge-scroll. Read directly off keys (not the "Horizontal"/"Vertical" axes) so
+    /// panning works even if the legacy InputManager axes are missing or smoothed.</summary>
+    Vector2 ReadPanInput()
+    {
+        float x = 0f, z = 0f;
+        if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))  x -= 1f;
+        if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) x += 1f;
+        if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow))  z -= 1f;
+        if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow))    z += 1f;
+
+        // Edge-scroll: only while the cursor is inside the game window.
+        Vector3 mp = Input.mousePosition;
+        if (edgeMargin > 0f && mp.x >= 0f && mp.x <= Screen.width && mp.y >= 0f && mp.y <= Screen.height)
+        {
+            if (mp.x <= edgeMargin) x -= 1f;
+            else if (mp.x >= Screen.width - edgeMargin) x += 1f;
+            if (mp.y <= edgeMargin) z -= 1f;
+            else if (mp.y >= Screen.height - edgeMargin) z += 1f;
+        }
+        return new Vector2(Mathf.Clamp(x, -1f, 1f), Mathf.Clamp(z, -1f, 1f));
+    }
 
     public void Init(Vector3 focus)
     {
@@ -39,20 +63,22 @@ public class IsometricCameraRig : MonoBehaviour
     {
         if (_cam == null) return;
 
-        // Pan (camera-relative on the ground plane)
-        var move = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical"));
+        // Pan (camera-relative on the ground plane). Combines WASD/arrow keys with
+        // AoE-style mouse edge-scroll: the cursor near a screen edge pans that way.
+        var move = ReadPanInput();  // x = strafe, y = forward/back on the ground plane
         if (move.sqrMagnitude > 0.001f)
         {
             var fwd = Quaternion.Euler(0, _yaw, 0) * Vector3.forward;
             var right = Quaternion.Euler(0, _yaw, 0) * Vector3.right;
-            var delta = (right * move.x + fwd * move.z).normalized * panSpeed * Time.deltaTime;
+            var delta = Vector3.ClampMagnitude(right * move.x + fwd * move.y, 1f) * panSpeed * Time.deltaTime;
             _focus += delta;
             _focus.x = Mathf.Clamp(_focus.x, -bounds.x, bounds.x);
             _focus.z = Mathf.Clamp(_focus.z, -bounds.y, bounds.y);
         }
 
-        // Zoom
-        float scroll = Input.GetAxis("Mouse ScrollWheel");
+        // Zoom — mouseScrollDelta is axis-independent, so it works reliably under
+        // activeInputHandler=2 (legacy "Mouse ScrollWheel" axis can read as 0).
+        float scroll = Input.mouseScrollDelta.y;
         if (Mathf.Abs(scroll) > 0.0001f)
             _cam.orthographicSize = Mathf.Clamp(_cam.orthographicSize - scroll * zoomSpeed, minSize, maxSize);
 
