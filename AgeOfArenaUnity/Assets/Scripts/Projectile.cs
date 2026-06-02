@@ -50,6 +50,10 @@ public class Projectile : MonoBehaviour
         if (d.sqrMagnitude <= step * step)
         {
             _target.TakeDamage(_damage, _damageType);
+            var tgt = _target as Component;
+            if (tgt != null)
+                DamagePopup.Show(tgt.transform.position + Vector3.up * 1.5f,
+                    Mathf.RoundToInt(_damage), false);
             Destroy(gameObject);
             return;
         }

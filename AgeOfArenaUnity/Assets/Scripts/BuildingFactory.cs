@@ -292,33 +292,38 @@ public static class BuildingFactory
         var g = NewBuilding("Castle", parent, worldPos, BuildingType.Castle,
             new Vector3(0, 2.5f, 0), new Vector3(4.5f, 5.0f, 4.5f));
         var t = g.transform;
-        var stoneMat = Prims.Mat(Stone, 0.05f);
-        var darkMat  = Prims.Mat(Dark, 0.05f);
-        var roofMat  = Prims.Mat(roofColor, 0.05f, 0.3f);
 
-        Prims.Box(t, new Vector3(0, 0.3f, 0), new Vector3(4.6f, 0.6f, 4.6f), stoneMat);   // base
-        Prims.Box(t, new Vector3(0, 2.2f, 0), new Vector3(3.6f, 3.6f, 3.6f), stoneMat);   // keep body
-        // crenellations along the top of the keep
-        for (int i = -1; i <= 1; i++)
+        // Central keep: base + mid + roof stacked from Castle Kit.
+        bool hasKenney =
+            KenneyModels.Spawn("Castle/tower-square-base", t, new Vector3(0, 0, 0),    3.6f) != null;
+        if (hasKenney)
         {
-            Prims.Box(t, new Vector3(i * 1.3f, 4.15f,  1.85f), new Vector3(0.7f, 0.5f, 0.4f), stoneMat);
-            Prims.Box(t, new Vector3(i * 1.3f, 4.15f, -1.85f), new Vector3(0.7f, 0.5f, 0.4f), stoneMat);
-            Prims.Box(t, new Vector3( 1.85f, 4.15f, i * 1.3f), new Vector3(0.4f, 0.5f, 0.7f), stoneMat);
-            Prims.Box(t, new Vector3(-1.85f, 4.15f, i * 1.3f), new Vector3(0.4f, 0.5f, 0.7f), stoneMat);
+            KenneyModels.Spawn("Castle/tower-square-mid",  t, new Vector3(0, 1.55f, 0), 3.6f);
+            KenneyModels.Spawn("Castle/tower-square-roof", t, new Vector3(0, 3.15f, 0), 3.6f);
+            // Four corner towers.
+            foreach (var cx in new[] { -2.0f, 2.0f })
+                foreach (var cz in new[] { -2.0f, 2.0f })
+                    KenneyModels.Spawn("Castle/tower-square", t, new Vector3(cx, 0, cz), 1.8f);
         }
-        // four corner towers, each capped with a team-coloured cone
-        foreach (var cx in new[] { -2.0f, 2.0f })
-            foreach (var cz in new[] { -2.0f, 2.0f })
-            {
-                Prims.Cylinder(t, new Vector3(cx, 2.7f, cz), 0.9f, 5.4f, stoneMat);
-                Prims.Cone(t, new Vector3(cx, 5.4f, cz), 1.05f, 1.6f, 8, roofMat, 45f);
-            }
-        // gatehouse + door
-        Prims.Box(t, new Vector3(0, 1.3f, -1.82f), new Vector3(1.2f, 2.2f, 0.2f), darkMat);
-        Prims.Box(t, new Vector3(0, 1.1f, -1.92f), new Vector3(0.8f, 1.6f, 0.1f), Prims.Mat(Door));
-        // flag on the keep
+        else
+        {
+            // Procedural fallback.
+            var stoneMat = Prims.Mat(Stone, 0.05f);
+            var roofMat  = Prims.Mat(roofColor, 0.05f, 0.3f);
+            Prims.Box(t, new Vector3(0, 0.3f, 0), new Vector3(4.6f, 0.6f, 4.6f), stoneMat);
+            Prims.Box(t, new Vector3(0, 2.2f, 0), new Vector3(3.6f, 3.6f, 3.6f), stoneMat);
+            foreach (var cx in new[] { -2.0f, 2.0f })
+                foreach (var cz in new[] { -2.0f, 2.0f })
+                {
+                    Prims.Cylinder(t, new Vector3(cx, 2.7f, cz), 0.9f, 5.4f, stoneMat);
+                    Prims.Cone(t, new Vector3(cx, 5.4f, cz), 1.05f, 1.6f, 8, roofMat, 45f);
+                }
+        }
+
+        // Team flag always procedural so team colour is visible.
         Prims.Cylinder(t, new Vector3(0, 5.6f, 0), 0.06f, 1.6f, Prims.Mat(Prims.Hex(0x4a3a2a), 0.15f));
-        Prims.Box(t, new Vector3(0.45f, 6.1f, 0), new Vector3(0.9f, 0.55f, 0.04f), Prims.Mat(roofColor, 0, 0.4f)).name = "Flag";
+        Prims.Box(t, new Vector3(0.45f, 6.1f, 0), new Vector3(0.9f, 0.55f, 0.04f),
+            Prims.Mat(roofColor, 0, 0.4f)).name = "Flag";
 
         Prims.EnableShadows(g);
         return g;
@@ -326,25 +331,24 @@ public static class BuildingFactory
 
     public static GameObject Wall(Transform parent, Vector3 worldPos, Color teamColor)
     {
-        // Square cell (no placement rotation in this game), so segments tile in any
-        // direction to enclose a base. A row of them reads as a continuous rampart.
         var g = NewBuilding("Wall", parent, worldPos, BuildingType.Wall,
             new Vector3(0, 0.8f, 0), new Vector3(1.6f, 1.6f, 1.6f));
         var t = g.transform;
-        var stoneMat = Prims.Mat(Stone, 0.05f);
-        var capMat   = Prims.Mat(Dark, 0.05f);
 
-        Prims.Box(t, new Vector3(0, 0.1f, 0),  new Vector3(1.7f, 0.2f, 1.7f), stoneMat);  // footing
-        Prims.Box(t, new Vector3(0, 0.85f, 0), new Vector3(1.5f, 1.5f, 1.5f), stoneMat);  // body
-        Prims.Box(t, new Vector3(0, 1.6f, 0),  new Vector3(1.7f, 0.16f, 1.7f), capMat);   // walkway cap
-        // corner crenellations
-        foreach (var cx in new[] { -0.6f, 0.6f })
-            foreach (var cz in new[] { -0.6f, 0.6f })
-                Prims.Box(t, new Vector3(cx, 1.78f, cz), new Vector3(0.34f, 0.26f, 0.34f), stoneMat);
+        if (KenneyModels.Spawn("Castle/wall-block", t, new Vector3(0, 0, 0), 1.55f) == null)
+        {
+            // Procedural fallback.
+            var stoneMat = Prims.Mat(Stone, 0.05f);
+            var capMat   = Prims.Mat(Dark, 0.05f);
+            Prims.Box(t, new Vector3(0, 0.1f, 0),  new Vector3(1.7f, 0.2f, 1.7f), stoneMat);
+            Prims.Box(t, new Vector3(0, 0.85f, 0), new Vector3(1.5f, 1.5f, 1.5f), stoneMat);
+            Prims.Box(t, new Vector3(0, 1.6f, 0),  new Vector3(1.7f, 0.16f, 1.7f), capMat);
+            foreach (var cx in new[] { -0.6f, 0.6f })
+                foreach (var cz in new[] { -0.6f, 0.6f })
+                    Prims.Box(t, new Vector3(cx, 1.78f, cz), new Vector3(0.34f, 0.26f, 0.34f), stoneMat);
+        }
 
-        // Blocks pathfinding by carving a hole in the runtime-baked NavMesh. Size is
-        // slightly larger than the visual so neighbouring cells' carves overlap (no
-        // gap for units to slip through). NavMeshAgent ignores plain colliders.
+        // NavMesh obstacle — always needed regardless of visual.
         var o = g.AddComponent<NavMeshObstacle>();
         o.carving = true;
         o.shape   = NavMeshObstacleShape.Box;
@@ -357,26 +361,57 @@ public static class BuildingFactory
 
     public static GameObject Gate(Transform parent, Vector3 worldPos, Color teamColor)
     {
-        // A passable cell that tiles into a wall line: four corner posts + a raised
-        // arch, leaving the centre open. No NavMeshObstacle → NavMesh stays intact,
-        // so units (friend and foe) walk straight through this opening.
+        // Passable cell — no NavMeshObstacle so units walk through.
         var g = NewBuilding("Gate", parent, worldPos, BuildingType.Gate,
             new Vector3(0, 1.1f, 0), new Vector3(1.6f, 2.4f, 1.6f));
         var t = g.transform;
+
+        if (KenneyModels.Spawn("Castle/gate", t, new Vector3(0, 0, 0), 1.6f) == null)
+        {
+            // Procedural fallback.
+            var stoneMat = Prims.Mat(Stone, 0.05f);
+            var woodMat  = Prims.Mat(Door);
+            var accent   = Prims.Mat(teamColor, 0.05f, 0.3f);
+            foreach (var cx in new[] { -0.62f, 0.62f })
+                foreach (var cz in new[] { -0.62f, 0.62f })
+                {
+                    Prims.Box(t, new Vector3(cx, 0.1f, cz), new Vector3(0.5f, 0.2f, 0.5f), stoneMat);
+                    Prims.Box(t, new Vector3(cx, 1.1f, cz), new Vector3(0.4f, 2.0f, 0.4f), stoneMat);
+                    Prims.Box(t, new Vector3(cx, 2.2f, cz), new Vector3(0.48f, 0.24f, 0.48f), accent);
+                }
+            Prims.Box(t, new Vector3(0, 2.15f,  0.62f), new Vector3(1.6f, 0.3f, 0.4f), woodMat);
+            Prims.Box(t, new Vector3(0, 2.15f, -0.62f), new Vector3(1.6f, 0.3f, 0.4f), woodMat);
+        }
+
+        Prims.EnableShadows(g);
+        return g;
+    }
+
+    public static GameObject Wonder(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewBuilding("Wonder", parent, worldPos, BuildingType.Wonder,
+            new Vector3(0, 3.0f, 0), new Vector3(5.0f, 6.0f, 5.0f));
+        var t = g.transform;
+
         var stoneMat = Prims.Mat(Stone, 0.05f);
-        var woodMat  = Prims.Mat(Door);
+        var goldMat  = Prims.Mat(Prims.Hex(0xf2c14e), 0.1f, 0.5f);
         var accent   = Prims.Mat(teamColor, 0.05f, 0.3f);
 
-        foreach (var cx in new[] { -0.62f, 0.62f })
-            foreach (var cz in new[] { -0.62f, 0.62f })
+        // Stepped plinth + tapered tower topped with a golden spire — a monument
+        // silhouette that reads clearly as the most important building on the map.
+        Prims.Box(t, new Vector3(0, 0.3f, 0), new Vector3(5.0f, 0.6f, 5.0f), stoneMat);
+        Prims.Box(t, new Vector3(0, 0.9f, 0), new Vector3(4.0f, 0.6f, 4.0f), stoneMat);
+        Prims.Box(t, new Vector3(0, 2.6f, 0), new Vector3(3.0f, 3.0f, 3.0f), stoneMat);
+        Prims.Box(t, new Vector3(0, 4.4f, 0), new Vector3(2.0f, 0.8f, 2.0f), accent);
+        Prims.Cone(t, new Vector3(0, 5.2f, 0), 1.3f, 2.4f, 12, goldMat, 0f);
+
+        // Four corner pillars for grandeur.
+        foreach (var cx in new[] { -2.1f, 2.1f })
+            foreach (var cz in new[] { -2.1f, 2.1f })
             {
-                Prims.Box(t, new Vector3(cx, 0.1f, cz),  new Vector3(0.5f, 0.2f, 0.5f), stoneMat); // footing
-                Prims.Box(t, new Vector3(cx, 1.1f, cz),  new Vector3(0.4f, 2.0f, 0.4f), stoneMat); // post
-                Prims.Box(t, new Vector3(cx, 2.2f, cz),  new Vector3(0.48f, 0.24f, 0.48f), accent);// cap
+                Prims.Cylinder(t, new Vector3(cx, 1.6f, cz), 0.45f, 3.2f, stoneMat);
+                Prims.Box(t, new Vector3(cx, 3.3f, cz), new Vector3(1.0f, 0.3f, 1.0f), goldMat);
             }
-        // Raised lintels on both axes, high enough that units pass underneath.
-        Prims.Box(t, new Vector3(0, 2.15f, 0.62f), new Vector3(1.6f, 0.3f, 0.4f), woodMat);
-        Prims.Box(t, new Vector3(0, 2.15f, -0.62f), new Vector3(1.6f, 0.3f, 0.4f), woodMat);
 
         Prims.EnableShadows(g);
         return g;
@@ -419,6 +454,7 @@ public static class BuildingFactory
         BuildingType.Castle       => Castle(parent, worldPos, teamColor),
         BuildingType.Wall         => Wall(parent, worldPos, teamColor),
         BuildingType.Gate         => Gate(parent, worldPos, teamColor),
+        BuildingType.Wonder       => Wonder(parent, worldPos, teamColor),
         _                         => House(parent, worldPos, teamColor),
     };
 

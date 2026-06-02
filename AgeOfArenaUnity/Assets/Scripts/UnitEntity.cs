@@ -291,7 +291,21 @@ public class UnitEntity : MonoBehaviour, IDamageable
             _                 => 0f,  // Siege bypasses armor
         };
         hp -= Mathf.Max(1f, amount - armor);
+        StartCoroutine(HitFlash());
         if (hp <= 0f) Die();
+    }
+
+    System.Collections.IEnumerator HitFlash()
+    {
+        var renderers = GetComponentsInChildren<MeshRenderer>();
+        foreach (var r in renderers)
+        {
+            r.material.EnableKeyword("_EMISSION");
+            r.material.SetColor("_EmissionColor", Color.white * 1.5f);
+        }
+        yield return new WaitForSeconds(0.08f);
+        foreach (var r in renderers)
+            r.material.SetColor("_EmissionColor", Color.black);
     }
 
     /// <summary>Restore hp up to maxHp (Medic healing). No-op once dead.</summary>
@@ -304,6 +318,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     void Die()
     {
         hp = 0f;
+        AudioManager.Play(AudioManager.SoundId.UnitDie, 0.8f);
         // List removal is deferred to GameManager's end-of-frame compaction so we
         // don't mutate gm.units while CombatSystem is iterating it.
         var gm = GameManager.Instance;

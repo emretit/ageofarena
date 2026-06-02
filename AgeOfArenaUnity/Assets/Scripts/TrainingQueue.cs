@@ -127,6 +127,7 @@ public class TrainingQueue : MonoBehaviour
 
         gm.RegisterUnit(unit);
         gm.RecomputePop();
+        AudioManager.Play(AudioManager.SoundId.UnitTrained, 0.8f);
 
         // If the building has a rally point, the fresh unit walks there instead of
         // idling at the gate (AoE behaviour).

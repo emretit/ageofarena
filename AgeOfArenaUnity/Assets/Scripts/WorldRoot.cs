@@ -51,6 +51,7 @@ public class WorldRoot : MonoBehaviour
         // don't freeze — also makes headless/automated runs behave.
         Application.runInBackground = true;
 
+        AudioManager.Init();
         SetupEnvironment();
         SetupGround();
         var cam = SetupCamera();

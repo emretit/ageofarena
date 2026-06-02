@@ -124,12 +124,19 @@ public class CombatSystem : MonoBehaviour
                 if (u.IsRanged)
                 {
                     Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, dmg, u.DamageKind);
+                    AudioManager.Play(AudioManager.SoundId.Arrow, 0.6f);
                 }
                 else
                 {
                     // Cavalry charge: first swing after 4s of non-combat deals 2.5× damage.
-                    if (u.ChargeReady) { dmg *= u.ChargeMultiplier; u.chargeTimer = 0f; }
+                    bool isCharge = u.ChargeReady;
+                    if (isCharge) { dmg *= u.ChargeMultiplier; u.chargeTimer = 0f; }
                     target.TakeDamage(dmg, u.DamageKind);
+                    AudioManager.Play(AudioManager.SoundId.Sword, isCharge ? 1.0f : 0.7f);
+                    var tgt = target as Component;
+                    if (tgt != null)
+                        DamagePopup.Show(tgt.transform.position + Vector3.up * 1.5f,
+                            Mathf.RoundToInt(dmg), isCharge);
                 }
                 u.attackCooldown = u.AttackInterval;
             }

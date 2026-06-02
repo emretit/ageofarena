@@ -97,6 +97,8 @@ public class BuildSystem : MonoBehaviour
                 GM?.RegisterNode(ResourceFactory.FarmField(site.gameObject));
 
             GM?.RecomputePop();   // a finished House raises popCap; any building now functional
+            if (site.teamId == 0)
+                AudioManager.Play(AudioManager.SoundId.BuildComplete, 0.9f);
         }
     }
 
