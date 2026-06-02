@@ -23,6 +23,7 @@ public class HUD : MonoBehaviour
     Text _foodText, _woodText, _goldText, _stoneText, _popText, _ageText, _relicText;
     Button _idleButton; Text _idleText;
     Text _victoryText; RectTransform _victoryRect;
+    Text _difficultyText;
 
     // ── Command bar ──────────────────────────────────────────────────────────
     RectTransform _cmdBar;
@@ -210,8 +211,55 @@ public class HUD : MonoBehaviour
         AddOutline(_ageText, 0.6f);
 
         BuildIdleIndicator(bar);
+        BuildDifficultyIndicator(bar);
         BuildVictoryBanner(parent);
     }
+
+    /// <summary>Clickable difficulty pill (top bar). Cycles Easy→Normal→Hard→Insane and
+    /// re-applies to every live <see cref="EnemyAI"/> immediately.</summary>
+    void BuildDifficultyIndicator(RectTransform bar)
+    {
+        var rect = NewRect("Difficulty", bar);
+        rect.anchorMin = rect.anchorMax = new Vector2(1, 0.5f);
+        rect.pivot = new Vector2(1, 0.5f);
+        rect.sizeDelta = new Vector2(150, 32);
+        rect.anchoredPosition = new Vector2(-490, 0);
+        var img = rect.gameObject.AddComponent<Image>();
+        img.color = new Color(0.22f, 0.22f, 0.30f, 0.92f);
+        var btn = rect.gameObject.AddComponent<Button>();
+        btn.targetGraphic = img;
+        btn.onClick.AddListener(CycleDifficulty);
+        _difficultyText = AddText(rect, "", TextAnchor.MiddleCenter);
+        _difficultyText.fontSize = 15;
+        _difficultyText.fontStyle = FontStyle.Bold;
+        AddOutline(_difficultyText, 0.6f);
+        UpdateDifficultyLabel();
+    }
+
+    void CycleDifficulty()
+    {
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+        gm.difficulty = (Difficulty)(((int)gm.difficulty + 1) % 4);
+        foreach (var ai in Object.FindObjectsByType<EnemyAI>(FindObjectsInactive.Exclude)) ai.SetDifficulty();
+        UpdateDifficultyLabel();
+    }
+
+    void UpdateDifficultyLabel()
+    {
+        if (_difficultyText == null) return;
+        var gm = GameManager.Instance;
+        _difficultyText.text = "Zorluk: " + (gm != null ? DiffName(gm.difficulty) : "");
+    }
+
+    static string DiffName(Difficulty d) => d switch
+    {
+        Difficulty.Easy   => "Kolay",
+        Difficulty.Normal => "Normal",
+        Difficulty.Hard   => "Zor",
+        Difficulty.Insane => "Acımasız",
+        _                 => "",
+    };
 
     /// <summary>Top-centre banner that shows the active victory countdown
     /// (Wonder/relic). Hidden when no countdown is running.</summary>

@@ -22,6 +22,10 @@ public enum Age { Dark, Feudal, Castle, Imperial }
 /// </summary>
 public enum AIPersonality { Balanced, Rusher, Boomer }
 
+/// <summary>Global AI difficulty. Scales every enemy's production speed, army cap and
+/// economy on top of its <see cref="AIPersonality"/> so one slider tunes the challenge.</summary>
+public enum Difficulty { Easy, Normal, Hard, Insane }
+
 /// <summary>
 /// Every researchable technology. The two age advances are modelled as techs so
 /// they flow through the same research queue/UI as upgrades.

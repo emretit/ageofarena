@@ -66,13 +66,53 @@ public class EnemyAI : MonoBehaviour
     ResourceManager _res;
     TechState _tech;
 
+    AIPersonality _personality;
+
     public void Init(int teamId, Color teamColor, Vector3 home, Transform unitsRoot, AIPersonality personality)
     {
         _teamId    = teamId;
         _teamColor = teamColor;
         _home      = home;
         _unitsRoot = unitsRoot;
+        _personality = personality;
         ApplyPersonality(personality);
+        ApplyDifficulty();
+    }
+
+    /// <summary>Re-derive the tuning from personality + the current global difficulty.
+    /// Called by the HUD when the player cycles the difficulty mid-game.</summary>
+    public void SetDifficulty()
+    {
+        ApplyPersonality(_personality);
+        ApplyDifficulty();
+    }
+
+    /// <summary>Scale the personality baseline by the global <see cref="Difficulty"/>:
+    /// easier AI trains slower with a smaller army and pushes later; harder AI trains
+    /// faster, fields more, booms harder and commits sooner.</summary>
+    void ApplyDifficulty()
+    {
+        var gm = GameManager.Instance;
+        var diff = gm != null ? gm.difficulty : Difficulty.Normal;
+        switch (diff)
+        {
+            case Difficulty.Easy:
+                _spawnInterval *= 1.6f; _armyCap = Mathf.Max(4, Mathf.RoundToInt(_armyCap * 0.6f));
+                _rushThreshold = Mathf.RoundToInt(_rushThreshold * 1.3f);
+                _villagerTarget = Mathf.Max(1, _villagerTarget - 1);
+                break;
+            case Difficulty.Hard:
+                _spawnInterval *= 0.75f; _armyCap = Mathf.RoundToInt(_armyCap * 1.35f);
+                _rushThreshold = Mathf.Max(3, Mathf.RoundToInt(_rushThreshold * 0.85f));
+                _villagerTarget += 2;
+                break;
+            case Difficulty.Insane:
+                _spawnInterval *= 0.55f; _armyCap = Mathf.RoundToInt(_armyCap * 1.7f);
+                _rushThreshold = Mathf.Max(3, Mathf.RoundToInt(_rushThreshold * 0.7f));
+                _villagerTarget += 4;
+                break;
+            // Normal: baseline (no change).
+        }
     }
 
     /// <summary>Map a personality onto the army-size, push-timing and economy knobs.</summary>

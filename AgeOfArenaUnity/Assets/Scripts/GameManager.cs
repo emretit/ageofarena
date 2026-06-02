@@ -52,6 +52,9 @@ public class GameManager : MonoBehaviour
 
     public BuildingEntity selectedBuilding;
 
+    /// <summary>Global AI difficulty (applied by every <see cref="EnemyAI"/>).</summary>
+    public Difficulty difficulty = Difficulty.Normal;
+
     void Awake()
     {
         _instance = this;

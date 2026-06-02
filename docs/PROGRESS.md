@@ -100,7 +100,7 @@ MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ✅ Commit edildi (`
 | IMP | 05 | Imperial (4.) çağ | ✔️ | O17 | 0 err; MCP doğrulandı; içerik TIER/UNI'ye bırakıldı |
 | UNI | 05 | University binası + tech | ⬜ | — | |
 | TIER | 05 | Imperial tier birimleri | ⬜ | — | |
-| DIFF | 06 | AI zorluk seviyeleri (Easy→Insane) | ⬜ | — | |
+| DIFF | 06 | AI zorluk seviyeleri (Easy→Insane) | ✔️ | O20 | 0 err; çarpan katmanı + HUD cycle pill; toplu test sona bırakıldı |
 | AIMS | 06 | AI Medic/Scout kullanımı | ⬜ | — | |
 | CTRL | 07 | Control group (1-9) | ✔️ | O18 | 0 err; FocusOn MCP doğrulandı; ata/seç input-bağlı manuel |
 | IDLE | 01/07 | Idle-worker butonu + döngü | ✔️ | O18 | 0 err; count+cycle MCP doğrulandı; '.' hotkey + HUD pill |
