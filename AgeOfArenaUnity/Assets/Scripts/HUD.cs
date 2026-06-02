@@ -530,7 +530,7 @@ public class HUD : MonoBehaviour
         cb.disabledColor = Color.white;   // keep our manual dim, not Unity's
         cb.fadeDuration = 0.05f;
         btn.colors = cb;
-        btn.onClick.AddListener(() => onClick());
+        btn.onClick.AddListener(() => { AudioManager.Play(AudioManager.SoundId.ButtonClick, 0.6f); onClick(); });
 
         // Procedural icon (AoE-style): fills the upper button face. Name moves to
         // the hover tooltip. Falls back to a wrapped title if no icon is provided.

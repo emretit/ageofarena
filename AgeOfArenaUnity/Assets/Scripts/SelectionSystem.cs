@@ -102,6 +102,7 @@ public class SelectionSystem : MonoBehaviour
                 ClearSelection();
                 Select(hitUnit);
             }
+            PlaySelectSound();
         }
         else if (hitBuilding != null && hitBuilding.teamId == 0 && !additive)
         {
@@ -133,6 +134,7 @@ public class SelectionSystem : MonoBehaviour
             if (sp.x >= xMin && sp.x <= xMax && sp.y >= yMin && sp.y <= yMax && !Selected.Contains(u))
                 Select(u);
         }
+        if (Selected.Count > 0) PlaySelectSound();
     }
 
     void Select(UnitEntity u)
@@ -140,6 +142,10 @@ public class SelectionSystem : MonoBehaviour
         Selected.Add(u);
         u.SetSelected(true, OwnColor);
     }
+
+    /// <summary>One selection blip per user action (not per unit) so box-selecting a
+    /// big army doesn't machine-gun the clip.</summary>
+    static void PlaySelectSound() => AudioManager.Play(AudioManager.SoundId.UnitSelect, 0.5f);
 
     void Deselect(UnitEntity u)
     {
@@ -196,6 +202,7 @@ public class SelectionSystem : MonoBehaviour
             if (!Selected.Contains(u)) Select(u);
         }
 
+        if (Selected.Count > 0) PlaySelectSound();
         float t = Time.unscaledTime;
         if (_lastGroupKey == n && t - _lastGroupTime <= DoubleTapWindow) FocusCameraOnSelection();
         _lastGroupKey = n;
