@@ -22,7 +22,7 @@ public static class ResourceFactory
         g.transform.SetParent(parent, false);
         g.transform.position = worldPos;
 
-        float s   = Random.Range(0.85f, 1.25f);
+        float s   = Random.Range(2.6f, 3.4f);  // Kenney trees are unit-scale, ~3 world-units looks right
         float yaw = Random.Range(0f, 360f);
         string model = TreeModels[Random.Range(0, TreeModels.Length)];
 
@@ -41,7 +41,7 @@ public static class ResourceFactory
             g.transform.localRotation = Quaternion.Euler(0, yaw, 0);
         }
 
-        Prims.BlobShadow(g.transform, 0.7f * s);
+        Prims.BlobShadow(g.transform, 1.2f);
         Prims.EnableShadows(g);
         return Finish(g, ResourceKind.Wood, TreeWood);
     }
@@ -74,8 +74,8 @@ public static class ResourceFactory
         for (int i = 0; i < count; i++)
         {
             float a = (i / (float)count) * Mathf.PI * 2f + Random.Range(-0.4f, 0.4f);
-            float d = Random.Range(0.2f, 0.55f);
-            float s = Random.Range(0.55f, 0.9f);
+            float d = Random.Range(0.3f, 0.8f);
+            float s = Random.Range(1.4f, 2.2f);  // Kenney rocks are unit-scale
             string rock = RockModels[Random.Range(0, RockModels.Length)];
             KenneyModels.Spawn(rock, g.transform,
                 new Vector3(Mathf.Cos(a) * d, 0f, Mathf.Sin(a) * d), s,

@@ -335,7 +335,7 @@ public static class BuildingFactory
             new Vector3(0, 0.8f, 0), new Vector3(1.6f, 1.6f, 1.6f));
         var t = g.transform;
 
-        if (KenneyModels.Spawn("Castle/wall-block", t, new Vector3(0, 0, 0), 1.55f) == null)
+        if (KenneyModels.Spawn("Castle/wall-narrow", t, new Vector3(0, 0, 0), 1.7f) == null)
         {
             // Procedural fallback.
             var stoneMat = Prims.Mat(Stone, 0.05f);
@@ -366,7 +366,7 @@ public static class BuildingFactory
             new Vector3(0, 1.1f, 0), new Vector3(1.6f, 2.4f, 1.6f));
         var t = g.transform;
 
-        if (KenneyModels.Spawn("Castle/gate", t, new Vector3(0, 0, 0), 1.6f) == null)
+        if (KenneyModels.Spawn("Castle/gate", t, new Vector3(0, 0, 0), 2.8f, 90f) == null)
         {
             // Procedural fallback.
             var stoneMat = Prims.Mat(Stone, 0.05f);
