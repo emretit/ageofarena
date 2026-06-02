@@ -34,6 +34,9 @@ Bir istek "oyuna X ekle" derse hedef **her zaman Unity tarafıdır** (`AgeOfAren
 Güncel mimari, eklenen sistemler ve yapılacaklar için [HANDOFF.md](HANDOFF.md) ve
 [AgeOfArenaUnity/README.md](AgeOfArenaUnity/README.md) tek doğru kaynaktır.
 
+İleriye dönük **gap-analizi & roadmap** (codebase ↔ tam AoE2 farkı, kategori kategori, her
+madde için kabul kriteri + MCP/Play doğrulaması) için: [docs/00-overview.md](docs/00-overview.md).
+
 ## Mimari referans alınan Unity RTS repoları (kod kopyalanmadı, lisans yok)
 
 Yalnızca yapı/yaklaşım incelemesi için:

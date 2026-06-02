@@ -45,6 +45,18 @@ public class ResearchSystem : MonoBehaviour
     public TechType GetActiveTech(BuildingEntity b)
         => _active.TryGetValue(b, out var it) ? it.type : default;
 
+    /// <summary>Cancel the building's active research and refund its cost.</summary>
+    public void CancelActive(BuildingEntity b)
+    {
+        if (b == null || !_active.TryGetValue(b, out var it)) return;
+        var def = TechDefs.Get(it.type);
+        GM.resources.Gain(ResourceKind.Food, def.food);
+        GM.resources.Gain(ResourceKind.Wood, def.wood);
+        GM.resources.Gain(ResourceKind.Gold, def.gold);
+        GM.resources.Gain(ResourceKind.Stone, def.stone);
+        _active.Remove(b);
+    }
+
     public void Tick(float dt)
     {
         if (_active.Count == 0) return;
@@ -78,8 +90,11 @@ public class ResearchSystem : MonoBehaviour
         var tech = gm.teamTech[teamId];
         if (tech.Has(type)) return;
 
-        float beforeMilitia = tech.HpBonus(UnitType.Militia);
-        float beforeCavalry = tech.HpBonus(UnitType.Cavalry);
+        // Capture each unit type's hp bonus before the tech lands so we can bump the
+        // max-hp (and current hp) of already-spawned units by exactly the delta.
+        var types = (UnitType[])System.Enum.GetValues(typeof(UnitType));
+        var before = new float[types.Length];
+        for (int i = 0; i < types.Length; i++) before[i] = tech.HpBonus(types[i]);
 
         tech.Mark(type);
         if (type == TechType.FeudalAge)
@@ -97,16 +112,21 @@ public class ResearchSystem : MonoBehaviour
             GameEvents.FireResearchCompleted(teamId, type);
         }
 
-        float dMilitia = tech.HpBonus(UnitType.Militia) - beforeMilitia;
-        float dCavalry = tech.HpBonus(UnitType.Cavalry) - beforeCavalry;
-        if (dMilitia <= 0f && dCavalry <= 0f) return;
+        // Per-type hp delta (indexable since UnitType values are contiguous 0..N).
+        var delta = new float[types.Length];
+        bool any = false;
+        for (int i = 0; i < types.Length; i++)
+        {
+            delta[i] = tech.HpBonus(types[i]) - before[i];
+            if (delta[i] > 0f) any = true;
+        }
+        if (!any) return;
 
         for (int i = 0; i < gm.units.Count; i++)
         {
             var u = gm.units[i];
             if (u == null || u.teamId != teamId) continue;
-            float d = u.type == UnitType.Militia ? dMilitia
-                    : u.type == UnitType.Cavalry ? dCavalry : 0f;
+            float d = delta[(int)u.type];
             if (d > 0f) { u.maxHp += d; u.hp += d; }
         }
     }

@@ -5,12 +5,169 @@
 `/Users/emreaydin/ageofarena/AgeOfArenaUnity/` — Unity **6000.4.1f1**, Built-in Render Pipeline.
 Three.js web sürümü **kaldırıldı** (git geçmişinde mevcut). Bu repo artık tamamen Unity.
 
+> 📑 **İleriye dönük roadmap:** Codebase ↔ tam AoE2 farkının kategori kategori gap-analizi
+> (kabul kriteri + MCP/Play doğrulamalı) → [docs/00-overview.md](docs/00-overview.md).
+
 > **⚠️ Eşzamanlı oturum notu:** Oturum 11 (AoE komut barı, UI) ile Oturum 9–10 (AI koordinasyon,
 > Fog of War) **paralel** çalışıldı ve aynı çalışma ağacını paylaştı. Dosya çakışması yok
 > (O11: HUD/Selection/Command/BuildingPlacement + SafeBaseInput + manifest.json; O9–10:
 > EnemyAI/GameManager/WorldRoot/GameTypes + FogOfWar*). **Oturum 12** (Faz 5 + Relic) de aynı ağacı
 > paylaşan ayrı bir oturumdu. **Oturum 13** hepsini Unity MCP ile birlikte doğruladı: tek çakışma
 > `BuildingFactory.Wall` (O12 metodu ↔ eski `Wall` renk alanı) idi, düzeltildi → **0 error / 0 warning**.
+> **Oturum 14** (canlı doğrulama + birim yükseltme hatları) ayrı bir oturumdur — kendi dosyaları
+> (`GameTypes/TechDefs/TechState/ResearchSystem/HUD/EnemyAI/GameManager`) temiz derlendi.
+>
+> **✅ BUILD DURUMU (O15 sonu):** O14 sonunda "yarım" görünen `CommandSystem.cs` rally-point eklemesi
+> **Oturum 15'e aitti** ve artık **tamam**: `UpdateRallyFlag` tanımlı; tüm rally/üretim/onarım/attack-move/UI
+> kodu Unity MCP ile **0 error / 0 warning** derleniyor ve Play'de doğrulandı. `ResearchSystem.CancelActive`
+> de O15'in kuyruk-iptal/iade eklemesidir (O14'ün `Apply` genellemesiyle uyumlu, çakışma yok).
+
+---
+
+## Oturum 16 (2026-06-02) — Görsel Kalite Yükseltme: Post Processing + Harita Büyütme ✅ MCP ile teyitli
+
+Plan: `~/.claude/plans/oyun-browser-zerinden-oynanacak-precious-floyd.md`.
+Hedef: WebGL'i yormadan görseli "amatör prototype" → "polished stylized RTS" seviyesine çıkarmak.
+
+### Faz 1 — Hızlı kazanımlar (runtime, sıfır asset)
+- **4× MSAA** (`QualitySettings.antiAliasing=4` runtime): tırtıklı kenarlar gitti. Forward path → donanımda çalışır.
+- **Sıcak directional light:** `Euler(42°,320°,0°)`, intensity 1.05, renk `#FFE8C4`; shadowDistance 35 / cascade 1.
+- **Prosedürel çim texture:** 256² seamless Perlin (grassA/grassB/soil tonları), `mainTextureScale=(12,12)`. `BuildGroundTexture` + `Seamless` helper → `WorldRoot.SetupGround`.
+- **Procedural skybox:** `Skybox/Procedural` material runtime, `cam.clearFlags=Skybox`.
+- **Blob/contact shadow:** `Prims.BlobShadow(parent, radius)` — radyal-gradient 64² texture, `Unlit/Transparent`, `shadowCastingMode=Off`. Birim (`UnitFactory.Finish`), bina (`BuildingFactory.NewBuilding`/TownCenter/House/Barracks) ve ağaçlara (`ResourceFactory.Tree`) eklendi (123 blob). `EnableShadows` blob'ları atlar.
+- **Always-Included Shaders:** `Standard`, `Skybox/Procedural`, `Unlit/Transparent`, `Unlit/Color` → `GraphicsSettings.asset`'e eklendi (WebGL stripping riski yok). Editor script: `AlwaysIncludeShaders.cs`.
+
+### Faz 1b — Işık kalibrasyon
+- Başlangıçta ACES + yüksek satürasyon zemini "neon sarı-yeşil" yapıyordu. `ambientIntensity=0.65`, equator ambient `#8F8A6A`, sun 1.3→1.05. Çim renkleri `#486830`/`#5C7A3A`/soil `#7A6645`.
+
+### Post Processing (com.unity.postprocessing@3.5.4)
+- Package Manager'dan kuruldu ve `GraphicsSettings`'e kalıcı eklendi.
+- `SetupPostProcessing(camGo)` → `WorldRoot.Build()` sonunda çağrılır.
+  - **SSAO** (SAO modu, intensity 0.35, radius 0.35): binalar/duvarlar zemine oturdu.
+  - **Bloom** (intensity 0.8, threshold 0.75, fastMode): TC çatısı/bayrak parlıyor.
+  - **ACES Color Grading** (contrast 12, saturation 10, temperature 5°): "pro vs amatör" farkının %60'ı.
+  - **Vignette** (0.28, smooth 0.5): sinematik çerçeve.
+- `PostProcessLayer.antialiasingMode = FXAA` (MSAA üstüne ek alt-piksel pürüzsüzleme).
+
+### Harita büyütme + base genişletme
+- **Zemin:** scale `(12,1,12)=120×120` → `(20,1,20)=200×200`. NavMesh groundHalf 60→100.
+- **Base center'lar:** `±40` → `±58` (4 yön). Kamera bounds `(60,60)` → `(95,95)`, maxSize 30→42.
+- **Wall ring:** `ArenaRadius X/Z 11/10` → `16/14`, WallHeight 3→3.5, WallSegments 36→40.
+- **Bina konumları** içeride yayıldı: house `right*4`→`right*5`, `backward*5`→`backward*6`; barracks `backward*6.5`→`backward*8.5`.
+- **Forest ring:** 80 ağaç r=14–28 → 140 ağaç r=20–45.
+- **Madenler:** center ±8 → ±14 + 4 ekstra deposit köşelerde (±30, ±30).
+- **Relics:** ±16 → ±22 diyagonal.
+
+### Faz 2 — Palet / material cilası
+- **TeamColors:** daha doygun (mavi `#1E5FCC`, kırmızı `#D42020`, yeşil `#1E9E40`, sarı `#F0A010`).
+- **BuildingFactory:** Stone `#625A4A` (daha zengin), Plaster `#D8C898`, Dark `#4E4438`, Timber `#3A2414`, Window 0.7→0.4 smoothness.
+- **Wall:** `#8A7D60`, smoothness 0 (matte taş, parlama yok).
+- **ResourceFactory:** gövde `#5C3418`, yaprak `#2A6020`.
+- **Birim scale:** `UnitFactory.Finish` → `g.transform.localScale = 1.25×` (görsel %25 büyük, collider boyutlandırıldı).
+
+**Değişen dosyalar:** `WorldRoot.cs`, `Prims.cs`, `UnitFactory.cs`, `BuildingFactory.cs`, `ResourceFactory.cs`, `IsometricCameraRig.cs`. Yeni: `Assets/Editor/AlwaysIncludeShaders.cs`.
+
+**Doğrulama (Unity MCP):** 0 compile error / 0 runtime error. `PostProcessLayer` kameraya eklendi, SSAO/Bloom/ACES aktif doğrulandı (RunCommand). Before/after camera capture ile görsel fark net.
+
+> **Not:** Runtime `Shader.Find` gotcha — `RequestScriptCompilation` tetiklenip domain reload olmadan Play
+> girilirse yeni kod çalışmaz. Çözüm: Stop → AssetDatabase.Refresh → RequestScriptCompilation → Play.
+
+---
+
+## Oturum 15 (2026-06-02) — Binalar · Üretim · Altbar: AoE'ye yaklaştırma ✅ (MCP teyitli)
+
+Plan: `~/.claude/plans/binalar-retim-altbar-bunlar-mutable-clarke.md`. Mevcut çalışan bina/üretim/komut-barı
+iskeleti **AoE hissine** yaklaştırıldı (sıfırdan değil, geliştirme). 5 aşama (kullanıcı: tümü + prosedürel ikon):
+
+### Aşama 1 — Rally point + kuyruk iptal/iade
+- **Rally point:** bina seçiliyken sağ tık → toplanma noktası (`BuildingEntity.hasRally/rallyPoint`). Eğitilen
+  birim doğunca oraya yürür (`TrainingQueue.SpawnUnit`). Dünya bayrağı: `CommandSystem.UpdateRallyFlag`.
+  Kaynak düğümüne rally de desteklenir.
+- **Kuyruk iptal + iade:** `TrainingQueue.Cancel(b, index)` öğeyi çıkarır + kaynağı iade eder; `ResearchSystem.CancelActive`
+  simetrik. **Play'de doğrulandı:** köylü iptali food 100→150.
+
+### Aşama 2 — Prosedürel ikonlar + hover tooltip
+- **Yeni `CommandIconFactory.cs`:** birim/bina/tech/market/komut ikonları, birkaç prosedürel sprite'tan
+  (kare/daire/halka/üçgen) kompoze edilir (Prims'in UI karşılığı); cache'li.
+- `HUD.MakeButton` artık **ikon + sol-üst hotkey rozeti + maliyet** gösterir; ad **tooltip'e** taşındı.
+  Paylaşımlı hover tooltip paneli (ad + maliyet + açıklama); `UnitDesc/BuildingDesc/TechDesc`.
+
+### Aşama 3 — Kuyruk ikon şeridi
+- Info panelinde tıklanabilir birim ikonları; baştaki öğede ilerleme dolumu; **tıkla → iptal+iade**
+  (`GetQueueView` + `Cancel`). Yalnızca kuyruk listesi değişince yeniden kurulur (imza/sig).
+
+### Aşama 4 — Yerleştirme & onarım
+- **Grid snap** (1u), **R ile 90° döndürme**, **Wall/Gate sürükle → segment dizisi** (`PlaceLine`, 1.5u aralık,
+  builder round-robin, mod açık kalır). `Place` → `PlaceAt` (doğrular, döndürür, Cancel'sız).
+- **Onarım (repair):** köylüyle kendi hasarlı binana sağ tık → `BuildSystem.StepRepair` hp'yi geri yükler,
+  **orantılı kaynak drain** (inşa fiyatının yarısı; bina-başına accumulator → maliyet builder sayısından bağımsız;
+  karşılanamazsa duraklar). `StepBuilder` → `StepConstruction`/`StepRepair` dallarına ayrıldı.
+
+### Aşama 5 — Birim komut butonları
+- Birim seçiliyken **Dur** (her birim) + **Saldır-Yürü** (savaş birimleri) butonları, S/A kısayollarıyla
+  (`HandleUnitHotkeys`; bina seçiliyken devre dışı). **Attack-move:** `UnitEntity.attackMove/attackMoveDest`;
+  `CombatSystem.StepAttackMove` yoldaki düşmanı angaje eder (`FindNearestEnemy` refactor), bitince hedefe devam;
+  `CommandSystem.BeginAttackMove` + hedef-seçme modu (SelectionSystem o sırada tıklamayı yutmaz).
+
+**Değişen/yeni dosyalar:** `CommandIconFactory.cs` (yeni); `HUD`, `CommandSystem`, `TrainingQueue`, `ResearchSystem`,
+`BuildSystem`, `BuildingPlacement`, `BuildingEntity`, `UnitEntity`, `SelectionSystem`, `CombatSystem`.
+
+**Doğrulama (Unity MCP, Play'de tam):** recompile **0 error / 0 warning**; dünya kuruldu, bina kartı + 2'li eğitim
+kuyruğu + rally + köylü kartı + iptal-iade **0 runtime error**; iade sayısal teyitli (food 100→150); **attack-move:**
+Militia z=-35.9 → hedef (0,0,0)'a ulaştı, varışta `StepAttackMove` bayrağı temizledi (state=Idle), asker kartı
+(Dur/Saldır-Yürü) hatasız kuruldu. (Not: 2. oturumda art arda `RunCommand`+Play domain reload'ları editörü bir kez
+kapattı — özellik kodu değil, araç kırılganlığı; tek-atış RunCommand ile sorun yok.)
+
+**Ek (kullanıcı isteği):** **Fog of War kapatıldı.** Kullanıcı haritayı "kötü/siyah" gördü; siyahlık FoW'un
+keşfedilmemiş zemini idi (izometrik kamerada zemin tüm ekranı kaplar). `FogOfWarSystem.fogEnabled` bayrağı eklendi
+(default **false**); kapalıyken `Init` erken döner (zemin sade yeşil kalır), `Update` no-op, düşman renderer'ları hep
+açık. Play'de doğrulandı (kamera capture: tüm harita görünür, siyah yok). **Geri açmak:** `fogEnabled = true`.
+
+> **Eşzamanlı not:** Bu oturum O14 ile aynı ağacı paylaştı. `ResearchSystem`'e yalnızca `CancelActive` eklendi
+> (O14'ün `Apply`/tier mantığına dokunulmadı); `HUD`'da O14'ün `UnitTr(type, tech)` davranışı korundu.
+> **FoW kapatma** O10'un FogOfWar sistemini etkiler (toggle ile geri açılır).
+
+---
+
+## Oturum 14 (2026-06-02) — Canlı simülasyon doğrulaması + İçerik: Birim Yükseltme Hatları ✅✅
+
+Plan: `~/.claude/plans/githubdaki-age-of-klonunu-groovy-giraffe.md`. (O13'ten ayrı bir oturum; O13'ün
+komut barı + `BuildingFactory.Wall→Plaster` CS0102 düzeltmesi zaten diskteydi ve temiz derleniyordu.)
+
+### Faz 0 — Canlı döngü doğrulaması (oyun "oynanır" kanıtlandı)
+- **0 error / 0 warning**; 16 sistemin tümü wired; O11 Submit spam'i yok.
+- **Canlı döngü kanıtı (RunCommand snapshot):** aynı anda `Attacking`=4 (savaş) + `Gathering`=3 (ekonomi)
+  + `Moving`=3 (pathfinding); bir AI takımının (T2) Town Center'ı yıkıldı → **savaş → bina yıkımı →
+  MatchSystem eleme** zinciri uçtan uca işliyor. Taze başlangıç doğru: T0=5 birim, 4 takımın da TC'si ayakta.
+
+### Bulunan + düzeltilen 1 gerçek bug — self-healing singleton
+- **`GameManager.Instance` Play sırasında domain reload'da (script recompile) null kalıyordu** ve hayatta
+  kalan obje için `Awake` tekrar çalışmadığından bir daha set edilmiyordu → `Instance`'a bakan tüm sistemler
+  sessizce no-op'a düşüyordu (oyun donuyordu). Oyuncuyu etkilemez; **Play sırasında kod düzenleyen geliştiriciyi**
+  vuruyordu. → `Instance => _instance != null ? _instance : (_instance = FindAnyObjectByType<GameManager>())`.
+  `Awake`/`OnDestroy` artık `_instance`'a yazar. Normal oyunda davranış değişmez. ([GameManager.cs])
+
+### Faz 1 — Birim Yükseltme Hatları (içerik & derinlik)
+AoE2 tier-yükseltmeleri; mevcut tech makinesine **sıfır yeni mimari** ile eklendi (Forging/ScaleMail vb. flat
+bonus üstüne stack'lenir; statlar `CombatSystem`'de canlı okunur; HP geriye dönük bump'lanır).
+
+| Tech | Bina | Çağ | Maliyet | Etki | Önkoşul |
+|---|---|---|---|---|---|
+| Piyade (ManAtArms) | Barracks | Derebeylik | 100Y 40A | Militia +1 atk, +10 hp | — |
+| Uzun Kılıç (Longswordsman) | Barracks | Kale | 150Y 100A | Militia +2 atk, +15 hp | **ManAtArms** |
+| Arbaletçi (Crossbowman) | ArcheryRange | Kale | 150Y 100A | Archer +2 atk, +0.5 menzil, +10 hp | — |
+| Ağır Süvari (Cavalier) | Stable | Kale | 150Y 100A | Cavalry +2 atk, +20 hp | — |
+
+**Değişen dosyalar:** `GameTypes` (4 yeni TechType), `TechDefs` (`requires`/`hasRequires` + 4 satır + ForBuilding
+önkoşul kontrolü), `TechState` (hat bonusları), `ResearchSystem` (geriye-dönük HP bump tüm tiplere genellendi —
+okçular dahil), `HUD` (tech'e duyarlı `UnitTr(type, tech)` → seçili birim üst-tier adını gösterir), `EnemyAI`
+(auto-research listesine hatlar; **FSM'e dokunulmadı**), `GameManager` (self-healing Instance).
+
+**Play'de doğrulandı:** önkoşul kapısı (Longswordsman, ManAtArms'tan önce gizli → sonra görünür);
+Militia 5→6→8 atk, 40→50→65 hp (canlı + geriye dönük); Archer 4→6 atk, 6.5→7 menzil, 30→40 hp. **0 error/0 warning.**
+
+### Sonraki içerik fazları (kullanıcı yönü: "İçerik & derinlik")
+Faz 2 — Garnizon · Faz 3 — Wonder zafer koşulu · Faz 4 — Trade Cart + yeni binalar (Blacksmith/Monastery).
 
 ---
 
@@ -413,16 +570,29 @@ Detaylı yol haritası: `~/.claude/plans/bunlar-n-hepsini-inceleyip-kendimize-pu
 | ~~Faz 2 — AI Koordinasyon~~ | Rally point, Personality enum (Rusher/Boomer/Balanced), retreat döngüsü | ✅ Oturum 9 |
 | ~~Faz 4 — Fog of War~~ | CPU Texture2D FoW, ground shader, düşman görünürlük toggle | ✅ Oturum 10 |
 | ~~Faz 5 — Yeni Mekanikler~~ | Scout, Medic, Duvar/Kapı, Relic (sadece gelir; zafer koşulu yok) | ✅ Oturum 12 (kod) + 13 (doğrulama) |
-| Faz 6 — Multiplayer | Deterministic lockstep altyapısı | Sıradaki |
+| ~~Birim Yükseltme Hatları~~ | ManAtArms/Longswordsman/Crossbowman/Cavalier (tier promosyonları) | ✅ Oturum 14 |
+
+### Yeni yön: **İçerik & Derinlik** (kullanıcı kararı, O14)
+| Faz | Hedef | Durum |
+|---|---|---|
+| Faz A — Garnizon | Birim binaya girer (güvenli + iyileşme), kapasite, ungarrison, TC/Castle garnizonla +ok | Sıradaki |
+| Faz B — Wonder zafer koşulu | Çok pahalı bina + geri-sayım zaferi (`MatchSystem`) | — |
+| Faz C — Trade Cart + yeni binalar | Market'ten ticaret arabası, Blacksmith/Monastery | — |
+| (paralel oturum) Rally-point | `CommandSystem` rally bayrağı — **başka oturum yapıyor, O14 dokunmadı** | 🚧 yarım (build kırık) |
+| Faz 6 — Multiplayer | Deterministic lockstep altyapısı | En son |
 
 ---
 
-## ✅ Doğrulama: Oturum 13'te MCP ile TAMAMLANDI
+## ✅ Doğrulama: Oturum 13 + 14'te MCP ile TAMAMLANDI
 
 **Derleme + runtime O13'te MCP ile teyit edildi: 0 error / 0 warning** (BuildingFactory CS0102 düzeltildikten
 sonra). Submit spam gitti (SafeBaseInput çalışıyor), `Custom/FogOfWar` render ediyor, Relic sistemi canlı,
-sahne 22 birim/24 bina ile kuruluyor, komut barı butonları çalışıyor. Aşağıdaki tarihsel kontrol listesi
-referans için bırakıldı.
+sahne 22 birim/24 bina ile kuruluyor, komut barı butonları çalışıyor.
+
+**O14 — canlı simülasyon doğrulaması:** RunCommand snapshot'larıyla aynı anda `Attacking`/`Gathering`/`Moving`
+birim durumları gözlendi; bir AI takımının TC'si yıkıldı → savaş→bina yıkımı→`MatchSystem` eleme zinciri uçtan
+uca işliyor. Yani **oyun gerçekten oynanır.** (Build, paralel oturumun rally-point edit'i tamamlanınca yeşile döner.)
+Aşağıdaki tarihsel kontrol listesi referans için bırakıldı.
 
 **Kalan tek doğrulama — insan tarafından oyun-hissi testi** (henüz elle oynanmadı): 1) Barracks→S gözcü
 hızlı/hasarsız + sis çok açılıyor mu; 2) Castle→H Medic yaralı dostu iyileştiriyor mu; 3) Köylü→W duvar
@@ -461,6 +631,8 @@ Hata varsa düzelt, temizse devam et. Özellikle kontrol edilmesi gerekenler:
 Age of Arena Unity portuna devam.
 Proje: /Users/emreaydin/ageofarena/AgeOfArenaUnity/
 Unity'yi BU prompttan ÖNCE aç (yoksa MCP tool'ları yüklenmiyor).
-HANDOFF.md oku. Derleme 0 error (Editor.log ile teyitli); O9/O10/O11 RUNTIME doğrulaması bekliyor.
-Önce Play'e bas + console'u kontrol et: O11 Submit spam gitti mi, komut barı çalışıyor mu, FoW render ediyor mu.
+HANDOFF.md oku. Runtime O13+O14'te MCP ile doğrulandı (oyun oynanır; canlı savaş/ekonomi/eleme zinciri).
+İLK İŞ: mcp__unity__get_console_logs (type:Error) → eşzamanlı oturumun CommandSystem.cs'e eklediği
+rally-point yarım kaldıysa (CS0103 UpdateRallyFlag) build kırıktır; o özelliği tamamla VEYA o oturumla
+koordine ol. Build yeşilse "İçerik & Derinlik" yol haritasından devam: Faz A — Garnizon.
 ```

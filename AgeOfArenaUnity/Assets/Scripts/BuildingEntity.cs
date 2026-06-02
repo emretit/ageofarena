@@ -21,6 +21,22 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     // from BuildingDefs. Driven by BuildingCombatSystem. 0 for passive buildings.
     public float attackCooldown;
 
+    // Armor (sourced from BuildingDefs in Start). Siege damage bypasses both types.
+    public float meleeArmor;
+    public float pierceArmor;
+
+    // Rally point: when set, units trained here (TrainingQueue) walk to rallyPoint
+    // on spawn instead of idling at the gate. Set via right-click while selected.
+    public bool hasRally;
+    public Vector3 rallyPoint;
+
+    // Garrison: units sheltered inside (hidden + healed; add defensive arrows via
+    // BuildingCombatSystem). Capacity comes from BuildingDefs; 0 = cannot garrison.
+    public readonly System.Collections.Generic.List<UnitEntity> garrison = new();
+    public int GarrisonCapacity => BuildingDefs.GarrisonCapacityFor(type);
+    public int GarrisonCount => garrison.Count;
+    public bool HasGarrisonSpace => GarrisonCount < GarrisonCapacity;
+
     /// <summary>Per-type hitpoints, sourced from the central <see cref="BuildingDefs"/> table.</summary>
     public static float MaxHpFor(BuildingType t) => BuildingDefs.Get(t).maxHp;
 
@@ -30,6 +46,9 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     {
         if (maxHp <= 0f) maxHp = MaxHpFor(type);
         if (hp <= 0f) hp = maxHp;
+        var def = BuildingDefs.Get(type);
+        meleeArmor = def.meleeArmor;
+        pierceArmor = def.pierceArmor;
     }
 
     // ── IDamageable ─────────────────────────────────────────────────────────
@@ -38,10 +57,16 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     public Transform Transform => transform;
     public float Radius => 2.6f; // footprint so attackers stop at the wall, not the centre
 
-    public void TakeDamage(float amount)
+    public void TakeDamage(float amount, DamageType damageType = DamageType.Melee)
     {
         if (hp <= 0f) return;
-        hp -= amount;
+        float armor = damageType switch
+        {
+            DamageType.Pierce => pierceArmor,
+            DamageType.Melee  => meleeArmor,
+            _                 => 0f,  // Siege bypasses armor
+        };
+        hp -= Mathf.Max(1f, amount - armor);
         if (hp <= 0f) Die();
     }
 
@@ -50,6 +75,8 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         hp = 0f;
         // List removal deferred to GameManager's end-of-frame compaction.
         var gm = GameManager.Instance;
+        // Units sheltering inside die with the building (they have no escape).
+        gm?.garrison?.OnBuildingDestroyed(this);
         if (gm != null && gm.selectedBuilding == this) gm.selectedBuilding = null;
         GameEvents.FireBuildingDestroyed(this, teamId);
         Destroy(gameObject);
@@ -62,8 +89,9 @@ public class BuildingEntity : MonoBehaviour, IDamageable
 
     static readonly UnitTrainable[] BarracksTrainables =
     {
-        new(UnitType.Militia, 21f, 0, 60, 20, "M"),
-        new(UnitType.Scout,   14f, 30, 0,  0, "S"), // fast, no-damage recon
+        new(UnitType.Militia,   21f,  0, 60, 20, "M"),
+        new(UnitType.Spearman,  18f, 35, 25,  0, "P"), // anti-cavalry; food 35 wood 25
+        new(UnitType.Scout,     14f, 30,  0,  0, "S"), // fast, no-damage recon
     };
 
     static readonly UnitTrainable[] ArcheryTrainables =
@@ -98,6 +126,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     static Age MinAgeFor(UnitType t) => t switch
     {
         UnitType.Archer    => Age.Feudal,
+        UnitType.Spearman  => Age.Feudal, // counter to Cavalry, which unlocks at Castle
         UnitType.Cavalry   => Age.Castle,
         UnitType.Trebuchet => Age.Castle,
         UnitType.Medic     => Age.Castle, // trained at the Castle, Castle Age

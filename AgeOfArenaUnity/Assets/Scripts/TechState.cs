@@ -23,24 +23,34 @@ public class TechState
     float MeleeAttackBonus  => Has(TechType.Forging) ? 2f : 0f;
     float ArcherAttackBonus => (Has(TechType.Fletching) ? 1f : 0f) + (Has(TechType.Bodkin) ? 1f : 0f);
 
+    // Tier-promotion bonuses stack on top of the flat blacksmith bonuses above.
+    float MilitiaLineAtk => (Has(TechType.ManAtArms) ? 1f : 0f) + (Has(TechType.Longswordsman) ? 2f : 0f);
+    float CavalryLineAtk => Has(TechType.Cavalier) ? 2f : 0f;
+    float ArcherLineAtk  => Has(TechType.Crossbowman) ? 2f : 0f;
+
     /// <summary>Additive attack bonus for a unit type (read live by CombatSystem).</summary>
     public float AttackBonus(UnitType t) => t switch
     {
-        UnitType.Militia => MeleeAttackBonus,
-        UnitType.Cavalry => MeleeAttackBonus,
-        UnitType.Archer  => ArcherAttackBonus,
+        UnitType.Militia => MeleeAttackBonus + MilitiaLineAtk,
+        UnitType.Cavalry => MeleeAttackBonus + CavalryLineAtk,
+        UnitType.Archer  => ArcherAttackBonus + ArcherLineAtk,
         _ => 0f,
     };
 
     /// <summary>Additive attack-range bonus (archers only).</summary>
     public float RangeBonus(UnitType t) =>
-        t == UnitType.Archer && Has(TechType.Fletching) ? 0.5f : 0f;
+        t == UnitType.Archer
+            ? (Has(TechType.Fletching) ? 0.5f : 0f) + (Has(TechType.Crossbowman) ? 0.5f : 0f)
+            : 0f;
 
     /// <summary>Additive max-hp bonus for a unit type.</summary>
     public float HpBonus(UnitType t) => t switch
     {
-        UnitType.Militia => Has(TechType.ScaleMail) ? 20f : 0f,
-        UnitType.Cavalry => (Has(TechType.ScaleMail) ? 20f : 0f) + (Has(TechType.Bloodlines) ? 20f : 0f),
+        UnitType.Militia => (Has(TechType.ScaleMail) ? 20f : 0f)
+                          + (Has(TechType.ManAtArms) ? 10f : 0f) + (Has(TechType.Longswordsman) ? 15f : 0f),
+        UnitType.Cavalry => (Has(TechType.ScaleMail) ? 20f : 0f) + (Has(TechType.Bloodlines) ? 20f : 0f)
+                          + (Has(TechType.Cavalier) ? 20f : 0f),
+        UnitType.Archer  => Has(TechType.Crossbowman) ? 10f : 0f,
         _ => 0f,
     };
 

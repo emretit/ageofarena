@@ -13,6 +13,13 @@ public class BuildingCombatSystem : MonoBehaviour
 {
     const float MuzzleHeight = 5f; // arrows leave from the top of the keep
 
+    // Garrison defensive fire: each sheltered unit adds an arrow (capped), and a
+    // passive building (Town Center) gains a defensive range while it shelters anyone.
+    const float GarrisonRange       = 8f;
+    const float GarrisonArrowDamage = 6f;
+    const float GarrisonInterval    = 1.2f;
+    const int   MaxGarrisonArrows   = 5;
+
     public void Tick(List<BuildingEntity> buildings, List<UnitEntity> units, float dt)
     {
         for (int i = 0; i < buildings.Count; i++)
@@ -21,15 +28,26 @@ public class BuildingCombatSystem : MonoBehaviour
             if (b == null || b.underConstruction) continue;
 
             var def = BuildingDefs.Get(b.type);
-            if (def.attackRange <= 0f) continue;
+            int garr = b.GarrisonCount;
+
+            // A passive building fires only while garrisoned; an armed one (Castle)
+            // always fires and shoots farther of the two ranges.
+            float range = def.attackRange > 0f ? def.attackRange : (garr > 0 ? GarrisonRange : 0f);
+            if (range <= 0f) continue;
 
             if (b.attackCooldown > 0f) { b.attackCooldown -= dt; continue; }
 
-            var target = NearestEnemyUnit(b, units, def.attackRange);
+            var target = NearestEnemyUnit(b, units, range);
             if (target == null) continue;
 
-            Projectile.Spawn(b.transform.position + Vector3.up * MuzzleHeight, target, def.attackDamage);
-            b.attackCooldown = def.attackInterval;
+            Vector3 muzzle = b.transform.position + Vector3.up * MuzzleHeight;
+            if (def.attackDamage > 0f)
+                Projectile.Spawn(muzzle, target, def.attackDamage, DamageType.Pierce);      // Castle arrow
+            int extra = Mathf.Min(garr, MaxGarrisonArrows);
+            for (int a = 0; a < extra; a++)
+                Projectile.Spawn(muzzle, target, GarrisonArrowDamage, DamageType.Pierce);  // garrison arrow
+
+            b.attackCooldown = def.attackInterval > 0f ? def.attackInterval : GarrisonInterval;
         }
     }
 
@@ -41,7 +59,7 @@ public class BuildingCombatSystem : MonoBehaviour
         for (int i = 0; i < units.Count; i++)
         {
             var u = units[i];
-            if (u == null || u.teamId == b.teamId) continue;
+            if (u == null || u.teamId == b.teamId || u.isGarrisoned) continue;
             float sq = FlatSq(pos, u.transform.position);
             if (sq < bestSq) { bestSq = sq; best = u; }
         }

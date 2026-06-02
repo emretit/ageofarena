@@ -56,6 +56,37 @@ public class TrainingQueue : MonoBehaviour
     public int GetQueueCount(BuildingEntity b)
         => _queues.TryGetValue(b, out var q) ? q.Count : 0;
 
+    /// <summary>
+    /// Read-only snapshot of a building's queue for the HUD queue strip: the
+    /// front item carries its live 0–1 progress, the rest report 0.
+    /// </summary>
+    public List<(UnitType type, float progress)> GetQueueView(BuildingEntity b)
+    {
+        var view = new List<(UnitType, float)>();
+        if (!_queues.TryGetValue(b, out var q)) return view;
+        for (int i = 0; i < q.Count; i++)
+        {
+            var it = q[i];
+            view.Add((it.unitType, i == 0 ? it.elapsed / it.totalTime : 0f));
+        }
+        return view;
+    }
+
+    /// <summary>
+    /// Cancel the queued item at <paramref name="index"/> and refund its cost.
+    /// Population isn't refunded because enqueue doesn't reserve it.
+    /// </summary>
+    public void Cancel(BuildingEntity b, int index)
+    {
+        if (!_queues.TryGetValue(b, out var q) || index < 0 || index >= q.Count) return;
+        var it = q[index];
+        var rm = GM.resources;
+        rm.Gain(ResourceKind.Food, it.food);
+        rm.Gain(ResourceKind.Wood, it.wood);
+        rm.Gain(ResourceKind.Gold, it.gold);
+        q.RemoveAt(index);
+    }
+
     public void Tick(float dt)
     {
         var gm = GM;
@@ -90,10 +121,15 @@ public class TrainingQueue : MonoBehaviour
             UnitType.Trebuchet  => UnitFactory.Trebuchet(unitsRoot, spawnPos, teamColor),
             UnitType.Scout      => UnitFactory.Scout(unitsRoot, spawnPos, teamColor),
             UnitType.Medic      => UnitFactory.Medic(unitsRoot, spawnPos, teamColor),
+            UnitType.Spearman   => UnitFactory.Spearman(unitsRoot, spawnPos, teamColor),
             _                   => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
         };
 
         gm.RegisterUnit(unit);
         gm.RecomputePop();
+
+        // If the building has a rally point, the fresh unit walks there instead of
+        // idling at the gate (AoE behaviour).
+        if (b.hasRally && unit != null) unit.MoveTo(b.rallyPoint);
     }
 }

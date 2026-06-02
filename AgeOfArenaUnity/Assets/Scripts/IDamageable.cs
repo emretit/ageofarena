@@ -17,5 +17,5 @@ public interface IDamageable
     /// <summary>Footprint radius added to the attacker's range so large buildings
     /// can be hit from their edge rather than their centre.</summary>
     float Radius { get; }
-    void TakeDamage(float amount);
+    void TakeDamage(float amount, DamageType damageType = DamageType.Melee);
 }

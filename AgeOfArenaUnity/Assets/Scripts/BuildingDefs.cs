@@ -24,11 +24,20 @@ public struct BuildingDef
 
     public Age minAge;         // age the team must have reached to build this
 
+    // Garrison: max units that can shelter inside. 0 = cannot garrison (default).
+    // Garrisoned units are hidden + healed and add defensive arrows (BuildingCombatSystem).
+    public int garrisonCapacity;
+
+    // Armor: subtracted from incoming damage of the matching DamageType (min-1 floor
+    // applied in TakeDamage). Siege damage bypasses both armor types (treated as 0).
+    public float meleeArmor, pierceArmor;
+
     public BuildingDef(BuildingType t, int f, int w, int g, int s, float time,
         int pop, float hp, string name, char hk, bool canBuild,
         bool drop = false, int dropMask = 0,
         float atkRange = 0f, float atkDmg = 0f, float atkInterval = 0f,
-        Age minAge = Age.Dark)
+        Age minAge = Age.Dark, int garrisonCap = 0,
+        float meleeArm = 1f, float pierceArm = 3f)
     {
         type = t; food = f; wood = w; gold = g; stone = s;
         buildTime = time; popProvided = pop; maxHp = hp;
@@ -36,6 +45,8 @@ public struct BuildingDef
         isDropoff = drop; dropoffMask = dropMask;
         attackRange = atkRange; attackDamage = atkDmg; attackInterval = atkInterval;
         this.minAge = minAge;
+        garrisonCapacity = garrisonCap;
+        meleeArmor = meleeArm; pierceArmor = pierceArm;
     }
 }
 
@@ -51,7 +62,7 @@ public static class BuildingDefs
     static readonly BuildingDef[] Table =
     {
         //               type                  f    w   g   s  time  pop  hp     name             hk  build  drop    mask
-        new(BuildingType.TownCenter,    0,    0,  0,  0,  60f,  5,  600f, "Town Center",   'T', false, true,  MaskAll),
+        new(BuildingType.TownCenter,    0,    0,  0,  0,  60f,  5,  600f, "Town Center",   'T', false, true,  MaskAll, garrisonCap: 10, meleeArm: 3f, pierceArm: 5f),
         new(BuildingType.House,         0,   30,  0,  0,  12f,  5,  300f, "House",         'H', true),
         new(BuildingType.Barracks,      0,  120,  0,  0,  25f,  0,  400f, "Barracks",      'B', true),
         new(BuildingType.ArcheryRange,  0,  120,  0,  0,  25f,  0,  400f, "Archery Range", 'R', true,  minAge: Age.Feudal),
@@ -63,10 +74,10 @@ public static class BuildingDefs
         new(BuildingType.Market,        0,  175,  0,  0,  25f,  0,  350f, "Market",        'K', true),
         // Castle: heavy stone cost (forces stone economy), high hp, +pop, and it
         // auto-fires arrows at nearby enemies (atkRange > 0). TC stays passive.
-        new(BuildingType.Castle,        0,    0,  0,650,  80f, 10, 2000f, "Castle",        'E', true,  false, 0, 9f, 18f, 1.5f),
+        new(BuildingType.Castle,        0,    0,  0,650,  80f, 10, 2000f, "Castle",        'E', true,  false, 0, 9f, 18f, 1.5f, garrisonCap: 15, meleeArm: 8f, pierceArm: 8f),
         // Defensive palisade & gate. Cheap wood, fast build, available from Dark Age.
         // Wall blocks pathfinding (carving NavMeshObstacle); Gate is a passable opening.
-        new(BuildingType.Wall,          0,   10,  0,  0,   4f,  0,  200f, "Wall",          'W', true),
+        new(BuildingType.Wall,          0,   10,  0,  0,   4f,  0,  200f, "Wall",          'W', true,  meleeArm: 10f, pierceArm: 10f),
         new(BuildingType.Gate,          0,   30,  0,  0,   8f,  0,  450f, "Gate",          'O', true),
     };
 
@@ -82,6 +93,9 @@ public static class BuildingDefs
 
     /// <summary>True if a team at <paramref name="age"/> has unlocked building <paramref name="t"/>.</summary>
     public static bool UnlockedAt(BuildingType t, Age age) => age >= Get(t).minAge;
+
+    /// <summary>Max units that can garrison inside <paramref name="t"/> (0 = none).</summary>
+    public static int GarrisonCapacityFor(BuildingType t) => Get(t).garrisonCapacity;
 
     /// <summary>True if a gatherer carrying <paramref name="kind"/> can deposit at <paramref name="t"/>.</summary>
     public static bool AcceptsDropoff(BuildingType t, ResourceKind kind)

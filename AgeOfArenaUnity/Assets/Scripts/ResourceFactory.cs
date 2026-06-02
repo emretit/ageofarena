@@ -20,8 +20,8 @@ public static class ResourceFactory
         g.transform.position = worldPos;
         var t = g.transform;
 
-        var trunkMat = Prims.Mat(Prims.Hex(0x6b4226));
-        var leafMat = Prims.Mat(Prims.Hex(0x2f6b2f));
+        var trunkMat = Prims.Mat(Prims.Hex(0x5c3418));
+        var leafMat  = Prims.Mat(Prims.Hex(0x2a6020)); // deeper forest green
 
         Prims.Cylinder(t, new Vector3(0, 0.7f, 0), 0.25f, 1.4f, trunkMat);
         Prims.Cone(t, new Vector3(0, 1.5f, 0), 1.3f, 1.4f, 7, leafMat);
@@ -33,6 +33,7 @@ public static class ResourceFactory
         t.localScale = new Vector3(s, s, s);
         t.localRotation = Quaternion.Euler(0, Random.Range(0f, 360f), 0);
 
+        Prims.BlobShadow(t, 0.7f);
         Prims.EnableShadows(g);
         return Finish(g, ResourceKind.Wood, TreeWood);
     }

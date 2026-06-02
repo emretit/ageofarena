@@ -28,7 +28,7 @@ public class CombatSystem : MonoBehaviour
         for (int i = 0; i < units.Count; i++)
         {
             var u = units[i];
-            if (u == null) continue;
+            if (u == null || u.isGarrisoned) continue;
 
             if (u.attackCooldown > 0f) u.attackCooldown -= dt;
 
@@ -41,9 +41,30 @@ public class CombatSystem : MonoBehaviour
 
             if (u.attackTarget != null)
                 StepCombat(u);
+            else if (u.attackMove)
+                StepAttackMove(u, scanAggro);
             else if (scanAggro && u.state == UnitState.Idle && u.gatherTarget == null && u.AggroRadius > 0f)
                 TryAcquire(u);
         }
+    }
+
+    /// <summary>
+    /// Attack-move: engage any enemy that enters aggro range (then resume after the
+    /// fight via <see cref="StepCombat"/>), otherwise keep advancing to the ordered
+    /// destination. Finishes — clearing the flag — once the destination is reached.
+    /// </summary>
+    void StepAttackMove(UnitEntity u, bool scanAggro)
+    {
+        if (u.AggroRadius > 0f && scanAggro)
+        {
+            var enemy = FindNearestEnemy(u, u.AggroRadius);
+            if (enemy != null) { u.AttackOrder(enemy); return; }   // attackMove stays set
+        }
+
+        if (FlatDist(u.transform.position, u.attackMoveDest) <= 1.2f)
+            u.attackMove = false;                                  // arrived
+        else if (u.state == UnitState.Idle)
+            u.MoveTo(u.attackMoveDest);                            // resume the advance
     }
 
     void StepCombat(UnitEntity u)
@@ -89,19 +110,26 @@ public class CombatSystem : MonoBehaviour
             u.FaceToward(tpos);
             if (u.attackCooldown <= 0f)
             {
-                // Anti-structure bonus (Trebuchet) applied before ranged/melee branch.
-                float effectiveDmg = u.AttackDamage *
-                    (u.attackTarget is BuildingEntity ? u.AntiStructureMultiplier : 1f);
+                float dmg = u.AttackDamage;
+
+                // Spearman anti-cavalry bonus (only vs Cavalry UnitEntity targets).
+                if (u.type == UnitType.Spearman &&
+                    u.attackTarget is UnitEntity tu && tu.type == UnitType.Cavalry)
+                    dmg *= u.AntiCavalryMultiplier;
+
+                // Anti-structure bonus (Trebuchet) when hitting a building.
+                if (u.attackTarget is BuildingEntity)
+                    dmg *= u.AntiStructureMultiplier;
 
                 if (u.IsRanged)
                 {
-                    Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, effectiveDmg);
+                    Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, dmg, u.DamageKind);
                 }
                 else
                 {
                     // Cavalry charge: first swing after 4s of non-combat deals 2.5× damage.
-                    if (u.ChargeReady) { effectiveDmg *= u.ChargeMultiplier; u.chargeTimer = 0f; }
-                    target.TakeDamage(effectiveDmg);
+                    if (u.ChargeReady) { dmg *= u.ChargeMultiplier; u.chargeTimer = 0f; }
+                    target.TakeDamage(dmg, u.DamageKind);
                 }
                 u.attackCooldown = u.AttackInterval;
             }
@@ -110,15 +138,22 @@ public class CombatSystem : MonoBehaviour
 
     void TryAcquire(UnitEntity u)
     {
+        var best = FindNearestEnemy(u, u.AggroRadius);
+        if (best != null) u.AttackOrder(best);
+    }
+
+    /// <summary>Nearest enemy unit or building within <paramref name="radius"/>, or null.</summary>
+    IDamageable FindNearestEnemy(UnitEntity u, float radius)
+    {
         IDamageable best = null;
-        float bestSq = u.AggroRadius * u.AggroRadius;
+        float bestSq = radius * radius;
         Vector3 pos = u.transform.position;
 
         var units = GM.units;
         for (int i = 0; i < units.Count; i++)
         {
             var o = units[i];
-            if (o == null || o.teamId == u.teamId) continue;
+            if (o == null || o.teamId == u.teamId || o.isGarrisoned) continue;
             float sq = FlatSq(pos, o.transform.position);
             if (sq < bestSq) { bestSq = sq; best = o; }
         }
@@ -132,7 +167,7 @@ public class CombatSystem : MonoBehaviour
             if (sq < bestSq) { bestSq = sq; best = b; }
         }
 
-        if (best != null) u.AttackOrder(best);
+        return best;
     }
 
     /// <summary>

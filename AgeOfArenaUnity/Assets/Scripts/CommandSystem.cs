@@ -16,7 +16,20 @@ public class CommandSystem : MonoBehaviour
 
     Camera _cam;
 
+    /// <summary>True while waiting for the player to click an attack-move destination.</summary>
+    public bool AttackMovePending { get; private set; }
+
     void Start() => _cam = Camera.main;
+
+    /// <summary>Enter attack-move targeting: the next ground click sends every selected
+    /// unit advancing to that point, engaging enemies on the way. Called by the HUD.</summary>
+    public void BeginAttackMove()
+    {
+        var sel = GameManager.Instance?.selection?.Selected;
+        if (sel == null) return;
+        for (int i = 0; i < sel.Count; i++)
+            if (sel[i] != null) { AttackMovePending = true; return; }
+    }
 
     void Update()
     {
@@ -25,22 +38,48 @@ public class CommandSystem : MonoBehaviour
 
         var gm = GameManager.Instance;
         if (gm == null) return;
+
+        // The rally flag tracks the selected building's rally point every frame.
+        UpdateRallyFlag(gm);
+
         // While placing a building, the placement system owns the mouse.
         if (gm.placement != null && gm.placement.Active) return;
+
+        // While picking an attack-move target, the next click is consumed here.
+        if (AttackMovePending) { HandleAttackMovePick(gm); return; }
 
         HandleTrainHotkeys();
         HandleMarketHotkeys();
         HandleResearchHotkeys();
         HandleBuildHotkeys();
+        HandleUnitHotkeys();
+        HandleGarrisonHotkeys();
         if (!Input.GetMouseButtonDown(1)) return;
         // A right-click over the HUD command bar shouldn't issue a world order.
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
+        var ray = _cam.ScreenPointToRay(Input.mousePosition);
+        if (!Physics.Raycast(ray, out var hit, 500f)) return;
+
+        // A selected own building takes the right-click as a rally-point order:
+        // trained units will walk to this spot (or the clicked resource node).
+        var selBld = gm.selectedBuilding;
+        if (selBld != null && selBld.teamId == 0)
+        {
+            var rnode = hit.collider.GetComponentInParent<ResourceNode>();
+            Vector3 rp = rnode != null && !rnode.Depleted ? rnode.transform.position : hit.point;
+            selBld.hasRally = true;
+            selBld.rallyPoint = rp;
+            SpawnMarker(rp, MoveColor);
+            return;
+        }
+
         var selected = gm.selection != null ? gm.selection.Selected : null;
         if (selected == null || selected.Count == 0) return;
 
-        var ray = _cam.ScreenPointToRay(Input.mousePosition);
-        if (!Physics.Raycast(ray, out var hit, 500f)) return;
+        // Any explicit right-click order overrides a running attack-move.
+        for (int i = 0; i < selected.Count; i++)
+            if (selected[i] != null) selected[i].attackMove = false;
 
         // Enemy unit or building → attack order for the whole selection.
         var enemy = ResolveEnemy(hit.collider);
@@ -54,6 +93,36 @@ public class CommandSystem : MonoBehaviour
             }
             if (ordered) SpawnMarker(enemy.Transform.position, AttackColor);
             return;
+        }
+
+        // Own building that is under construction or damaged → send villagers to
+        // build/repair it (BuildSystem advances construction or restores hp).
+        var ownB = hit.collider.GetComponentInParent<BuildingEntity>();
+        if (ownB != null && ownB.teamId == 0 && (ownB.underConstruction || ownB.hp < ownB.maxHp))
+        {
+            bool any = false;
+            for (int i = 0; i < selected.Count; i++)
+            {
+                var u = selected[i];
+                if (u != null && u.type == UnitType.Villager) { u.BuildOrder(ownB); any = true; }
+            }
+            if (any) { SpawnMarker(ownB.transform.position, MoveColor); return; }
+        }
+
+        // Own intact building with garrison space → shelter the selected units inside.
+        if (ownB != null && ownB.teamId == 0 && !ownB.underConstruction && ownB.GarrisonCapacity > 0)
+        {
+            int free = ownB.GarrisonCapacity - ownB.GarrisonCount;
+            bool any = false;
+            for (int i = 0; i < selected.Count && free > 0; i++)
+            {
+                var u = selected[i];
+                if (u == null || u.isGarrisoned) continue;
+                u.GarrisonOrder(ownB);
+                free--;
+                any = true;
+            }
+            if (any) { SpawnMarker(ownB.transform.position, MoveColor); return; }
         }
 
         var node = hit.collider.GetComponentInParent<ResourceNode>();
@@ -148,6 +217,31 @@ public class CommandSystem : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Alpha4)) MarketSystem.Buy(rm, ResourceKind.Food);
     }
 
+    /// <summary>With units (and no building) selected, S stops them and A starts an
+    /// attack-move. Building/train hotkeys take priority when a building is selected.</summary>
+    void HandleUnitHotkeys()
+    {
+        var gm = GameManager.Instance;
+        if (gm.selectedBuilding != null) return;
+        var sel = gm.selection != null ? gm.selection.Selected : null;
+        if (sel == null || sel.Count == 0) return;
+
+        if (Input.GetKeyDown(KeyCode.S))
+            for (int i = 0; i < sel.Count; i++) { var u = sel[i]; if (u != null) { u.attackMove = false; u.Stop(); } }
+        else if (Input.GetKeyDown(KeyCode.A))
+            BeginAttackMove();
+    }
+
+    /// <summary>With a garrison-capable building selected, U ejects everyone inside.</summary>
+    void HandleGarrisonHotkeys()
+    {
+        var gm = GameManager.Instance;
+        var b = gm?.selectedBuilding;
+        if (b == null || gm.garrison == null) return;
+        if (b.GarrisonCount > 0 && Input.GetKeyDown(KeyCode.U))
+            gm.garrison.UngarrisonAll(b);
+    }
+
     void HandleTrainHotkeys()
     {
         var gm = GameManager.Instance;
@@ -161,6 +255,32 @@ public class CommandSystem : MonoBehaviour
             if (def.hotkey.Length > 0 && Input.GetKeyDown(def.hotkey[0].ToString().ToLower()))
                 gm.trainingQueue.Enqueue(b, def);
         }
+    }
+
+    /// <summary>Consume the attack-move targeting click: send the selection advancing
+    /// to the clicked point. Right-click / Esc cancels.</summary>
+    void HandleAttackMovePick(GameManager gm)
+    {
+        if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape)) { AttackMovePending = false; return; }
+        if (!Input.GetMouseButtonDown(0)) return;
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+
+        var ray = _cam.ScreenPointToRay(Input.mousePosition);
+        if (!Physics.Raycast(ray, out var hit, 500f)) { AttackMovePending = false; return; }
+        Vector3 point = hit.point;
+
+        var sel = gm.selection != null ? gm.selection.Selected : null;
+        if (sel != null)
+            for (int i = 0; i < sel.Count; i++)
+            {
+                var u = sel[i];
+                if (u == null) continue;
+                u.attackMove = true;
+                u.attackMoveDest = point;
+                u.MoveTo(point);
+            }
+        SpawnMarker(point, AttackColor);
+        AttackMovePending = false;
     }
 
     void MoveOrder(List<UnitEntity> selected, Vector3 point)
@@ -187,6 +307,33 @@ public class CommandSystem : MonoBehaviour
             u.Stop();
             u.MoveTo(point + new Vector3(offX, 0f, offZ));
         }
+    }
+
+    // ── Rally flag ────────────────────────────────────────────────────────────
+
+    GameObject _rallyFlag;
+
+    /// <summary>Show a small flag at the selected building's rally point; hide it
+    /// when no rally-capable building is selected.</summary>
+    void UpdateRallyFlag(GameManager gm)
+    {
+        var b = gm.selectedBuilding;
+        bool show = b != null && b.hasRally;
+        if (!show)
+        {
+            if (_rallyFlag != null && _rallyFlag.activeSelf) _rallyFlag.SetActive(false);
+            return;
+        }
+        if (_rallyFlag == null)
+        {
+            _rallyFlag = new GameObject("RallyFlag");
+            Prims.Cylinder(_rallyFlag.transform, new Vector3(0, 0.9f, 0), 0.06f, 1.8f,
+                Prims.Mat(Prims.Hex(0x4a3520)));
+            Prims.Box(_rallyFlag.transform, new Vector3(0.3f, 1.5f, 0f), new Vector3(0.55f, 0.38f, 0.04f),
+                Prims.Mat(Prims.Hex(0x39c24a)));
+        }
+        _rallyFlag.transform.position = b.rallyPoint;
+        if (!_rallyFlag.activeSelf) _rallyFlag.SetActive(true);
     }
 
     void SpawnMarker(Vector3 pos, Color color)

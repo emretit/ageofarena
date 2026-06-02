@@ -47,6 +47,7 @@ public static class UnitFactory
 
         var e = Finish(g, UnitType.Militia, teamColor);
         e.hp = e.maxHp = 40f;
+        e.pierceArmor = 1f;
         return e;
     }
 
@@ -100,6 +101,8 @@ public static class UnitFactory
         var e = Finish(g, UnitType.Cavalry, teamColor);
         e.hp = e.maxHp = 75f;
         e.moveSpeed = 5.5f;
+        e.meleeArmor = 2f;
+        e.pierceArmor = 2f;
         return e;
     }
 
@@ -157,6 +160,7 @@ public static class UnitFactory
         var e = Finish(g, UnitType.Scout, teamColor);
         e.hp = e.maxHp = 40f;
         e.moveSpeed = 6.5f; // fastest unit — pure recon
+        e.pierceArmor = 2f;
         return e;
     }
 
@@ -185,6 +189,30 @@ public static class UnitFactory
         return e;
     }
 
+    public static UnitEntity Spearman(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Spearman", parent, worldPos);
+        var t = g.transform;
+
+        var cloth  = Prims.Mat(teamColor, 0.1f, 0.35f);
+        var metal  = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
+        var skin   = Prims.Mat(Prims.Hex(0xe0ac69));
+        var wood   = Prims.Mat(Prims.Hex(0x6b4a2a));
+
+        Prims.Box(t, new Vector3(0, 0.5f, 0),     new Vector3(0.42f, 0.78f, 0.32f), cloth); // body
+        Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.17f, skin);                             // head
+        Prims.Box(t, new Vector3(0, 1.08f, 0),    new Vector3(0.30f, 0.16f, 0.30f), metal); // cap
+        // spear: long wooden shaft + metal tip held vertically at the side
+        Prims.Box(t, new Vector3(0.34f, 1.0f, 0.08f),  new Vector3(0.05f, 1.9f, 0.05f), wood);
+        Prims.Box(t, new Vector3(0.34f, 1.95f, 0.08f), new Vector3(0.08f, 0.25f, 0.08f), metal);
+
+        var e = Finish(g, UnitType.Spearman, teamColor);
+        e.hp = e.maxHp = 25f;
+        e.moveSpeed = 3.3f;
+        e.pierceArmor = 3f;
+        return e;
+    }
+
     static GameObject NewUnit(string name, Transform parent, Vector3 worldPos)
     {
         var g = new GameObject(name);
@@ -195,19 +223,23 @@ public static class UnitFactory
 
     static UnitEntity Finish(GameObject g, UnitType type, Color teamColor)
     {
-        Prims.EnableShadows(g);
+        // Scale up visuals 1.25× for readability at ortho distances.
+        // Collider is on root and resized to match, so gameplay is unaffected.
+        g.transform.localScale = new Vector3(1.25f, 1.25f, 1.25f);
 
-        // Selection ring child at the unit's feet.
+        Prims.EnableShadows(g);
+        Prims.BlobShadow(g.transform, 0.65f);
+
         var ringGo = new GameObject("SelectionRing");
         ringGo.transform.SetParent(g.transform, false);
         ringGo.AddComponent<LineRenderer>();
         ringGo.AddComponent<SelectionRing>();
 
-        // Raycast collider on the root (children have none after Prims.Spawn).
+        // Collider scaled to match 1.25× visual (divide by scale).
         var col = g.AddComponent<CapsuleCollider>();
         col.center = new Vector3(0, 0.6f, 0);
-        col.radius = 0.35f;
-        col.height = 1.4f;
+        col.radius = 0.28f;   // 0.35 / 1.25
+        col.height = 1.12f;   // 1.4  / 1.25
 
         var e = g.AddComponent<UnitEntity>();
         e.unitId = _nextId++;

@@ -130,12 +130,19 @@ public class EnemyAI : MonoBehaviour
                 TryResearch(TechType.FeudalAge);
                 break;
             case Age.Feudal:
-                if (!TryResearch(TechType.Forging))  // cheap upgrade first, else save for Castle
-                    TryResearch(TechType.CastleAge);
+                if (!TryResearch(TechType.Forging)         // cheap blacksmith bonus first
+                    && !TryResearch(TechType.ManAtArms))   // then the infantry tier-up
+                    TryResearch(TechType.CastleAge);       // else save for the next age
                 break;
             case Age.Castle:
+                // Blacksmith bonuses, then tier promotions (Longswordsman needs ManAtArms first).
                 if (!TryResearch(TechType.ScaleMail))
-                    TryResearch(TechType.Bloodlines);
+                {
+                    bool did = _tech.Has(TechType.ManAtArms) && TryResearch(TechType.Longswordsman);
+                    if (!did) did = TryResearch(TechType.Cavalier);
+                    if (!did) did = TryResearch(TechType.Crossbowman);
+                    if (!did) TryResearch(TechType.Bloodlines);
+                }
                 break;
         }
     }

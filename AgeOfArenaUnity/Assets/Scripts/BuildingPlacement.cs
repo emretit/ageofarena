@@ -26,6 +26,13 @@ public class BuildingPlacement : MonoBehaviour
     readonly List<UnitEntity> _builders = new();
     bool _valid;
 
+    float _yaw;                       // R rotates the ghost in 90° steps
+    bool _dragging;                   // Wall/Gate line-drag in progress
+    Vector3 _dragStart;
+    const float GridSize = 1f;        // ghost snaps to a 1-unit grid
+    const float WallSpacing = 1.5f;   // gap between dragged wall/gate segments
+    bool IsLine => _type == BuildingType.Wall || _type == BuildingType.Gate;
+
     GameManager GM => GameManager.Instance;
 
     /// <summary>Enter placement mode for <paramref name="type"/> using the current villager selection.</summary>
@@ -55,6 +62,8 @@ public class BuildingPlacement : MonoBehaviour
         _ghostMat = GhostMat(Color.green);
         foreach (var r in _ghost.GetComponentsInChildren<MeshRenderer>()) r.sharedMaterial = _ghostMat;
 
+        _yaw = 0f;
+        _dragging = false;
         Active = true;
     }
 
@@ -62,6 +71,7 @@ public class BuildingPlacement : MonoBehaviour
     {
         if (_ghost != null) Destroy(_ghost);
         _ghost = null;
+        _dragging = false;
         Active = false;
     }
 
@@ -72,16 +82,58 @@ public class BuildingPlacement : MonoBehaviour
         if (_cam == null) return;
 
         if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape)) { Cancel(); return; }
+        if (Input.GetKeyDown(KeyCode.R)) _yaw = (_yaw + 90f) % 360f;   // rotate footprint
 
         var ray = _cam.ScreenPointToRay(Input.mousePosition);
         if (!Ground.Raycast(ray, out float enter)) return;
-        Vector3 pos = ray.GetPoint(enter);
-        _ghost.transform.position = pos;
+        Vector3 pos = Snap(ray.GetPoint(enter));
+        _ghost.transform.SetPositionAndRotation(pos, Quaternion.Euler(0f, _yaw, 0f));
 
         _valid = IsValid(pos);
         _ghostMat.color = _valid ? new Color(0.3f, 1f, 0.35f, 0.45f) : new Color(1f, 0.3f, 0.25f, 0.45f);
 
-        if (_valid && Input.GetMouseButtonDown(0)) Place(pos);
+        if (IsLine)
+        {
+            // Wall/Gate: click-drag lays a straight line of segments; release commits
+            // and stays in build mode so chains can be drawn back-to-back.
+            if (_valid && Input.GetMouseButtonDown(0)) { _dragging = true; _dragStart = pos; }
+            if (_dragging && Input.GetMouseButtonUp(0)) { PlaceLine(_dragStart, pos); _dragging = false; }
+        }
+        else if (_valid && Input.GetMouseButtonDown(0))
+        {
+            PlaceAt(pos, _builders);
+            Cancel();
+        }
+    }
+
+    /// <summary>Snap a ground point to the placement grid.</summary>
+    static Vector3 Snap(Vector3 p)
+        => new Vector3(Mathf.Round(p.x / GridSize) * GridSize, 0f, Mathf.Round(p.z / GridSize) * GridSize);
+
+    /// <summary>Lay a straight line of wall/gate segments from start to end (whichever
+    /// axis is longer), spending resources and assigning builders round-robin.</summary>
+    void PlaceLine(Vector3 start, Vector3 end)
+    {
+        Vector3 d = end - start;
+        Vector3 step = Mathf.Abs(d.x) >= Mathf.Abs(d.z)
+            ? new Vector3(Mathf.Sign(d.x) * WallSpacing, 0f, 0f)
+            : new Vector3(0f, 0f, Mathf.Sign(d.z) * WallSpacing);
+        float len = Mathf.Abs(d.x) >= Mathf.Abs(d.z) ? Mathf.Abs(d.x) : Mathf.Abs(d.z);
+        int steps = Mathf.RoundToInt(len / WallSpacing);
+
+        int placed = 0;
+        for (int i = 0; i <= steps; i++)
+        {
+            Vector3 p = start + step * i;
+            var be = PlaceAt(p, null);                       // validates + spends inside
+            if (be == null) continue;                        // overlap or out of resources
+            if (_builders.Count > 0)
+            {
+                var b = _builders[placed % _builders.Count];
+                if (b != null) b.BuildOrder(be);
+            }
+            placed++;
+        }
     }
 
     bool IsValid(Vector3 pos)
@@ -98,11 +150,16 @@ public class BuildingPlacement : MonoBehaviour
         return hits.Length == 0;
     }
 
-    void Place(Vector3 pos)
+    /// <summary>Place one construction site at <paramref name="pos"/> if valid; spends
+    /// resources and (optionally) assigns builders. Returns the site, or null if the
+    /// spot was invalid / unaffordable. Does not exit placement mode.</summary>
+    BuildingEntity PlaceAt(Vector3 pos, List<UnitEntity> builders)
     {
+        if (!IsValid(pos)) return null;
         GM.resources.Deduct(_def.food, _def.wood, _def.gold, _def.stone);
 
         var go = BuildingFactory.Create(_type, null, pos, TeamColor);
+        go.transform.rotation = Quaternion.Euler(0f, _yaw, 0f);
         var be = go.GetComponent<BuildingEntity>();
         be.teamId = 0;
         be.maxHp = _def.maxHp;
@@ -112,10 +169,11 @@ public class BuildingPlacement : MonoBehaviour
         be.hp = 1f;
         GM.RegisterBuilding(be);                 // a half-built building can already be attacked
 
-        for (int i = 0; i < _builders.Count; i++)
-            if (_builders[i] != null) _builders[i].BuildOrder(be);
+        if (builders != null)
+            for (int i = 0; i < builders.Count; i++)
+                if (builders[i] != null) builders[i].BuildOrder(be);
 
-        Cancel();
+        return be;
     }
 
     /// <summary>Transparent Standard material for the placement ghost.</summary>
@@ -144,8 +202,9 @@ public class BuildingPlacement : MonoBehaviour
         if (Active)
         {
             _style.normal.textColor = _valid ? Color.green : new Color(1f, 0.5f, 0.4f);
-            GUI.Label(new Rect(Screen.width / 2f - 250, 8, 500, 22),
-                $"Yerleştiriliyor: {_def.display}  —  Sol tık: koy, Sağ tık/Esc: iptal", _style);
+            string action = IsLine ? "Sürükle: duvar dizisi" : "Sol tık: koy";
+            GUI.Label(new Rect(Screen.width / 2f - 280, 8, 560, 22),
+                $"Yerleştiriliyor: {_def.display}  —  {action},  R: döndür,  Sağ tık/Esc: iptal", _style);
         }
     }
 }

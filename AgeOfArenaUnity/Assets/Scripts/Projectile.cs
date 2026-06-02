@@ -14,12 +14,14 @@ public class Projectile : MonoBehaviour
 
     IDamageable _target;
     float _damage;
+    DamageType _damageType = DamageType.Pierce;
     float _age;
 
     static readonly Color ArrowColor = Prims.Hex(0x4a3018);
 
     /// <summary>Fire an arrow from <paramref name="from"/> at <paramref name="target"/>.</summary>
-    public static void Spawn(Vector3 from, IDamageable target, float damage)
+    public static void Spawn(Vector3 from, IDamageable target, float damage,
+                             DamageType damageType = DamageType.Pierce)
     {
         if (target == null || !target.IsAlive) return;
         var go = new GameObject("Arrow");
@@ -29,6 +31,7 @@ public class Projectile : MonoBehaviour
         var p = go.AddComponent<Projectile>();
         p._target = target;
         p._damage = damage;
+        p._damageType = damageType;
     }
 
     void Update()
@@ -46,7 +49,7 @@ public class Projectile : MonoBehaviour
 
         if (d.sqrMagnitude <= step * step)
         {
-            _target.TakeDamage(_damage);
+            _target.TakeDamage(_damage, _damageType);
             Destroy(gameObject);
             return;
         }

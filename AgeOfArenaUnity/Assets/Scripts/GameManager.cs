@@ -9,7 +9,17 @@ using UnityEngine;
 /// </summary>
 public class GameManager : MonoBehaviour
 {
-    public static GameManager Instance { get; private set; }
+    static GameManager _instance;
+
+    /// <summary>
+    /// Singleton accessor. Self-healing: a domain reload during Play (e.g. editing a
+    /// script while play-testing) resets the static but does NOT re-run Awake on the
+    /// surviving GameManager, which would otherwise leave every system that reads
+    /// <c>Instance</c> silently no-opping. The lazy <see cref="Object.FindAnyObjectByType{T}"/>
+    /// fallback re-binds to the live instance so play survives hot reloads.
+    /// </summary>
+    public static GameManager Instance =>
+        _instance != null ? _instance : (_instance = FindAnyObjectByType<GameManager>());
 
     public readonly List<UnitEntity> units = new();
     public readonly List<ResourceNode> nodes = new();
@@ -27,6 +37,7 @@ public class GameManager : MonoBehaviour
     public GatherSystem gather;
     public CombatSystem combat;
     public BuildingCombatSystem buildingCombat;
+    public GarrisonSystem garrison;
     public BuildSystem build;
     public BuildingPlacement placement;
     public TrainingQueue trainingQueue;
@@ -43,12 +54,12 @@ public class GameManager : MonoBehaviour
 
     void Awake()
     {
-        Instance = this;
+        _instance = this;
     }
 
     void OnDestroy()
     {
-        if (Instance == this) Instance = null;
+        if (_instance == this) _instance = null;
     }
 
     public void RegisterUnit(UnitEntity u)
@@ -77,6 +88,7 @@ public class GameManager : MonoBehaviour
         if (gather != null)        gather.Tick(units, dt);
         if (combat != null)        combat.Tick(units, dt);
         if (buildingCombat != null) buildingCombat.Tick(buildings, units, dt);
+        if (garrison != null)      garrison.Tick(units, buildings, dt);
         if (build != null)         build.Tick(units, dt);
         if (trainingQueue != null) trainingQueue.Tick(dt);
         if (research != null)      research.Tick(dt);

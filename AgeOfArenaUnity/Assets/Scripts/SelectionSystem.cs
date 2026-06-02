@@ -36,6 +36,7 @@ public class SelectionSystem : MonoBehaviour
 
         var gm = GameManager.Instance;
         if (gm != null && gm.placement != null && gm.placement.Active) return; // build mode owns the mouse
+        if (gm != null && gm.command != null && gm.command.AttackMovePending) return; // attack-move picking owns the mouse
 
         if (Input.GetMouseButtonDown(0))
         {
@@ -116,7 +117,7 @@ public class SelectionSystem : MonoBehaviour
         for (int i = 0; i < units.Count; i++)
         {
             var u = units[i];
-            if (u == null || u.teamId != 0) continue;
+            if (u == null || u.teamId != 0 || u.isGarrisoned) continue;
             Vector3 sp = _cam.WorldToScreenPoint(u.transform.position);
             if (sp.z < 0f) continue; // behind camera
             if (sp.x >= xMin && sp.x <= xMax && sp.y >= yMin && sp.y <= yMax && !Selected.Contains(u))

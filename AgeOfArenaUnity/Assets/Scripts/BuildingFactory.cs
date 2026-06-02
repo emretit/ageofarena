@@ -8,12 +8,12 @@ using UnityEngine.AI;
 /// </summary>
 public static class BuildingFactory
 {
-    static readonly Color Stone = Prims.Hex(0x7a7060);
-    static readonly Color Plaster = Prims.Hex(0xc8b898);
-    static readonly Color Dark  = Prims.Hex(0x8a7a6a);
-    static readonly Color Timber = Prims.Hex(0x4a3020);
-    static readonly Color Door  = Prims.Hex(0x5c3a1e);
-    static readonly Color Window = Prims.Hex(0x8ab4d8);
+    static readonly Color Stone  = Prims.Hex(0x625a4a); // darker, richer stone
+    static readonly Color Plaster= Prims.Hex(0xd8c898); // warmer cream plaster
+    static readonly Color Dark   = Prims.Hex(0x4e4438); // deep shadow tone
+    static readonly Color Timber = Prims.Hex(0x3a2414); // rich dark timber
+    static readonly Color Door   = Prims.Hex(0x4a2c10);
+    static readonly Color Window = Prims.Hex(0x6aa0cc); // deeper window blue
 
     public static GameObject TownCenter(Transform parent, Vector3 worldPos, Color teamColor)
     {
@@ -34,7 +34,7 @@ public static class BuildingFactory
         var timberMat = Prims.Mat(Timber);
         var doorMat = Prims.Mat(Door);
         var roofMat = Prims.Mat(teamColor, 0.05f, 0.3f);
-        var winMat = Prims.Mat(Window, 0.1f, 0.7f);
+        var winMat = Prims.Mat(Window, 0.1f, 0.4f);
 
         Prims.Box(t, new Vector3(0, 0.07f, 0), new Vector3(4.0f, 0.15f, 4.0f), stoneMat);   // step
         Prims.Box(t, new Vector3(0, 0.2f, 0), new Vector3(3.6f, 0.4f, 3.6f), stoneMat);     // platform
@@ -63,6 +63,7 @@ public static class BuildingFactory
         var flag = Prims.Box(t, new Vector3(0.45f, 5.5f, 0), new Vector3(0.9f, 0.6f, 0.04f), Prims.Mat(teamColor, 0, 0.4f));
         flag.name = "Flag";
 
+        Prims.BlobShadow(t, 2.0f);
         Prims.EnableShadows(g);
         return g;
     }
@@ -93,6 +94,7 @@ public static class BuildingFactory
         Prims.Box(t, new Vector3(0.3f, 0.65f, -0.76f), new Vector3(0.4f, 0.7f, 0.06f), Prims.Mat(Door));
         Prims.Cone(t, new Vector3(0, 1.8f, 0), 1.25f, 1.0f, 4, roofMat, 45f);
 
+        Prims.BlobShadow(t, 1.1f);
         Prims.EnableShadows(g);
         return g;
     }
@@ -122,6 +124,7 @@ public static class BuildingFactory
         Prims.Box(t, new Vector3(0, 2.45f, 0), new Vector3(2.7f, 0.3f, 2.2f), roofMat);
         Prims.Box(t, new Vector3(0, 1.0f, -1.03f), new Vector3(0.8f, 1.4f, 0.06f), Prims.Mat(Door));
 
+        Prims.BlobShadow(t, 1.5f);
         Prims.EnableShadows(g);
         return g;
     }
@@ -392,6 +395,7 @@ public static class BuildingFactory
         var col = g.AddComponent<BoxCollider>();
         col.center = colCenter;
         col.size   = colSize;
+        Prims.BlobShadow(g.transform, Mathf.Max(colSize.x, colSize.z) * 0.55f);
         return g;
     }
 

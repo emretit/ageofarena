@@ -100,6 +100,8 @@ public static class Prims
     {
         foreach (var r in root.GetComponentsInChildren<MeshRenderer>())
         {
+            // Blob decals are flat ground-huggers — they must never cast a real shadow.
+            if (r.gameObject.name == "BlobShadow") continue;
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
             r.receiveShadows = true;
         }
@@ -147,5 +149,58 @@ public static class Prims
         m.color = color;            // "_Color" on Unlit/Color, "_Color"/main on Sprites/Default
         if (m.HasProperty("_Color")) m.SetColor("_Color", color);
         return m;
+    }
+
+    // ── Contact (blob) shadows ───────────────────────────────────────────────
+    static Texture2D _blobTex;
+    static Material _blobMat;
+
+    static Texture2D BlobTex()
+    {
+        if (_blobTex != null) return _blobTex;
+        const int N = 64;
+        var tex = new Texture2D(N, N, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+        var px = new Color32[N * N];
+        float c = (N - 1) * 0.5f;
+        for (int y = 0; y < N; y++)
+            for (int x = 0; x < N; x++)
+            {
+                float d = Mathf.Sqrt((x - c) * (x - c) + (y - c) * (y - c)) / c; // 0 center .. 1 edge
+                float a = Mathf.SmoothStep(1f, 0f, Mathf.Clamp01(d)) * 0.4f;     // soft falloff, max 40%
+                px[y * N + x] = new Color32(0, 0, 0, (byte)(a * 255f));
+            }
+        tex.SetPixels32(px);
+        tex.Apply();
+        _blobTex = tex;
+        return tex;
+    }
+
+    static Material BlobMat()
+    {
+        if (_blobMat != null) return _blobMat;
+        var sh = Shader.Find("Unlit/Transparent") ?? Shader.Find("Sprites/Default") ?? Standard;
+        _blobMat = new Material(sh) { mainTexture = BlobTex() };
+        return _blobMat;
+    }
+
+    /// <summary>
+    /// Fake contact/AO shadow: a flat, ground-hugging radial-gradient quad that makes
+    /// units and buildings read as sitting on the ground. Cheap (one shared material,
+    /// no real-time shadow cost) — used alongside the directional shadow map.
+    /// </summary>
+    public static GameObject BlobShadow(Transform parent, float radius, float yOffset = 0.02f)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        go.name = "BlobShadow";
+        Object.Destroy(go.GetComponent<Collider>());
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = new Vector3(0f, yOffset, 0f);
+        go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);   // lie flat, textured face up
+        go.transform.localScale = new Vector3(radius * 2f, radius * 2f, 1f);
+        var mr = go.GetComponent<MeshRenderer>();
+        mr.sharedMaterial = BlobMat();
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
+        return go;
     }
 }

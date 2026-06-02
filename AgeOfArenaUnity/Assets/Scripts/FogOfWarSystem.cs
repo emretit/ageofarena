@@ -25,6 +25,11 @@ public class FogOfWarSystem : MonoBehaviour
 
     const float VisCheckInterval = 0.5f;
 
+    /// <summary>Master switch. When false the whole map stays visible (no fog, enemies
+    /// always shown): Init keeps the plain ground material and Update no-ops. Flip to
+    /// true to bring classic Fog of War back.</summary>
+    public bool fogEnabled = false;
+
     static readonly Color32 Black  = new Color32(0,   0,   0,   255);
     static readonly Color32 Shroud = new Color32(70,  70,  70,  255);
     static readonly Color32 Lit    = new Color32(255, 255, 255, 255);
@@ -44,6 +49,10 @@ public class FogOfWarSystem : MonoBehaviour
     /// </summary>
     public void Init(MeshRenderer groundRenderer)
     {
+        // Fog disabled: leave the plain green ground in place and reveal everything.
+        // Update() no-ops (guarded below), so enemy renderers are never hidden.
+        if (!fogEnabled) return;
+
         _fogTex = new Texture2D(TexSize, TexSize, TextureFormat.RGB24, false)
         {
             filterMode = FilterMode.Bilinear,
@@ -79,6 +88,7 @@ public class FogOfWarSystem : MonoBehaviour
 
     void Update()
     {
+        if (!fogEnabled) return;
         var gm = GameManager.Instance;
         if (gm == null || _fogTex == null) return;
 

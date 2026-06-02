@@ -13,6 +13,8 @@ public struct TechDef
     public int food, wood, gold, stone;
     public float researchTime;
     public string display;
+    public TechType requires;   // prerequisite tech that must already be researched
+    public bool hasRequires;    // false → no prerequisite (ignore `requires`)
 
     public TechDef(TechType t, BuildingType b, Age req, int f, int w, int g, int s,
         float time, string name)
@@ -20,6 +22,15 @@ public struct TechDef
         type = t; building = b; requiredAge = req;
         food = f; wood = w; gold = g; stone = s;
         researchTime = time; display = name;
+        requires = default; hasRequires = false;
+    }
+
+    /// <summary>Overload for a tech gated behind another tech (e.g. Longswordsman ← ManAtArms).</summary>
+    public TechDef(TechType t, BuildingType b, Age req, int f, int w, int g, int s,
+        float time, string name, TechType prereq)
+        : this(t, b, req, f, w, g, s, time, name)
+    {
+        requires = prereq; hasRequires = true;
     }
 }
 
@@ -39,6 +50,12 @@ public static class TechDefs
         new(TechType.ScaleMail,    BuildingType.Barracks,     Age.Castle, 150,   0, 100, 0, 25f, "Pul Zırh"),
         new(TechType.Bloodlines,   BuildingType.Stable,       Age.Castle, 150,   0, 100, 0, 25f, "Soyağacı"),
         new(TechType.Bodkin,       BuildingType.ArcheryRange, Age.Castle, 150,   0, 100, 0, 25f, "İğne Ucu"),
+
+        // ── Unit upgrade lines (tier promotions) ──────────────────────────────
+        new(TechType.ManAtArms,     BuildingType.Barracks,     Age.Feudal, 100,   0,  40, 0, 25f, "Piyade"),
+        new(TechType.Longswordsman, BuildingType.Barracks,     Age.Castle, 150,   0, 100, 0, 30f, "Uzun Kılıç", TechType.ManAtArms),
+        new(TechType.Crossbowman,   BuildingType.ArcheryRange, Age.Castle, 150,   0, 100, 0, 30f, "Arbaletçi"),
+        new(TechType.Cavalier,      BuildingType.Stable,       Age.Castle, 150,   0, 100, 0, 30f, "Ağır Süvari"),
     };
 
     public static TechDef Get(TechType t)
@@ -62,6 +79,7 @@ public static class TechDefs
             var d = Table[i];
             if (d.building != building) continue;
             if (tech != null && tech.Has(d.type)) continue;
+            if (d.hasRequires && (tech == null || !tech.Has(d.requires))) continue; // prerequisite tech
             if (!IsAvailable(d, age)) continue;
             list.Add(d);
         }

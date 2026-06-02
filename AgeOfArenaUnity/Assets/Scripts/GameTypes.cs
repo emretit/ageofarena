@@ -6,7 +6,10 @@ public enum ResourceKind { Food, Wood, Gold, Stone }
 
 public enum UnitState { Idle, Moving, Gathering, ReturningToDropoff, MovingToAttack, Attacking, Constructing }
 
-public enum UnitType { Villager, Militia, Archer, Cavalry, Trebuchet, Scout, Medic }
+public enum UnitType { Villager, Militia, Archer, Cavalry, Trebuchet, Scout, Medic, Spearman }
+
+/// <summary>Damage class for the armor counter matrix. Siege bypasses both armor types.</summary>
+public enum DamageType { Melee, Pierce, Siege }
 
 public enum BuildingType { TownCenter, House, Barracks, ArcheryRange, Stable, Farm, LumberCamp, MiningCamp, Mill, Market, Castle, Wall, Gate }
 
@@ -27,12 +30,17 @@ public enum TechType
 {
     // Age advances (researched at the Town Center)
     FeudalAge, CastleAge,
-    // Military upgrades
+    // Military upgrades (flat "blacksmith" bonuses)
     Forging,        // +melee attack (Militia, Cavalry)
     Fletching,      // +archer attack, +range
     Bodkin,         // +archer attack
     ScaleMail,      // +hp (Militia, Cavalry)
     Bloodlines,     // +hp (Cavalry)
+    // Unit upgrade lines (tier promotions: bigger stat jumps + a new display name)
+    ManAtArms,      // Militia tier 2 (Feudal): +atk, +hp
+    Longswordsman,  // Militia tier 3 (Castle, requires ManAtArms): +atk, +hp
+    Crossbowman,    // Archer tier 2 (Castle): +atk, +range, +hp
+    Cavalier,       // Cavalry tier 2 (Castle): +atk, +hp
     // Economy upgrades
     DoubleBitAxe,   // +wood gather
     Wheelbarrow,    // +all gather

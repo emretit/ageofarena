@@ -28,7 +28,7 @@ public class IsometricCameraRig : MonoBehaviour
     {
         _cam = GetComponent<Camera>();
         _cam.orthographic = true;
-        _cam.orthographicSize = 14f;
+        _cam.orthographicSize = 11f;  // start a bit zoomed in on the bigger map
         _cam.nearClipPlane = 0.1f;
         _cam.farClipPlane = 300f;
         _focus = focus;

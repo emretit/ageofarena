@@ -33,6 +33,14 @@ public class HUD : MonoBehaviour
     RectTransform _cardRoot, _gridRoot, _progressFill;
     Image _progressFillImg;
     Text _queueText;
+    // Shared hover tooltip (floats above the command bar).
+    RectTransform _tooltip;
+    Text _tipTitle, _tipBody;
+    // Training queue strip (clickable unit icons; click cancels + refunds).
+    RectTransform _queueStrip;
+    readonly List<GameObject> _queueIcons = new();
+    Image _queueFrontFill;
+    string _queueSig = "";
 
     // Clickable command button + its enable predicate (re-evaluated each frame).
     class CommandSlot
@@ -64,6 +72,8 @@ public class HUD : MonoBehaviour
     static readonly Color AgeCol    = Prims.Hex(0xc8a13a);
     static readonly Color BuildCol  = Prims.Hex(0x3f8f4f);
     static readonly Color MarketCol = Prims.Hex(0x2e8b8b);
+    static readonly Color CmdCol    = Prims.Hex(0x5a6270);
+    static readonly Color GarrisonCol = Prims.Hex(0x9a6b3f);
 
     public void Init(ResourceManager res)
     {
@@ -292,6 +302,13 @@ public class HUD : MonoBehaviour
         _queueText = AddText(queueRect, "", TextAnchor.MiddleLeft);
         _queueText.fontSize = 13; _queueText.color = new Color(0.7f, 0.9f, 1f, 1f);
 
+        // Training queue strip: small clickable unit icons (click to cancel + refund).
+        _queueStrip = NewRect("QueueStrip", left);
+        _queueStrip.anchorMin = new Vector2(0, 1); _queueStrip.anchorMax = new Vector2(1, 1);
+        _queueStrip.pivot = new Vector2(0, 1);
+        _queueStrip.sizeDelta = new Vector2(-16, 40);
+        _queueStrip.anchoredPosition = new Vector2(10, -136);
+
         // ── Right command card: a fixed Cols×Rows slot grid (AoE-style). The grid
         // is vertically centred; empty slots show a dark frame, commands fill the
         // first N slots so the panel always reads as deliberate. ──
@@ -320,13 +337,78 @@ public class HUD : MonoBehaviour
             slot.gameObject.AddComponent<Image>().color = new Color(0.11f, 0.12f, 0.14f, 0.65f);
         }
 
+        BuildTooltip();
+
         _cmdBar.gameObject.SetActive(false);
+    }
+
+    // ── Hover tooltip ──────────────────────────────────────────────────────────
+
+    void BuildTooltip()
+    {
+        // Floats just above the command card; grows upward over the game view.
+        _tooltip = NewRect("Tooltip", _cmdBar);
+        _tooltip.anchorMin = _tooltip.anchorMax = new Vector2(0, 1);
+        _tooltip.pivot = new Vector2(0, 0);
+        _tooltip.sizeDelta = new Vector2(280, 72);
+        _tooltip.anchoredPosition = new Vector2(LeftW + 14f, 8f);
+        _tooltip.gameObject.AddComponent<Image>().color = new Color(0.04f, 0.05f, 0.07f, 0.96f);
+
+        var border = NewRect("TipBorder", _tooltip);
+        border.anchorMin = new Vector2(0, 1); border.anchorMax = new Vector2(1, 1);
+        border.pivot = new Vector2(0.5f, 1); border.sizeDelta = new Vector2(0, 2);
+        border.anchoredPosition = Vector2.zero;
+        border.gameObject.AddComponent<Image>().color = new Color(0.78f, 0.64f, 0.28f, 0.95f);
+
+        var titleR = NewRect("TipTitle", _tooltip);
+        titleR.anchorMin = new Vector2(0, 1); titleR.anchorMax = new Vector2(1, 1);
+        titleR.pivot = new Vector2(0.5f, 1);
+        titleR.sizeDelta = new Vector2(-16, 24);
+        titleR.anchoredPosition = new Vector2(0, -8);
+        _tipTitle = AddText(titleR, "", TextAnchor.UpperLeft);
+        _tipTitle.fontSize = 15; _tipTitle.fontStyle = FontStyle.Bold;
+        _tipTitle.color = Prims.Hex(0xf2d59b);
+
+        var bodyR = NewRect("TipBody", _tooltip);
+        bodyR.anchorMin = new Vector2(0, 0); bodyR.anchorMax = new Vector2(1, 1);
+        bodyR.offsetMin = new Vector2(10, 8); bodyR.offsetMax = new Vector2(-10, -32);
+        _tipBody = AddText(bodyR, "", TextAnchor.UpperLeft);
+        _tipBody.fontSize = 12;
+        _tipBody.color = new Color(0.82f, 0.86f, 0.92f, 1f);
+        _tipBody.horizontalOverflow = HorizontalWrapMode.Wrap;
+        _tipBody.verticalOverflow = VerticalWrapMode.Truncate;
+
+        _tooltip.gameObject.SetActive(false);
+    }
+
+    void AttachTooltip(GameObject button, string title, string cost, string desc)
+    {
+        var trig = button.AddComponent<EventTrigger>();
+        var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        enter.callback.AddListener(_ => ShowTooltip(title, cost, desc));
+        trig.triggers.Add(enter);
+        var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+        exit.callback.AddListener(_ => HideTooltip());
+        trig.triggers.Add(exit);
+    }
+
+    void ShowTooltip(string title, string cost, string desc)
+    {
+        if (_tooltip == null) return;
+        _tipTitle.text = title;
+        _tipBody.text  = string.IsNullOrEmpty(cost) ? desc : cost + "\n" + desc;
+        _tooltip.gameObject.SetActive(true);
+    }
+
+    void HideTooltip()
+    {
+        if (_tooltip != null) _tooltip.gameObject.SetActive(false);
     }
 
     // ── Command button factory ─────────────────────────────────────────────
 
-    CommandSlot MakeButton(int index, Color color, string title, string cost, string hotkey,
-        System.Action onClick, System.Func<bool> affordable)
+    CommandSlot MakeButton(int index, Color color, string title, string desc, string cost, string hotkey,
+        System.Action<RectTransform> icon, System.Action onClick, System.Func<bool> affordable)
     {
         int col = index % Cols;
         int row = index / Cols;
@@ -351,15 +433,30 @@ public class HUD : MonoBehaviour
         btn.colors = cb;
         btn.onClick.AddListener(() => onClick());
 
-        // Title (centered, wraps to 2 lines)
-        var titleRect = NewRect("Title", rt);
-        titleRect.anchorMin = new Vector2(0, 0); titleRect.anchorMax = new Vector2(1, 1);
-        titleRect.offsetMin = new Vector2(2, 12); titleRect.offsetMax = new Vector2(-2, -10);
-        var tt = AddText(titleRect, title, TextAnchor.MiddleCenter);
-        tt.fontSize = 13; tt.fontStyle = FontStyle.Bold;
-        tt.horizontalOverflow = HorizontalWrapMode.Wrap;
-        tt.verticalOverflow = VerticalWrapMode.Truncate;
-        AddOutline(tt);
+        // Procedural icon (AoE-style): fills the upper button face. Name moves to
+        // the hover tooltip. Falls back to a wrapped title if no icon is provided.
+        if (icon != null)
+        {
+            var iconRect = NewRect("Icon", rt);
+            iconRect.anchorMin = iconRect.anchorMax = iconRect.pivot = new Vector2(0.5f, 0.5f);
+            iconRect.sizeDelta = new Vector2(40, 40);
+            iconRect.anchoredPosition = new Vector2(0, 6);
+            icon(iconRect);
+        }
+        else
+        {
+            var titleRect = NewRect("Title", rt);
+            titleRect.anchorMin = new Vector2(0, 0); titleRect.anchorMax = new Vector2(1, 1);
+            titleRect.offsetMin = new Vector2(2, 12); titleRect.offsetMax = new Vector2(-2, -10);
+            var tt = AddText(titleRect, title, TextAnchor.MiddleCenter);
+            tt.fontSize = 13; tt.fontStyle = FontStyle.Bold;
+            tt.horizontalOverflow = HorizontalWrapMode.Wrap;
+            tt.verticalOverflow = VerticalWrapMode.Truncate;
+            AddOutline(tt);
+        }
+
+        // Hover tooltip with the full name + cost + description.
+        AttachTooltip(rt.gameObject, title, cost, desc);
 
         // Cost (bottom)
         if (!string.IsNullOrEmpty(cost))
@@ -465,6 +562,10 @@ public class HUD : MonoBehaviour
             _hpText.text = Mathf.CeilToInt(b.hp) + " / " + Mathf.CeilToInt(b.maxHp);
         }
 
+        // Live garrison count (updates as units enter/leave without reselecting).
+        if (b != null && b.GarrisonCapacity > 0)
+            _infoSub.text = $"Garnizon {b.GarrisonCount}/{b.GarrisonCapacity}";
+
         // Training / research progress (buildings only).
         float prog = -1f; bool isResearch = false; int qCount = 0;
         if (b != null)
@@ -490,6 +591,8 @@ public class HUD : MonoBehaviour
             _progressFill.sizeDelta = Vector2.zero;
             if (_lastQueueCount != 0) { _lastQueueCount = 0; _queueText.text = ""; }
         }
+
+        UpdateQueueStrip(gm, b);
     }
 
     void SetQueueText(BuildingEntity b, GameManager gm, bool isResearch, int qCount)
@@ -502,8 +605,82 @@ public class HUD : MonoBehaviour
         }
         else if (qCount != _lastQueueCount)
         {
+            // Training queue is shown as the clickable icon strip below; the label
+            // only carries a short "Üretim" header so the strip reads clearly.
             _lastQueueCount = qCount;
-            _queueText.text = qCount > 1 ? "Kuyruk: " + qCount : (qCount == 1 ? "Eğitiliyor…" : "");
+            _queueText.text = qCount > 0 ? "Üretim (iptal için tıkla):" : "";
+        }
+    }
+
+    // ── Training queue strip ───────────────────────────────────────────────────
+
+    void UpdateQueueStrip(GameManager gm, BuildingEntity b)
+    {
+        var view = (b != null && gm.trainingQueue != null) ? gm.trainingQueue.GetQueueView(b) : null;
+        int n = view != null ? view.Count : 0;
+
+        // Rebuild icons only when the queued unit list changes (not every frame).
+        string sig = "";
+        for (int i = 0; i < n; i++) sig += (int)view[i].type + ",";
+        if (sig != _queueSig)
+        {
+            _queueSig = sig;
+            RebuildQueueStrip(b, view);
+        }
+
+        // The front item's fill advances every frame.
+        if (_queueFrontFill != null && n > 0)
+            _queueFrontFill.rectTransform.sizeDelta = new Vector2(36f * Mathf.Clamp01(view[0].progress), 4f);
+    }
+
+    void RebuildQueueStrip(BuildingEntity b, List<(UnitType type, float progress)> view)
+    {
+        for (int i = 0; i < _queueIcons.Count; i++)
+            if (_queueIcons[i] != null) Destroy(_queueIcons[i]);
+        _queueIcons.Clear();
+        _queueFrontFill = null;
+        if (view == null || view.Count == 0) return;
+
+        const float size = 38f, gap = 4f;
+        for (int i = 0; i < view.Count; i++)
+        {
+            int index = i;
+            var bb = b;
+            var rt = NewRect("Q" + i, _queueStrip);
+            rt.anchorMin = rt.anchorMax = new Vector2(0, 1);
+            rt.pivot = new Vector2(0, 1);
+            rt.sizeDelta = new Vector2(size, size);
+            rt.anchoredPosition = new Vector2(i * (size + gap), 0);
+            var bg = rt.gameObject.AddComponent<Image>();
+            bg.color = new Color(0.12f, 0.13f, 0.16f, 0.95f);
+
+            var btn = rt.gameObject.AddComponent<Button>();
+            btn.targetGraphic = bg;
+            btn.onClick.AddListener(() =>
+            {
+                var g = GameManager.Instance;
+                if (g != null && g.trainingQueue != null && bb != null) g.trainingQueue.Cancel(bb, index);
+            });
+
+            var iconRect = NewRect("Icon", rt);
+            iconRect.anchorMin = iconRect.anchorMax = iconRect.pivot = new Vector2(0.5f, 0.5f);
+            iconRect.sizeDelta = new Vector2(30, 30);
+            iconRect.anchoredPosition = new Vector2(0, 2);
+            CommandIconFactory.Unit(iconRect, view[i].type);
+
+            // The front (currently-training) item carries a thin progress fill.
+            if (i == 0)
+            {
+                var fill = NewRect("QFill", rt);
+                fill.anchorMin = fill.anchorMax = new Vector2(0, 0);
+                fill.pivot = new Vector2(0, 0);
+                fill.sizeDelta = new Vector2(0, 4);
+                fill.anchoredPosition = new Vector2(1, 1);
+                _queueFrontFill = fill.gameObject.AddComponent<Image>();
+                _queueFrontFill.color = Prims.Hex(0x4caf50);
+            }
+
+            _queueIcons.Add(rt.gameObject);
         }
     }
 
@@ -516,6 +693,7 @@ public class HUD : MonoBehaviour
         for (int i = 0; i < _slots.Count; i++)
             if (_slots[i].btn != null) Destroy(_slots[i].btn.gameObject);
         _slots.Clear();
+        HideTooltip();              // a hovered button may have just been destroyed
         _lastQueueCount = -1;
         _queueText.text = "";
         _progressFill.sizeDelta = Vector2.zero;
@@ -528,7 +706,7 @@ public class HUD : MonoBehaviour
     void BuildBuildingCard(GameManager gm, BuildingEntity b)
     {
         _infoName.text = BuildingTr(b.type) + (b.underConstruction ? "  (inşa)" : "");
-        _infoSub.text  = "";
+        _infoSub.text  = b.GarrisonCapacity > 0 ? $"Garnizon {b.GarrisonCount}/{b.GarrisonCapacity}" : "";
         ShowHpBar(true);
 
         int idx = 0;
@@ -544,8 +722,9 @@ public class HUD : MonoBehaviour
         {
             var def = tr;
             var bb = b;
-            _slots.Add(MakeButton(idx++, TrainCol, UnitTr(def.unitType), CostLine(def.food, def.wood, def.gold, 0),
-                def.hotkey,
+            _slots.Add(MakeButton(idx++, TrainCol, UnitTr(def.unitType), UnitDesc(def.unitType),
+                CostLine(def.food, def.wood, def.gold, 0), def.hotkey,
+                r => CommandIconFactory.Unit(r, def.unitType),
                 () => { var g = GameManager.Instance; if (g != null && bb != null) g.trainingQueue.Enqueue(bb, def); },
                 () => {
                     var g = GameManager.Instance; if (g == null) return false;
@@ -562,13 +741,25 @@ public class HUD : MonoBehaviour
             var bb = b;
             int hk = i + 1;
             bool isAge = d.type == TechType.FeudalAge || d.type == TechType.CastleAge;
-            _slots.Add(MakeButton(idx++, isAge ? AgeCol : UpgCol, d.display,
+            _slots.Add(MakeButton(idx++, isAge ? AgeCol : UpgCol, d.display, TechDesc(d.type),
                 CostLine(d.food, d.wood, d.gold, d.stone), hk.ToString(),
+                r => CommandIconFactory.Tech(r, d.type),
                 () => { var g = GameManager.Instance; if (g != null && bb != null) g.research.Enqueue(bb, d); },
                 () => {
                     var g = GameManager.Instance; if (g == null) return false;
                     return !g.research.IsResearching(bb) && g.resources.CanAfford(d.food, d.wood, d.gold, d.stone);
                 }));
+        }
+
+        // Ungarrison: shown for any garrison-capable building, enabled while it shelters units.
+        if (b.GarrisonCapacity > 0 && !b.underConstruction)
+        {
+            var bb = b;
+            _slots.Add(MakeButton(idx++, GarrisonCol, "Boşalt", "İçerideki birimleri dışarı çıkar (U).",
+                "", "U",
+                r => CommandIconFactory.Command(r, CommandIconFactory.CmdIcon.Garrison),
+                () => { var g = GameManager.Instance; if (g != null && bb != null) g.garrison?.UngarrisonAll(bb); },
+                () => bb != null && bb.GarrisonCount > 0));
         }
     }
 
@@ -579,14 +770,17 @@ public class HUD : MonoBehaviour
         AddMarket(ref idx, ResourceKind.Wood,  "Odun Sat",     batch + "O → " + sg + "A", "2");
         AddMarket(ref idx, ResourceKind.Stone, "Taş Sat",      batch + "T → " + sg + "A", "3");
         // Buy food is a distinct action (gold → food).
-        _slots.Add(MakeButton(idx++, MarketCol, "Yiyecek Al", bc + "A → " + batch + "Y", "4",
+        _slots.Add(MakeButton(idx++, MarketCol, "Yiyecek Al", "Altın vererek yiyecek satın al.",
+            bc + "A → " + batch + "Y", "4",
+            r => CommandIconFactory.Market(r, ResourceKind.Food, true),
             () => { var rm = GameManager.Instance?.resources; if (rm != null) MarketSystem.Buy(rm, ResourceKind.Food); },
             () => { var rm = GameManager.Instance?.resources; return rm != null && rm.gold >= MarketSystem.BuyCost; }));
     }
 
     void AddMarket(ref int idx, ResourceKind kind, string title, string cost, string hk)
     {
-        _slots.Add(MakeButton(idx++, MarketCol, title, cost, hk,
+        _slots.Add(MakeButton(idx++, MarketCol, title, "Bu kaynağı altına çevir.", cost, hk,
+            r => CommandIconFactory.Market(r, kind, false),
             () => { var rm = GameManager.Instance?.resources; if (rm != null) MarketSystem.Sell(rm, kind); },
             () => { var rm = GameManager.Instance?.resources; return rm != null && rm.Get(kind) >= MarketSystem.Batch; }));
     }
@@ -602,19 +796,22 @@ public class HUD : MonoBehaviour
         {
             if (!BuildingDefs.UnlockedAt(d.type, gm.tech.age)) continue; // age-locked
             var def = d;
-            _slots.Add(MakeButton(idx++, BuildCol, BuildingTr(def.type),
+            _slots.Add(MakeButton(idx++, BuildCol, BuildingTr(def.type), BuildingDesc(def.type),
                 CostLine(def.food, def.wood, def.gold, def.stone), def.hotkey.ToString(),
+                r => CommandIconFactory.Building(r, def.type),
                 () => { var g = GameManager.Instance; if (g != null && g.placement != null) g.placement.Begin(def.type); },
                 () => {
                     var g = GameManager.Instance; if (g == null) return false;
                     return g.resources.CanAfford(def.food, def.wood, def.gold, def.stone);
                 }));
         }
+
+        AddUnitCommands(ref idx, includeAttackMove: false);
     }
 
     void BuildUnitInfo(List<UnitEntity> sel, int unitCount)
     {
-        // Non-villager units: info only (no commands). Show count + dominant type.
+        // Non-villager units: count + dominant type, plus generic command buttons.
         UnitType first = UnitType.Villager;
         bool homogeneous = true;
         for (int i = 0; i < sel.Count; i++)
@@ -623,9 +820,33 @@ public class HUD : MonoBehaviour
             if (i == 0) { first = sel[i].type; continue; }
             if (sel[i].type != first) { homogeneous = false; break; }
         }
-        _infoName.text = homogeneous ? unitCount + " " + UnitTr(first) : unitCount + " birim";
+        _infoName.text = homogeneous ? unitCount + " " + UnitTr(first, GameManager.Instance?.tech) : unitCount + " birim";
         _infoSub.text  = "";
         ShowHpBar(false);
+
+        int idx = 0;
+        AddUnitCommands(ref idx, includeAttackMove: true);
+    }
+
+    /// <summary>Stop (always) and Attack-move (optional) command buttons, shared by the
+    /// unit-info and villager cards.</summary>
+    void AddUnitCommands(ref int idx, bool includeAttackMove)
+    {
+        _slots.Add(MakeButton(idx++, CmdCol, "Dur", "Tüm emirleri bırak ve dur.", "", "S",
+            r => CommandIconFactory.Command(r, CommandIconFactory.CmdIcon.Stop),
+            () =>
+            {
+                var s = GameManager.Instance?.selection?.Selected;
+                if (s == null) return;
+                for (int i = 0; i < s.Count; i++) { var u = s[i]; if (u != null) { u.attackMove = false; u.Stop(); } }
+            },
+            () => true));
+
+        if (includeAttackMove)
+            _slots.Add(MakeButton(idx++, CmdCol, "Saldır-Yürü", "Bir noktaya ilerle; yoldaki düşmana saldır.", "", "A",
+                r => CommandIconFactory.Command(r, CommandIconFactory.CmdIcon.AttackMove),
+                () => GameManager.Instance?.command?.BeginAttackMove(),
+                () => true));
     }
 
     void ShowHpBar(bool on)
@@ -760,8 +981,32 @@ public class HUD : MonoBehaviour
         UnitType.Trebuchet => "Mancınık",
         UnitType.Scout     => "Gözcü",
         UnitType.Medic     => "Şifacı",
+        UnitType.Spearman  => "Mızrakçı",
         _                  => t.ToString(),
     };
+
+    /// <summary>Tech-aware unit name: a unit shows its highest researched tier's
+    /// title (e.g. Militia → "Piyade" → "Uzun Kılıç"). Falls back to the base name.</summary>
+    static string UnitTr(UnitType t, TechState tech)
+    {
+        if (tech != null)
+        {
+            switch (t)
+            {
+                case UnitType.Militia:
+                    if (tech.Has(TechType.Longswordsman)) return "Uzun Kılıç";
+                    if (tech.Has(TechType.ManAtArms))     return "Piyade";
+                    break;
+                case UnitType.Archer:
+                    if (tech.Has(TechType.Crossbowman))   return "Arbaletçi";
+                    break;
+                case UnitType.Cavalry:
+                    if (tech.Has(TechType.Cavalier))      return "Ağır Süvari";
+                    break;
+            }
+        }
+        return UnitTr(t);
+    }
 
     static string BuildingTr(BuildingType t) => t switch
     {
@@ -779,6 +1024,57 @@ public class HUD : MonoBehaviour
         BuildingType.Wall         => "Duvar",
         BuildingType.Gate         => "Kapı",
         _                         => t.ToString(),
+    };
+
+    // ── Tooltip descriptions ──────────────────────────────────────────────────
+
+    static string UnitDesc(UnitType t) => t switch
+    {
+        UnitType.Villager  => "İnşa eder ve kaynak toplar.",
+        UnitType.Militia    => "Yakın dövüş piyadesi. Dengeli ve ucuz.",
+        UnitType.Archer     => "Menzilli ok atar. Yakın dövüşe zayıf.",
+        UnitType.Cavalry    => "Hızlı süvari. İlk vuruşta atılım bonusu.",
+        UnitType.Trebuchet  => "Kuşatma silahı. Binalara karşı çok güçlü.",
+        UnitType.Scout      => "Hızlı kâşif. Geniş görüş, hasarsız.",
+        UnitType.Medic      => "Yakındaki dost birimleri iyileştirir.",
+        UnitType.Spearman   => "Süvariye karşı uzman. Mızraklı piyade.",
+        _                   => "",
+    };
+
+    static string BuildingDesc(BuildingType t) => t switch
+    {
+        BuildingType.TownCenter   => "Köylü üretir, çağ atlar. Üssün kalbi.",
+        BuildingType.House        => "Nüfus tavanını +5 artırır.",
+        BuildingType.Barracks     => "Asker ve gözcü eğitir.",
+        BuildingType.ArcheryRange => "Okçu eğitir (Derebeylik).",
+        BuildingType.Stable       => "Süvari eğitir (Kale çağı).",
+        BuildingType.Farm         => "Yenilenebilir yiyecek kaynağı.",
+        BuildingType.LumberCamp   => "Odun bırakma noktası.",
+        BuildingType.MiningCamp   => "Altın/taş bırakma noktası.",
+        BuildingType.Mill         => "Yiyecek bırakma noktası.",
+        BuildingType.Market       => "Kaynak alıp satar.",
+        BuildingType.Castle       => "Güçlü savunma kulesi; mancınık/şifacı eğitir.",
+        BuildingType.Wall         => "Geçişi engelleyen sur. Ucuz ve dayanıklı.",
+        BuildingType.Gate         => "Birimlerin geçebildiği kapı.",
+        _                         => "",
+    };
+
+    static string TechDesc(TechType t) => t switch
+    {
+        TechType.FeudalAge     => "Derebeylik Çağı'na geç. Yeni bina/birim açar.",
+        TechType.CastleAge     => "Kale Çağı'na geç. Gelişmiş birimleri açar.",
+        TechType.Forging       => "Yakın dövüş saldırısı +.",
+        TechType.Fletching     => "Okçu saldırısı ve menzili +.",
+        TechType.Bodkin        => "Okçu saldırısı +.",
+        TechType.ScaleMail     => "Asker/süvari canı +.",
+        TechType.Bloodlines    => "Süvari canı +.",
+        TechType.ManAtArms     => "Asker yükseltmesi: Piyade.",
+        TechType.Longswordsman => "Asker yükseltmesi: Uzun Kılıç.",
+        TechType.Crossbowman   => "Okçu yükseltmesi: Arbaletçi.",
+        TechType.Cavalier      => "Süvari yükseltmesi: Ağır Süvari.",
+        TechType.DoubleBitAxe  => "Odun toplama hızı +.",
+        TechType.Wheelbarrow   => "Tüm toplama hızı +.",
+        _                      => "",
     };
 
     /// <summary>Compact cost string, e.g. "60O 20A" (Y=food, O=wood, A=gold, T=stone).</summary>
