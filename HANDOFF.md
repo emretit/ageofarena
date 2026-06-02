@@ -40,6 +40,32 @@ GitHub'daki Unity RTS klonları (FloaterTS/RTSUnityGameLicenta, nefrob/unity-rts
 
 ---
 
+## Oturum 4 (2026-06-02) — AI Ekonomisi ✅
+
+### Per-team kaynak sistemi
+- **`GameManager.cs`** — `public ResourceManager resources = new()` kaldırıldı.
+  `public ResourceManager[] teamRes = { new(), new(), new(), new() };` eklendi.
+  `public ResourceManager resources => teamRes[0];` geriye dönük uyumluluk property'si — `HUD`, `TrainingQueue`, `BuildingPlacement` kırılmadan çalışıyor.
+
+### GatherSystem team-aware deposit
+- **`GatherSystem.cs`** satır ~98: `GM.resources.Gain(...)` → `GM.teamRes[v.teamId].Gain(...)`.
+  Artık her takımın villager'ı kendi kaynak havuzuna yatırıyor.
+
+### Düşman starting villager'ları
+- **`WorldRoot.SpawnGarrison()`** — her enemy base (team 1-3) için 3 militia yanında 3 villager eklendi.
+  Villager'lar TC'nin arkasına (gate'e karşı yön) konumlandırıldı; teamId atandı.
+
+### EnemyAI tam ekonomi döngüsü
+- **`EnemyAI.cs`** tamamen yeniden yazıldı. Yeni alanlar: `_res` (`teamRes[_teamId]`), `_gatherTimer`.
+- `Start()` — `_res = GM.teamRes[_teamId]` bağlantısı.
+- `EconomyTick()` her 6s: `AssignVillagersToGather()` + `TryTrainVillager()`.
+- `AssignVillagersToGather()` — idle villager'lara nearest wood→food→gold node assign eder (`GatherSystem.AssignGather`).
+- `TryTrainVillager()` — villager sayısı < 3 ve food >= 50 ise yeni villager spawn et, `_res.Deduct()`.
+- `TrySpawn()` — asker artık kaynak keser: Militia 60 food, Archer 35 wood+25 gold. Bütçe yoksa bekler.
+- **Etki:** Düşman villager'larını yok edersen asker üretimi kesilir; gerçek ekonomi baskısı.
+
+---
+
 ## Oturum 3 (2026-06-01) — Denge/Tuning + Kazan/Kaybet ✅
 
 ### AI Tuning
@@ -106,7 +132,7 @@ FloaterTS/RTSUnityGameLicenta referans repo incelendi (Worker/ResourceCamp/Resou
 | `BuildingEntity.cs` | **güncellendi** | IDamageable + hp + underConstruction/buildProgress/buildTime |
 | `BuildingPlacement.cs` | **yeni** | Hayalet önizleme + yerleştirme + OnGUI ipuçları |
 | `BuildSystem.cs` | **güncellendi** | +Farm tamamlanınca FarmField node kaydı |
-| `EnemyAI.cs` | **güncellendi** | SpawnInterval=15s, ArmyCap=12, RushThreshold=8, ilk gecikme=15s |
+| `EnemyAI.cs` | **güncellendi** | Tam ekonomi: gather loop, kaynak bazlı asker üretimi, villager eğitimi |
 | `Prims.cs` | eski | Prosedürel mesh helper'ları |
 | `ResourceFactory.cs` | **güncellendi** | +FarmField(farmRoot) helper |
 | `ResourceManager.cs` | eski | food/wood/gold/stone + pop/popCap + CanAfford/Deduct |
@@ -137,6 +163,7 @@ FloaterTS/RTSUnityGameLicenta referans repo incelendi (Worker/ResourceCamp/Resou
 - Her base: sur + 4 kule + kapı + TC(600hp) + 4 House(300hp×4) + Barracks(400hp)
 - 80 ağaçlık orman halkası, 2 GoldMine, 2 StoneMine
 - **3 Villager + 2 Militia** (team 0, TC önünde)
+- **3 Militia + 3 Villager** (team 1-3, her enemy base — villager'lar TC arkasında, gather'a hazır)
 - **HUD:** Food 200 / Wood 200 / Gold 100 / Stone 0 / Pop 5/25
 
 ---
@@ -152,7 +179,7 @@ FloaterTS/RTSUnityGameLicenta referans repo incelendi (Worker/ResourceCamp/Resou
   - `G`=MiningCamp (madene yakın kur → gold/stone kısa tur)
   - `I`=Mill (Farm yanına kur → food kısa tur)
 - **Bina seçili + V/M/A/C** → eğitim kuyruğu
-- **Düşman AI:** SpawnInterval=15s, RushThreshold=8, ArmyCap=12, ilk gecikme=15s
+- **Düşman AI:** SpawnInterval=15s, RushThreshold=8, ArmyCap=12, ilk gecikme=15s; 3 starting villager gather eder; kaynak bitince asker üretemez
 - **Oyun sonu:** tüm düşman TC yıkılır → `ZAFER!`; oyuncu TC yıkılır → `YENİLDİN`; oyun dondurulur, `R` ile yeniden başlar
 - **Combat:** melee + menzilli, HP barları, auto-aggro
 - **runInBackground=true** — alt-tab'da oyun sürer
@@ -168,6 +195,8 @@ FloaterTS/RTSUnityGameLicenta referans repo incelendi (Worker/ResourceCamp/Resou
 - `ResourceManager.stone = 0` (oyuncu kararı).
 - **Drop-off sistemi:** `BuildingDefs.dropoffMask` bit-field (bit i = ResourceKind i). TC mask=tüm bitler → fallback. Kamp yoksa TC'ye gider, TC da yoksa (savaşta yıkıldı) villager durur.
 - **Farm node:** `destroyOnDeplete=false`; bina yıkılmadan food node sıfırlanabilir ama bina kalır. Yeniden dolum için yeni Farm inşası gerekir (renewable mekanizması eklenmedi).
+- **`GameManager.teamRes[4]`:** index 0 = oyuncu, 1-3 = düşmanlar. `resources` property `teamRes[0]`'ın alias'ı → mevcut kod kırılmaz.
+- **EnemyAI economy:** `_res = GM.teamRes[_teamId]` (`Start()`'ta bağlanır). Restart'ta eski EnemyAI yıkılır, yenisi fresh `_res` alır.
 - Derleme: **0 error, 0 warning**.
 
 ---
@@ -209,7 +238,7 @@ FloaterTS/RTSUnityGameLicenta referans repo incelendi (Worker/ResourceCamp/Resou
 - `claude mcp list` → `unity: ✓ Connected`
 - `McpForceDirectConnections.cs` → her açılışta direct cap=8 zorlanır
 - Araçlar: `Unity_GetConsoleLogs`, `Unity_RunCommand`, `Unity_Camera_Capture`, `Unity_SceneView_Capture2DScene`
-- Zaman-bazlı test için: `osascript -e 'tell application "Unity" to activate'`
+- **⚠️ ÖNEMLİ:** Unity **claude'dan önce açık olmalı**. Sonradan bağlanan MCP sunucuları o session'ın tool registry'sine yüklenemiyor. Unity kapalıyken sohbet başlarsa araçlar kullanılamaz.
 
 ---
 
@@ -220,3 +249,5 @@ Proje: /Users/emreaydin/ageofarena/AgeOfArenaUnity/
 HANDOFF.md oku. Unity MCP bağlı ve 0 error derleniyor.
 [ne yapmak istiyorsun]
 ```
+
+> **Hatırlatma:** Yeni sohbet açmadan önce Unity'i aç ve Play'e bas — MCP araçları kullanılabilir olsun.
