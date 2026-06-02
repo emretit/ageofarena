@@ -308,7 +308,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
             _                 => 0f,  // Siege bypasses armor
         };
         hp -= Mathf.Max(1f, amount - armor);
-        StartCoroutine(HitFlash());
+        if (gameObject.activeInHierarchy) StartCoroutine(HitFlash());
         if (hp <= 0f) Die();
     }
 

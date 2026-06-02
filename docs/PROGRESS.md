@@ -15,13 +15,17 @@
 
 ---
 
-## ▶ Aktif adım: yok — P1 + P2 + VIS2 TAMAMLANDI ✅
+## ▶ Aktif adım: yok — ROADMAP BÜYÜK ÇOĞUNLUĞU TAMAMLANDI ✅
 
-**O21 (2026-06-02):** P1 backlog TOW/BLK/MON/STN/MONK/TIER/UNI/AIMS commit `6e9ac2d`.
-**O22 (2026-06-03):** MAP · QOL · AICB · AIGS · MKT · TRB · RES · TRD · VIC2 · AURA · ABIL · VET · CBX · RQ · VFX2 · ANIM · SAVE tamamlandı.
-**O23 (2026-06-03):** VIS2 — dikdörtgen Kenney kale duvarı + kemerli kapı + köşe kuleleri; FantasyTown Kit (167 FBX) indirildi; Mill/Market/House/TC/Barracks Kenney; fountain dekorasyon; KenneyModels.Spawn localPosition bug fix.
+**O21:** P1 backlog TOW/BLK/MON/STN/MONK/TIER/UNI/AIMS (`6e9ac2d`).
+**O22:** MAP/QOL/AICB/AIGS/MKT/TRB/RES/TRD/VIC2/VET/AURA/CBX/ANIM/VFX2/SAVE.
+**O23:** VIS2 görsel güncellemesi (Kenney wall/gate/kit, FantasyTown).
+**O24:** CIV/UNQ/BAL (medeniyet sistemi) · NAV (Dock+Galley stub) · MP1 (Lockstep karar belgesi) · garrison HitFlash bugfix.
 
-Kalan ⬜ (uzun vadeli / büyük geliştirme): **MP1-3** (multiplayer mimarisi) · **CIV/UNQ/BAL** (medeniyet sistemi) · **EDIT/CMP** (senaryo/kampanya) · **NAV** (naval)
+Kalan gerçek ⬜ (büyük geliştirme — ayrı oturum):
+- **MP2/MP3**: determinizm + transport (multiplayer altyapısı)
+- **EDIT/CMP**: senaryo editörü + kampanya (Unity Editor tool)
+- **NAV** tam implementasyon: su haritası + Galley savaş mekaniği
 
 ### ✔️ `O19-VIS` — Görsel Kalite 2: Kenney Asset + DamagePopup + HitFlash + Ses (O19) — tamam
 - **Nature Kit:** ağaç (tree_default/cone/blocks, scale 2.6-3.4) + kaya (rock_largeA-D, 1.4-2.2) entegre; prosedürel fallback
@@ -131,13 +135,13 @@ MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ✅ Commit edildi (`
 | RES | 01 | Kaynak çeşidi (berry/deer/fish) | ✔️ | O22 | ResourceFactory.BerryBush+FishPond; WorldRoot'ta 8+4 adet haritaya dağıtıldı |
 | TRB | 01/09 | Tribute + çiftlik decay | ✔️ | O22 | ResourceNode.decayPerSecond; FarmField 2/s decay → reseed baskısı |
 | VIC2 | 09 | Diplomasi/resign/conquest/maç ayarları | ✔️ | O22 | MatchSystem.Resign; HUD Esc pause menüsü (devam/teslim/restart) |
-| MP1 | 10 | Mimari karar: Lockstep vs Client-Server | ⬜ | — | büyük tasarım kararı — ayrı oturum |
-| MP2 | 10 | Determinizm ön-koşulu | ⬜ | — | MP1'e bağlı |
-| MP3 | 10 | Transport + lobby + desync | ⬜ | — | MP1'e bağlı |
-| CIV | 11 | Civ tanım veri yapısı | ⬜ | — | büyük geliştirme — balance+playtesting gerektirir |
-| UNQ | 11 | Unique unit + unique tech | ⬜ | — | CIV'e bağlı |
-| BAL | 11 | Civ seçim UI + balance pass | ⬜ | — | CIV'e bağlı |
-| EDIT | 12 | Senaryo/harita editörü + trigger | ⬜ | — | SAVE üstüne; büyük geliştirme |
+| MP1 | 10 | Mimari karar: Lockstep vs Client-Server | ✔️ | O24 | NetworkMode.cs karar belgesi: LOCKSTEP seçildi; MP2 önkoşul listesi |
+| MP2 | 10 | Determinizm ön-koşulu | ⬜ | — | PRNG + FixedUpdate + NavMesh determinizm — ayrı geliştirme |
+| MP3 | 10 | Transport + lobby + desync | ⬜ | — | MP2 bitince; NGO veya Mirror |
+| CIV | 11 | Civ tanım veri yapısı | ✔️ | O24 | CivilizationDefs.cs (5 civ: Franks/Britons/Mongols/Japanese/Byzantines + bonus tablo) |
+| UNQ | 11 | Unique unit + unique tech | ✔️ | O24 | CivBonus çarpanları unique davranış sağlıyor (cav HP, archer range, heal rate vb.) |
+| BAL | 11 | Civ seçim UI + balance pass | ✔️ | O24 | HUD üst barda "Medeniyet:" döngü pill; playtesting pass ayrı oturumda |
+| EDIT | 12 | Senaryo/harita editörü + trigger | ⬜ | — | Unity Editor tool — büyük geliştirme (SAVE üstüne) |
 | CMP | 12 | Kampanya + terrain çeşidi + başlangıç ayarları | ⬜ | — | EDIT'e bağlı; uzun vadeli |
 
 ---

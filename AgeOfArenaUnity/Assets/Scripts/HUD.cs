@@ -25,6 +25,7 @@ public class HUD : MonoBehaviour
     Button _idleButton; Text _idleText;
     Text _victoryText; RectTransform _victoryRect;
     Text _difficultyText;
+    Text _civText;
 
     // ── Command bar ──────────────────────────────────────────────────────────
     RectTransform _cmdBar;
@@ -213,6 +214,7 @@ public class HUD : MonoBehaviour
 
         BuildIdleIndicator(bar);
         BuildDifficultyIndicator(bar);
+        BuildCivIndicator(bar);
         BuildVictoryBanner(parent);
     }
 
@@ -261,6 +263,42 @@ public class HUD : MonoBehaviour
         Difficulty.Insane => "Acımasız",
         _                 => "",
     };
+
+    void BuildCivIndicator(RectTransform bar)
+    {
+        var rect = NewRect("Civ", bar);
+        rect.anchorMin = rect.anchorMax = new Vector2(1, 0.5f);
+        rect.pivot = new Vector2(1, 0.5f);
+        rect.sizeDelta = new Vector2(170, 32);
+        rect.anchoredPosition = new Vector2(-665, 0);
+        var img = rect.gameObject.AddComponent<Image>();
+        img.color = new Color(0.18f, 0.14f, 0.30f, 0.92f);
+        var btn = rect.gameObject.AddComponent<Button>();
+        btn.targetGraphic = img;
+        btn.onClick.AddListener(CycleCiv);
+        _civText = AddText(rect, "", TextAnchor.MiddleCenter);
+        _civText.fontSize = 14;
+        _civText.fontStyle = FontStyle.Bold;
+        AddOutline(_civText, 0.6f);
+        UpdateCivLabel();
+    }
+
+    void CycleCiv()
+    {
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+        var civs = (Civilization[])System.Enum.GetValues(typeof(Civilization));
+        gm.playerCiv = civs[((int)gm.playerCiv + 1) % civs.Length];
+        UpdateCivLabel();
+    }
+
+    void UpdateCivLabel()
+    {
+        if (_civText == null) return;
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+        _civText.text = "Medeniyet: " + CivilizationDefs.Get(gm.playerCiv).display;
+    }
 
     /// <summary>Top-centre banner that shows the active victory countdown
     /// (Wonder/relic). Hidden when no countdown is running.</summary>
