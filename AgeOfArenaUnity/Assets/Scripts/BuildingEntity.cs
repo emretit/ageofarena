@@ -67,7 +67,22 @@ public class BuildingEntity : MonoBehaviour, IDamageable
             _                 => 0f,  // Siege bypasses armor
         };
         hp -= Mathf.Max(1f, amount - armor);
+        // VFX: tint building darker as it takes damage (red shift at low HP).
+        float frac = maxHp > 0f ? hp / maxHp : 1f;
+        if (frac < 0.5f) TintDamage(frac);
         if (hp <= 0f) Die();
+    }
+
+    void TintDamage(float hpFrac)
+    {
+        // Lerp toward char-black at 0 HP so heavily damaged buildings look burned.
+        var tint = Color.Lerp(new Color(0.15f, 0.08f, 0.05f), Color.white, hpFrac * 2f);
+        foreach (var r in GetComponentsInChildren<Renderer>())
+            if (r.sharedMaterial != null)
+            {
+                var m = r.material; // instance copy
+                m.color = tint;
+            }
     }
 
     void Die()
@@ -115,6 +130,11 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         new(UnitType.Monk, 30f, 0, 0, 100, "K"), // gold cost — holy unit
     };
 
+    static readonly UnitTrainable[] MarketTrainables =
+    {
+        new(UnitType.TradeCart, 35f, 0, 80, 50, "Q"), // wood+gold — trade route unit
+    };
+
     static readonly UnitTrainable[] Empty = System.Array.Empty<UnitTrainable>();
 
     /// <summary>Age this building's owning team has reached (null-safe → Dark).</summary>
@@ -150,6 +170,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
             BuildingType.Stable       => StableTrainables,
             BuildingType.Castle       => CastleTrainables,
             BuildingType.Monastery    => MonasteryTrainables,
+            BuildingType.Market       => MarketTrainables,
             _                         => Empty,
         };
 

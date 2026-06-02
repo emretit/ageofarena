@@ -49,6 +49,7 @@ public class CommandSystem : MonoBehaviour
 
         // While picking an attack-move target, the next click is consumed here.
         if (AttackMovePending) { HandleAttackMovePick(gm); return; }
+        if (_patrolPending) { HandlePatrolPick(gm); return; }
 
         HandleTrainHotkeys();
         HandleMarketHotkeys();
@@ -226,6 +227,15 @@ public class CommandSystem : MonoBehaviour
     void HandleUnitHotkeys()
     {
         var gm = GameManager.Instance;
+
+        // Game speed: [ slow down, ] speed up, pause with Space (toggle).
+        if (Input.GetKeyDown(KeyCode.LeftBracket))
+            Time.timeScale = Mathf.Max(0.5f, Time.timeScale - 0.5f);
+        else if (Input.GetKeyDown(KeyCode.RightBracket))
+            Time.timeScale = Mathf.Min(4f, Time.timeScale + 0.5f);
+        else if (Input.GetKeyDown(KeyCode.Space))
+            Time.timeScale = Time.timeScale > 0.01f ? 0f : 1f;
+
         if (gm.selectedBuilding != null) return;
         var sel = gm.selection != null ? gm.selection.Selected : null;
         if (sel == null || sel.Count == 0) return;
@@ -234,6 +244,38 @@ public class CommandSystem : MonoBehaviour
             for (int i = 0; i < sel.Count; i++) { var u = sel[i]; if (u != null) { u.attackMove = false; u.Stop(); } }
         else if (Input.GetKeyDown(KeyCode.A))
             BeginAttackMove();
+        else if (Input.GetKeyDown(KeyCode.P))
+            BeginPatrol(gm, sel);
+    }
+
+    bool _patrolPending;
+
+    void BeginPatrol(GameManager gm, System.Collections.Generic.List<UnitEntity> sel)
+    {
+        _patrolPending = true;
+    }
+
+    // Called in Update when patrol is pending; next right-click becomes the patrol endpoint.
+    void HandlePatrolPick(GameManager gm)
+    {
+        if (Input.GetMouseButtonDown(1) || Input.GetKeyDown(KeyCode.Escape)) { _patrolPending = false; return; }
+        if (!Input.GetMouseButtonDown(0)) return;
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+        var ray = _cam.ScreenPointToRay(Input.mousePosition);
+        if (!Physics.Raycast(ray, out var hit, 500f)) { _patrolPending = false; return; }
+        var sel = gm.selection != null ? gm.selection.Selected : null;
+        if (sel != null)
+            for (int i = 0; i < sel.Count; i++)
+            {
+                var u = sel[i];
+                if (u == null) continue;
+                u.patrolA = u.transform.position;
+                u.patrolB = hit.point;
+                u.patrolActive = true;
+                u.MoveTo(u.patrolB);
+            }
+        SpawnMarker(hit.point, MoveColor);
+        _patrolPending = false;
     }
 
     /// <summary>With a garrison-capable building selected, U ejects everyone inside.</summary>

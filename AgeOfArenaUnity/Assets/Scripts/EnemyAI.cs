@@ -28,6 +28,9 @@ public class EnemyAI : MonoBehaviour
     const int TrebuchetCostWood  = 200;
     const int TrebuchetCostGold  = 100;
     const int VillagerCostFood   = 50;
+    const int SpearmanCostFood   = 35;
+    const int SpearmanCostWood   = 25;
+    const int MedicCostFood      = 60;
 
     // ── Army coordination tuning ────────────────────────────────────────────
     const float RallyRadius        = 6f;    // arrival check radius at the rally point
@@ -233,6 +236,14 @@ public class EnemyAI : MonoBehaviour
                 _res.Deduct(CavalryCostFood, 0, 0, 0);
                 u = UnitFactory.Cavalry(_unitsRoot, pos, _teamColor);
                 break;
+            case UnitType.Spearman:
+                _res.Deduct(SpearmanCostFood, SpearmanCostWood, 0, 0);
+                u = UnitFactory.Spearman(_unitsRoot, pos, _teamColor);
+                break;
+            case UnitType.Medic:
+                _res.Deduct(MedicCostFood, 0, 0, 0);
+                u = UnitFactory.Medic(_unitsRoot, pos, _teamColor);
+                break;
             case UnitType.Trebuchet:
                 _res.Deduct(0, TrebuchetCostWood, TrebuchetCostGold, 0);
                 u = UnitFactory.Trebuchet(_unitsRoot, pos, _teamColor);
@@ -266,6 +277,19 @@ public class EnemyAI : MonoBehaviour
                 return UnitType.Trebuchet;
         }
 
+        // Counter-awareness: if the enemy army has many Cavalry, add Spearmen.
+        int enemyCav = CountEnemyCavalry(gm);
+        int ownSpear = CountType(gm, UnitType.Spearman);
+        if (age >= Age.Feudal && enemyCav > 0 && ownSpear < enemyCav / 2 + 1
+            && _res.CanAfford(SpearmanCostFood, SpearmanCostWood, 0, 0))
+            return UnitType.Spearman;
+
+        // Support: one Medic per 6 army for survivability.
+        int medics = CountType(gm, UnitType.Medic);
+        if (age >= Age.Castle && medics < 1 + CountArmy(gm) / 6
+            && _res.CanAfford(MedicCostFood, 0, 0, 0))
+            return UnitType.Medic;
+
         // Rotate Militia → Archer → Cavalry, skipping locked/unaffordable picks.
         for (int attempt = 0; attempt < 3; attempt++)
         {
@@ -288,6 +312,17 @@ public class EnemyAI : MonoBehaviour
         return null;
     }
 
+    int CountEnemyCavalry(GameManager gm)
+    {
+        int n = 0;
+        for (int i = 0; i < gm.units.Count; i++)
+        {
+            var u = gm.units[i];
+            if (u != null && u.teamId != _teamId && u.type == UnitType.Cavalry) n++;
+        }
+        return n;
+    }
+
     // ── Military: coordinated army state machine ───────────────────────────────
 
     /// <summary>Drives the whole army through Gather → Rally → Attack → Retreat as
@@ -297,12 +332,53 @@ public class EnemyAI : MonoBehaviour
         var army = CollectArmy(gm);
         _stanceTicks++;
 
+        CheckGarrison(gm);
         switch (_stance)
         {
             case Stance.Gathering:  TickGathering(gm, army);  break;
             case Stance.Rallying:   TickRallying(gm, army);   break;
             case Stance.Attacking:  TickAttacking(gm, army);  break;
             case Stance.Retreating: TickRetreating(gm, army); break;
+        }
+    }
+
+    /// <summary>Garrison villagers inside the home TC when enemy military is nearby.
+    /// They un-garrison naturally once the threat clears (BuildingCombatSystem auto-fires
+    /// while garrisoned). This is a simple heuristic — no per-unit micro needed.</summary>
+    void CheckGarrison(GameManager gm)
+    {
+        if (gm.garrison == null) return;
+        BuildingEntity homeTc = null;
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b != null && b.teamId == _teamId && b.type == BuildingType.TownCenter) { homeTc = b; break; }
+        }
+        if (homeTc == null) return;
+
+        float threatSq = 28f * 28f;
+        bool threatened = false;
+        for (int i = 0; i < gm.units.Count; i++)
+        {
+            var u = gm.units[i];
+            if (u == null || u.teamId == _teamId) continue;
+            Vector3 d = u.transform.position - homeTc.transform.position; d.y = 0;
+            if (d.sqrMagnitude <= threatSq) { threatened = true; break; }
+        }
+
+        if (threatened)
+        {
+            for (int i = 0; i < gm.units.Count; i++)
+            {
+                var u = gm.units[i];
+                if (u == null || u.teamId != _teamId || u.type != UnitType.Villager) continue;
+                if (!u.isGarrisoned && homeTc.GarrisonCount < homeTc.GarrisonCapacity)
+                    u.GarrisonOrder(homeTc);
+            }
+        }
+        else
+        {
+            if (homeTc.GarrisonCount > 0) gm.garrison.UngarrisonAll(homeTc);
         }
     }
 

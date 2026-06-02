@@ -102,8 +102,48 @@ public static class ResourceFactory
         // Renewable: when emptied, spend the owning team's wood to re-seed.
         node.renewable = true;
         node.reseedWoodCost = 60;
+        node.decayPerSecond = 2f; // idle farms slowly lose food, incentivising villager assignment
         var be = farmRoot.GetComponent<BuildingEntity>();
         node.ownerTeamId = be != null ? be.teamId : 0;
+        return node;
+    }
+
+    // ── Alternative food sources ──────────────────────────────────────────────
+
+    /// <summary>Berry bush: medium food, faster to deplete than a farm.</summary>
+    public static ResourceNode BerryBush(Transform parent, Vector3 worldPos)
+    {
+        var g = new GameObject("BerryBush");
+        g.transform.SetParent(parent, false);
+        g.transform.position = worldPos;
+        var t = g.transform;
+        var bushMat  = Prims.Mat(Prims.Hex(0x2d7a2d), 0f, 0.5f);
+        var berryMat = Prims.Mat(Prims.Hex(0xd04050), 0f, 0.6f);
+        Prims.Sphere(t, new Vector3(0, 0.4f, 0), 0.45f, bushMat);
+        for (int i = 0; i < 6; i++)
+        {
+            float a = i * Mathf.PI * 2f / 6f;
+            Prims.Sphere(t, new Vector3(Mathf.Cos(a)*0.35f, 0.45f, Mathf.Sin(a)*0.35f), 0.1f, berryMat);
+        }
+        Prims.BlobShadow(t, 0.5f);
+        Prims.EnableShadows(g);
+        return Finish(g, ResourceKind.Food, 200);
+    }
+
+    /// <summary>Fish pond / shallow water patch that yields food.</summary>
+    public static ResourceNode FishPond(Transform parent, Vector3 worldPos)
+    {
+        var g = new GameObject("FishPond");
+        g.transform.SetParent(parent, false);
+        g.transform.position = worldPos;
+        var t = g.transform;
+        var waterMat = Prims.Mat(Prims.Hex(0x2255aa), 0.1f, 0.85f);
+        var ripple   = Prims.Mat(Prims.Hex(0x3399cc), 0.05f, 0.9f);
+        Prims.Box(t, new Vector3(0, 0.03f, 0), new Vector3(2.0f, 0.06f, 2.0f), waterMat);
+        Prims.Box(t, new Vector3(0, 0.07f, 0), new Vector3(1.4f, 0.02f, 1.4f), ripple);
+        Prims.EnableShadows(g);
+        var node = Finish(g, ResourceKind.Food, 250);
+        node.gathererCap = 3;
         return node;
     }
 

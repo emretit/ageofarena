@@ -18,6 +18,7 @@ public class HUD : MonoBehaviour
     ResourceManager _res;
     Transform _canvasRoot;
     bool _gameOverShown;
+    GameObject _pauseMenu;
 
     // Top bar
     Text _foodText, _woodText, _goldText, _stoneText, _popText, _ageText, _relicText;
@@ -594,6 +595,13 @@ public class HUD : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null || _cmdBar == null) return;
 
+        // Escape: toggle pause menu (resign / resume).
+        if (Input.GetKeyDown(KeyCode.Escape) && !_gameOverShown)
+        {
+            if (_pauseMenu != null && _pauseMenu.activeSelf) ClosePauseMenu();
+            else OpenPauseMenu(gm);
+        }
+
         // Relics held readout in the top bar (replaces RelicSystem's IMGUI label).
         if (_relicText != null)
         {
@@ -883,16 +891,16 @@ public class HUD : MonoBehaviour
 
     void BuildMarketButtons(GameManager gm, ref int idx)
     {
-        int sg = MarketSystem.SellGold, bc = MarketSystem.BuyCost, batch = MarketSystem.Batch;
-        AddMarket(ref idx, ResourceKind.Food,  "Yiyecek Sat",  batch + "Y → " + sg + "A", "1");
-        AddMarket(ref idx, ResourceKind.Wood,  "Odun Sat",     batch + "O → " + sg + "A", "2");
-        AddMarket(ref idx, ResourceKind.Stone, "Taş Sat",      batch + "T → " + sg + "A", "3");
-        // Buy food is a distinct action (gold → food).
+        int batch = MarketSystem.Batch;
+        AddMarket(ref idx, ResourceKind.Food,  "Yiyecek Sat",  batch + "Y → " + MarketSystem.SellGold(ResourceKind.Food)  + "A", "1");
+        AddMarket(ref idx, ResourceKind.Wood,  "Odun Sat",     batch + "O → " + MarketSystem.SellGold(ResourceKind.Wood)  + "A", "2");
+        AddMarket(ref idx, ResourceKind.Stone, "Taş Sat",      batch + "T → " + MarketSystem.SellGold(ResourceKind.Stone) + "A", "3");
+        int bc = MarketSystem.BuyCost(ResourceKind.Food);
         _slots.Add(MakeButton(idx++, MarketCol, "Yiyecek Al", "Altın vererek yiyecek satın al.",
             bc + "A → " + batch + "Y", "4",
             r => CommandIconFactory.Market(r, ResourceKind.Food, true),
             () => { var rm = GameManager.Instance?.resources; if (rm != null) MarketSystem.Buy(rm, ResourceKind.Food); },
-            () => { var rm = GameManager.Instance?.resources; return rm != null && rm.gold >= MarketSystem.BuyCost; }));
+            () => { var rm = GameManager.Instance?.resources; return rm != null && rm.gold >= MarketSystem.BuyCost(ResourceKind.Food); }));
     }
 
     void AddMarket(ref int idx, ResourceKind kind, string title, string cost, string hk)
@@ -1051,6 +1059,46 @@ public class HUD : MonoBehaviour
     }
 
     /// <summary>Full-screen victory/defeat overlay shown by <see cref="MatchSystem"/>.</summary>
+    void OpenPauseMenu(GameManager gm)
+    {
+        if (_canvasRoot == null) return;
+        Time.timeScale = 0f;
+        if (_pauseMenu != null) { _pauseMenu.SetActive(true); return; }
+
+        var overlay = new GameObject("PauseMenu");
+        overlay.transform.SetParent(_canvasRoot, false);
+        _pauseMenu = overlay;
+        var rt = overlay.AddComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
+        overlay.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
+
+        void AddBtn(string label, System.Action onClick, float yOffset)
+        {
+            var br = NewRect(label, overlay.transform);
+            br.anchorMin = br.anchorMax = new Vector2(0.5f, 0.5f);
+            br.sizeDelta = new Vector2(280, 50);
+            br.anchoredPosition = new Vector2(0, yOffset);
+            var img = br.gameObject.AddComponent<Image>();
+            img.color = new Color(0.1f, 0.1f, 0.15f, 0.95f);
+            var btn = br.gameObject.AddComponent<Button>();
+            btn.targetGraphic = img;
+            btn.onClick.AddListener(() => onClick());
+            var txt = AddText(br, label, TextAnchor.MiddleCenter);
+            txt.fontSize = 22; txt.fontStyle = FontStyle.Bold;
+        }
+
+        AddBtn("Devam", () => ClosePauseMenu(), 40f);
+        AddBtn("Teslim Ol", () => { ClosePauseMenu(); gm.match?.Resign(); }, -20f);
+        AddBtn("Yeniden Başlat", () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -80f);
+    }
+
+    void ClosePauseMenu()
+    {
+        if (_pauseMenu != null) _pauseMenu.SetActive(false);
+        if (Time.timeScale == 0f) Time.timeScale = 1f;
+    }
+
     public void ShowGameOver(bool playerWon, string subtitle = "")
     {
         if (_gameOverShown || _canvasRoot == null) return;

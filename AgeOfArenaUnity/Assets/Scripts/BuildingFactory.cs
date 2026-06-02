@@ -15,6 +15,33 @@ public static class BuildingFactory
     static readonly Color Door   = Prims.Hex(0x4a2c10);
     static readonly Color Window = Prims.Hex(0x6aa0cc); // deeper window blue
 
+    // Compose a keep from Castle-kit square-tower pieces at the building's local
+    // origin. Native heights (scale 1): base 1.01, mid 1.01, top-roof 1.0. Returns
+    // false when the asset pack is missing so callers fall back to procedural meshes.
+    static bool KenneyKeep(Transform t, float scale, int midSections, bool turrets)
+    {
+        if (KenneyModels.Spawn("Castle/tower-square-base", t, Vector3.zero, scale) == null)
+            return false;
+
+        float y = 1.00f * scale;
+        for (int i = 0; i < midSections; i++)
+        {
+            KenneyModels.Spawn("Castle/tower-square-mid", t, Vector3.zero, scale, 0f, y);
+            y += 1.00f * scale;
+        }
+        KenneyModels.Spawn("Castle/tower-square-top-roof", t, Vector3.zero, scale, 0f, y);
+
+        if (turrets)
+        {
+            float d  = 0.5f * scale;        // corner of the base footprint
+            float ts = 0.5f * scale;        // turret scale
+            foreach (var cx in new[] { -d, d })
+                foreach (var cz in new[] { -d, d })
+                    KenneyModels.Spawn("Castle/tower-square", t, new Vector3(cx, 0, cz), ts);
+        }
+        return true;
+    }
+
     public static GameObject TownCenter(Transform parent, Vector3 worldPos, Color teamColor)
     {
         var g = new GameObject("TownCenter");
@@ -29,36 +56,40 @@ public static class BuildingFactory
         col.center = new Vector3(0, 1.5f, 0);
         col.size   = new Vector3(3.2f, 3.2f, 3.2f);
 
-        var stoneMat = Prims.Mat(Stone, 0.05f);
-        var wallMat = Prims.Mat(Plaster);
-        var timberMat = Prims.Mat(Timber);
-        var doorMat = Prims.Mat(Door);
-        var roofMat = Prims.Mat(teamColor, 0.05f, 0.3f);
-        var winMat = Prims.Mat(Window, 0.1f, 0.4f);
+        // Kenney castle keep with four corner turrets; procedural keep otherwise.
+        if (!KenneyKeep(t, 2.2f, midSections: 1, turrets: true))
+        {
+            var stoneMat = Prims.Mat(Stone, 0.05f);
+            var wallMat = Prims.Mat(Plaster);
+            var timberMat = Prims.Mat(Timber);
+            var doorMat = Prims.Mat(Door);
+            var roofMat = Prims.Mat(teamColor, 0.05f, 0.3f);
+            var winMat = Prims.Mat(Window, 0.1f, 0.4f);
 
-        Prims.Box(t, new Vector3(0, 0.07f, 0), new Vector3(4.0f, 0.15f, 4.0f), stoneMat);   // step
-        Prims.Box(t, new Vector3(0, 0.2f, 0), new Vector3(3.6f, 0.4f, 3.6f), stoneMat);     // platform
-        Prims.Box(t, new Vector3(0, 0.65f, 0), new Vector3(3.1f, 0.5f, 3.1f), stoneMat);    // base band
-        Prims.Box(t, new Vector3(0, 1.4f, 0), new Vector3(3f, 2f, 3f), wallMat);            // body
-        Prims.Box(t, new Vector3(0, 2.44f, 0), new Vector3(3.2f, 0.12f, 3.2f), timberMat);  // roof edge
-        Prims.Cone(t, new Vector3(0, 2.45f, 0), 2.6f, 1.5f, 4, roofMat, 45f);               // roof
+            Prims.Box(t, new Vector3(0, 0.07f, 0), new Vector3(4.0f, 0.15f, 4.0f), stoneMat);   // step
+            Prims.Box(t, new Vector3(0, 0.2f, 0), new Vector3(3.6f, 0.4f, 3.6f), stoneMat);     // platform
+            Prims.Box(t, new Vector3(0, 0.65f, 0), new Vector3(3.1f, 0.5f, 3.1f), stoneMat);    // base band
+            Prims.Box(t, new Vector3(0, 1.4f, 0), new Vector3(3f, 2f, 3f), wallMat);            // body
+            Prims.Box(t, new Vector3(0, 2.44f, 0), new Vector3(3.2f, 0.12f, 3.2f), timberMat);  // roof edge
+            Prims.Cone(t, new Vector3(0, 2.45f, 0), 2.6f, 1.5f, 4, roofMat, 45f);               // roof
 
-        // door + arch
-        Prims.Box(t, new Vector3(0, 1.0f, -1.52f), new Vector3(0.7f, 1.2f, 0.08f), doorMat);
-        Prims.Box(t, new Vector3(0, 1.65f, -1.52f), new Vector3(0.85f, 0.15f, 0.12f), stoneMat);
+            // door + arch
+            Prims.Box(t, new Vector3(0, 1.0f, -1.52f), new Vector3(0.7f, 1.2f, 0.08f), doorMat);
+            Prims.Box(t, new Vector3(0, 1.65f, -1.52f), new Vector3(0.85f, 0.15f, 0.12f), stoneMat);
 
-        // corner pillars
-        foreach (var sx in new[] { -1.4f, 1.4f })
-            foreach (var sz in new[] { -1.4f, 1.4f })
-                Prims.Box(t, new Vector3(sx, 1.45f, sz), new Vector3(0.25f, 2.1f, 0.25f), stoneMat);
+            // corner pillars
+            foreach (var sx in new[] { -1.4f, 1.4f })
+                foreach (var sz in new[] { -1.4f, 1.4f })
+                    Prims.Box(t, new Vector3(sx, 1.45f, sz), new Vector3(0.25f, 2.1f, 0.25f), stoneMat);
 
-        // windows on 4 sides
-        AddWindow(t, new Vector3(0, 1.6f, -1.52f), 0, winMat, timberMat);
-        AddWindow(t, new Vector3(0, 1.6f, 1.52f), 0, winMat, timberMat);
-        AddWindow(t, new Vector3(-1.52f, 1.6f, 0), 90, winMat, timberMat);
-        AddWindow(t, new Vector3(1.52f, 1.6f, 0), 90, winMat, timberMat);
+            // windows on 4 sides
+            AddWindow(t, new Vector3(0, 1.6f, -1.52f), 0, winMat, timberMat);
+            AddWindow(t, new Vector3(0, 1.6f, 1.52f), 0, winMat, timberMat);
+            AddWindow(t, new Vector3(-1.52f, 1.6f, 0), 90, winMat, timberMat);
+            AddWindow(t, new Vector3(1.52f, 1.6f, 0), 90, winMat, timberMat);
+        }
 
-        // flag
+        // Team flag — always procedural so the team colour stays visible atop the keep.
         Prims.Cylinder(t, new Vector3(0, 4.9f, 0), 0.05f, 2.0f, Prims.Mat(Prims.Hex(0x4a3a2a), 0.15f));
         var flag = Prims.Box(t, new Vector3(0.45f, 5.5f, 0), new Vector3(0.9f, 0.6f, 0.04f), Prims.Mat(teamColor, 0, 0.4f));
         flag.name = "Flag";
@@ -81,18 +112,28 @@ public static class BuildingFactory
         hcol.center = new Vector3(0, 0.9f, 0);
         hcol.size   = new Vector3(1.8f, 1.8f, 1.8f);
 
-        var stoneMat = Prims.Mat(Stone, 0.05f);
-        var wallMat = Prims.Mat(Plaster);
-        var timberMat = Prims.Mat(Timber);
-        var roofMat = Prims.Mat(roofColor, 0.05f, 0.25f);
+        // Small Kenney keep (base + roof) reads as a fortified house; procedural otherwise.
+        bool houseKenney = KenneyKeep(t, 1.5f, midSections: 0, turrets: false);
+        if (houseKenney)
+        {
+            // Chimney poking out through the roof (native 0.21×1.00×0.34, scale 1.5).
+            KenneyModels.Spawn("FantasyTown/chimney", t, new Vector3(0.28f, 2.2f, 0.18f), 1.5f);
+        }
+        if (!houseKenney)
+        {
+            var stoneMat = Prims.Mat(Stone, 0.05f);
+            var wallMat = Prims.Mat(Plaster);
+            var timberMat = Prims.Mat(Timber);
+            var roofMat = Prims.Mat(roofColor, 0.05f, 0.25f);
 
-        Prims.Box(t, new Vector3(0, 0.15f, 0), new Vector3(1.7f, 0.3f, 1.7f), stoneMat);
-        Prims.Box(t, new Vector3(0, 1.05f, 0), new Vector3(1.5f, 1.5f, 1.5f), wallMat);
-        foreach (var sx in new[] { -0.7f, 0.7f })
-            foreach (var sz in new[] { -0.7f, 0.7f })
-                Prims.Box(t, new Vector3(sx, 1.05f, sz), new Vector3(0.08f, 1.5f, 0.08f), timberMat);
-        Prims.Box(t, new Vector3(0.3f, 0.65f, -0.76f), new Vector3(0.4f, 0.7f, 0.06f), Prims.Mat(Door));
-        Prims.Cone(t, new Vector3(0, 1.8f, 0), 1.25f, 1.0f, 4, roofMat, 45f);
+            Prims.Box(t, new Vector3(0, 0.15f, 0), new Vector3(1.7f, 0.3f, 1.7f), stoneMat);
+            Prims.Box(t, new Vector3(0, 1.05f, 0), new Vector3(1.5f, 1.5f, 1.5f), wallMat);
+            foreach (var sx in new[] { -0.7f, 0.7f })
+                foreach (var sz in new[] { -0.7f, 0.7f })
+                    Prims.Box(t, new Vector3(sx, 1.05f, sz), new Vector3(0.08f, 1.5f, 0.08f), timberMat);
+            Prims.Box(t, new Vector3(0.3f, 0.65f, -0.76f), new Vector3(0.4f, 0.7f, 0.06f), Prims.Mat(Door));
+            Prims.Cone(t, new Vector3(0, 1.8f, 0), 1.25f, 1.0f, 4, roofMat, 45f);
+        }
 
         Prims.BlobShadow(t, 1.1f);
         Prims.EnableShadows(g);
@@ -112,17 +153,21 @@ public static class BuildingFactory
         col.center = new Vector3(0, 1.3f, 0);
         col.size   = new Vector3(2.7f, 2.8f, 2.2f);
 
-        var stoneMat = Prims.Mat(Stone, 0.05f);
-        var darkMat = Prims.Mat(Dark, 0.05f);
-        var timberMat = Prims.Mat(Timber);
-        var roofMat = Prims.Mat(roofColor, 0.08f, 0.3f);
+        // Kenney keep (base + mid + roof) as a fortified hall; procedural otherwise.
+        if (!KenneyKeep(t, 1.8f, midSections: 1, turrets: false))
+        {
+            var stoneMat = Prims.Mat(Stone, 0.05f);
+            var darkMat = Prims.Mat(Dark, 0.05f);
+            var timberMat = Prims.Mat(Timber);
+            var roofMat = Prims.Mat(roofColor, 0.08f, 0.3f);
 
-        Prims.Box(t, new Vector3(0, 0.15f, 0), new Vector3(2.7f, 0.3f, 2.2f), stoneMat);
-        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(2.55f, 0.4f, 2.05f), stoneMat);
-        Prims.Box(t, new Vector3(0, 1.3f, 0), new Vector3(2.5f, 2.0f, 2.0f), darkMat);
-        Prims.Box(t, new Vector3(0, 2.35f, 0), new Vector3(2.8f, 0.1f, 2.3f), timberMat);
-        Prims.Box(t, new Vector3(0, 2.45f, 0), new Vector3(2.7f, 0.3f, 2.2f), roofMat);
-        Prims.Box(t, new Vector3(0, 1.0f, -1.03f), new Vector3(0.8f, 1.4f, 0.06f), Prims.Mat(Door));
+            Prims.Box(t, new Vector3(0, 0.15f, 0), new Vector3(2.7f, 0.3f, 2.2f), stoneMat);
+            Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(2.55f, 0.4f, 2.05f), stoneMat);
+            Prims.Box(t, new Vector3(0, 1.3f, 0), new Vector3(2.5f, 2.0f, 2.0f), darkMat);
+            Prims.Box(t, new Vector3(0, 2.35f, 0), new Vector3(2.8f, 0.1f, 2.3f), timberMat);
+            Prims.Box(t, new Vector3(0, 2.45f, 0), new Vector3(2.7f, 0.3f, 2.2f), roofMat);
+            Prims.Box(t, new Vector3(0, 1.0f, -1.03f), new Vector3(0.8f, 1.4f, 0.06f), Prims.Mat(Door));
+        }
 
         Prims.BlobShadow(t, 1.5f);
         Prims.EnableShadows(g);
@@ -209,6 +254,8 @@ public static class BuildingFactory
         foreach (var lz in new[] { -0.85f, -0.6f, -0.35f })
             Prims.Cylinder(t, new Vector3(0.85f, 0.35f, lz), 0.16f, 1.0f, logMat)
                  .transform.localRotation = Quaternion.Euler(0, 0, 90f);
+        // FantasyTown cart parked beside the camp
+        KenneyModels.Spawn("FantasyTown/cart-high", t, new Vector3(-0.9f, 0, 0.8f), 1.2f, 45f);
 
         Prims.EnableShadows(g);
         return g;
@@ -244,15 +291,19 @@ public static class BuildingFactory
         var woodMat = Prims.Mat(Prims.Hex(0x6e4a28), 0.05f);
         var roofMat = Prims.Mat(roofColor, 0.05f, 0.25f);
 
-        Prims.Box(t, new Vector3(0, 0.1f, 0), new Vector3(2.0f, 0.2f, 2.0f), Prims.Mat(Stone, 0.05f)); // base
-        Prims.Box(t, new Vector3(0, 0.9f, 0), new Vector3(1.4f, 1.4f, 1.4f), wallMat);                 // body
-        Prims.Cone(t, new Vector3(0, 1.6f, 0), 1.2f, 0.8f, 4, roofMat, 45f);                           // roof
-        // windmill sail hub + 4 blades on the front face
-        Prims.Cylinder(t, new Vector3(0, 1.2f, -0.75f), 0.1f, 0.3f, woodMat)
+        // FantasyTown market stall as the mill building body; procedural otherwise.
+        if (KenneyModels.Spawn("FantasyTown/stall-red", t, new Vector3(0, 0, 0), 1.8f) == null)
+        {
+            Prims.Box(t, new Vector3(0, 0.1f, 0), new Vector3(2.0f, 0.2f, 2.0f), Prims.Mat(Stone, 0.05f)); // base
+            Prims.Box(t, new Vector3(0, 0.9f, 0), new Vector3(1.4f, 1.4f, 1.4f), wallMat);                 // body
+            Prims.Cone(t, new Vector3(0, 1.6f, 0), 1.2f, 0.8f, 4, roofMat, 45f);                           // roof
+        }
+        // Windmill blades always show so the building reads as a Mill.
+        Prims.Cylinder(t, new Vector3(0, 1.2f, -0.9f), 0.1f, 0.3f, woodMat)
              .transform.localRotation = Quaternion.Euler(90f, 0, 0);
         for (int i = 0; i < 4; i++)
         {
-            var blade = Prims.Box(t, new Vector3(0, 1.2f, -0.85f), new Vector3(0.18f, 1.1f, 0.04f), woodMat);
+            var blade = Prims.Box(t, new Vector3(0, 1.2f, -1.0f), new Vector3(0.18f, 1.1f, 0.04f), woodMat);
             blade.transform.localRotation = Quaternion.Euler(0, 0, i * 45f + 45f);
         }
 
@@ -269,19 +320,25 @@ public static class BuildingFactory
         var plankMat = Prims.Mat(Prims.Hex(0xb98a4e), 0.05f);
         var awningMat = Prims.Mat(roofColor, 0.05f, 0.3f);
 
-        Prims.Box(t, new Vector3(0, 0.15f, 0), new Vector3(2.8f, 0.3f, 2.6f), Prims.Mat(Stone, 0.05f)); // platform
-        Prims.Box(t, new Vector3(-0.7f, 0.95f, 0), new Vector3(1.2f, 1.4f, 2.2f), plankMat);            // back stall
-        // open counter at the front
-        Prims.Box(t, new Vector3(0.5f, 0.7f, 0), new Vector3(0.9f, 0.5f, 2.0f), woodMat);
-        // awning posts + sloped canvas
-        foreach (var pz in new[] { -0.95f, 0.95f })
-            Prims.Box(t, new Vector3(0.95f, 0.85f, pz), new Vector3(0.1f, 1.7f, 0.1f), woodMat);
-        var awning = Prims.Box(t, new Vector3(0.35f, 1.75f, 0), new Vector3(1.9f, 0.1f, 2.4f), awningMat);
-        awning.transform.localRotation = Quaternion.Euler(0, 0, 14f);
-        // goods on the counter (grain sacks, wood, ore)
-        Prims.Box(t, new Vector3(0.5f, 1.1f, -0.6f), new Vector3(0.4f, 0.4f, 0.4f), Prims.Mat(Prims.Hex(0xc9a227)));
-        Prims.Box(t, new Vector3(0.5f, 1.1f, 0.0f),  new Vector3(0.4f, 0.4f, 0.4f), woodMat);
-        Prims.Sphere(t, new Vector3(0.5f, 1.05f, 0.6f), 0.22f, Prims.Mat(Prims.Hex(0xb9b9b9)));
+        // Two FantasyTown stalls side by side (red + green) make a market row.
+        if (KenneyModels.Spawn("FantasyTown/stall-red",   t, new Vector3(-0.9f, 0, 0), 1.8f) == null)
+        {
+            Prims.Box(t, new Vector3(0, 0.15f, 0), new Vector3(2.8f, 0.3f, 2.6f), Prims.Mat(Stone, 0.05f)); // platform
+            Prims.Box(t, new Vector3(-0.7f, 0.95f, 0), new Vector3(1.2f, 1.4f, 2.2f), plankMat);            // back stall
+            Prims.Box(t, new Vector3(0.5f, 0.7f, 0), new Vector3(0.9f, 0.5f, 2.0f), woodMat);               // counter
+            foreach (var pz in new[] { -0.95f, 0.95f })
+                Prims.Box(t, new Vector3(0.95f, 0.85f, pz), new Vector3(0.1f, 1.7f, 0.1f), woodMat);
+            var awning = Prims.Box(t, new Vector3(0.35f, 1.75f, 0), new Vector3(1.9f, 0.1f, 2.4f), awningMat);
+            awning.transform.localRotation = Quaternion.Euler(0, 0, 14f);
+            Prims.Box(t, new Vector3(0.5f, 1.1f, -0.6f), new Vector3(0.4f, 0.4f, 0.4f), Prims.Mat(Prims.Hex(0xc9a227)));
+            Prims.Box(t, new Vector3(0.5f, 1.1f, 0.0f),  new Vector3(0.4f, 0.4f, 0.4f), woodMat);
+            Prims.Sphere(t, new Vector3(0.5f, 1.05f, 0.6f), 0.22f, Prims.Mat(Prims.Hex(0xb9b9b9)));
+        }
+        else
+        {
+            KenneyModels.Spawn("FantasyTown/stall-green", t, new Vector3( 0.9f, 0, 0), 1.8f);
+            KenneyModels.Spawn("FantasyTown/cart",        t, new Vector3( 0.9f, 0, -1.4f), 1.4f);
+        }
 
         Prims.EnableShadows(g);
         return g;

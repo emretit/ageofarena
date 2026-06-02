@@ -49,6 +49,7 @@ public class GameManager : MonoBehaviour
     public IsometricCameraRig cameraRig;
     public FogOfWarSystem fow;
     public RelicSystem relicSystem;
+    public TradingSystem trading;
 
     public BuildingEntity selectedBuilding;
 
@@ -96,6 +97,8 @@ public class GameManager : MonoBehaviour
         if (trainingQueue != null) trainingQueue.Tick(dt);
         if (research != null)      research.Tick(dt);
         if (relicSystem != null)   relicSystem.Tick(units, relics, dt);
+        MarketSystem.Tick(dt);
+        if (trading != null) trading.Tick(units, buildings, dt);
 
         // Compact lists once per frame after all systems ticked, so destroyed
         // units/buildings (Unity fake-null) don't linger as null holes.

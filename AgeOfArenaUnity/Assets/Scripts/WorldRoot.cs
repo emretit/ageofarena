@@ -10,10 +10,19 @@ using UnityEngine.Rendering.PostProcessing;
 /// </summary>
 public class WorldRoot : MonoBehaviour
 {
-    const float ArenaRadiusX = 16f;  // bigger base wall ring
-    const float ArenaRadiusZ = 14f;
-    const float WallHeight   = 3.5f;
-    const int   WallSegments = 40;
+    // Rectangular castle wall ring around each base (half-extents from the centre).
+    const float WallHalfX   = 15f;
+    const float WallHalfZ   = 13f;
+    const float WallHeight  = 3.5f;
+    // Kenney "Castle" modular piece tuning — calibrated against the imported FBX bounds
+    // (native sizes at scale 1: wall 1.0 wide ×1.31 tall, gate 0.66 wide ×0.91 tall,
+    // tower base/mid 1.01 tall each).
+    const float WallSegW    = 2f;    // world width of one wall piece at WallScale
+    const float WallScale   = 2f;    // uniform scale for wall Kenney models
+    const float TowerScale  = 2.2f;  // corner towers a touch larger than the wall
+    const float GateScale   = 3f;    // gate ≈2 units wide ×2.7 tall → fills one cell
+    const float GateWidth   = 2f;    // one-cell opening on the front edge for the gate
+    const float WallModelYaw = 0f;   // extra yaw if the FBX's length axis isn't +X
 
     // Base centers further apart → more open mid-map feel.
     static readonly Vector3[] BasePositions =
@@ -45,11 +54,19 @@ public class WorldRoot : MonoBehaviour
         AIPersonality.Balanced, // team 3 – yellow: steady
     };
 
+    /// <summary>Seed for the procedural layout (trees/mines/relics). 0 = random each run.
+    /// Change via the HUD or pass explicitly for reproducible maps.</summary>
+    public int mapSeed;
+
     public void Build()
     {
         // Keep simulating when the window is unfocused (alt-tab) so the AI/economy
         // don't freeze — also makes headless/automated runs behave.
         Application.runInBackground = true;
+
+        // Seed Unity's legacy RNG so trees/mines/relics produce a reproducible layout.
+        if (mapSeed == 0) mapSeed = UnityEngine.Random.Range(1, int.MaxValue);
+        UnityEngine.Random.InitState(mapSeed);
 
         AudioManager.Init();
         SetupEnvironment();
@@ -266,6 +283,10 @@ public class WorldRoot : MonoBehaviour
         SetBuildingTeam(tc, teamId);
         gm.RegisterBuilding(tc.GetComponent<BuildingEntity>());
 
+        // Decorative fountain in the town square (native 2.0×0.28×2.0, scale 1.2).
+        KenneyModels.Spawn("FantasyTown/fountain-round", baseGo.transform,
+            center + forward * 3.5f, 1.2f);
+
         // Houses on the sides and behind the TC (provide population cap).
         var houses = new[]
         {
@@ -292,51 +313,115 @@ public class WorldRoot : MonoBehaviour
         if (be != null) be.teamId = teamId;
     }
 
+    // Rectangular castle perimeter built from Kenney "Castle" modular pieces
+    // (wall + gate + square towers), with a procedural fallback per piece so the
+    // base still renders if the asset pack is missing. Decorative only — like the
+    // old ring it carries no NavMeshObstacle, so it doesn't change unit pathing.
     void BuildWalls(Transform parent, Vector3 center, float gateAngleDeg)
     {
         var wallsGo = new GameObject("Walls");
         wallsGo.transform.SetParent(parent, false);
-        var wallMat  = Prims.Mat(Prims.Hex(0x8a7d60), 0f, 0.05f); // matte stone — no specular glare
-        float gateHalf = 18f * Mathf.Deg2Rad;
+        var wallMat = Prims.Mat(Prims.Hex(0x8a7d60), 0f, 0.05f); // matte stone — no specular glare
+        var roofMat = Prims.Mat(Prims.Hex(0x7a5c3a), 0f, 0.05f);
 
-        for (int i = 0; i < WallSegments; i++)
-        {
-            float t0   = (i       / (float)WallSegments) * Mathf.PI * 2f;
-            float t1   = ((i + 1) / (float)WallSegments) * Mathf.PI * 2f;
-            float tMid = (t0 + t1) * 0.5f;
+        // Corners, clockwise from south-west.
+        Vector3 sw = center + new Vector3(-WallHalfX, 0, -WallHalfZ);
+        Vector3 se = center + new Vector3( WallHalfX, 0, -WallHalfZ);
+        Vector3 ne = center + new Vector3( WallHalfX, 0,  WallHalfZ);
+        Vector3 nw = center + new Vector3(-WallHalfX, 0,  WallHalfZ);
 
-            float diff = Mathf.DeltaAngle(tMid * Mathf.Rad2Deg, gateAngleDeg) * Mathf.Deg2Rad;
-            if (Mathf.Abs(diff) < gateHalf) continue;
+        // Each edge with its outward-normal heading (atan2(z,x) degrees) so the gate
+        // lands on the edge facing the arena centre (matches gateAngleDeg).
+        BuildWallEdge(wallsGo.transform, sw, se, -90f, gateAngleDeg, wallMat); // south
+        BuildWallEdge(wallsGo.transform, se, ne,   0f, gateAngleDeg, wallMat); // east
+        BuildWallEdge(wallsGo.transform, ne, nw,  90f, gateAngleDeg, wallMat); // north
+        BuildWallEdge(wallsGo.transform, nw, sw, 180f, gateAngleDeg, wallMat); // west
 
-            var p0  = new Vector3(center.x + Mathf.Cos(t0) * ArenaRadiusX, 0, center.z + Mathf.Sin(t0) * ArenaRadiusZ);
-            var p1  = new Vector3(center.x + Mathf.Cos(t1) * ArenaRadiusX, 0, center.z + Mathf.Sin(t1) * ArenaRadiusZ);
-            var mid = (p0 + p1) * 0.5f;
-            float segLen = Vector3.Distance(p0, p1) + 0.1f;
-            float angle  = Mathf.Atan2(p1.z - p0.z, p1.x - p0.x) * Mathf.Rad2Deg;
-
-            var wall = Prims.Box(wallsGo.transform,
-                new Vector3(mid.x, WallHeight * 0.5f, mid.z),
-                new Vector3(segLen, WallHeight, 1f), wallMat);
-            wall.transform.localRotation = Quaternion.Euler(0, -angle, 0);
-
-            var merlon = Prims.Box(wallsGo.transform,
-                new Vector3(mid.x, WallHeight + 0.45f, mid.z),
-                new Vector3(0.8f, 0.9f, 0.8f), wallMat);
-            merlon.transform.localRotation = Quaternion.Euler(0, -angle, 0);
-        }
-
-        for (int c = 0; c < 4; c++)
-        {
-            float a   = (c / 4f) * Mathf.PI * 2f + Mathf.PI / 4f;
-            var pos   = new Vector3(center.x + Mathf.Cos(a) * (ArenaRadiusX + 0.3f), 0,
-                                    center.z + Mathf.Sin(a) * (ArenaRadiusZ + 0.3f));
-            Prims.Cylinder(wallsGo.transform, new Vector3(pos.x, (WallHeight + 1.5f) * 0.5f, pos.z),
-                0.9f, WallHeight + 1.5f, wallMat);
-            Prims.Cone(wallsGo.transform, new Vector3(pos.x, WallHeight + 1.5f, pos.z),
-                1.1f, 1.2f, 8, Prims.Mat(Prims.Hex(0x7a5c3a), 0f, 0.05f));
-        }
+        foreach (var corner in new[] { sw, se, ne, nw })
+            BuildCornerTower(wallsGo.transform, corner, wallMat, roofMat);
 
         Prims.EnableShadows(wallsGo);
+    }
+
+    // Lay modular wall pieces end-to-end along one edge; on the gate edge leave a
+    // centred gap and drop a single gate piece there.
+    void BuildWallEdge(Transform parent, Vector3 a, Vector3 b, float normalDeg,
+                       float gateAngleDeg, Material wallMat)
+    {
+        Vector3 dir = (b - a).normalized;
+        float len   = Vector3.Distance(a, b);
+        float yaw   = -Mathf.Atan2(dir.z, dir.x) * Mathf.Rad2Deg + WallModelYaw;
+
+        bool isGateEdge = Mathf.Abs(Mathf.DeltaAngle(normalDeg, gateAngleDeg)) < 45f;
+
+        int n    = Mathf.Max(1, Mathf.RoundToInt(len / WallSegW));
+        float step = len / n;
+        int gateCells = isGateEdge ? Mathf.Clamp(Mathf.RoundToInt(GateWidth / step), 1, n) : 0;
+        int gateStart = (n - gateCells) / 2;
+        int gateEnd   = gateStart + gateCells; // exclusive
+
+        for (int i = 0; i < n; i++)
+        {
+            if (gateCells > 0 && i >= gateStart && i < gateEnd)
+            {
+                if (i == gateStart)
+                {
+                    Vector3 gpos = a + dir * (step * (gateStart + gateCells * 0.5f));
+                    // The gate model's span axis is perpendicular to the wall pieces',
+                    // so rotate it an extra 90° to bridge the opening.
+                    if (KenneyModels.Spawn("Castle/gate", parent, gpos, GateScale, yaw + 90f) == null)
+                        FallbackGate(parent, gpos, yaw, wallMat);
+                }
+                continue;
+            }
+
+            Vector3 pos = a + dir * (step * (i + 0.5f));
+            if (KenneyModels.Spawn("Castle/wall", parent, pos, WallScale, yaw) == null)
+                FallbackWallSeg(parent, pos, yaw, step, wallMat);
+        }
+    }
+
+    // Stacked square tower from the Castle kit (base + mid + tall spire roof);
+    // procedural cylinder + cone otherwise. Native heights at scale 1: base/mid 1.01.
+    void BuildCornerTower(Transform parent, Vector3 pos, Material wallMat, Material roofMat)
+    {
+        float s = TowerScale;
+        if (KenneyModels.Spawn("Castle/tower-square-base", parent, pos, s) != null)
+        {
+            KenneyModels.Spawn("Castle/tower-square-mid",  parent, pos, s, 0f, 1.00f * s);
+            KenneyModels.Spawn("Castle/tower-square-roof", parent, pos, s, 0f, 2.00f * s);
+            return;
+        }
+        Prims.Cylinder(parent, new Vector3(pos.x, (WallHeight + 1.5f) * 0.5f, pos.z),
+            0.9f, WallHeight + 1.5f, wallMat);
+        Prims.Cone(parent, new Vector3(pos.x, WallHeight + 1.5f, pos.z),
+            1.1f, 1.2f, 8, roofMat);
+    }
+
+    // Procedural stone wall block + merlon, matching the old ring's look.
+    void FallbackWallSeg(Transform parent, Vector3 pos, float yaw, float segLen, Material wallMat)
+    {
+        var wall = Prims.Box(parent, new Vector3(pos.x, WallHeight * 0.5f, pos.z),
+            new Vector3(segLen + 0.1f, WallHeight, 1f), wallMat);
+        wall.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+        var merlon = Prims.Box(parent, new Vector3(pos.x, WallHeight + 0.45f, pos.z),
+            new Vector3(0.8f, 0.9f, 0.8f), wallMat);
+        merlon.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+    }
+
+    // Procedural gate: two posts + a lintel leaving a passable opening.
+    void FallbackGate(Transform parent, Vector3 pos, float yaw, Material wallMat)
+    {
+        var root = new GameObject("GateFallback");
+        root.transform.SetParent(parent, false);
+        root.transform.position = pos;
+        root.transform.localRotation = Quaternion.Euler(0, yaw, 0);
+        var t = root.transform;
+        foreach (var sx in new[] { -GateWidth * 0.5f, GateWidth * 0.5f })
+            Prims.Box(t, new Vector3(sx, WallHeight * 0.5f + 0.3f, 0),
+                new Vector3(1f, WallHeight + 0.6f, 1.2f), wallMat);
+        Prims.Box(t, new Vector3(0, WallHeight + 0.7f, 0),
+            new Vector3(GateWidth + 1f, 0.7f, 1.2f), wallMat);
     }
 
     // ── Resources ────────────────────────────────────────────────────────────
@@ -352,6 +437,22 @@ public class WorldRoot : MonoBehaviour
             float r = Random.Range(20f, 45f);
             var pos = new Vector3(Mathf.Cos(a) * r, 0, Mathf.Sin(a) * r);
             gm.RegisterNode(ResourceFactory.Tree(forest.transform, pos));
+        }
+
+        // Scatter berry bushes and fish ponds for food variety.
+        for (int i = 0; i < 8; i++)
+        {
+            float a = Random.Range(0f, Mathf.PI * 2f);
+            float r = Random.Range(18f, 38f);
+            gm.RegisterNode(ResourceFactory.BerryBush(forest.transform,
+                new Vector3(Mathf.Cos(a) * r, 0, Mathf.Sin(a) * r)));
+        }
+        for (int i = 0; i < 4; i++)
+        {
+            float a = Random.Range(0f, Mathf.PI * 2f);
+            float r = Random.Range(22f, 42f);
+            gm.RegisterNode(ResourceFactory.FishPond(forest.transform,
+                new Vector3(Mathf.Cos(a) * r, 0, Mathf.Sin(a) * r)));
         }
     }
 
@@ -425,6 +526,8 @@ public class WorldRoot : MonoBehaviour
         gm.trainingQueue = go.AddComponent<TrainingQueue>();
         gm.research      = go.AddComponent<ResearchSystem>();
         gm.relicSystem   = go.AddComponent<RelicSystem>();
+        gm.trading       = go.AddComponent<TradingSystem>();
+        go.AddComponent<SaveSystem>();
         gm.hud           = go.AddComponent<HUD>();
         gm.minimap       = go.AddComponent<MinimapSystem>();
         gm.match         = go.AddComponent<MatchSystem>();

@@ -26,7 +26,10 @@ public static class KenneyModels
         var go = Object.Instantiate(prefab);
         go.name = prefab.name;
         go.transform.SetParent(parent, false);
-        go.transform.position = worldPos + new Vector3(0f, yOffset, 0f);
+        // Position is LOCAL to the parent so factories can pass an offset relative to
+        // the building/tree root (Vector3.zero = sit on the root). Callers that want a
+        // world position simply parent under a root at the origin.
+        go.transform.localPosition = worldPos + new Vector3(0f, yOffset, 0f);
         go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
         go.transform.localScale = Vector3.one * scale;
         return go;

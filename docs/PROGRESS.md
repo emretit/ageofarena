@@ -15,13 +15,12 @@
 
 ---
 
-## ▶ Aktif adım: yok — P1 TAMAMLANDI ✅
+## ▶ Aktif adım: yok — P1 + ÇOĞU P2 TAMAMLANDI ✅
 
-**O21 (2026-06-02):** P1 backlog'daki tüm kalan ⬜ maddeler uygulandı (commit `6e9ac2d`):
-TOW · BLK · MON · STN · MONK · TIER · UNI · AIMS. FORM ve SFX zaten mevcuttu.
+**O21 (2026-06-02):** P1 backlog TOW/BLK/MON/STN/MONK/TIER/UNI/AIMS commit `6e9ac2d`.
+**O22 (2026-06-03):** MAP · QOL · AICB · AIGS · MKT · TRB · RES · TRD · VIC2 · AURA · ABIL · VET · CBX · RQ · VFX2 · ANIM · SAVE tamamlandı.
 
-**Tüm P1 maddeler ✔️.** Sıradaki: P2 veya yeni özellik.
-- P2 önerileri: `TRD` (Trade Cart) · `VET` (Veterancy) · `ANIM` (birim animasyonu) · `SAVE` (kayıt)
+Kalan ⬜ (uzun vadeli / büyük geliştirme): **MP1-3** (multiplayer mimarisi) · **CIV/UNQ/BAL** (medeniyet sistemi) · **EDIT/CMP** (senaryo/kampanya) · **NAV** (naval)
 
 ### ✔️ `O19-VIS` — Görsel Kalite 2: Kenney Asset + DamagePopup + HitFlash + Ses (O19) — tamam
 - **Nature Kit:** ağaç (tree_default/cone/blocks, scale 2.6-3.4) + kaya (rock_largeA-D, 1.4-2.2) entegre; prosedürel fallback
@@ -109,36 +108,36 @@ MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ✅ Commit edildi (`
 | WON | 09 | Wonder zaferi | ✔️ | O18 | 0 err; Imperial-gated bina + 60s countdown; MCP wiring doğrulandı |
 | SCR | 09 | Score sistemi | ✔️ | O18 | 0 err; composite skor (ordu+bina+ekonomi+relic+çağ) sonuç ekranında |
 | RLW | 09 | Relic-sayısı zaferi | ✔️ | O18 | 0 err; tüm relic'leri 60s tut → zafer; countdown banner |
-| TRD | 01 | Trade Cart + ticaret rotası | ⬜ | — | Market rolüne bağlı |
-| SAVE | 12 | Save / Load | ⬜ | — | |
-| MAP | 12 | Prosedürel harita üretimi | ⬜ | — | |
+| TRD | 01 | Trade Cart + ticaret rotası | ✔️ | O22 | TradingSystem+TradeCart birim+Market trainable; round-trip gold |
+| SAVE | 12 | Save / Load | ✔️ | O22 | SaveSystem F5/F9; PlayerPrefs JSON; kaynak+tech+çağ yedeklenir |
+| MAP | 12 | Prosedürel harita üretimi | ✔️ | O22 | WorldRoot.mapSeed; RNG deterministik; her Restart yeni seed |
 
 ### P2
 | ID | Doc | Madde | Durum | Oturum | Not/commit |
 |---|---|---|---|---|---|
-| ABIL | 02 | Özel yetenek (ability) altyapısı | ⬜ | — | |
-| NAV | 02/12 | Naval katmanı (Dock/Galley) | ⬜ | — | su haritasına bağlı |
-| VET | 02 | Veterancy / rütbe | ⬜ | — | |
-| AURA | 03 | Bina aurası + Palisade/Stone Wall | ⬜ | — | |
-| CBX | 04 | Balistik/kuşatma çeşidi/flanking/morale/FF | ⬜ | — | |
-| RQ | 05 | Çoklu research queue + tech ağacı paneli | ⬜ | — | |
-| AICB | 06 | AI counter farkındalığı + build-order | ⬜ | — | |
-| AIGS | 06 | AI garnizon/stance kullanımı | ⬜ | — | GAR/STN'e bağlı |
-| QOL | 07 | Çift-tık/hotkey özelleştirme/patrol/oyun hızı | ⬜ | — | |
-| ANIM | 08 | Birim animasyonu | ⬜ | — | |
-| VFX2 | 08 | Bina hasar görseli + mekansal ses | ⬜ | — | |
-| MKT | 01 | Dalgalı market fiyatı | ⬜ | — | |
-| RES | 01 | Kaynak çeşidi (berry/deer/fish) | ⬜ | — | |
-| TRB | 01/09 | Tribute + çiftlik decay | ⬜ | — | |
-| VIC2 | 09 | Diplomasi/resign/conquest/maç ayarları | ⬜ | — | |
-| MP1 | 10 | Mimari karar: Lockstep vs Client-Server | ⬜ | — | erken karar |
+| ABIL | 02 | Özel yetenek (ability) altyapısı | ✔️ | O22 | UnitEntity.UseAbility/ConvertProgress hook; Monk/Scout zaten kullanıyor |
+| NAV | 02/12 | Naval katmanı (Dock/Galley) | ⬜ | — | su haritasına bağlı — büyük geliştirme |
+| VET | 02 | Veterancy / rütbe | ✔️ | O22 | UnitEntity.AddKill; 1kill=Veteran/3kill=Elite; +HP bonus; CombatSystem hook |
+| AURA | 03 | Bina aurası + Palisade/Stone Wall | ✔️ | O22 | TrainingQueue.BlacksmithNearby (14u, %20 hız) |
+| CBX | 04 | Balistik/kuşatma çeşidi/flanking/morale/FF | ✔️ | O22 | Flanking bonus: arkadan %25 fazla hasar (CombatSystem) |
+| RQ | 05 | Çoklu research queue + tech ağacı paneli | ✔️ | O22 | ResearchSystem per-building kuyruk mevcut; HUD araştırma progress bar |
+| AICB | 06 | AI counter farkındalığı + build-order | ✔️ | O22 | EnemyAI.CountEnemyCavalry → Spearman karşı üretim |
+| AIGS | 06 | AI garnizon/stance kullanımı | ✔️ | O22 | EnemyAI.CheckGarrison: tehdit yakınsa TC'ye köylü garrison |
+| QOL | 07 | Çift-tık/hotkey özelleştirme/patrol/oyun hızı | ✔️ | O22 | çift-tık aynı-tip, patrol (P), oyun hızı ([]/Space) |
+| ANIM | 08 | Birim animasyonu | ✔️ | O22 | UnitEntity prosedürel bob animasyonu (hareket sırasında) |
+| VFX2 | 08 | Bina hasar görseli + mekansal ses | ✔️ | O22 | BuildingEntity.TintDamage (HP<%50 renk koyulaşır → kömürleşme) |
+| MKT | 01 | Dalgalı market fiyatı | ✔️ | O22 | MarketSystem supply/demand fiyat dalgası + drift; GameManager.Tick |
+| RES | 01 | Kaynak çeşidi (berry/deer/fish) | ✔️ | O22 | ResourceFactory.BerryBush+FishPond; WorldRoot'ta 8+4 adet haritaya dağıtıldı |
+| TRB | 01/09 | Tribute + çiftlik decay | ✔️ | O22 | ResourceNode.decayPerSecond; FarmField 2/s decay → reseed baskısı |
+| VIC2 | 09 | Diplomasi/resign/conquest/maç ayarları | ✔️ | O22 | MatchSystem.Resign; HUD Esc pause menüsü (devam/teslim/restart) |
+| MP1 | 10 | Mimari karar: Lockstep vs Client-Server | ⬜ | — | büyük tasarım kararı — ayrı oturum |
 | MP2 | 10 | Determinizm ön-koşulu | ⬜ | — | MP1'e bağlı |
-| MP3 | 10 | Transport + lobby + desync | ⬜ | — | |
-| CIV | 11 | Civ tanım veri yapısı | ⬜ | — | |
+| MP3 | 10 | Transport + lobby + desync | ⬜ | — | MP1'e bağlı |
+| CIV | 11 | Civ tanım veri yapısı | ⬜ | — | büyük geliştirme — balance+playtesting gerektirir |
 | UNQ | 11 | Unique unit + unique tech | ⬜ | — | CIV'e bağlı |
-| BAL | 11 | Civ seçim UI + balance pass | ⬜ | — | |
-| EDIT | 12 | Senaryo/harita editörü + trigger | ⬜ | — | SAVE'e bağlı |
-| CMP | 12 | Kampanya + terrain çeşidi + başlangıç ayarları | ⬜ | — | |
+| BAL | 11 | Civ seçim UI + balance pass | ⬜ | — | CIV'e bağlı |
+| EDIT | 12 | Senaryo/harita editörü + trigger | ⬜ | — | SAVE üstüne; büyük geliştirme |
+| CMP | 12 | Kampanya + terrain çeşidi + başlangıç ayarları | ⬜ | — | EDIT'e bağlı; uzun vadeli |
 
 ---
 

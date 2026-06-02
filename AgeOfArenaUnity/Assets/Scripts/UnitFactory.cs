@@ -235,6 +235,29 @@ public static class UnitFactory
         return e;
     }
 
+    public static UnitEntity TradeCart(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = new GameObject("TradeCart");
+        g.transform.SetParent(parent, false);
+        g.transform.position = worldPos;
+        var t = g.transform;
+
+        var woodMat = Prims.Mat(Prims.Hex(0x7a5030), 0f, 0.2f);
+        var coverMat = Prims.Mat(teamColor, 0f, 0.3f);
+        var wheelMat = Prims.Mat(Prims.Hex(0x3a2010), 0.05f, 0.2f);
+
+        Prims.Box(t, new Vector3(0, 0.25f, 0), new Vector3(0.7f, 0.3f, 0.5f), woodMat);   // cart body
+        Prims.Box(t, new Vector3(0, 0.45f, 0), new Vector3(0.65f, 0.2f, 0.45f), coverMat); // cover
+        foreach (float cx in new[] { -0.35f, 0.35f })
+        foreach (float cz in new[] { -0.28f, 0.28f })
+            Prims.Cylinder(t, new Vector3(cx, 0.2f, cz), 0.18f, 0.05f, wheelMat);
+
+        var e = Finish(g, UnitType.TradeCart, teamColor);
+        e.hp = e.maxHp = 25f;
+        e.moveSpeed = 4.5f;
+        return e;
+    }
+
     static GameObject NewUnit(string name, Transform parent, Vector3 worldPos)
     {
         var g = new GameObject(name);

@@ -10,7 +10,8 @@ using UnityEngine.EventSystems;
 /// </summary>
 public class SelectionSystem : MonoBehaviour
 {
-    const float DragThreshold = 5f;     // px before a click becomes a drag
+    const float DragThreshold  = 5f;    // px before a click becomes a drag
+    const float DblClickWindow = 0.35f; // seconds for double-click detection
     static readonly Color OwnColor = Prims.Hex(0x00ff00);
 
     public readonly List<UnitEntity> Selected = new();
@@ -27,6 +28,9 @@ public class SelectionSystem : MonoBehaviour
     bool _pointerDown;
     bool _dragging;
     Texture2D _boxTex;
+
+    float _lastClickTime = -10f;
+    UnitType? _lastClickType;
 
     void Start()
     {
@@ -92,7 +96,17 @@ public class SelectionSystem : MonoBehaviour
         if (hitUnit != null && hitUnit.teamId == 0)
         {
             gm.selectedBuilding = null;
-            if (additive)
+            float t = Time.unscaledTime;
+            bool isDbl = !additive && _lastClickType == hitUnit.type && t - _lastClickTime <= DblClickWindow;
+            _lastClickTime = t;
+            _lastClickType = hitUnit.type;
+
+            if (isDbl)
+            {
+                // Double-click: select all visible units of the same type on screen.
+                SelectSameTypeOnScreen(hitUnit.type, gm);
+            }
+            else if (additive)
             {
                 if (Selected.Contains(hitUnit)) Deselect(hitUnit);
                 else Select(hitUnit);
@@ -245,6 +259,21 @@ public class SelectionSystem : MonoBehaviour
         Select(pick);
         var rig = _cam != null ? _cam.GetComponent<IsometricCameraRig>() : null;
         if (rig != null) rig.FocusOn(pick.transform.position);
+    }
+
+    void SelectSameTypeOnScreen(UnitType targetType, GameManager gm)
+    {
+        ClearSelection();
+        gm.selectedBuilding = null;
+        var units = gm.units;
+        for (int i = 0; i < units.Count; i++)
+        {
+            var u = units[i];
+            if (u == null || u.teamId != 0 || u.type != targetType || u.isGarrisoned) continue;
+            Vector3 sp = _cam.WorldToViewportPoint(u.transform.position);
+            if (sp.z > 0f && sp.x >= 0f && sp.x <= 1f && sp.y >= 0f && sp.y <= 1f)
+                Select(u);
+        }
     }
 
     void FocusCameraOnSelection()

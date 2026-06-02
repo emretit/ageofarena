@@ -15,6 +15,7 @@ public static class GameBootstrap
     {
         if (Object.FindAnyObjectByType<WorldRoot>() != null) return; // already built
         var root = new GameObject("AgeOfArena").AddComponent<WorldRoot>();
+        root.mapSeed = _nextSeed;
         root.Build();
     }
 
@@ -24,8 +25,12 @@ public static class GameBootstrap
     /// and <see cref="RuntimeInitializeOnLoadMethod"/> doesn't re-fire on reload — instead we
     /// destroy the existing world root and rebuild on the next frame via <see cref="RebuildKick"/>.
     /// </summary>
-    public static void Restart()
+    static int _nextSeed; // 0 = pick fresh in WorldRoot.Build
+
+    /// <summary>Restart with a fresh random seed so the next map looks different.</summary>
+    public static void Restart(int seed = 0)
     {
+        _nextSeed = seed; // 0 → WorldRoot picks one
         Time.timeScale = 1f;
         GameEvents.Reset();
 

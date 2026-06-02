@@ -141,7 +141,17 @@ public class CombatSystem : MonoBehaviour
                     // Cavalry charge: first swing after 4s of non-combat deals 2.5× damage.
                     bool isCharge = u.ChargeReady;
                     if (isCharge) { dmg *= u.ChargeMultiplier; u.chargeTimer = 0f; }
+                    // Flanking bonus: +25% damage when attacking from behind the target.
+                    var tgtComp = target as Component;
+                    if (tgtComp != null)
+                    {
+                        Vector3 toAttacker = (u.transform.position - tgtComp.transform.position).normalized;
+                        toAttacker.y = 0;
+                        if (Vector3.Dot(tgtComp.transform.forward, toAttacker) > 0.5f) dmg *= 1.25f;
+                    }
+                    bool wasAlive = target.IsAlive;
                     target.TakeDamage(dmg, u.DamageKind);
+                    if (wasAlive && !target.IsAlive) u.AddKill(); // veterancy
                     AudioManager.Play(AudioManager.SoundId.Sword, isCharge ? 1.0f : 0.7f);
                     var tgt = target as Component;
                     if (tgt != null)

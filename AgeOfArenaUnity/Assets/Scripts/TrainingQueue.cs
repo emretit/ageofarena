@@ -36,10 +36,13 @@ public class TrainingQueue : MonoBehaviour
         if (q.Count >= MaxQueueSize) return false;
 
         rm.Deduct(def.food, def.wood, def.gold, 0);
+        // Blacksmith aura: 20% faster training for military buildings within 14u.
+        float time = def.trainTime;
+        if (BlacksmithNearby(b, 14f)) time *= 0.80f;
         q.Add(new TrainingItem
         {
             unitType  = def.unitType,
-            totalTime = def.trainTime,
+            totalTime = time,
             food = def.food, wood = def.wood, gold = def.gold,
         });
         return true;
@@ -123,6 +126,7 @@ public class TrainingQueue : MonoBehaviour
             UnitType.Medic      => UnitFactory.Medic(unitsRoot, spawnPos, teamColor),
             UnitType.Spearman   => UnitFactory.Spearman(unitsRoot, spawnPos, teamColor),
             UnitType.Monk       => UnitFactory.Monk(unitsRoot, spawnPos, teamColor),
+            UnitType.TradeCart  => UnitFactory.TradeCart(unitsRoot, spawnPos, teamColor),
             _                   => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
         };
 
@@ -133,5 +137,20 @@ public class TrainingQueue : MonoBehaviour
         // If the building has a rally point, the fresh unit walks there instead of
         // idling at the gate (AoE behaviour).
         if (b.hasRally && unit != null) unit.MoveTo(b.rallyPoint);
+    }
+
+    static bool BlacksmithNearby(BuildingEntity b, float radius)
+    {
+        var gm = GameManager.Instance;
+        if (gm == null) return false;
+        float r2 = radius * radius;
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var s = gm.buildings[i];
+            if (s == null || s.teamId != b.teamId || s.type != BuildingType.Blacksmith) continue;
+            Vector3 d = s.transform.position - b.transform.position; d.y = 0;
+            if (d.sqrMagnitude <= r2) return true;
+        }
+        return false;
     }
 }

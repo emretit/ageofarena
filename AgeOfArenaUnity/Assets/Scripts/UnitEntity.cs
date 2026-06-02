@@ -39,6 +39,15 @@ public class UnitEntity : MonoBehaviour, IDamageable
     // Attack stance: controls auto-aggro and pursuit.
     public AttackStance stance = AttackStance.Aggressive;
 
+    // Patrol: unit bounces between patrolA and patrolB. Cleared on any player order.
+    public bool patrolActive;
+    public Vector3 patrolA, patrolB;
+
+    // Veterancy: accumulate kills → rank (0=recruit, 1=veteran, 2=elite).
+    // Each rank grants +10% attack and +10% max HP (applied once on rank-up).
+    public int killCount;
+    public int veteranRank;
+
     // Monk conversion: time spent channeling on the current target.
     public float convertProgress;
     public const float ConvertTime = 4f;  // seconds to convert an enemy unit
@@ -168,6 +177,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public void Stop()
     {
         state = UnitState.Idle;
+        patrolActive = false;
         if (_agent.isOnNavMesh)
         {
             _agent.isStopped = true;
@@ -345,13 +355,49 @@ public class UnitEntity : MonoBehaviour, IDamageable
 
     public bool IsMoving => state == UnitState.Moving || state == UnitState.ReturningToDropoff;
 
+    /// <summary>Record a kill and promote the unit if thresholds are reached
+    /// (1 kill = Veteran, 3 kills = Elite). Returns true if rank went up.</summary>
+    public bool AddKill()
+    {
+        killCount++;
+        int newRank = killCount >= 3 ? 2 : killCount >= 1 ? 1 : 0;
+        if (newRank <= veteranRank) return false;
+        veteranRank = newRank;
+        // Flat bonus: +2 max HP and +10% per rank achieved.
+        float hpBonus = 10f;
+        maxHp += hpBonus; hp = Mathf.Min(hp + hpBonus, maxHp);
+        return true;
+    }
+
+    float _bobPhase;
+
     void Update()
     {
+        // Procedural movement bob: unit root bobs up/down while moving.
+        bool isMoving = state == UnitState.Moving;
+        if (isMoving)
+        {
+            _bobPhase += Time.deltaTime * 8f;
+            float bob = Mathf.Sin(_bobPhase) * 0.04f;
+            var pos = transform.localPosition;
+            transform.localPosition = new Vector3(pos.x, bob, pos.z);
+        }
+
         // Only auto-idle for plain move orders; gather/build transitions are their systems' job.
         if (state != UnitState.Moving || gatherTarget != null || constructTarget != null) return;
         if (!_agent.isOnNavMesh || _agent.pathPending) return;
-        if (_agent.remainingDistance <= _agent.stoppingDistance)
-            state = UnitState.Idle;
+        if (_agent.remainingDistance > _agent.stoppingDistance) return;
+
+        state = UnitState.Idle;
+
+        // Patrol: bounce between A and B.
+        if (patrolActive)
+        {
+            var next = patrolB;
+            patrolB = patrolA;
+            patrolA = next;
+            MoveTo(patrolB);
+        }
     }
 
     void Navigate(Vector3 pos)

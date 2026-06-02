@@ -22,6 +22,10 @@ public class ResourceNode : MonoBehaviour
     public int reseedWoodCost;
     public int ownerTeamId;
 
+    // Slow decay: idle farms lose food over time even when not harvested, forcing
+    // the player to tend/reseed. 0 = no decay (trees/mines).
+    public float decayPerSecond;
+
     public bool Depleted => amount <= 0;
     public bool HasRoom => currentGatherers < gathererCap;
 
@@ -50,6 +54,9 @@ public class ResourceNode : MonoBehaviour
         // Remove emptied nodes once their gatherers have left (GameManager's
         // end-of-frame compaction clears the null hole from gm.nodes). Farm fields
         // opt out so the placed building isn't destroyed.
+        if (decayPerSecond > 0f && amount > 0)
+            amount = Mathf.Max(0, Mathf.RoundToInt(amount - decayPerSecond * Time.deltaTime));
+
         if (destroyOnDeplete && Depleted && currentGatherers == 0)
             Destroy(gameObject);
     }

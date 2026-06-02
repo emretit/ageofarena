@@ -28,6 +28,14 @@ public class MatchSystem : MonoBehaviour
     /// <summary>Active victory-countdown line for the HUD top bar ("" = none).</summary>
     public string VictoryStatus { get; private set; } = "";
 
+    /// <summary>Player voluntarily concedes (called from pause menu).</summary>
+    public void Resign()
+    {
+        if (_over) return;
+        var gm = GameManager.Instance;
+        End(false, "Teslim oldu", gm);
+    }
+
     void Update()
     {
         if (_over)
