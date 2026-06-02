@@ -694,13 +694,49 @@ DamagePopup/HitFlash/Ses play-mode'da aktif.
 
 ---
 
+---
+
+## Oturum 23 (2026-06-03) — VIS2: Dikdörtgen Kale Duvarı + Kenney FantasyTown Kit ✅
+
+### Yapılanlar
+
+**Dikdörtgen kale duvarı (WorldRoot.BuildWalls yeniden yazıldı):**
+- Oval Cos/Sin döngüsü → 4 dikdörtgen kenar; Kenney `Castle/wall` parçaları uç uca dizili
+- Ön kenarda (arena merkezine bakan) kemerli `Castle/gate` kapı
+- 4 köşede `tower-square-base + tower-square-mid + tower-square-roof` stack (kare kule)
+- Her parça için prosedürel fallback (asset yoksa yine çalışır)
+- Kalibre: parça bounds runtime ölçüldü (wall 1.0 geniş, kule base/mid 1.01 yüksek, gate +90° yaw)
+
+**KenneyKeep helper + bina entegrasyonu (BuildingFactory.cs):**
+- `KenneyKeep(scale, midSections, turrets)` yardımcı metod eklendi
+- **TownCenter** → 2.2× keep, 4 köşe turret + takım bayrak (prosedürel)
+- **House** → 1.5× keep + `FantasyTown/chimney` bacalı
+- **Barracks** → 1.8× keep, 1 mid-section
+
+**KenneyModels.Spawn bug fix (KenneyModels.cs):**
+- `transform.position` → `transform.localPosition`: ağaç/kaya/bina artık parent'a göre doğru yerde
+
+**Kenney Fantasy Town Kit indirildi + entegre edildi:**
+- 167 FBX `Assets/Resources/Kenney/FantasyTown/` altında (CC0, kenney.nl)
+- **Mill** → `stall-red` (1.8×) + yel değirmeni kanatları (kimlik korundu)
+- **Market** → `stall-red + stall-green` (1.8×) + `cart` prop
+- **LumberCamp** → `cart-high` (1.2×, 45° yaw) dekoratif araba
+- **Town Center** yakınına `fountain-round` (1.2×) kasaba meydanı dekorasyonu
+
+**Doğrulama:** 0 error / 0 warning. MCP `ManageEditor Play` + `Camera_Capture` ile 3 açıdan görüntülendi.
+
+**Değişen/yeni dosyalar:**
+`WorldRoot.cs`, `BuildingFactory.cs`, `KenneyModels.cs`, `Assets/Resources/Kenney/FantasyTown/` (167 FBX)
+
+---
+
 ## Yeni Oturumda Başlangıç Promptu
 
 ```
 Age of Arena Unity portuna devam.
 Proje: /Users/emreaydin/ageofarena/AgeOfArenaUnity/
 Unity'yi BU prompttan ÖNCE aç (yoksa MCP tool'ları yüklenmiyor).
-HANDOFF.md oku. Son oturum O21: TÜM P1 maddeler tamamlandı (commit 6e9ac2d).
-TOW/BLK/MON/MONK/STN/TIER/UNI/AIMS + O19 Kenney/DamagePopup/AudioManager.
-0 error. Sıradaki: P2 — TRD (Trade Cart), VET (Veterancy), ANIM (animasyon), SAVE.
+HANDOFF.md oku. Son oturum O23 (VIS2): dikdörtgen Kenney kale duvarı + kemerli kapı +
+köşe kuleleri + FantasyTown Kit (Mill/Market/House/Barracks Kenney, fountain dekorasyon).
+0 error. Sıradaki öneri: MP1 (multiplayer mimari kararı) veya CIV (medeniyet sistemi).
 ```

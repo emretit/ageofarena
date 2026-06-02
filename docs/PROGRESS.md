@@ -15,10 +15,11 @@
 
 ---
 
-## ▶ Aktif adım: yok — P1 + ÇOĞU P2 TAMAMLANDI ✅
+## ▶ Aktif adım: yok — P1 + P2 + VIS2 TAMAMLANDI ✅
 
 **O21 (2026-06-02):** P1 backlog TOW/BLK/MON/STN/MONK/TIER/UNI/AIMS commit `6e9ac2d`.
 **O22 (2026-06-03):** MAP · QOL · AICB · AIGS · MKT · TRB · RES · TRD · VIC2 · AURA · ABIL · VET · CBX · RQ · VFX2 · ANIM · SAVE tamamlandı.
+**O23 (2026-06-03):** VIS2 — dikdörtgen Kenney kale duvarı + kemerli kapı + köşe kuleleri; FantasyTown Kit (167 FBX) indirildi; Mill/Market/House/TC/Barracks Kenney; fountain dekorasyon; KenneyModels.Spawn localPosition bug fix.
 
 Kalan ⬜ (uzun vadeli / büyük geliştirme): **MP1-3** (multiplayer mimarisi) · **CIV/UNQ/BAL** (medeniyet sistemi) · **EDIT/CMP** (senaryo/kampanya) · **NAV** (naval)
 
@@ -148,3 +149,10 @@ MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ✅ Commit edildi (`
 | — | 2026-06-02 | docs/ + PROGRESS kurulumu | ✔️ 12 kategori dokümanı + bu tracker oluşturuldu |
 | O15 | 2026-06-02 | `GAR` Garnizon | ✔️ 14 dosya; yeni GarrisonSystem.cs; 0 err/0 warn; 7 kabul kriteri MCP harness ile doğrulandı |
 | O16 | 2026-06-02 | `ARM` Zırh tipleri + counter matrisi | ✔️ 11 dosya; DamageType enum + Spearman birim; 0 err/0 warn; 6 kabul kriteri MCP harness ile doğrulandı |
+| O17 | 2026-06-02 | `IMP` Imperial çağ + `ARM`+`GAR` commit | ✔️ 6 dosya; commit `8c0333e` |
+| O18 | 2026-06-02 | `CTRL`+`IDLE`+`MMP`+`WON`+`SCR`+`RLW` | ✔️ P1 UI/UX batch; 0 err; MCP doğrulandı |
+| O19 | 2026-06-02 | `VIS` Görsel Kalite: Kenney Nature+Castle+Audio | ✔️ KenneyModels; DamagePopup; HitFlash; AudioManager; commit `37c4bda` / `8338f8f` |
+| O20 | 2026-06-02 | `DIFF` AI zorluk seviyeleri | ✔️ çarpan katmanı + HUD cycle; 0 err |
+| O21 | 2026-06-02 | P1 backlog toplu (TOW/BLK/MON/MONK/STN/TIER/UNI/AIMS) | ✔️ 13 dosya; commit `6e9ac2d` |
+| O22 | 2026-06-03 | P2 toplu (MAP/QOL/AICB/AIGS/MKT/TRB/RES/TRD/VIC2/AURA/ABIL/VET/CBX/RQ/VFX2/ANIM/SAVE) | ✔️ 0 err; MCP doğrulandı |
+| O23 | 2026-06-03 | `VIS2` Kenney dikdörtgen kale duvarı + FantasyTown Kit | ✔️ WorldRoot/BuildingFactory/KenneyModels; 0 err; MCP Play doğrulandı |
