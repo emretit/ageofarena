@@ -43,20 +43,26 @@ public static class TechDefs
         new(TechType.CastleAge,    BuildingType.TownCenter,   Age.Feudal, 600,   0, 200, 0, 35f, "Kale Çağı"),
         new(TechType.ImperialAge,  BuildingType.TownCenter,   Age.Castle, 1000,  0, 600, 0, 50f, "İmparatorluk Çağı"),
 
-        new(TechType.Forging,      BuildingType.Barracks,     Age.Feudal, 150,   0,   0, 0, 20f, "Dövme"),
-        new(TechType.Fletching,    BuildingType.ArcheryRange, Age.Feudal, 100,   0,  50, 0, 20f, "Oklama"),
+        // ── Blacksmith techs (moved from production buildings) ────────────────
+        new(TechType.Forging,      BuildingType.Blacksmith,   Age.Feudal, 150,   0,   0, 0, 20f, "Dövme"),
+        new(TechType.Fletching,    BuildingType.Blacksmith,   Age.Feudal, 100,   0,  50, 0, 20f, "Oklama"),
+        new(TechType.ScaleMail,    BuildingType.Blacksmith,   Age.Castle, 150,   0, 100, 0, 25f, "Pul Zırh"),
+        new(TechType.Bodkin,       BuildingType.Blacksmith,   Age.Castle, 150,   0, 100, 0, 25f, "İğne Ucu"),
+        // ── Non-Blacksmith economy/stable techs ───────────────────────────────
         new(TechType.DoubleBitAxe, BuildingType.LumberCamp,   Age.Feudal, 100,   0,   0, 0, 18f, "Çift Balta"),
         new(TechType.Wheelbarrow,  BuildingType.TownCenter,   Age.Feudal, 150,  50,   0, 0, 22f, "El Arabası"),
-
-        new(TechType.ScaleMail,    BuildingType.Barracks,     Age.Castle, 150,   0, 100, 0, 25f, "Pul Zırh"),
         new(TechType.Bloodlines,   BuildingType.Stable,       Age.Castle, 150,   0, 100, 0, 25f, "Soyağacı"),
-        new(TechType.Bodkin,       BuildingType.ArcheryRange, Age.Castle, 150,   0, 100, 0, 25f, "İğne Ucu"),
-
         // ── Unit upgrade lines (tier promotions) ──────────────────────────────
-        new(TechType.ManAtArms,     BuildingType.Barracks,     Age.Feudal, 100,   0,  40, 0, 25f, "Piyade"),
-        new(TechType.Longswordsman, BuildingType.Barracks,     Age.Castle, 150,   0, 100, 0, 30f, "Uzun Kılıç", TechType.ManAtArms),
-        new(TechType.Crossbowman,   BuildingType.ArcheryRange, Age.Castle, 150,   0, 100, 0, 30f, "Arbaletçi"),
-        new(TechType.Cavalier,      BuildingType.Stable,       Age.Castle, 150,   0, 100, 0, 30f, "Ağır Süvari"),
+        new(TechType.ManAtArms,     BuildingType.Barracks,     Age.Feudal,  100,   0,  40, 0, 25f, "Piyade"),
+        new(TechType.Longswordsman, BuildingType.Barracks,     Age.Castle,  150,   0, 100, 0, 30f, "Uzun Kılıç",  TechType.ManAtArms),
+        new(TechType.Champion,      BuildingType.Barracks,     Age.Imperial,200,   0, 150, 0, 35f, "Şampiyon",    TechType.Longswordsman),
+        new(TechType.Crossbowman,   BuildingType.ArcheryRange, Age.Castle,  150,   0, 100, 0, 30f, "Arbaletçi"),
+        new(TechType.Arbalest,      BuildingType.ArcheryRange, Age.Imperial,200,   0, 150, 0, 35f, "Arbalet",     TechType.Crossbowman),
+        new(TechType.Cavalier,      BuildingType.Stable,       Age.Castle,  150,   0, 100, 0, 30f, "Ağır Süvari"),
+        new(TechType.Paladin,       BuildingType.Stable,       Age.Imperial,200,   0, 150, 0, 35f, "Paladin",     TechType.Cavalier),
+        // ── University techs (Imperial) ───────────────────────────────────────
+        new(TechType.Masonry,       BuildingType.University,   Age.Castle,  150,   0,   0, 0, 22f, "Duvar Ustalığı"),
+        new(TechType.Fortified,     BuildingType.University,   Age.Imperial,200,   0, 150, 0, 30f, "Takviyeli Duvar"),
     };
 
     public static TechDef Get(TechType t)

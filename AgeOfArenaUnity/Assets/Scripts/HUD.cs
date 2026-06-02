@@ -961,10 +961,25 @@ public class HUD : MonoBehaviour
             () => true));
 
         if (includeAttackMove)
+        {
             _slots.Add(MakeButton(idx++, CmdCol, "Saldır-Yürü", "Bir noktaya ilerle; yoldaki düşmana saldır.", "", "A",
                 r => CommandIconFactory.Command(r, CommandIconFactory.CmdIcon.AttackMove),
                 () => GameManager.Instance?.command?.BeginAttackMove(),
                 () => true));
+
+            _slots.Add(MakeButton(idx++, CmdCol, "Duruş", "Saldırı duruşunu değiştir (Agresif/Savunma/Sabit/Pasif).", "", "Q",
+                r => CommandIconFactory.Command(r, CommandIconFactory.CmdIcon.Stop),
+                () =>
+                {
+                    var s = GameManager.Instance?.selection?.Selected;
+                    if (s == null || s.Count == 0) return;
+                    var first = s[0];
+                    if (first == null) return;
+                    var next = (AttackStance)(((int)first.stance + 1) % 4);
+                    for (int i = 0; i < s.Count; i++) { var u = s[i]; if (u != null) u.stance = next; }
+                },
+                () => true));
+        }
     }
 
     void ShowHpBar(bool on)

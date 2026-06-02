@@ -38,12 +38,14 @@ public class CombatSystem : MonoBehaviour
 
             // Medic continuously heals the most-wounded ally in range while idle.
             if (u.type == UnitType.Medic) StepHeal(u, units, dt);
+            if (u.type == UnitType.Monk)  StepConvert(u, units, dt);
 
             if (u.attackTarget != null)
                 StepCombat(u);
             else if (u.attackMove)
                 StepAttackMove(u, scanAggro);
-            else if (scanAggro && u.state == UnitState.Idle && u.gatherTarget == null && u.AggroRadius > 0f)
+            else if (scanAggro && u.state == UnitState.Idle && u.gatherTarget == null
+                     && u.AggroRadius > 0f && u.stance != AttackStance.NoAttack)
                 TryAcquire(u);
         }
     }
@@ -93,6 +95,14 @@ public class CombatSystem : MonoBehaviour
 
         if (FlatDist(pos, tpos) > reach + 0.15f)
         {
+            // StandGround: don't pursue — drop the target and idle.
+            if (u.stance == AttackStance.StandGround)
+            {
+                u.attackTarget = null;
+                _repath.Remove(u);
+                if (u.state == UnitState.MovingToAttack) u.Stop();
+                return;
+            }
             u.state = UnitState.MovingToAttack;
             _repath.TryGetValue(u, out float t);
             t -= Time.deltaTime;
@@ -204,6 +214,67 @@ public class CombatSystem : MonoBehaviour
         {
             medic.FaceToward(best.transform.position);
             best.Heal(medic.HealPower * dt);
+        }
+    }
+
+    /// <summary>
+    /// Monk conversion: close in and channel for <see cref="UnitEntity.ConvertTime"/> seconds.
+    /// On completion the target unit switches to the Monk's team (new colour).
+    /// Cancels if the target dies or moves beyond 2× range.
+    /// </summary>
+    void StepConvert(UnitEntity monk, List<UnitEntity> units, float dt)
+    {
+        if (monk.attackTarget == null) return;
+        var tgt = monk.attackTarget as UnitEntity;
+        if (tgt == null || !tgt.IsAlive || tgt.teamId == monk.teamId)
+        {
+            monk.attackTarget = null;
+            monk.convertProgress = 0f;
+            return;
+        }
+
+        const float ConvertRange = 2.5f;
+        float dist = FlatDist(monk.transform.position, tgt.transform.position);
+        if (dist > ConvertRange * 2f) { monk.convertProgress = 0f; return; } // too far
+
+        if (dist > ConvertRange)
+        {
+            monk.state = UnitState.MovingToAttack;
+            _repath.TryGetValue(monk, out float rt);
+            rt -= dt;
+            if (rt <= 0f)
+            {
+                monk.NavigateTo(ApproachPoint(tgt.transform.position, monk.transform.position, ConvertRange * 0.7f));
+                rt = RepathInterval;
+            }
+            _repath[monk] = rt;
+            return;
+        }
+
+        monk.HaltAgent();
+        monk.FaceToward(tgt.transform.position);
+        monk.state = UnitState.Attacking;
+        monk.convertProgress += dt;
+
+        if (monk.convertProgress >= UnitEntity.ConvertTime)
+        {
+            monk.convertProgress = 0f;
+            monk.attackTarget = null;
+            // Switch team: update teamId and tint renderers with new team colour.
+            var gm = GM;
+            int newTeam = monk.teamId;
+            Color newColor = gm != null && newTeam < 4
+                ? new Color[] { Prims.Hex(0x1e5fcc), Prims.Hex(0xd42020), Prims.Hex(0x1e9e40), Prims.Hex(0xf0a010) }[newTeam]
+                : Color.white;
+            tgt.teamId = newTeam;
+            foreach (var r in tgt.GetComponentsInChildren<MeshRenderer>())
+            {
+                if (r.gameObject.name == "BlobShadow" || r.gameObject.name.StartsWith("SelectionRing")) continue;
+                // tint the primary (first) material with the new team colour
+                var mat = r.material;
+                mat.color = Color.Lerp(mat.color, newColor, 0.5f);
+            }
+            monk.Stop();
         }
     }
 

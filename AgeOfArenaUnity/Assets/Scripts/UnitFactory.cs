@@ -213,6 +213,28 @@ public static class UnitFactory
         return e;
     }
 
+    public static UnitEntity Monk(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Monk", parent, worldPos);
+        var t = g.transform;
+
+        var robe  = Prims.Mat(Prims.Hex(0x8b6914), 0f, 0.15f); // brown robe
+        var skin  = Prims.Mat(Prims.Hex(0xe0ac69));
+        var staff = Prims.Mat(Prims.Hex(0x6b4a2a));
+
+        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.44f, 0.85f, 0.36f), robe);    // robe body
+        Prims.Sphere(t, new Vector3(0, 1.04f, 0), 0.17f, skin);                           // head (tonsure)
+        Prims.Box(t, new Vector3(0, 1.12f, 0), new Vector3(0.36f, 0.22f, 0.36f), robe);  // hood
+        // holy staff
+        Prims.Box(t, new Vector3(0.32f, 0.8f, 0.06f), new Vector3(0.05f, 1.2f, 0.05f), staff);
+        Prims.Cone(t, new Vector3(0.32f, 1.42f, 0.06f), 0.12f, 0.25f, 6, Prims.Mat(Prims.Hex(0xf2c14e), 0.2f, 0.6f), 0f);
+
+        var e = Finish(g, UnitType.Monk, teamColor);
+        e.hp = e.maxHp = 30f;
+        e.moveSpeed = 2.8f;
+        return e;
+    }
+
     static GameObject NewUnit(string name, Transform parent, Vector3 worldPos)
     {
         var g = new GameObject(name);

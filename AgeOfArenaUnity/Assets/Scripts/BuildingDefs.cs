@@ -79,10 +79,16 @@ public static class BuildingDefs
         // Wall blocks pathfinding (carving NavMeshObstacle); Gate is a passable opening.
         new(BuildingType.Wall,          0,   10,  0,  0,   4f,  0,  200f, "Wall",          'W', true,  meleeArm: 10f, pierceArm: 10f),
         new(BuildingType.Gate,          0,   30,  0,  0,   8f,  0,  450f, "Gate",          'O', true),
-        // Wonder: an Imperial-age victory building — very expensive, slow to raise, and
-        // tough. Once finished it starts a victory countdown (MatchSystem); destroying it
-        // cancels the count. A third win condition alongside conquest and relics.
-        new(BuildingType.Wonder,        0,  500,800,600, 150f,  0, 3000f, "Anıt (Wonder)", 'Y', true,  minAge: Age.Imperial, meleeArm: 5f, pierceArm: 8f),
+        // Wonder: an Imperial-age victory building.
+        new(BuildingType.Wonder,        0,  500,800,600, 150f,  0, 3000f, "Anıt (Wonder)",   'Y', true,  minAge: Age.Imperial, meleeArm: 5f, pierceArm: 8f),
+        // Watch Tower: cheap early-game ranged defence, weaker than Castle.
+        new(BuildingType.WatchTower,    0,  125,  0,  0,  18f,  0,  500f, "Gözetleme Kulesi", 'Z', true,  false, 0, 6f, 7f, 2.0f, Age.Feudal,  0, 2f, 4f),
+        // Blacksmith: military tech research hub (Feudal Age).
+        new(BuildingType.Blacksmith,    0,  150,  0,  0,  20f,  0,  350f, "Demirci",         'D', true,  minAge: Age.Feudal),
+        // Monastery: Monk production + relic gold (Castle Age).
+        new(BuildingType.Monastery,     0,  175,  0,  0,  22f,  0,  350f, "Manastır",        'N', true,  minAge: Age.Castle),
+        // University: Imperial techs (Masonry, Fortified Wall, etc.).
+        new(BuildingType.University,    0,  200,  0,150,  28f,  0,  400f, "Üniversite",      'U', true,  minAge: Age.Castle),
     };
 
     public static BuildingDef Get(BuildingType t)

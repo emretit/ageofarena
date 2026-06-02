@@ -92,7 +92,7 @@ MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ✅ Commit edildi (`
 | ARM | 02/04 | Zırh tipleri + counter matrisi (spear>cav>archer) | ✔️ | O16 | 0 err; 6 kriter MCP; commit `8c0333e` |
 | MONK | 02/03 | Monk (dönüştürme + relic taşıma) | ⬜ | — | Monastery'ye bağlı |
 | TOW | 03 | Watch/Bombard Tower | ⬜ | — | |
-| REP | 03 | Repair (köylü tamir) | ⬜ | — | |
+| REP | 03 | Repair (köylü tamir) | ✔️ | O15 | BuildSystem.StepRepair; köylü hasarlı binaya sağ-tık (O15 handoff) |
 | BLK | 03/05 | Blacksmith + askeri tech taşıma | ⬜ | — | |
 | MON | 03 | Monastery binası | ⬜ | — | |
 | STN | 04/07 | Attack stance (aggressive/defensive/stand/no-attack) | ⬜ | — | |
@@ -105,8 +105,8 @@ MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ✅ Commit edildi (`
 | CTRL | 07 | Control group (1-9) | ✔️ | O18 | 0 err; FocusOn MCP doğrulandı; ata/seç input-bağlı manuel |
 | IDLE | 01/07 | Idle-worker butonu + döngü | ✔️ | O18 | 0 err; count+cycle MCP doğrulandı; '.' hotkey + HUD pill |
 | MMP | 07 | Minimap click-to-pan + sağ-tık komut | ✔️ | O18 | 0 err; inverse+MoveSelectedTo MCP doğrulandı; tık input-bağlı manuel |
-| SES | 08 | Ses sistemi temeli (AudioManager) | ⬜ | — | yüksek etki/izole |
-| SFX | 08 | Birim/bina/UI SFX seti | ⬜ | — | SES'e bağlı |
+| SES | 08 | Ses sistemi temeli (AudioManager) | ✔️ | O19 | AudioManager singleton; 7 ses; sword/arrow/build/die/trained; commit `37c4bda` |
+| SFX | 08 | Birim/bina/UI SFX seti | 🟡 | O19 | Temel SFX tamam; select/button_click hookları kaldı |
 | WON | 09 | Wonder zaferi | ✔️ | O18 | 0 err; Imperial-gated bina + 60s countdown; MCP wiring doğrulandı |
 | SCR | 09 | Score sistemi | ✔️ | O18 | 0 err; composite skor (ordu+bina+ekonomi+relic+çağ) sonuç ekranında |
 | RLW | 09 | Relic-sayısı zaferi | ✔️ | O18 | 0 err; tüm relic'leri 60s tut → zafer; countdown banner |

@@ -388,11 +388,34 @@ public class EnemyAI : MonoBehaviour
         for (int i = 0; i < army.Count; i++)
         {
             var u = army[i];
-            if (u.attackTarget != null && u.attackTarget.IsAlive) continue; // already engaged
+            if (u.attackTarget != null && u.attackTarget.IsAlive) continue;
+
+            // Medic: stay behind army and heal most-wounded ally (handled by CombatSystem);
+            // just keep them near the army center so they're in range.
+            if (u.type == UnitType.Medic)
+            {
+                if (u.state == UnitState.Idle && army.Count > 1)
+                {
+                    var center = Vector3.zero; int c = 0;
+                    for (int j = 0; j < army.Count; j++)
+                        if (army[j] != u && army[j] != null) { center += army[j].transform.position; c++; }
+                    if (c > 0) u.MoveTo(center / c);
+                }
+                continue;
+            }
+
+            // Scout: patrol toward the player base independently rather than joining the army.
+            if (u.type == UnitType.Scout)
+            {
+                if (u.state == UnitState.Idle)
+                    u.MoveTo(gm.units.Count > 0
+                        ? gm.units[UnityEngine.Random.Range(0, gm.units.Count)].transform.position
+                        : Vector3.zero);
+                continue;
+            }
 
             if (u.type == UnitType.Trebuchet)
             {
-                // Prefer structures; fall back to the main target if all are razed.
                 var b = NearestEnemyBuilding(gm, u.transform.position);
                 u.AttackOrder((IDamageable)b ?? _target);
             }

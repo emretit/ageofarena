@@ -36,6 +36,13 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public float chargeTimer = 4f;
     public bool  ChargeReady => type == UnitType.Cavalry && chargeTimer >= 4f;
 
+    // Attack stance: controls auto-aggro and pursuit.
+    public AttackStance stance = AttackStance.Aggressive;
+
+    // Monk conversion: time spent channeling on the current target.
+    public float convertProgress;
+    public const float ConvertTime = 4f;  // seconds to convert an enemy unit
+
     // ── Construction (villagers) ─────────────────────────────────────────────
     public BuildingEntity constructTarget;
 

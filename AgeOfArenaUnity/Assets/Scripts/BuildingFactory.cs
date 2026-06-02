@@ -434,6 +434,84 @@ public static class BuildingFactory
         return g;
     }
 
+    public static GameObject WatchTower(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewBuilding("WatchTower", parent, worldPos, BuildingType.WatchTower,
+            new Vector3(0, 1.5f, 0), new Vector3(1.4f, 3.2f, 1.4f));
+        var t = g.transform;
+        var stoneMat = Prims.Mat(Stone, 0.05f);
+        var roofMat  = Prims.Mat(teamColor, 0.05f, 0.3f);
+
+        Prims.Cylinder(t, new Vector3(0, 1.6f, 0), 0.65f, 3.2f, stoneMat);
+        Prims.Box(t, new Vector3(0, 3.3f, 0), new Vector3(1.5f, 0.15f, 1.5f), stoneMat);
+        foreach (var cx in new[] { -0.55f, 0.55f })
+            foreach (var cz in new[] { -0.55f, 0.55f })
+                Prims.Box(t, new Vector3(cx, 3.5f, cz), new Vector3(0.28f, 0.32f, 0.28f), stoneMat);
+        Prims.Cone(t, new Vector3(0, 3.55f, 0), 0.85f, 0.9f, 8, roofMat, 0f);
+
+        Prims.EnableShadows(g);
+        return g;
+    }
+
+    public static GameObject Blacksmith(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewBuilding("Blacksmith", parent, worldPos, BuildingType.Blacksmith,
+            new Vector3(0, 1.0f, 0), new Vector3(2.2f, 2.0f, 2.2f));
+        var t = g.transform;
+        var darkMat  = Prims.Mat(Prims.Hex(0x2c2018), 0.05f);
+        var stoneMat = Prims.Mat(Stone, 0.05f);
+        var roofMat  = Prims.Mat(teamColor, 0.05f, 0.25f);
+
+        Prims.Box(t, new Vector3(0, 0.15f, 0), new Vector3(2.2f, 0.3f, 2.2f), stoneMat);
+        Prims.Box(t, new Vector3(0, 1.0f, 0), new Vector3(2.0f, 1.4f, 2.0f), darkMat);
+        Prims.Box(t, new Vector3(0, 1.8f, 0), new Vector3(2.2f, 0.15f, 2.2f), roofMat);
+        Prims.Cylinder(t, new Vector3(0.6f, 2.2f, 0.3f), 0.18f, 1.0f, darkMat); // chimney
+
+        Prims.EnableShadows(g);
+        return g;
+    }
+
+    public static GameObject Monastery(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewBuilding("Monastery", parent, worldPos, BuildingType.Monastery,
+            new Vector3(0, 1.2f, 0), new Vector3(2.4f, 2.4f, 2.4f));
+        var t = g.transform;
+        var wallMat  = Prims.Mat(Plaster);
+        var stoneMat = Prims.Mat(Stone, 0.05f);
+        var accent   = Prims.Mat(teamColor, 0.05f, 0.3f);
+
+        Prims.Box(t, new Vector3(0, 0.15f, 0), new Vector3(2.4f, 0.3f, 2.4f), stoneMat);
+        Prims.Box(t, new Vector3(0, 1.1f, 0), new Vector3(2.2f, 1.6f, 2.2f), wallMat);
+        Prims.Cone(t, new Vector3(0, 2.0f, 0), 1.8f, 1.0f, 8, accent, 0f);
+        Prims.Cylinder(t, new Vector3(0, 3.5f, 0), 0.07f, 0.8f, stoneMat);    // cross post
+        Prims.Box(t, new Vector3(0, 3.7f, 0), new Vector3(0.5f, 0.08f, 0.08f), stoneMat); // cross bar
+
+        Prims.EnableShadows(g);
+        return g;
+    }
+
+    public static GameObject University(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewBuilding("University", parent, worldPos, BuildingType.University,
+            new Vector3(0, 1.3f, 0), new Vector3(2.6f, 2.6f, 2.6f));
+        var t = g.transform;
+        var wallMat  = Prims.Mat(Plaster);
+        var stoneMat = Prims.Mat(Stone, 0.05f);
+        var roofMat  = Prims.Mat(teamColor, 0.05f, 0.3f);
+        var winMat   = Prims.Mat(Window, 0.1f, 0.4f);
+        var timberMat = Prims.Mat(Timber);
+
+        Prims.Box(t, new Vector3(0, 0.15f, 0), new Vector3(2.6f, 0.3f, 2.6f), stoneMat);
+        Prims.Box(t, new Vector3(0, 1.2f, 0), new Vector3(2.4f, 1.8f, 2.4f), wallMat);
+        Prims.Box(t, new Vector3(0, 2.2f, 0), new Vector3(2.6f, 0.15f, 2.6f), timberMat);
+        Prims.Cone(t, new Vector3(0, 2.25f, 0), 2.0f, 1.1f, 4, roofMat, 45f);
+        AddWindow(t, new Vector3(0, 1.4f, -1.22f), 0, winMat, timberMat);
+        AddWindow(t, new Vector3(0, 1.4f,  1.22f), 0, winMat, timberMat);
+
+        Prims.EnableShadows(g);
+        return g;
+    }
+
     /// <summary>
     /// Generic dispatcher used by the placement system and enemy AI to build any
     /// type by enum. Uses <paramref name="teamColor"/> for the roof so buildings
@@ -455,6 +533,10 @@ public static class BuildingFactory
         BuildingType.Wall         => Wall(parent, worldPos, teamColor),
         BuildingType.Gate         => Gate(parent, worldPos, teamColor),
         BuildingType.Wonder       => Wonder(parent, worldPos, teamColor),
+        BuildingType.WatchTower   => WatchTower(parent, worldPos, teamColor),
+        BuildingType.Blacksmith   => Blacksmith(parent, worldPos, teamColor),
+        BuildingType.Monastery    => Monastery(parent, worldPos, teamColor),
+        BuildingType.University   => University(parent, worldPos, teamColor),
         _                         => House(parent, worldPos, teamColor),
     };
 

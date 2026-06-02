@@ -122,6 +122,7 @@ public class TrainingQueue : MonoBehaviour
             UnitType.Scout      => UnitFactory.Scout(unitsRoot, spawnPos, teamColor),
             UnitType.Medic      => UnitFactory.Medic(unitsRoot, spawnPos, teamColor),
             UnitType.Spearman   => UnitFactory.Spearman(unitsRoot, spawnPos, teamColor),
+            UnitType.Monk       => UnitFactory.Monk(unitsRoot, spawnPos, teamColor),
             _                   => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
         };
 

@@ -107,7 +107,12 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     static readonly UnitTrainable[] CastleTrainables =
     {
         new(UnitType.Trebuchet, 40f, 0, 200, 100, "S"),
-        new(UnitType.Medic,     26f, 60, 0,   0, "H"), // heals nearby friendly units
+        new(UnitType.Medic,     26f, 60, 0,   0, "H"),
+    };
+
+    static readonly UnitTrainable[] MonasteryTrainables =
+    {
+        new(UnitType.Monk, 30f, 0, 0, 100, "K"), // gold cost — holy unit
     };
 
     static readonly UnitTrainable[] Empty = System.Array.Empty<UnitTrainable>();
@@ -126,11 +131,12 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     static Age MinAgeFor(UnitType t) => t switch
     {
         UnitType.Archer    => Age.Feudal,
-        UnitType.Spearman  => Age.Feudal, // counter to Cavalry, which unlocks at Castle
+        UnitType.Spearman  => Age.Feudal,
         UnitType.Cavalry   => Age.Castle,
         UnitType.Trebuchet => Age.Castle,
-        UnitType.Medic     => Age.Castle, // trained at the Castle, Castle Age
-        _                  => Age.Dark,   // Villager, Militia, Scout
+        UnitType.Medic     => Age.Castle,
+        UnitType.Monk      => Age.Castle,
+        _                  => Age.Dark,
     };
 
     public UnitTrainable[] GetTrainables()
@@ -143,6 +149,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
             BuildingType.ArcheryRange => ArcheryTrainables,
             BuildingType.Stable       => StableTrainables,
             BuildingType.Castle       => CastleTrainables,
+            BuildingType.Monastery    => MonasteryTrainables,
             _                         => Empty,
         };
 
