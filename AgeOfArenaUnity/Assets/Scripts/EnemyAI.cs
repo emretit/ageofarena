@@ -135,7 +135,19 @@ public class EnemyAI : MonoBehaviour
                     TryResearch(TechType.CastleAge);       // else save for the next age
                 break;
             case Age.Castle:
-                // Blacksmith bonuses, then tier promotions (Longswordsman needs ManAtArms first).
+                // Blacksmith bonuses, then tier promotions (Longswordsman needs ManAtArms
+                // first), then save for the final age once the Castle tree is exhausted.
+                if (!TryResearch(TechType.ScaleMail))
+                {
+                    bool did = _tech.Has(TechType.ManAtArms) && TryResearch(TechType.Longswordsman);
+                    if (!did) did = TryResearch(TechType.Cavalier);
+                    if (!did) did = TryResearch(TechType.Crossbowman);
+                    if (!did) did = TryResearch(TechType.Bloodlines);
+                    if (!did) TryResearch(TechType.ImperialAge);
+                }
+                break;
+            case Age.Imperial:
+                // Mop up any Castle-age upgrades not yet finished before the rush.
                 if (!TryResearch(TechType.ScaleMail))
                 {
                     bool did = _tech.Has(TechType.ManAtArms) && TryResearch(TechType.Longswordsman);

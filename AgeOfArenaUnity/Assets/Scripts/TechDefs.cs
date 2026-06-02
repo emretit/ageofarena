@@ -41,6 +41,7 @@ public static class TechDefs
         //   type                 building                   reqAge       f    w    g  s  time  name
         new(TechType.FeudalAge,    BuildingType.TownCenter,   Age.Dark,   400,   0,   0, 0, 25f, "Derebeylik Çağı"),
         new(TechType.CastleAge,    BuildingType.TownCenter,   Age.Feudal, 600,   0, 200, 0, 35f, "Kale Çağı"),
+        new(TechType.ImperialAge,  BuildingType.TownCenter,   Age.Castle, 1000,  0, 600, 0, 50f, "İmparatorluk Çağı"),
 
         new(TechType.Forging,      BuildingType.Barracks,     Age.Feudal, 150,   0,   0, 0, 20f, "Dövme"),
         new(TechType.Fletching,    BuildingType.ArcheryRange, Age.Feudal, 100,   0,  50, 0, 20f, "Oklama"),
@@ -69,7 +70,8 @@ public static class TechDefs
     /// Techs researchable right now at a building of <paramref name="building"/>:
     /// defined for that building, age requirement met, and not already researched.
     /// Age advances are gated to the immediately-next age (Feudal needs Dark, Castle
-    /// needs Feudal); upgrades require being at or beyond their <c>requiredAge</c>.
+    /// needs Feudal, Imperial needs Castle); upgrades require being at or beyond their
+    /// <c>requiredAge</c>.
     /// </summary>
     public static List<TechDef> ForBuilding(BuildingType building, Age age, TechState tech)
     {
@@ -90,6 +92,7 @@ public static class TechDefs
     {
         if (d.type == TechType.FeudalAge) return age == Age.Dark;
         if (d.type == TechType.CastleAge) return age == Age.Feudal;
+        if (d.type == TechType.ImperialAge) return age == Age.Castle;
         return age >= d.requiredAge;
     }
 }

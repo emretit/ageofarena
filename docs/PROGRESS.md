@@ -17,8 +17,23 @@
 
 ## ▶ Aktif adım: yok — sıradaki maddeyi seç
 
-`ARM` (Zırh tipleri) **tamamlandı ve runtime doğrulandı** (O16). Bir sonraki oturum
-master tablodaki en yüksek öncelikli ⬜ maddeden başlar.
+`IMP` (Imperial çağ) **tamamlandı ve runtime doğrulandı** (O17). ARM+GAR+O16 görsel
+checkpoint commit edildi (`8c0333e`). Bir sonraki oturum master tablodaki en yüksek
+öncelikli ⬜ maddeden başlar.
+
+### ✔️ `IMP` — Imperial (4.) çağ (P1) — tamam
+Spec: [05-tech-ages.md](05-tech-ages.md) §3 [P1]. Çağ ilerlemesi Castle → **Imperial**
+olarak uzatıldı; mevcut `FeudalAge`/`CastleAge` tech deseni birebir izlendi.
+6 dosya: GameTypes (Age + ImperialAge), TechDefs (tablo satırı + IsAvailable),
+ResearchSystem (age advance dalı), HUD (AgeName/isAge/tooltip), EnemyAI (Imperial'a
+yükselme + case). **0 error/0 warning**. MCP RunCommand ile doğrulandı:
+- Castle çağında ImperialAge TC'de araştırılabilir = **True**
+- Apply sonrası `tech.age` = **Imperial** (1000Y+600A, 50s)
+- Barracks Castle-tech'leri (Forging/ScaleMail/ManAtArms) hâlâ açık → **regresyon yok**
+- ImperialAge tek seferlik (tekrar teklif edilmiyor)
+- HUD popup "İMPARATORLUK ÇAĞI!" + "Çağ: İmparatorluk" etiketi (generic ShowAgePopup)
+- İçerik (Imperial-gated tier birim/tech) ayrı maddeler: `TIER`, `UNI`
+- ✅ Commit bekliyor (O17).
 
 ### ✔️ `ARM` — Zırh tipleri + counter matrisi (P1) — tamam
 Spec: [02-units.md](02-units.md) §3 [P1] + [04-combat.md](04-combat.md) §3 [P1].
@@ -29,14 +44,15 @@ Spec: [02-units.md](02-units.md) §3 [P1] + [04-combat.md](04-combat.md) §3 [P1
 - Cavalry charge: 20 hasar (2.5× onaylandı)
 - Trebuchet vs bina: 105 hasar (3× anti-structure, Siege bypass)
 - 0 compile error
-- ⏳ **Commit bekliyor** (GAR + ARM birlikte veya ayrı, kullanıcı onayıyla).
+- ✅ **Commit edildi** (`8c0333e`, O17 başında — GAR + O16 görsel ile birlikte).
 
 ### ✔️ `GAR` — Garnizon (P0) — tamam
 Spec: [03-buildings.md](03-buildings.md) §3 [P0]. Tüm dosyalar yazıldı, **0 error/0 warning**,
-MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ⏳ Commit bekliyor.
+MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ✅ Commit edildi (`8c0333e`).
 
 ## ⏭ Sıradaki (öneri)
-`MONK` (Monastery bağımlı — bekletebilirsin) veya `IMP` (Imperial çağ — düşük risk hızlı kazanım) veya `SES` (ses temeli — izole).
+`SES` (ses temeli — izole, yüksek etki) veya `MON`+`MONK` (Monastery + Monk) veya
+`TIER`/`UNI` (Imperial içeriğini doldurur — IMP artık hazır).
 
 ---
 
@@ -45,12 +61,12 @@ MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ⏳ Commit bekliyor.
 ### P0
 | ID | Doc | Madde | Durum | Oturum | Not/commit |
 |---|---|---|---|---|---|
-| GAR | 03 | Garnizon (gir/iyileş/çık + savunma oku) | ✔️ | O15 | 0 err; 7 kriter MCP harness; commit bekliyor |
+| GAR | 03 | Garnizon (gir/iyileş/çık + savunma oku) | ✔️ | O15 | 0 err; 7 kriter MCP; commit `8c0333e` |
 
 ### P1
 | ID | Doc | Madde | Durum | Oturum | Not/commit |
 |---|---|---|---|---|---|
-| ARM | 02/04 | Zırh tipleri + counter matrisi (spear>cav>archer) | ✔️ | O16 | 0 err; 6 kriter MCP harness; commit bekliyor |
+| ARM | 02/04 | Zırh tipleri + counter matrisi (spear>cav>archer) | ✔️ | O16 | 0 err; 6 kriter MCP; commit `8c0333e` |
 | MONK | 02/03 | Monk (dönüştürme + relic taşıma) | ⬜ | — | Monastery'ye bağlı |
 | TOW | 03 | Watch/Bombard Tower | ⬜ | — | |
 | REP | 03 | Repair (köylü tamir) | ⬜ | — | |
@@ -58,7 +74,7 @@ MCP RunCommand harness'ı ile 7 kabul kriteri doğrulandı. ⏳ Commit bekliyor.
 | MON | 03 | Monastery binası | ⬜ | — | |
 | STN | 04/07 | Attack stance (aggressive/defensive/stand/no-attack) | ⬜ | — | |
 | FORM | 04 | Formasyon kohezyonu | ⬜ | — | |
-| IMP | 05 | Imperial (4.) çağ | ⬜ | — | düşük risk |
+| IMP | 05 | Imperial (4.) çağ | ✔️ | O17 | 0 err; MCP doğrulandı; içerik TIER/UNI'ye bırakıldı |
 | UNI | 05 | University binası + tech | ⬜ | — | |
 | TIER | 05 | Imperial tier birimleri | ⬜ | — | |
 | DIFF | 06 | AI zorluk seviyeleri (Easy→Insane) | ⬜ | — | |

@@ -107,6 +107,11 @@ public class ResearchSystem : MonoBehaviour
             tech.age = Age.Castle;
             GameEvents.FireAgeAdvanced(teamId, Age.Castle);
         }
+        else if (type == TechType.ImperialAge)
+        {
+            tech.age = Age.Imperial;
+            GameEvents.FireAgeAdvanced(teamId, Age.Imperial);
+        }
         else
         {
             GameEvents.FireResearchCompleted(teamId, type);

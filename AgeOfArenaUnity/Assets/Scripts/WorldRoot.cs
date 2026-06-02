@@ -75,28 +75,6 @@ public class WorldRoot : MonoBehaviour
 
         // Post-processing: must run after camera is ready.
         SetupPostProcessing(cam.gameObject);
-
-        KenneyPilotRow(); // TEMP: visual comparison of Kenney CC0 models — remove after review.
-    }
-
-    /// <summary>
-    /// TEMP pilot: spawns a row of Kenney models in front of the player base so we
-    /// can screenshot them next to the procedural buildings and confirm style/scale.
-    /// Remove once the model mapping is approved.
-    /// </summary>
-    void KenneyPilotRow()
-    {
-        var row = new GameObject("KenneyPilot").transform;
-        row.SetParent(transform, false);
-        float z = -48f;
-        KenneyModels.Spawn("FantasyTown/windmill",        row, new Vector3(-12, 0, z), 3.2f);
-        KenneyModels.Spawn("FantasyTown/watermill",       row, new Vector3( -6, 0, z), 3.2f);
-        KenneyModels.Spawn("Castle/tower-square-mid",     row, new Vector3(  0, 0, z), 2.6f);
-        KenneyModels.Spawn("Castle/gate",                 row, new Vector3(  6, 0, z), 2.6f);
-        KenneyModels.Spawn("Nature/tree_default",         row, new Vector3( 11, 0, z), 3.0f);
-        KenneyModels.Spawn("Nature/rock_largeA",          row, new Vector3( 14, 0, z), 2.4f);
-        KenneyModels.Spawn("FantasyTown/stall-red",       row, new Vector3( -9, 0, z - 4f), 3.0f);
-        KenneyModels.Spawn("FantasyTown/banner-red",      row, new Vector3( -3, 0, z - 4f), 3.0f);
     }
 
     // ── Environment ──────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@ public enum DamageType { Melee, Pierce, Siege }
 public enum BuildingType { TownCenter, House, Barracks, ArcheryRange, Stable, Farm, LumberCamp, MiningCamp, Mill, Market, Castle, Wall, Gate }
 
 /// <summary>Tech progression tier. Higher ages gate buildings/units/techs.</summary>
-public enum Age { Dark, Feudal, Castle }
+public enum Age { Dark, Feudal, Castle, Imperial }
 
 /// <summary>
 /// Strategic flavour for an <see cref="EnemyAI"/> brain. Tunes army size, push
@@ -29,7 +29,7 @@ public enum AIPersonality { Balanced, Rusher, Boomer }
 public enum TechType
 {
     // Age advances (researched at the Town Center)
-    FeudalAge, CastleAge,
+    FeudalAge, CastleAge, ImperialAge,
     // Military upgrades (flat "blacksmith" bonuses)
     Forging,        // +melee attack (Militia, Cavalry)
     Fletching,      // +archer attack, +range

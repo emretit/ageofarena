@@ -740,7 +740,8 @@ public class HUD : MonoBehaviour
             var d = techs[i];
             var bb = b;
             int hk = i + 1;
-            bool isAge = d.type == TechType.FeudalAge || d.type == TechType.CastleAge;
+            bool isAge = d.type == TechType.FeudalAge || d.type == TechType.CastleAge
+                      || d.type == TechType.ImperialAge;
             _slots.Add(MakeButton(idx++, isAge ? AgeCol : UpgCol, d.display, TechDesc(d.type),
                 CostLine(d.food, d.wood, d.gold, d.stone), hk.ToString(),
                 r => CommandIconFactory.Tech(r, d.type),
@@ -969,6 +970,7 @@ public class HUD : MonoBehaviour
         Age.Dark   => "Karanlık",
         Age.Feudal => "Derebeylik",
         Age.Castle => "Kale",
+        Age.Imperial => "İmparatorluk",
         _          => "",
     };
 
@@ -1063,6 +1065,7 @@ public class HUD : MonoBehaviour
     {
         TechType.FeudalAge     => "Derebeylik Çağı'na geç. Yeni bina/birim açar.",
         TechType.CastleAge     => "Kale Çağı'na geç. Gelişmiş birimleri açar.",
+        TechType.ImperialAge   => "İmparatorluk Çağı'na geç. En güçlü yükseltmeleri açar.",
         TechType.Forging       => "Yakın dövüş saldırısı +.",
         TechType.Fletching     => "Okçu saldırısı ve menzili +.",
         TechType.Bodkin        => "Okçu saldırısı +.",
