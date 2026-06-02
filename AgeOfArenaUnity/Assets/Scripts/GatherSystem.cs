@@ -96,8 +96,10 @@ public class GatherSystem : MonoBehaviour
                 {
                     if (v.carrying.amount > 0)
                     {
-                        // Researched gather upgrades (DoubleBitAxe, Wheelbarrow) scale the deposit.
+                        // Researched gather upgrades (DoubleBitAxe, Wheelbarrow) scale the deposit;
+                        // civilization bonus stacks on top (Franks: +20% food, Britons: +15% wood, etc.).
                         float mult = GM.teamTech[v.teamId].GatherMult(v.carrying.kind);
+                        mult *= CivGatherMult(v.teamId, v.carrying.kind);
                         int gained = Mathf.RoundToInt(v.carrying.amount * mult);
                         GM.teamRes[v.teamId].Gain(v.carrying.kind, gained);
                     }
@@ -182,6 +184,21 @@ public class GatherSystem : MonoBehaviour
             if (sq < bestSq) { bestSq = sq; best = n; }
         }
         return best;
+    }
+
+    /// <summary>Returns the civilization gather multiplier for the given team and resource kind.</summary>
+    static float CivGatherMult(int teamId, ResourceKind kind)
+    {
+        var gm = GameManager.Instance;
+        if (gm == null) return 1f;
+        var b = gm.TeamCivBonus(teamId);
+        return kind switch
+        {
+            ResourceKind.Food  => b.gatherFoodMult,
+            ResourceKind.Wood  => b.gatherWoodMult,
+            ResourceKind.Gold  => b.gatherGoldMult,
+            _                  => 1f,
+        };
     }
 
     static float FlatDist(Vector3 a, Vector3 b) => Mathf.Sqrt(FlatSq(a, b));

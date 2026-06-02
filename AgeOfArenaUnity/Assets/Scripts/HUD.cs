@@ -1206,15 +1206,16 @@ public class HUD : MonoBehaviour
 
     static string UnitTr(UnitType t) => t switch
     {
-        UnitType.Villager  => "Köylü",
-        UnitType.Militia   => "Asker",
-        UnitType.Archer    => "Okçu",
-        UnitType.Cavalry   => "Süvari",
-        UnitType.Trebuchet => "Mancınık",
-        UnitType.Scout     => "Gözcü",
-        UnitType.Medic     => "Şifacı",
-        UnitType.Spearman  => "Mızrakçı",
-        _                  => t.ToString(),
+        UnitType.Villager    => "Köylü",
+        UnitType.Militia     => "Asker",
+        UnitType.Archer      => "Okçu",
+        UnitType.Cavalry     => "Süvari",
+        UnitType.Trebuchet   => "Mancınık",
+        UnitType.Scout       => "Gözcü",
+        UnitType.Medic       => "Şifacı",
+        UnitType.Spearman    => "Mızrakçı",
+        UnitType.Longbowman  => "Uzun Yaylı",
+        _                    => t.ToString(),
     };
 
     /// <summary>Tech-aware unit name: a unit shows its highest researched tier's
@@ -1262,15 +1263,16 @@ public class HUD : MonoBehaviour
 
     static string UnitDesc(UnitType t) => t switch
     {
-        UnitType.Villager  => "İnşa eder ve kaynak toplar.",
-        UnitType.Militia    => "Yakın dövüş piyadesi. Dengeli ve ucuz.",
-        UnitType.Archer     => "Menzilli ok atar. Yakın dövüşe zayıf.",
-        UnitType.Cavalry    => "Hızlı süvari. İlk vuruşta atılım bonusu.",
-        UnitType.Trebuchet  => "Kuşatma silahı. Binalara karşı çok güçlü.",
-        UnitType.Scout      => "Hızlı kâşif. Geniş görüş, hasarsız.",
-        UnitType.Medic      => "Yakındaki dost birimleri iyileştirir.",
-        UnitType.Spearman   => "Süvariye karşı uzman. Mızraklı piyade.",
-        _                   => "",
+        UnitType.Villager    => "İnşa eder ve kaynak toplar.",
+        UnitType.Militia     => "Yakın dövüş piyadesi. Dengeli ve ucuz.",
+        UnitType.Archer      => "Menzilli ok atar. Yakın dövüşe zayıf.",
+        UnitType.Cavalry     => "Hızlı süvari. İlk vuruşta atılım bonusu.",
+        UnitType.Trebuchet   => "Kuşatma silahı. Binalara karşı çok güçlü.",
+        UnitType.Scout       => "Hızlı kâşif. Geniş görüş, hasarsız.",
+        UnitType.Medic       => "Yakındaki dost birimleri iyileştirir.",
+        UnitType.Spearman    => "Süvariye karşı uzman. Mızraklı piyade.",
+        UnitType.Longbowman  => "Britanyalılar özgün birimi. Çok uzun menzil, delik zırh.",
+        _                    => "",
     };
 
     static string BuildingDesc(BuildingType t) => t switch

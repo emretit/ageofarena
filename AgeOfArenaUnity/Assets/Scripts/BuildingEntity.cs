@@ -114,6 +114,13 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         new(UnitType.Archer, 22f, 0, 25, 45, "A"),
     };
 
+    // Britons unique: Longbowman available at ArcheryRange (Castle Age+).
+    static readonly UnitTrainable[] ArcheryTrainablesBritons =
+    {
+        new(UnitType.Archer,      22f, 0, 25, 45, "A"),
+        new(UnitType.Longbowman,  26f, 0, 35, 65, "L"),
+    };
+
     static readonly UnitTrainable[] StableTrainables =
     {
         new(UnitType.Cavalry, 24f, 80, 0, 0, "C"),
@@ -147,16 +154,29 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         }
     }
 
+    /// <summary>Civilization of this building's owning team.</summary>
+    Civilization TeamCiv
+    {
+        get
+        {
+            var gm = GameManager.Instance;
+            return gm != null ? gm.teamCivs[teamId] : Civilization.None;
+        }
+    }
+
+    bool IsBritons => TeamCiv == Civilization.Britons;
+
     /// <summary>Minimum age a unit type can be trained at.</summary>
     static Age MinAgeFor(UnitType t) => t switch
     {
-        UnitType.Archer    => Age.Feudal,
-        UnitType.Spearman  => Age.Feudal,
-        UnitType.Cavalry   => Age.Castle,
-        UnitType.Trebuchet => Age.Castle,
-        UnitType.Medic     => Age.Castle,
-        UnitType.Monk      => Age.Castle,
-        _                  => Age.Dark,
+        UnitType.Archer      => Age.Feudal,
+        UnitType.Spearman    => Age.Feudal,
+        UnitType.Cavalry     => Age.Castle,
+        UnitType.Trebuchet   => Age.Castle,
+        UnitType.Medic       => Age.Castle,
+        UnitType.Monk        => Age.Castle,
+        UnitType.Longbowman  => Age.Castle,
+        _                    => Age.Dark,
     };
 
     public UnitTrainable[] GetTrainables()
@@ -166,7 +186,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         {
             BuildingType.TownCenter   => TownCenterTrainables,
             BuildingType.Barracks     => BarracksTrainables,
-            BuildingType.ArcheryRange => ArcheryTrainables,
+            BuildingType.ArcheryRange => IsBritons ? ArcheryTrainablesBritons : ArcheryTrainables,
             BuildingType.Stable       => StableTrainables,
             BuildingType.Castle       => CastleTrainables,
             BuildingType.Monastery    => MonasteryTrainables,

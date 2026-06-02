@@ -117,17 +117,18 @@ public class TrainingQueue : MonoBehaviour
         var teamColor = Prims.Hex(0x2a5db0);
         UnitEntity unit = unitType switch
         {
-            UnitType.Villager   => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
-            UnitType.Militia    => UnitFactory.Militia(unitsRoot, spawnPos, teamColor),
-            UnitType.Archer     => UnitFactory.Archer(unitsRoot, spawnPos, teamColor),
-            UnitType.Cavalry    => UnitFactory.Cavalry(unitsRoot, spawnPos, teamColor),
-            UnitType.Trebuchet  => UnitFactory.Trebuchet(unitsRoot, spawnPos, teamColor),
-            UnitType.Scout      => UnitFactory.Scout(unitsRoot, spawnPos, teamColor),
-            UnitType.Medic      => UnitFactory.Medic(unitsRoot, spawnPos, teamColor),
-            UnitType.Spearman   => UnitFactory.Spearman(unitsRoot, spawnPos, teamColor),
-            UnitType.Monk       => UnitFactory.Monk(unitsRoot, spawnPos, teamColor),
-            UnitType.TradeCart  => UnitFactory.TradeCart(unitsRoot, spawnPos, teamColor),
-            _                   => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
+            UnitType.Villager    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
+            UnitType.Militia     => UnitFactory.Militia(unitsRoot, spawnPos, teamColor),
+            UnitType.Archer      => UnitFactory.Archer(unitsRoot, spawnPos, teamColor),
+            UnitType.Cavalry     => UnitFactory.Cavalry(unitsRoot, spawnPos, teamColor),
+            UnitType.Trebuchet   => UnitFactory.Trebuchet(unitsRoot, spawnPos, teamColor),
+            UnitType.Scout       => UnitFactory.Scout(unitsRoot, spawnPos, teamColor),
+            UnitType.Medic       => UnitFactory.Medic(unitsRoot, spawnPos, teamColor),
+            UnitType.Spearman    => UnitFactory.Spearman(unitsRoot, spawnPos, teamColor),
+            UnitType.Monk        => UnitFactory.Monk(unitsRoot, spawnPos, teamColor),
+            UnitType.TradeCart   => UnitFactory.TradeCart(unitsRoot, spawnPos, teamColor),
+            UnitType.Longbowman  => UnitFactory.Longbowman(unitsRoot, spawnPos, teamColor),
+            _                    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
         };
 
         gm.RegisterUnit(unit);

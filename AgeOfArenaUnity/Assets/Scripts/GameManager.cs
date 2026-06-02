@@ -56,11 +56,17 @@ public class GameManager : MonoBehaviour
     /// <summary>Global AI difficulty (applied by every <see cref="EnemyAI"/>).</summary>
     public Difficulty difficulty = Difficulty.Normal;
 
-    /// <summary>Player civ (team 0). AI teams use None. Bonuses read live by systems.</summary>
-    public Civilization playerCiv = Civilization.None;
+    /// <summary>Per-team civilization. Index 0 = player; 1-3 = AI teams.</summary>
+    public Civilization[] teamCivs = { Civilization.None, Civilization.None, Civilization.None, Civilization.None };
 
-    /// <summary>Convenience accessor for player civ bonus table.</summary>
+    /// <summary>Player civ (team 0). Backed by teamCivs[0] for HUD/system compatibility.</summary>
+    public Civilization playerCiv { get => teamCivs[0]; set => teamCivs[0] = value; }
+
+    /// <summary>Player civ bonus (team 0).</summary>
     public CivBonus CivBonus => CivilizationDefs.Get(playerCiv);
+
+    /// <summary>Civ bonus for any team.</summary>
+    public CivBonus TeamCivBonus(int teamId) => CivilizationDefs.Get(teamCivs[teamId]);
 
     void Awake()
     {

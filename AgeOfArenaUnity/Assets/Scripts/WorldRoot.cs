@@ -537,6 +537,11 @@ public class WorldRoot : MonoBehaviour
 
     void SetupGameplay(GameManager gm)
     {
+        // Assign a random civilization to every team (skip Civilization.None at index 0).
+        var civValues = (Civilization[])System.Enum.GetValues(typeof(Civilization));
+        for (int i = 0; i < 4; i++)
+            gm.teamCivs[i] = civValues[Random.Range(1, civValues.Length)];
+
         var tcPos     = BasePositions[0];
         var teamColor = TeamColors[0];
 

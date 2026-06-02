@@ -235,6 +235,30 @@ public static class UnitFactory
         return e;
     }
 
+    /// <summary>Britons unique unit: longer range than Archer, higher HP, slower move.</summary>
+    public static UnitEntity Longbowman(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Longbowman", parent, worldPos);
+        var t = g.transform;
+
+        var skin  = Prims.Mat(Prims.Hex(0xe0ac69));
+        var tunic = Prims.Mat(teamColor, 0f, 0.3f);
+        var wood  = Prims.Mat(Prims.Hex(0x5a3a18)); // darker wood — yew longbow
+
+        Prims.Box(t, new Vector3(0, 0.45f, 0), new Vector3(0.42f, 0.72f, 0.32f), tunic);      // torso
+        Prims.Sphere(t, new Vector3(0, 0.97f, 0), 0.19f, skin);                               // head
+        Prims.Box(t, new Vector3(0, 1.06f, 0), new Vector3(0.28f, 0.14f, 0.28f), Prims.Mat(Prims.Hex(0x2a4822))); // hood
+        // Longbow: taller and narrower than Archer's bow (yew stave)
+        Prims.Box(t, new Vector3(-0.34f, 0.7f, 0.05f), new Vector3(0.04f, 1.3f, 0.07f), wood);
+        // Quiver on back — wider to hold more arrows
+        Prims.Box(t, new Vector3(0.14f, 0.72f, -0.20f), new Vector3(0.14f, 0.55f, 0.14f), wood);
+
+        var e = Finish(g, UnitType.Longbowman, teamColor);
+        e.hp = e.maxHp = 35f;
+        e.moveSpeed = 3.0f; // slower than Archer (3.2) but more range
+        return e;
+    }
+
     public static UnitEntity TradeCart(Transform parent, Vector3 worldPos, Color teamColor)
     {
         var g = new GameObject("TradeCart");

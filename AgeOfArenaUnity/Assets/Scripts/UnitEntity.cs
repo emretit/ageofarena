@@ -76,33 +76,63 @@ public class UnitEntity : MonoBehaviour, IDamageable
         }
     }
 
+    /// <summary>This unit's civilization bonus (null-safe; returns None-bonus if no GameManager).</summary>
+    CivBonus TeamCivBonus
+    {
+        get
+        {
+            var gm = GameManager.Instance;
+            return gm != null ? gm.TeamCivBonus(teamId) : CivilizationDefs.Get(Civilization.None);
+        }
+    }
+
     /// <summary>Per-type combat stats. Villager only self-defends weakly; Archer/Trebuchet are ranged.</summary>
     float BaseAttackDamage => type switch
     {
-        UnitType.Militia   => 5f,  UnitType.Archer    => 4f,  UnitType.Cavalry  => 8f,
-        UnitType.Trebuchet => 35f, UnitType.Spearman  => 4f,
+        UnitType.Militia     => 5f,  UnitType.Archer      => 4f,  UnitType.Cavalry    => 8f,
+        UnitType.Trebuchet   => 35f, UnitType.Spearman    => 4f,  UnitType.Longbowman => 5f,
         // Support units deal no damage: Scout is pure recon, Medic only heals.
-        UnitType.Scout     => 0f,  UnitType.Medic     => 0f,
-        _                  => 2f,
+        UnitType.Scout       => 0f,  UnitType.Medic       => 0f,
+        _                    => 2f,
     };
     float BaseAttackRange => type switch
     {
-        UnitType.Militia   => 1.3f, UnitType.Archer   => 6.5f, UnitType.Cavalry  => 1.4f,
-        UnitType.Trebuchet => 15f,  UnitType.Spearman => 1.5f, _                 => 1.1f,
+        UnitType.Militia     => 1.3f, UnitType.Archer      => 6.5f, UnitType.Cavalry    => 1.4f,
+        UnitType.Trebuchet   => 15f,  UnitType.Spearman    => 1.5f, UnitType.Longbowman => 8.5f,
+        _                    => 1.1f,
     };
-    /// <summary>Effective damage = base + researched tech bonus (read live each swing).</summary>
-    public float AttackDamage => BaseAttackDamage + (TeamTech?.AttackBonus(type) ?? 0f);
-    public float AttackRange  => BaseAttackRange  + (TeamTech?.RangeBonus(type)  ?? 0f);
+    /// <summary>Effective damage = base + tech bonus, scaled by civ infantry bonus for infantry types.</summary>
+    public float AttackDamage
+    {
+        get
+        {
+            float base_ = BaseAttackDamage + (TeamTech?.AttackBonus(type) ?? 0f);
+            bool isInfantry = type == UnitType.Militia || type == UnitType.Spearman;
+            return isInfantry ? base_ * TeamCivBonus.infantryAttackMult : base_;
+        }
+    }
+    /// <summary>Effective range = base + tech bonus + civ archer range bonus (Britons).</summary>
+    public float AttackRange
+    {
+        get
+        {
+            float range = BaseAttackRange + (TeamTech?.RangeBonus(type) ?? 0f);
+            bool isArcher = type == UnitType.Archer || type == UnitType.Longbowman;
+            return isArcher ? range + TeamCivBonus.archerRangeBonus : range;
+        }
+    }
     public float AttackInterval => type switch
     {
-        UnitType.Militia   => 1.0f, UnitType.Archer   => 1.4f, UnitType.Cavalry  => 1.1f,
-        UnitType.Trebuchet => 5.5f, UnitType.Spearman => 1.3f, _                 => 1.6f,
+        UnitType.Militia     => 1.0f, UnitType.Archer      => 1.4f, UnitType.Cavalry    => 1.1f,
+        UnitType.Trebuchet   => 5.5f, UnitType.Spearman    => 1.3f, UnitType.Longbowman => 1.6f,
+        _                    => 1.6f,
     };
     /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.</summary>
     public float AggroRadius => type switch
     {
-        UnitType.Militia   => 7f, UnitType.Archer   => 9f,  UnitType.Cavalry  => 8f,
-        UnitType.Trebuchet => 15f, UnitType.Spearman => 7f, _                 => 0f,
+        UnitType.Militia     => 7f,  UnitType.Archer      => 9f,   UnitType.Cavalry    => 8f,
+        UnitType.Trebuchet   => 15f, UnitType.Spearman    => 7f,   UnitType.Longbowman => 11f,
+        _                    => 0f,
     };
     /// <summary>Trebuchet deals 3× damage vs buildings; others have no multiplier.</summary>
     public float AntiStructureMultiplier => type == UnitType.Trebuchet ? 3f : 1f;
@@ -113,12 +143,13 @@ public class UnitEntity : MonoBehaviour, IDamageable
     /// <summary>Damage class this unit deals.</summary>
     public DamageType DamageKind => type switch
     {
-        UnitType.Archer    => DamageType.Pierce,
-        UnitType.Trebuchet => DamageType.Siege,
-        _                  => DamageType.Melee,
+        UnitType.Archer      => DamageType.Pierce,
+        UnitType.Longbowman  => DamageType.Pierce,
+        UnitType.Trebuchet   => DamageType.Siege,
+        _                    => DamageType.Melee,
     };
     /// <summary>Ranged units attack via projectiles instead of melee contact.</summary>
-    public bool IsRanged => type == UnitType.Archer || type == UnitType.Trebuchet;
+    public bool IsRanged => type == UnitType.Archer || type == UnitType.Trebuchet || type == UnitType.Longbowman;
 
     // ── Medic healing (driven by CombatSystem.StepHeal) ──────────────────────
     /// <summary>Radius within which a Medic auto-heals friendly units; 0 = not a healer.</summary>
@@ -154,6 +185,18 @@ public class UnitEntity : MonoBehaviour, IDamageable
         // Newly trained/spawned units inherit their team's researched hp upgrades.
         float hpBonus = TeamTech?.HpBonus(type) ?? 0f;
         if (hpBonus > 0f) { maxHp += hpBonus; hp += hpBonus; }
+
+        // Civ cavalry bonuses (Franks: +HP; Mongols: +speed). Applied once on spawn.
+        if (type == UnitType.Cavalry)
+        {
+            var civ = TeamCivBonus;
+            if (civ.cavalryHpMult != 1f) { maxHp *= civ.cavalryHpMult; hp *= civ.cavalryHpMult; }
+            if (civ.cavalrySpeedMult != 1f)
+            {
+                moveSpeed *= civ.cavalrySpeedMult;
+                if (_agent != null) _agent.speed = moveSpeed;
+            }
+        }
     }
 
     /// <summary>Issue a move order; transitions to <see cref="UnitState.Moving"/>.</summary>
