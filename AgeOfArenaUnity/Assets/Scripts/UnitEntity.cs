@@ -26,29 +26,63 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public IDamageable attackTarget;
     public float attackCooldown;   // seconds until the next swing is allowed
 
+    // Cavalry charge: resets after 4s out of combat; first melee hit deals 2.5× damage.
+    public float chargeTimer = 4f;
+    public bool  ChargeReady => type == UnitType.Cavalry && chargeTimer >= 4f;
+
     // ── Construction (villagers) ─────────────────────────────────────────────
     public BuildingEntity constructTarget;
 
-    /// <summary>Per-type combat stats. Villager only self-defends weakly; Archer is ranged.</summary>
-    public float AttackDamage => type switch
+    /// <summary>This unit's per-team <see cref="TechState"/> (null-safe).</summary>
+    TechState TeamTech
     {
-        UnitType.Militia => 5f, UnitType.Archer => 4f, UnitType.Cavalry => 8f, _ => 2f,
-    };
-    public float AttackRange => type switch
+        get
+        {
+            var gm = GameManager.Instance;
+            return gm != null ? gm.teamTech[teamId] : null;
+        }
+    }
+
+    /// <summary>Per-type combat stats. Villager only self-defends weakly; Archer/Trebuchet are ranged.</summary>
+    float BaseAttackDamage => type switch
     {
-        UnitType.Militia => 1.3f, UnitType.Archer => 6.5f, UnitType.Cavalry => 1.4f, _ => 1.1f,
+        UnitType.Militia   => 5f,  UnitType.Archer  => 4f,  UnitType.Cavalry    => 8f,
+        UnitType.Trebuchet => 35f,
+        // Support units deal no damage: Scout is pure recon, Medic only heals.
+        UnitType.Scout     => 0f,  UnitType.Medic   => 0f,
+        _                  => 2f,
     };
+    float BaseAttackRange => type switch
+    {
+        UnitType.Militia   => 1.3f, UnitType.Archer  => 6.5f, UnitType.Cavalry    => 1.4f,
+        UnitType.Trebuchet => 15f,  _                => 1.1f,
+    };
+    /// <summary>Effective damage = base + researched tech bonus (read live each swing).</summary>
+    public float AttackDamage => BaseAttackDamage + (TeamTech?.AttackBonus(type) ?? 0f);
+    public float AttackRange  => BaseAttackRange  + (TeamTech?.RangeBonus(type)  ?? 0f);
     public float AttackInterval => type switch
     {
-        UnitType.Militia => 1.0f, UnitType.Archer => 1.4f, UnitType.Cavalry => 1.1f, _ => 1.6f,
+        UnitType.Militia   => 1.0f, UnitType.Archer  => 1.4f, UnitType.Cavalry    => 1.1f,
+        UnitType.Trebuchet => 5.5f, _                => 1.6f,
     };
     /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.</summary>
     public float AggroRadius => type switch
     {
-        UnitType.Militia => 7f, UnitType.Archer => 9f, UnitType.Cavalry => 8f, _ => 0f,
+        UnitType.Militia   => 7f, UnitType.Archer  => 9f,  UnitType.Cavalry    => 8f,
+        UnitType.Trebuchet => 15f, _               => 0f,
     };
-    /// <summary>Archers attack from range via projectiles instead of melee contact.</summary>
-    public bool IsRanged => type == UnitType.Archer;
+    /// <summary>Trebuchet deals 3× damage vs buildings; others have no multiplier.</summary>
+    public float AntiStructureMultiplier => type == UnitType.Trebuchet ? 3f : 1f;
+    /// <summary>First melee charge hit by a Cavalry unit deals 2.5× damage.</summary>
+    public float ChargeMultiplier => type == UnitType.Cavalry ? 2.5f : 1f;
+    /// <summary>Ranged units attack via projectiles instead of melee contact.</summary>
+    public bool IsRanged => type == UnitType.Archer || type == UnitType.Trebuchet;
+
+    // ── Medic healing (driven by CombatSystem.StepHeal) ──────────────────────
+    /// <summary>Radius within which a Medic auto-heals friendly units; 0 = not a healer.</summary>
+    public float HealRadius => type == UnitType.Medic ? 6f : 0f;
+    /// <summary>Hitpoints a Medic restores per second to the chosen ally.</summary>
+    public float HealPower  => type == UnitType.Medic ? 3f : 0f;
 
     NavMeshAgent _agent;
     SelectionRing _ring;
@@ -74,6 +108,10 @@ public class UnitEntity : MonoBehaviour, IDamageable
     void Start()
     {
         if (_agent != null) _agent.speed = moveSpeed;
+
+        // Newly trained/spawned units inherit their team's researched hp upgrades.
+        float hpBonus = TeamTech?.HpBonus(type) ?? 0f;
+        if (hpBonus > 0f) { maxHp += hpBonus; hp += hpBonus; }
     }
 
     /// <summary>Issue a move order; transitions to <see cref="UnitState.Moving"/>.</summary>
@@ -174,6 +212,13 @@ public class UnitEntity : MonoBehaviour, IDamageable
         if (hp <= 0f) Die();
     }
 
+    /// <summary>Restore hp up to maxHp (Medic healing). No-op once dead.</summary>
+    public void Heal(float amount)
+    {
+        if (hp <= 0f || amount <= 0f) return;
+        hp = Mathf.Min(hp + amount, maxHp);
+    }
+
     void Die()
     {
         hp = 0f;
@@ -183,6 +228,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         gm?.selection?.Selected.Remove(this);
         if (gatherTarget != null)
             gatherTarget.currentGatherers = Mathf.Max(0, gatherTarget.currentGatherers - 1);
+        GameEvents.FireUnitKilled(this, teamId);
         Destroy(gameObject);
     }
 

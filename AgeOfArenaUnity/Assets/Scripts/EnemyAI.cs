@@ -2,50 +2,106 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Per-team enemy brain. Manages an economy (villagers gather resources) and
-/// a military loop (trains units when it can afford them, rushes when army is large
-/// enough). Each AI team starts with 3 villagers (spawned by WorldRoot) and uses
-/// its own <see cref="ResourceManager"/> slot in <c>GameManager.teamRes</c>.
+/// Per-team enemy brain. Manages an economy (villagers gather resources) and a
+/// coordinated military loop: instead of trickling units at the player one by
+/// one, the army gathers at a rally point, marches on a target together, and
+/// retreats to regroup once it bleeds past a loss threshold.
+///
+/// A <see cref="AIPersonality"/> tunes the thresholds so the three enemy teams
+/// play differently — a Rusher commits early with a small force, a Boomer hoards
+/// economy and attacks late with a big army, a Balanced team sits in between.
+/// Each AI uses its own <see cref="ResourceManager"/> slot in <c>GameManager.teamRes</c>.
 /// </summary>
 public class EnemyAI : MonoBehaviour
 {
-    const float SpawnInterval      = 15f;
-    const float AssessInterval     = 3f;
+    // Fixed cadences (tuning that doesn't vary by personality)
+    const float AssessInterval      = 3f;
     const float GatherCheckInterval = 6f;
-    const int   ArmyCap            = 12;
-    const int   RushThreshold      = 8;
-    const int   VillagerTarget     = 3;
+    const float TechInterval        = 8f;
 
-    // Unit costs
-    const int MilitiaCostFood = 60;
-    const int ArcherCostWood  = 35;
-    const int ArcherCostGold  = 25;
-    const int VillagerCostFood = 50;
+    // Unit costs (the AI runs a simplified economy, so these don't mirror the
+    // player's BuildingDefs costs exactly — they're balanced for the AI's income).
+    const int MilitiaCostFood    = 60;
+    const int ArcherCostWood     = 35;
+    const int ArcherCostGold     = 25;
+    const int CavalryCostFood    = 80;
+    const int TrebuchetCostWood  = 200;
+    const int TrebuchetCostGold  = 100;
+    const int VillagerCostFood   = 50;
+
+    // ── Army coordination tuning ────────────────────────────────────────────
+    const float RallyRadius        = 6f;    // arrival check radius at the rally point
+    const float ArriveFraction     = 0.7f;  // fraction gathered before the army commits
+    const int   RallyTimeoutTicks  = 5;     // ~15s: attack even if stragglers haven't arrived
+    const int   RetreatTimeoutTicks = 6;    // ~18s: resume gathering even if not fully home
+
+    /// <summary>Coordinated army phases. The whole force shares one stance.</summary>
+    enum Stance { Gathering, Rallying, Attacking, Retreating }
 
     int _teamId;
     Color _teamColor;
     Vector3 _home;
     Transform _unitsRoot;
 
-    float _spawnTimer  = 15f;  // delay first spawn so player can establish economy
+    // Personality-tuned parameters (set in ApplyPersonality)
+    float _spawnInterval;
+    int   _armyCap;
+    int   _rushThreshold;
+    int   _villagerTarget;
+    float _retreatLoss;   // fraction of the assault force that may be lost before retreating
+
+    float _spawnTimer;
     float _assessTimer = 2f;
     float _gatherTimer = 3f;
-    bool  _spawnArcher;
+    float _techTimer;
+    int   _trainCursor = -1;   // rotates Militia → Archer → Cavalry as ages unlock
+
+    // ── Army state machine ──────────────────────────────────────────────────
+    Stance _stance = Stance.Gathering;
+    Vector3 _rallyPoint;
+    IDamageable _target;
+    int _attackForce;    // army size recorded when the current assault began
+    int _stanceTicks;    // Assess ticks spent in the current stance
 
     ResourceManager _res;
+    TechState _tech;
 
-    public void Init(int teamId, Color teamColor, Vector3 home, Transform unitsRoot)
+    public void Init(int teamId, Color teamColor, Vector3 home, Transform unitsRoot, AIPersonality personality)
     {
-        _teamId     = teamId;
-        _teamColor  = teamColor;
-        _home       = home;
-        _unitsRoot  = unitsRoot;
+        _teamId    = teamId;
+        _teamColor = teamColor;
+        _home      = home;
+        _unitsRoot = unitsRoot;
+        ApplyPersonality(personality);
+    }
+
+    /// <summary>Map a personality onto the army-size, push-timing and economy knobs.</summary>
+    void ApplyPersonality(AIPersonality p)
+    {
+        switch (p)
+        {
+            case AIPersonality.Rusher: // early pressure, lean economy, committed pushes
+                _spawnInterval = 11f; _armyCap = 10; _rushThreshold = 5;
+                _villagerTarget = 2;  _retreatLoss = 0.6f;
+                _spawnTimer = 8f;     _techTimer = 16f;
+                break;
+            case AIPersonality.Boomer: // economy first, big cautious army, upgrade-heavy
+                _spawnInterval = 13f; _armyCap = 18; _rushThreshold = 12;
+                _villagerTarget = 6;  _retreatLoss = 0.3f;
+                _spawnTimer = 22f;    _techTimer = 8f;
+                break;
+            default: // Balanced — the original behaviour
+                _spawnInterval = 15f; _armyCap = 12; _rushThreshold = 8;
+                _villagerTarget = 3;  _retreatLoss = 0.4f;
+                _spawnTimer = 15f;    _techTimer = 12f;
+                break;
+        }
     }
 
     void Start()
     {
         var gm = GameManager.Instance;
-        if (gm != null) _res = gm.teamRes[_teamId];
+        if (gm != null) { _res = gm.teamRes[_teamId]; _tech = gm.teamTech[_teamId]; }
     }
 
     void Update()
@@ -54,62 +110,241 @@ public class EnemyAI : MonoBehaviour
         if (gm == null || _res == null) return;
         float dt = Time.deltaTime;
 
-        if ((_spawnTimer  -= dt) <= 0f) { _spawnTimer  = SpawnInterval;       TrySpawn(gm); }
+        if ((_spawnTimer  -= dt) <= 0f) { _spawnTimer  = _spawnInterval;       TrySpawn(gm); }
         if ((_assessTimer -= dt) <= 0f) { _assessTimer = AssessInterval;       Assess(gm); }
         if ((_gatherTimer -= dt) <= 0f) { _gatherTimer = GatherCheckInterval;  EconomyTick(gm); }
+        if ((_techTimer   -= dt) <= 0f) { _techTimer   = TechInterval;         TryAdvanceTech(); }
     }
 
-    // ── Military ─────────────────────────────────────────────────────────────
+    // ── Tech / Age ─────────────────────────────────────────────────────────────
+
+    /// <summary>Advance age when affordable and pick up a couple of military upgrades.
+    /// Resources are deducted directly (AI doesn't queue) and the tech is applied via
+    /// the shared <see cref="ResearchSystem.Apply"/> so live units get hp bumps too.</summary>
+    void TryAdvanceTech()
+    {
+        if (_tech == null) return;
+        switch (_tech.age)
+        {
+            case Age.Dark:
+                TryResearch(TechType.FeudalAge);
+                break;
+            case Age.Feudal:
+                if (!TryResearch(TechType.Forging))  // cheap upgrade first, else save for Castle
+                    TryResearch(TechType.CastleAge);
+                break;
+            case Age.Castle:
+                if (!TryResearch(TechType.ScaleMail))
+                    TryResearch(TechType.Bloodlines);
+                break;
+        }
+    }
+
+    bool TryResearch(TechType type)
+    {
+        if (_tech.Has(type)) return false;
+        var d = TechDefs.Get(type);
+        if (!_res.CanAfford(d.food, d.wood, d.gold, d.stone)) return false;
+        _res.Deduct(d.food, d.wood, d.gold, d.stone);
+        ResearchSystem.Apply(type, _teamId);
+        return true;
+    }
+
+    // ── Military: reinforcement ────────────────────────────────────────────────
 
     void TrySpawn(GameManager gm)
     {
-        if (CountArmy(gm) >= ArmyCap) return;
+        if (CountArmy(gm) >= _armyCap) return;
 
-        bool canArcher  = _spawnArcher && _res.CanAfford(0, ArcherCostWood, ArcherCostGold, 0);
-        bool canMilitia = _res.CanAfford(MilitiaCostFood, 0, 0, 0);
-        if (!canArcher && !canMilitia) return;
+        var pick = ChooseUnit(gm);
+        if (pick == null) return;
 
         Vector3 fwd   = _home.sqrMagnitude > 0.01f ? (-_home).normalized : Vector3.forward;
         Vector3 right = Vector3.Cross(Vector3.up, fwd);
         Vector3 pos   = _home + fwd * 4f + right * Random.Range(-2.5f, 2.5f);
 
         UnitEntity u;
-        if (canArcher)
+        switch (pick.Value)
         {
-            _res.Deduct(0, ArcherCostWood, ArcherCostGold, 0);
-            u = UnitFactory.Archer(_unitsRoot, pos, _teamColor);
-            _spawnArcher = false;
-        }
-        else
-        {
-            _res.Deduct(MilitiaCostFood, 0, 0, 0);
-            u = UnitFactory.Militia(_unitsRoot, pos, _teamColor);
-            _spawnArcher = true;
+            case UnitType.Archer:
+                _res.Deduct(0, ArcherCostWood, ArcherCostGold, 0);
+                u = UnitFactory.Archer(_unitsRoot, pos, _teamColor);
+                break;
+            case UnitType.Cavalry:
+                _res.Deduct(CavalryCostFood, 0, 0, 0);
+                u = UnitFactory.Cavalry(_unitsRoot, pos, _teamColor);
+                break;
+            case UnitType.Trebuchet:
+                _res.Deduct(0, TrebuchetCostWood, TrebuchetCostGold, 0);
+                u = UnitFactory.Trebuchet(_unitsRoot, pos, _teamColor);
+                break;
+            default:
+                _res.Deduct(MilitiaCostFood, 0, 0, 0);
+                u = UnitFactory.Militia(_unitsRoot, pos, _teamColor);
+                break;
         }
         u.teamId = _teamId;
         gm.RegisterUnit(u);
+
+        // Fresh troops fold straight into an ongoing assault so reinforcements
+        // don't idle at home while the main force fights.
+        if (_stance == Stance.Attacking && _target != null && _target.IsAlive)
+            u.AttackOrder(_target);
     }
 
+    /// <summary>Pick the next unit to reinforce with: keep a thin siege line for
+    /// cracking buildings, otherwise rotate frontline/support as ages unlock. Returns
+    /// null when nothing affordable/unlocked fits this tick.</summary>
+    UnitType? ChooseUnit(GameManager gm)
+    {
+        Age age = _tech != null ? _tech.age : Age.Dark;
+
+        // Siege: aim for ~1 Trebuchet per 6 army to demolish structures.
+        if (age >= Age.Castle)
+        {
+            int treb = CountType(gm, UnitType.Trebuchet);
+            if (treb < 1 + CountArmy(gm) / 6 && _res.CanAfford(0, TrebuchetCostWood, TrebuchetCostGold, 0))
+                return UnitType.Trebuchet;
+        }
+
+        // Rotate Militia → Archer → Cavalry, skipping locked/unaffordable picks.
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            _trainCursor = (_trainCursor + 1) % 3;
+            switch (_trainCursor)
+            {
+                case 0:
+                    if (_res.CanAfford(MilitiaCostFood, 0, 0, 0)) return UnitType.Militia;
+                    break;
+                case 1:
+                    if (age >= Age.Feudal && _res.CanAfford(0, ArcherCostWood, ArcherCostGold, 0))
+                        return UnitType.Archer;
+                    break;
+                case 2:
+                    if (age >= Age.Castle && _res.CanAfford(CavalryCostFood, 0, 0, 0))
+                        return UnitType.Cavalry;
+                    break;
+            }
+        }
+        return null;
+    }
+
+    // ── Military: coordinated army state machine ───────────────────────────────
+
+    /// <summary>Drives the whole army through Gather → Rally → Attack → Retreat as
+    /// one body. Runs every <see cref="AssessInterval"/> seconds.</summary>
     void Assess(GameManager gm)
     {
-        var army = new List<UnitEntity>();
-        for (int i = 0; i < gm.units.Count; i++)
-        {
-            var u = gm.units[i];
-            if (u != null && u.teamId == _teamId && IsMilitary(u)) army.Add(u);
-        }
-        if (army.Count < RushThreshold) return;
+        var army = CollectArmy(gm);
+        _stanceTicks++;
 
-        var target = FindNearestEnemy(gm);
+        switch (_stance)
+        {
+            case Stance.Gathering:  TickGathering(gm, army);  break;
+            case Stance.Rallying:   TickRallying(gm, army);   break;
+            case Stance.Attacking:  TickAttacking(gm, army);  break;
+            case Stance.Retreating: TickRetreating(gm, army); break;
+        }
+    }
+
+    /// <summary>Hold until the army reaches its threshold, then pick a target and
+    /// send everyone to the rally point.</summary>
+    void TickGathering(GameManager gm, List<UnitEntity> army)
+    {
+        if (army.Count < _rushThreshold) return;
+
+        var target = FindBestTarget(gm, army);
         if (target == null) return;
 
+        _target     = target;
+        _rallyPoint = ComputeRally(target.Transform.position);
+        SetStance(Stance.Rallying);
+        for (int i = 0; i < army.Count; i++)
+            army[i].MoveTo(RallyPosFor(army[i], i));
+    }
+
+    /// <summary>Wait for the force to mass at the rally point (or time out), then
+    /// commit to the attack together.</summary>
+    void TickRallying(GameManager gm, List<UnitEntity> army)
+    {
+        if (army.Count == 0) { SetStance(Stance.Gathering); return; }
+
+        if (_target == null || !_target.IsAlive)
+        {
+            var t = FindBestTarget(gm, army);
+            if (t == null) { SetStance(Stance.Gathering); return; }
+            _target = t; _rallyPoint = ComputeRally(t.Transform.position);
+        }
+
+        bool massed   = FractionNear(army, _rallyPoint, RallyRadius) >= ArriveFraction;
+        bool timedOut = _stanceTicks >= RallyTimeoutTicks;
+        if (massed || timedOut)
+        {
+            _attackForce = army.Count;
+            SetStance(Stance.Attacking);
+            CommandAttack(gm, army);
+        }
+    }
+
+    /// <summary>Press the target. Retreat once losses cross the personality's
+    /// threshold; re-target (don't disband) if the current objective falls.</summary>
+    void TickAttacking(GameManager gm, List<UnitEntity> army)
+    {
+        if (army.Count == 0) { SetStance(Stance.Gathering); return; }
+
+        // Bled too much — pull back to home to regroup.
+        if (army.Count <= _attackForce * (1f - _retreatLoss))
+        {
+            SetStance(Stance.Retreating);
+            for (int i = 0; i < army.Count; i++)
+                army[i].MoveTo(Scatter(_home, i));
+            return;
+        }
+
+        if (_target == null || !_target.IsAlive)
+        {
+            var t = FindBestTarget(gm, army);
+            if (t == null) { SetStance(Stance.Gathering); return; }
+            _target = t;
+        }
+        CommandAttack(gm, army);
+    }
+
+    /// <summary>Fall back home and regroup, then start gathering for the next push.</summary>
+    void TickRetreating(GameManager gm, List<UnitEntity> army)
+    {
+        if (army.Count == 0) { SetStance(Stance.Gathering); return; }
+
+        bool home     = FractionNear(army, _home, RallyRadius * 1.5f) >= 0.6f;
+        bool timedOut = _stanceTicks >= RetreatTimeoutTicks;
+        if (home || timedOut) SetStance(Stance.Gathering);
+    }
+
+    /// <summary>Order idle units onto their role's objective: siege (Trebuchet)
+    /// hangs back and demolishes the nearest structure (3× anti-structure), the rest
+    /// press the shared strategic target. Units that auto-acquired a closer foe
+    /// (CombatSystem aggro) keep their fight.</summary>
+    void CommandAttack(GameManager gm, List<UnitEntity> army)
+    {
         for (int i = 0; i < army.Count; i++)
         {
             var u = army[i];
-            if (u.attackTarget == null || !u.attackTarget.IsAlive)
-                u.AttackOrder(target);
+            if (u.attackTarget != null && u.attackTarget.IsAlive) continue; // already engaged
+
+            if (u.type == UnitType.Trebuchet)
+            {
+                // Prefer structures; fall back to the main target if all are razed.
+                var b = NearestEnemyBuilding(gm, u.transform.position);
+                u.AttackOrder((IDamageable)b ?? _target);
+            }
+            else
+            {
+                u.AttackOrder(_target);
+            }
         }
     }
+
+    void SetStance(Stance s) { _stance = s; _stanceTicks = 0; }
 
     // ── Economy ───────────────────────────────────────────────────────────────
 
@@ -148,7 +383,7 @@ public class EnemyAI : MonoBehaviour
             var u = gm.units[i];
             if (u != null && u.teamId == _teamId && u.type == UnitType.Villager) count++;
         }
-        if (count >= VillagerTarget) return;
+        if (count >= _villagerTarget) return;
 
         _res.Deduct(VillagerCostFood, 0, 0, 0);
         Vector3 fwd = _home.sqrMagnitude > 0.01f ? (-_home).normalized : Vector3.forward;
@@ -159,6 +394,64 @@ public class EnemyAI : MonoBehaviour
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /// <summary>Rally midway toward the target but biased home (40%, capped at 18u)
+    /// so the army masses before committing to enemy ground.</summary>
+    Vector3 ComputeRally(Vector3 targetPos)
+    {
+        Vector3 to   = targetPos - _home;
+        float   dist = to.magnitude;
+        Vector3 dir  = dist > 0.01f ? to / dist : Vector3.forward;
+        return _home + dir * Mathf.Min(dist * 0.4f, 18f);
+    }
+
+    /// <summary>Deterministic golden-angle spread so massed units don't all path to
+    /// the exact same point and jitter against each other.</summary>
+    static Vector3 Scatter(Vector3 center, int i)
+    {
+        float a = i * 2.39996323f;            // golden angle (radians)
+        float r = 1.5f + (i % 4) * 1.2f;      // 1.5–5.1u rings, within RallyRadius
+        return center + new Vector3(Mathf.Cos(a) * r, 0f, Mathf.Sin(a) * r);
+    }
+
+    /// <summary>Lite formation: melee holds the rally line; ranged sits a little
+    /// behind it and siege further back (toward home) so the front screens them.</summary>
+    Vector3 RallyPosFor(UnitEntity u, int i)
+    {
+        Vector3 back = _home - _rallyPoint; back.y = 0f;
+        back = back.sqrMagnitude > 0.01f ? back.normalized : Vector3.zero;
+        float depth = u.type switch
+        {
+            UnitType.Trebuchet => 5f,
+            UnitType.Archer    => 3f,
+            _                  => 0f,
+        };
+        return Scatter(_rallyPoint, i) + back * depth;
+    }
+
+    float FractionNear(List<UnitEntity> army, Vector3 point, float radius)
+    {
+        if (army.Count == 0) return 0f;
+        float r2 = radius * radius;
+        int near = 0;
+        for (int i = 0; i < army.Count; i++)
+        {
+            Vector3 d = army[i].transform.position - point; d.y = 0f;
+            if (d.sqrMagnitude <= r2) near++;
+        }
+        return (float)near / army.Count;
+    }
+
+    List<UnitEntity> CollectArmy(GameManager gm)
+    {
+        var list = new List<UnitEntity>();
+        for (int i = 0; i < gm.units.Count; i++)
+        {
+            var u = gm.units[i];
+            if (u != null && u.teamId == _teamId && IsMilitary(u)) list.Add(u);
+        }
+        return list;
+    }
 
     ResourceNode FindNearestNode(GameManager gm, Vector3 pos, ResourceKind kind)
     {
@@ -188,28 +481,89 @@ public class EnemyAI : MonoBehaviour
         return n;
     }
 
-    IDamageable FindNearestEnemy(GameManager gm)
+    int CountType(GameManager gm, UnitType type)
     {
-        IDamageable best   = null;
-        float       bestSq = float.MaxValue;
+        int n = 0;
+        for (int i = 0; i < gm.units.Count; i++)
+        {
+            var u = gm.units[i];
+            if (u != null && u.teamId == _teamId && u.type == type) n++;
+        }
+        return n;
+    }
+
+    Vector3 ArmyCentroid(List<UnitEntity> army)
+    {
+        if (army == null || army.Count == 0) return _home;
+        Vector3 sum = Vector3.zero;
+        for (int i = 0; i < army.Count; i++) sum += army[i].transform.position;
+        return sum / army.Count;
+    }
+
+    /// <summary>Pick the army's strategic objective by value, not raw distance:
+    /// enemy villagers (economy) rank highest, then the Town Center, then military
+    /// and other structures — each discounted by distance from the army's centre.
+    /// This makes the AI hunt economy and press the win condition instead of poking
+    /// whatever happens to be nearest.</summary>
+    IDamageable FindBestTarget(GameManager gm, List<UnitEntity> army)
+    {
+        Vector3 origin = ArmyCentroid(army);
+        IDamageable best = null;
+        float bestScore = float.MinValue;
 
         for (int i = 0; i < gm.units.Count; i++)
         {
             var u = gm.units[i];
             if (u == null || u.teamId == _teamId) continue;
-            float sq = (u.transform.position - _home).sqrMagnitude;
-            if (sq < bestSq) { bestSq = sq; best = u; }
+            float s = UnitValue(u) - DistPenalty(u.transform.position, origin);
+            if (s > bestScore) { bestScore = s; best = u; }
         }
         for (int i = 0; i < gm.buildings.Count; i++)
         {
             var b = gm.buildings[i];
             if (b == null || b.teamId == _teamId) continue;
-            float sq = (b.transform.position - _home).sqrMagnitude;
+            float s = BuildingValue(b) - DistPenalty(b.transform.position, origin);
+            if (s > bestScore) { bestScore = s; best = b; }
+        }
+        return best;
+    }
+
+    static float UnitValue(UnitEntity u) =>
+        u.type == UnitType.Villager ? 65f : 35f;   // economy harassment over trading blows
+
+    static float BuildingValue(BuildingEntity b) => b.type switch
+    {
+        BuildingType.TownCenter                                              => 60f, // win condition
+        BuildingType.Barracks or BuildingType.ArcheryRange
+            or BuildingType.Stable or BuildingType.Castle                    => 45f, // cut production
+        BuildingType.Farm or BuildingType.LumberCamp or BuildingType.MiningCamp
+            or BuildingType.Mill or BuildingType.Market                      => 40f, // cut economy
+        _                                                                    => 25f, // houses, etc.
+    };
+
+    static float DistPenalty(Vector3 worldPos, Vector3 origin)
+    {
+        float dx = worldPos.x - origin.x, dz = worldPos.z - origin.z;
+        return Mathf.Sqrt(dx * dx + dz * dz) / 8f;
+    }
+
+    BuildingEntity NearestEnemyBuilding(GameManager gm, Vector3 pos)
+    {
+        BuildingEntity best = null;
+        float bestSq = float.MaxValue;
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b == null || b.teamId == _teamId) continue;
+            float dx = b.transform.position.x - pos.x;
+            float dz = b.transform.position.z - pos.z;
+            float sq = dx * dx + dz * dz;
             if (sq < bestSq) { bestSq = sq; best = b; }
         }
         return best;
     }
 
     static bool IsMilitary(UnitEntity u) =>
-        u.type == UnitType.Militia || u.type == UnitType.Archer || u.type == UnitType.Cavalry;
+        u.type == UnitType.Militia || u.type == UnitType.Archer ||
+        u.type == UnitType.Cavalry || u.type == UnitType.Trebuchet;
 }

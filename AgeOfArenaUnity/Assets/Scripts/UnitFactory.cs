@@ -103,6 +103,88 @@ public static class UnitFactory
         return e;
     }
 
+    public static UnitEntity Trebuchet(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Trebuchet", parent, worldPos);
+        var t = g.transform;
+
+        var wood   = Prims.Mat(Prims.Hex(0x7a5c3a));
+        var metal  = Prims.Mat(Prims.Hex(0x888890), 0.4f, 0.6f);
+        var rope   = Prims.Mat(Prims.Hex(0xc8a878));
+        var accent = Prims.Mat(teamColor, 0.2f, 0.4f);
+
+        // Base frame
+        Prims.Box(t, new Vector3(0, 0.20f, 0),    new Vector3(1.2f, 0.14f, 0.7f), wood);
+        // Side uprights
+        Prims.Box(t, new Vector3(-0.45f, 0.65f, 0), new Vector3(0.12f, 0.82f, 0.45f), wood);
+        Prims.Box(t, new Vector3( 0.45f, 0.65f, 0), new Vector3(0.12f, 0.82f, 0.45f), wood);
+        // Cross beam at top
+        Prims.Box(t, new Vector3(0, 1.05f, 0),    new Vector3(1.1f, 0.12f, 0.18f), wood);
+        // Throwing arm (horizontal beam, tilted slightly forward)
+        Prims.Box(t, new Vector3(0, 1.18f, 0.28f), new Vector3(0.1f, 0.11f, 1.6f), wood);
+        // Counterweight at the rear end of arm
+        Prims.Box(t, new Vector3(0, 1.32f, -0.42f), new Vector3(0.3f, 0.28f, 0.24f), metal);
+        // Sling cup at front end
+        Prims.Box(t, new Vector3(0, 1.48f, 0.96f), new Vector3(0.16f, 0.16f, 0.16f), rope);
+        // Wheels (left / right)
+        foreach (float wx in new[] { -0.62f, 0.62f })
+            Prims.Box(t, new Vector3(wx, 0.16f, 0), new Vector3(0.14f, 0.32f, 0.34f), metal);
+        // Team-color accent strip on frame
+        Prims.Box(t, new Vector3(0, 0.52f, 0), new Vector3(1.2f, 0.07f, 0.11f), accent);
+
+        var e = Finish(g, UnitType.Trebuchet, teamColor);
+        e.hp = e.maxHp = 150f;
+        e.moveSpeed = 1.8f;
+        return e;
+    }
+
+    public static UnitEntity Scout(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Scout", parent, worldPos);
+        var t = g.transform;
+
+        var skin  = Prims.Mat(Prims.Hex(0xe0ac69));
+        var cloak = Prims.Mat(teamColor, 0f, 0.25f);
+        var leather = Prims.Mat(Prims.Hex(0x6b4a2a));
+
+        // Lean runner silhouette: slim torso, head, a trailing cloak and a feathered cap.
+        Prims.Box(t, new Vector3(0, 0.48f, 0), new Vector3(0.32f, 0.66f, 0.24f), leather);   // torso
+        Prims.Sphere(t, new Vector3(0, 0.92f, 0), 0.16f, skin);                              // head
+        Prims.Box(t, new Vector3(0, 1.0f, 0), new Vector3(0.28f, 0.12f, 0.28f), cloak);      // cap
+        Prims.Box(t, new Vector3(0, 1.12f, -0.02f), new Vector3(0.05f, 0.2f, 0.05f), cloak); // feather
+        Prims.Box(t, new Vector3(0, 0.55f, -0.16f), new Vector3(0.34f, 0.62f, 0.06f), cloak);// cloak
+
+        var e = Finish(g, UnitType.Scout, teamColor);
+        e.hp = e.maxHp = 40f;
+        e.moveSpeed = 6.5f; // fastest unit — pure recon
+        return e;
+    }
+
+    public static UnitEntity Medic(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Medic", parent, worldPos);
+        var t = g.transform;
+
+        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+        var robe = Prims.Mat(Prims.Hex(0xe8e4d8), 0f, 0.2f);   // pale monk robe
+        var trim = Prims.Mat(teamColor, 0f, 0.3f);
+        var staff = Prims.Mat(Prims.Hex(0x6b4a2a));
+
+        // Robed monk: tall robe body, hood, head, team-color sash, and a healing staff.
+        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.46f, 0.92f, 0.4f), robe);        // robe body
+        Prims.Box(t, new Vector3(0, 0.55f, 0), new Vector3(0.12f, 0.84f, 0.42f), trim);      // sash
+        Prims.Sphere(t, new Vector3(0, 1.04f, 0), 0.17f, skin);                              // head
+        Prims.Box(t, new Vector3(0, 1.12f, 0), new Vector3(0.34f, 0.2f, 0.34f), robe);       // hood
+        // Staff with a small cross-piece (heal symbol).
+        Prims.Box(t, new Vector3(0.3f, 0.7f, 0.08f), new Vector3(0.05f, 1.1f, 0.05f), staff);
+        Prims.Box(t, new Vector3(0.3f, 1.18f, 0.08f), new Vector3(0.2f, 0.06f, 0.06f), trim);
+
+        var e = Finish(g, UnitType.Medic, teamColor);
+        e.hp = e.maxHp = 35f;
+        e.moveSpeed = 3.2f;
+        return e;
+    }
+
     static GameObject NewUnit(string name, Transform parent, Vector3 worldPos)
     {
         var g = new GameObject(name);

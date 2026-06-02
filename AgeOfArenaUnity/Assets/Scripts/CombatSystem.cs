@@ -32,6 +32,13 @@ public class CombatSystem : MonoBehaviour
 
             if (u.attackCooldown > 0f) u.attackCooldown -= dt;
 
+            // Cavalry charge timer builds while not actively swinging.
+            if (u.type == UnitType.Cavalry && u.state != UnitState.Attacking)
+                u.chargeTimer += dt;
+
+            // Medic continuously heals the most-wounded ally in range while idle.
+            if (u.type == UnitType.Medic) StepHeal(u, units, dt);
+
             if (u.attackTarget != null)
                 StepCombat(u);
             else if (scanAggro && u.state == UnitState.Idle && u.gatherTarget == null && u.AggroRadius > 0f)
@@ -41,6 +48,14 @@ public class CombatSystem : MonoBehaviour
 
     void StepCombat(UnitEntity u)
     {
+        // Support units (Scout/Medic) never fight: drop any attack order and idle.
+        if (u.type == UnitType.Scout || u.type == UnitType.Medic)
+        {
+            u.attackTarget = null;
+            if (u.state == UnitState.MovingToAttack || u.state == UnitState.Attacking) u.Stop();
+            return;
+        }
+
         var target = u.attackTarget;
         if (target == null || !target.IsAlive)
         {
@@ -74,10 +89,20 @@ public class CombatSystem : MonoBehaviour
             u.FaceToward(tpos);
             if (u.attackCooldown <= 0f)
             {
+                // Anti-structure bonus (Trebuchet) applied before ranged/melee branch.
+                float effectiveDmg = u.AttackDamage *
+                    (u.attackTarget is BuildingEntity ? u.AntiStructureMultiplier : 1f);
+
                 if (u.IsRanged)
-                    Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, u.AttackDamage);
+                {
+                    Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, effectiveDmg);
+                }
                 else
-                    target.TakeDamage(u.AttackDamage);
+                {
+                    // Cavalry charge: first swing after 4s of non-combat deals 2.5× damage.
+                    if (u.ChargeReady) { effectiveDmg *= u.ChargeMultiplier; u.chargeTimer = 0f; }
+                    target.TakeDamage(effectiveDmg);
+                }
                 u.attackCooldown = u.AttackInterval;
             }
         }
@@ -108,6 +133,36 @@ public class CombatSystem : MonoBehaviour
         }
 
         if (best != null) u.AttackOrder(best);
+    }
+
+    /// <summary>
+    /// Medic behaviour: while idle, restore hp to the most-wounded friendly unit
+    /// within <see cref="UnitEntity.HealRadius"/>. Positional (does not chase) so
+    /// the player keeps the medic near the front line. Movement orders take priority.
+    /// </summary>
+    void StepHeal(UnitEntity medic, List<UnitEntity> units, float dt)
+    {
+        if (medic.state != UnitState.Idle) return; // don't interrupt a move order
+
+        Vector3 pos = medic.transform.position;
+        float radiusSq = medic.HealRadius * medic.HealRadius;
+        UnitEntity best = null;
+        float bestRatio = 1f;
+        for (int i = 0; i < units.Count; i++)
+        {
+            var o = units[i];
+            if (o == null || o == medic || o.teamId != medic.teamId) continue;
+            if (o.hp <= 0f || o.hp >= o.maxHp) continue;       // dead or already full
+            if (FlatSq(pos, o.transform.position) > radiusSq) continue;
+            float r = o.hp / o.maxHp;
+            if (r < bestRatio) { bestRatio = r; best = o; }
+        }
+
+        if (best != null)
+        {
+            medic.FaceToward(best.transform.position);
+            best.Heal(medic.HealPower * dt);
+        }
     }
 
     static Vector3 ApproachPoint(Vector3 center, Vector3 from, float dist)

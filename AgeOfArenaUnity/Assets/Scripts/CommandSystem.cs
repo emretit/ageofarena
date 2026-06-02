@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// Right-click commands for the current selection: click a resource node to send
@@ -28,8 +29,12 @@ public class CommandSystem : MonoBehaviour
         if (gm.placement != null && gm.placement.Active) return;
 
         HandleTrainHotkeys();
+        HandleMarketHotkeys();
+        HandleResearchHotkeys();
         HandleBuildHotkeys();
         if (!Input.GetMouseButtonDown(1)) return;
+        // A right-click over the HUD command bar shouldn't issue a world order.
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
         var selected = gm.selection != null ? gm.selection.Selected : null;
         if (selected == null || selected.Count == 0) return;
@@ -99,12 +104,48 @@ public class CommandSystem : MonoBehaviour
 
         foreach (var d in BuildingDefs.Buildable())
         {
+            if (!BuildingDefs.UnlockedAt(d.type, gm.tech.age)) continue; // age-locked
             if (Input.GetKeyDown(char.ToLower(d.hotkey).ToString()))
             {
                 gm.placement.Begin(d.type);
                 break;
             }
         }
+    }
+
+    /// <summary>When a building is selected, number keys research its available techs
+    /// (in the order shown in the HUD). Market keeps number keys for trading.</summary>
+    void HandleResearchHotkeys()
+    {
+        var gm = GameManager.Instance;
+        var b = gm?.selectedBuilding;
+        if (b == null || gm.research == null) return;
+        if (b.type == BuildingType.Market) return; // Market: number keys are trade
+
+        var techs = b.GetResearchables();
+        int max = Mathf.Min(techs.Count, 9);
+        for (int i = 0; i < max; i++)
+        {
+            if (Input.GetKeyDown(KeyCode.Alpha1 + i))
+            {
+                gm.research.Enqueue(b, techs[i]);
+                break;
+            }
+        }
+    }
+
+    /// <summary>When a finished Market is selected, number keys trade resources.</summary>
+    void HandleMarketHotkeys()
+    {
+        var gm = GameManager.Instance;
+        var b = gm?.selectedBuilding;
+        if (b == null || b.type != BuildingType.Market || b.underConstruction) return;
+
+        var rm = gm.resources;
+        if (Input.GetKeyDown(KeyCode.Alpha1)) MarketSystem.Sell(rm, ResourceKind.Food);
+        if (Input.GetKeyDown(KeyCode.Alpha2)) MarketSystem.Sell(rm, ResourceKind.Wood);
+        if (Input.GetKeyDown(KeyCode.Alpha3)) MarketSystem.Sell(rm, ResourceKind.Stone);
+        if (Input.GetKeyDown(KeyCode.Alpha4)) MarketSystem.Buy(rm, ResourceKind.Food);
     }
 
     void HandleTrainHotkeys()

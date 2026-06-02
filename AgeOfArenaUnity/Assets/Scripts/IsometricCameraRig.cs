@@ -21,6 +21,9 @@ public class IsometricCameraRig : MonoBehaviour
     const float Pitch = 30f;
     const float Distance = 60f;
 
+    float _shakeTimer;
+    float _shakeMagnitude;
+
     public void Init(Vector3 focus)
     {
         _cam = GetComponent<Camera>();
@@ -58,6 +61,21 @@ public class IsometricCameraRig : MonoBehaviour
         if (Input.GetKey(KeyCode.E)) _yaw += rotateSpeed * Time.deltaTime;
 
         Apply();
+
+        if (_shakeTimer > 0f)
+        {
+            _shakeTimer -= Time.deltaTime;
+            var offset = Random.insideUnitSphere * _shakeMagnitude;
+            offset.y = 0f;
+            transform.position += offset;
+            if (_shakeTimer <= 0f) _shakeMagnitude = 0f;
+        }
+    }
+
+    public void Shake(float duration, float magnitude)
+    {
+        _shakeTimer    = Mathf.Max(_shakeTimer, duration);
+        _shakeMagnitude = Mathf.Max(_shakeMagnitude, magnitude);
     }
 
     void Apply()

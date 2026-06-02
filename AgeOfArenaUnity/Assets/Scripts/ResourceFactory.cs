@@ -61,6 +61,11 @@ public static class ResourceFactory
         node.Init(ResourceKind.Food, amount);
         node.destroyOnDeplete = false;
         node.gathererCap = 4;
+        // Renewable: when emptied, spend the owning team's wood to re-seed.
+        node.renewable = true;
+        node.reseedWoodCost = 60;
+        var be = farmRoot.GetComponent<BuildingEntity>();
+        node.ownerTeamId = be != null ? be.teamId : 0;
         return node;
     }
 

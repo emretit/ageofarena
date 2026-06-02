@@ -14,20 +14,30 @@ public class GameManager : MonoBehaviour
     public readonly List<UnitEntity> units = new();
     public readonly List<ResourceNode> nodes = new();
     public readonly List<BuildingEntity> buildings = new();
+    public readonly List<RelicEntity> relics = new();
 
     public ResourceManager[] teamRes = { new(), new(), new(), new() };
     public ResourceManager resources => teamRes[0];
+
+    public TechState[] teamTech = { new(), new(), new(), new() };
+    public TechState tech => teamTech[0];
 
     public SelectionSystem selection;
     public CommandSystem command;
     public GatherSystem gather;
     public CombatSystem combat;
+    public BuildingCombatSystem buildingCombat;
     public BuildSystem build;
     public BuildingPlacement placement;
     public TrainingQueue trainingQueue;
+    public ResearchSystem research;
     public HUD hud;
     public MinimapSystem minimap;
     public MatchSystem match;
+    public VisualEffectSystem vfx;
+    public IsometricCameraRig cameraRig;
+    public FogOfWarSystem fow;
+    public RelicSystem relicSystem;
 
     public BuildingEntity selectedBuilding;
 
@@ -56,19 +66,28 @@ public class GameManager : MonoBehaviour
         if (b != null && !buildings.Contains(b)) buildings.Add(b);
     }
 
+    public void RegisterRelic(RelicEntity r)
+    {
+        if (r != null && !relics.Contains(r)) relics.Add(r);
+    }
+
     void Update()
     {
         float dt = Time.deltaTime;
         if (gather != null)        gather.Tick(units, dt);
         if (combat != null)        combat.Tick(units, dt);
+        if (buildingCombat != null) buildingCombat.Tick(buildings, units, dt);
         if (build != null)         build.Tick(units, dt);
         if (trainingQueue != null) trainingQueue.Tick(dt);
+        if (research != null)      research.Tick(dt);
+        if (relicSystem != null)   relicSystem.Tick(units, relics, dt);
 
         // Compact lists once per frame after all systems ticked, so destroyed
         // units/buildings (Unity fake-null) don't linger as null holes.
         units.RemoveAll(u => u == null);
         buildings.RemoveAll(b => b == null);
         nodes.RemoveAll(n => n == null);
+        relics.RemoveAll(r => r == null);
 
         RecomputePop();
     }

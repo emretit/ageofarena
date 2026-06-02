@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 /// <summary>
 /// Left-click selection: single click picks one own-team unit (shift toggles to
@@ -38,6 +39,9 @@ public class SelectionSystem : MonoBehaviour
 
         if (Input.GetMouseButtonDown(0))
         {
+            // A click that starts over the HUD (command bar buttons) belongs to uGUI,
+            // not world selection — ignore it so the panel doesn't get dismissed.
+            if (IsPointerOverUI()) return;
             _pointerDown = true;
             _dragging = false;
             _dragStart = Input.mousePosition;
@@ -138,6 +142,10 @@ public class SelectionSystem : MonoBehaviour
             if (Selected[i] != null) Selected[i].SetSelected(false, OwnColor);
         Selected.Clear();
     }
+
+    /// <summary>True when the cursor is over an interactive uGUI element (the HUD).</summary>
+    static bool IsPointerOverUI()
+        => EventSystem.current != null && EventSystem.current.IsPointerOverGameObject();
 
     void OnGUI()
     {

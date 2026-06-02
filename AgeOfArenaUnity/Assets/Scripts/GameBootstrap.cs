@@ -27,6 +27,7 @@ public static class GameBootstrap
     public static void Restart()
     {
         Time.timeScale = 1f;
+        GameEvents.Reset();
 
         var existing = Object.FindAnyObjectByType<WorldRoot>();
         if (existing != null) Object.Destroy(existing.gameObject);

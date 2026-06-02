@@ -95,7 +95,12 @@ public class GatherSystem : MonoBehaviour
                 if (FlatDist(pos, camp.transform.position) <= reach)
                 {
                     if (v.carrying.amount > 0)
-                        GM.teamRes[v.teamId].Gain(v.carrying.kind, v.carrying.amount);
+                    {
+                        // Researched gather upgrades (DoubleBitAxe, Wheelbarrow) scale the deposit.
+                        float mult = GM.teamTech[v.teamId].GatherMult(v.carrying.kind);
+                        int gained = Mathf.RoundToInt(v.carrying.amount * mult);
+                        GM.teamRes[v.teamId].Gain(v.carrying.kind, gained);
+                    }
                     v.carrying.Clear();
 
                     if (!node.Depleted && node.HasRoom)

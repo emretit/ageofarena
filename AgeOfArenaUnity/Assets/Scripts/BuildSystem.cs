@@ -68,10 +68,15 @@ public class BuildSystem : MonoBehaviour
         site.buildProgress = Mathf.Clamp01(site.buildProgress + dt / time);
         site.hp = Mathf.Max(1f, site.maxHp * site.buildProgress);
 
+        // Grow the building visually from 0→1 on the Y axis as construction progresses.
+        float scaleY = Mathf.Lerp(0.05f, 1f, site.buildProgress);
+        site.transform.localScale = new Vector3(1f, scaleY, 1f);
+
         if (site.buildProgress >= 1f)
         {
             site.underConstruction = false;
             site.hp = site.maxHp;
+            site.transform.localScale = Vector3.one;
 
             // A finished Farm becomes a gatherable food field — the slice's only
             // food source. Villagers can then be sent to it like any resource node.

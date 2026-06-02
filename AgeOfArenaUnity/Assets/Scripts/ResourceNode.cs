@@ -16,6 +16,12 @@ public class ResourceNode : MonoBehaviour
     /// <summary>Trees/mines disappear when emptied; farm fields stay as a building.</summary>
     public bool destroyOnDeplete = true;
 
+    // Auto-reseed (farms): when emptied, spend wood from the owner's ledger to
+    // refill back to maxAmount. Off by default; ResourceFactory.FarmField enables it.
+    public bool renewable;
+    public int reseedWoodCost;
+    public int ownerTeamId;
+
     public bool Depleted => amount <= 0;
     public bool HasRoom => currentGatherers < gathererCap;
 
@@ -28,6 +34,19 @@ public class ResourceNode : MonoBehaviour
 
     void Update()
     {
+        // Auto-reseed a depleted renewable field (farm) by spending the owner's
+        // wood. Runs regardless of gatherers so harvesting continues uninterrupted;
+        // if the owner can't afford it the field stays empty and retries next frame.
+        if (renewable && Depleted)
+        {
+            var rm = GameManager.Instance?.teamRes[ownerTeamId];
+            if (rm != null && rm.CanAfford(0, reseedWoodCost, 0, 0))
+            {
+                rm.Deduct(0, reseedWoodCost, 0, 0);
+                amount = maxAmount;
+            }
+        }
+
         // Remove emptied nodes once their gatherers have left (GameManager's
         // end-of-frame compaction clears the null hole from gm.nodes). Farm fields
         // opt out so the placed building isn't destroyed.

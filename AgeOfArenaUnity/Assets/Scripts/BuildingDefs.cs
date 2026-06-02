@@ -18,14 +18,24 @@ public struct BuildingDef
     public bool isDropoff;     // gatherers can deposit carried resources here
     public int dropoffMask;    // bit i set = accepts ResourceKind i (0 = none)
 
+    // Defensive fire: attackRange > 0 marks a building that auto-shoots nearby
+    // enemies (BuildingCombatSystem reads these). 0 = passive (the default).
+    public float attackRange, attackDamage, attackInterval;
+
+    public Age minAge;         // age the team must have reached to build this
+
     public BuildingDef(BuildingType t, int f, int w, int g, int s, float time,
         int pop, float hp, string name, char hk, bool canBuild,
-        bool drop = false, int dropMask = 0)
+        bool drop = false, int dropMask = 0,
+        float atkRange = 0f, float atkDmg = 0f, float atkInterval = 0f,
+        Age minAge = Age.Dark)
     {
         type = t; food = f; wood = w; gold = g; stone = s;
         buildTime = time; popProvided = pop; maxHp = hp;
         display = name; hotkey = hk; buildable = canBuild;
         isDropoff = drop; dropoffMask = dropMask;
+        attackRange = atkRange; attackDamage = atkDmg; attackInterval = atkInterval;
+        this.minAge = minAge;
     }
 }
 
@@ -44,12 +54,20 @@ public static class BuildingDefs
         new(BuildingType.TownCenter,    0,    0,  0,  0,  60f,  5,  600f, "Town Center",   'T', false, true,  MaskAll),
         new(BuildingType.House,         0,   30,  0,  0,  12f,  5,  300f, "House",         'H', true),
         new(BuildingType.Barracks,      0,  120,  0,  0,  25f,  0,  400f, "Barracks",      'B', true),
-        new(BuildingType.ArcheryRange,  0,  120,  0,  0,  25f,  0,  400f, "Archery Range", 'R', true),
-        new(BuildingType.Stable,        0,  120,  0,  0,  25f,  0,  400f, "Stable",        'T', true),
+        new(BuildingType.ArcheryRange,  0,  120,  0,  0,  25f,  0,  400f, "Archery Range", 'R', true,  minAge: Age.Feudal),
+        new(BuildingType.Stable,        0,  120,  0,  0,  25f,  0,  400f, "Stable",        'T', true,  minAge: Age.Castle),
         new(BuildingType.Farm,          0,   60,  0,  0,  12f,  0,  200f, "Farm",          'F', true),
         new(BuildingType.LumberCamp,    0,   50,  0,  0,  10f,  0,  150f, "Lumber Camp",   'L', true,  true,  MaskWood),
         new(BuildingType.MiningCamp,    0,   50,  0,  0,  10f,  0,  150f, "Mining Camp",   'G', true,  true,  MaskMine),
         new(BuildingType.Mill,          0,   60,  0,  0,  12f,  0,  150f, "Mill",          'I', true,  true,  MaskFood),
+        new(BuildingType.Market,        0,  175,  0,  0,  25f,  0,  350f, "Market",        'K', true),
+        // Castle: heavy stone cost (forces stone economy), high hp, +pop, and it
+        // auto-fires arrows at nearby enemies (atkRange > 0). TC stays passive.
+        new(BuildingType.Castle,        0,    0,  0,650,  80f, 10, 2000f, "Castle",        'E', true,  false, 0, 9f, 18f, 1.5f),
+        // Defensive palisade & gate. Cheap wood, fast build, available from Dark Age.
+        // Wall blocks pathfinding (carving NavMeshObstacle); Gate is a passable opening.
+        new(BuildingType.Wall,          0,   10,  0,  0,   4f,  0,  200f, "Wall",          'W', true),
+        new(BuildingType.Gate,          0,   30,  0,  0,   8f,  0,  450f, "Gate",          'O', true),
     };
 
     public static BuildingDef Get(BuildingType t)
@@ -61,6 +79,9 @@ public static class BuildingDefs
 
     /// <summary>True if <paramref name="t"/> is a drop-off building (any resource).</summary>
     public static bool IsDropoff(BuildingType t) => Get(t).isDropoff;
+
+    /// <summary>True if a team at <paramref name="age"/> has unlocked building <paramref name="t"/>.</summary>
+    public static bool UnlockedAt(BuildingType t, Age age) => age >= Get(t).minAge;
 
     /// <summary>True if a gatherer carrying <paramref name="kind"/> can deposit at <paramref name="t"/>.</summary>
     public static bool AcceptsDropoff(BuildingType t, ResourceKind kind)

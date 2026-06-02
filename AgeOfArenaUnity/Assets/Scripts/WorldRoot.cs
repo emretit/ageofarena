@@ -33,6 +33,17 @@ public class WorldRoot : MonoBehaviour
 
     static readonly Color RoofColor = Prims.Hex(0xa6402f);
 
+    MeshRenderer _groundRenderer;  // saved for FogOfWarSystem.Init
+
+    // Enemy brain flavours (index = teamId; slot 0 is the player and unused).
+    static readonly AIPersonality[] Personalities =
+    {
+        AIPersonality.Balanced, // team 0 – player (unused)
+        AIPersonality.Rusher,   // team 1 – red: early aggression
+        AIPersonality.Boomer,   // team 2 – green: economy then big army
+        AIPersonality.Balanced, // team 3 – yellow: steady
+    };
+
     public void Build()
     {
         // Keep simulating when the window is unfocused (alt-tab) so the AI/economy
@@ -49,9 +60,15 @@ public class WorldRoot : MonoBehaviour
 
         BuildForestRing();
         BuildMines();
+        BuildRelics();
         BakeNavMesh();
+        gm.cameraRig = cam;
         SetupGameplay(gm);
         cam.Init(BasePositions[0]);
+
+        // FoW is initialised after the full scene (units, buildings, nodes) is up.
+        gm.fow = gm.gameObject.AddComponent<FogOfWarSystem>();
+        gm.fow.Init(_groundRenderer);
     }
 
     // ── Environment ──────────────────────────────────────────────────────────
@@ -86,8 +103,10 @@ public class WorldRoot : MonoBehaviour
         ground.name = "Ground";
         ground.transform.SetParent(transform, false);
         ground.transform.localScale = new Vector3(12f, 1f, 12f); // 120×120
-        ground.GetComponent<MeshRenderer>().sharedMaterial = Prims.Mat(Prims.Hex(0x5b8c3e), 0f, 0.05f);
-        ground.GetComponent<MeshRenderer>().receiveShadows = true;
+        _groundRenderer = ground.GetComponent<MeshRenderer>();
+        // Temporary material; FogOfWarSystem.Init replaces it with the fog shader.
+        _groundRenderer.sharedMaterial = Prims.Mat(Prims.Hex(0x5b8c3e), 0f, 0.05f);
+        _groundRenderer.receiveShadows = true;
     }
 
     IsometricCameraRig SetupCamera()
@@ -225,6 +244,18 @@ public class WorldRoot : MonoBehaviour
         gm.RegisterNode(ResourceFactory.StoneMine(mines.transform, new Vector3( 0, 0,-8)));
     }
 
+    // Three contested relics near the map centre (clear of the ±8 mines): one dead
+    // centre, two on a diagonal. Whoever holds them earns a passive gold trickle.
+    void BuildRelics()
+    {
+        var relics = new GameObject("Relics");
+        relics.transform.SetParent(transform, false);
+        var gm = GameManager.Instance;
+        gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3(  0, 0,   0)));
+        gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3(-16, 0,  16)));
+        gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3( 16, 0, -16)));
+    }
+
     // ── NavMesh ───────────────────────────────────────────────────────────────
 
     void BakeNavMesh()
@@ -258,14 +289,18 @@ public class WorldRoot : MonoBehaviour
         var gm = go.AddComponent<GameManager>();
         gm.gather        = go.AddComponent<GatherSystem>();
         gm.combat        = go.AddComponent<CombatSystem>();
+        gm.buildingCombat = go.AddComponent<BuildingCombatSystem>();
         gm.build         = go.AddComponent<BuildSystem>();
         gm.placement     = go.AddComponent<BuildingPlacement>();
         gm.selection     = go.AddComponent<SelectionSystem>();
         gm.command       = go.AddComponent<CommandSystem>();
         gm.trainingQueue = go.AddComponent<TrainingQueue>();
+        gm.research      = go.AddComponent<ResearchSystem>();
+        gm.relicSystem   = go.AddComponent<RelicSystem>();
         gm.hud           = go.AddComponent<HUD>();
         gm.minimap       = go.AddComponent<MinimapSystem>();
         gm.match         = go.AddComponent<MatchSystem>();
+        gm.vfx           = go.AddComponent<VisualEffectSystem>();
         return gm;
     }
 
@@ -306,9 +341,9 @@ public class WorldRoot : MonoBehaviour
         {
             SpawnGarrison(gm, unitsRoot.transform, BasePositions[t], TeamColors[t], t);
 
-            var aiGo = new GameObject($"EnemyAI_T{t}");
+            var aiGo = new GameObject($"EnemyAI_T{t}_{Personalities[t]}");
             aiGo.transform.SetParent(transform, false);
-            aiGo.AddComponent<EnemyAI>().Init(t, TeamColors[t], BasePositions[t], unitsRoot.transform);
+            aiGo.AddComponent<EnemyAI>().Init(t, TeamColors[t], BasePositions[t], unitsRoot.transform, Personalities[t]);
         }
 
         // popCap now derives from team-0 buildings (TC + Houses) via RecomputePop.

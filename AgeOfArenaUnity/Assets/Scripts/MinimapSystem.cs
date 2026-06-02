@@ -120,6 +120,21 @@ public class MinimapSystem : MonoBehaviour
             GUI.color = c;
             GUI.DrawTexture(new Rect(dotX, dotY, 5f, 5f), Texture2D.whiteTexture);
         }
+
+        // Relics: larger markers, tinted by controlling team (neutral = gold).
+        var relics = gm.relics;
+        Color relicGold = new Color(1f, 0.82f, 0.2f);
+        for (int i = 0; i < relics.Count; i++)
+        {
+            var r = relics[i];
+            if (r == null) continue;
+            Vector2 uv = WorldToMinimap(r.transform.position);
+            float dotX = rect.x + uv.x * rect.width  - 4f;
+            float dotY = rect.y + uv.y * rect.height - 4f;
+            GUI.color = (r.controllingTeam >= 0 && r.controllingTeam < teamCol.Length)
+                ? teamCol[r.controllingTeam] : relicGold;
+            GUI.DrawTexture(new Rect(dotX, dotY, 9f, 9f), Texture2D.whiteTexture);
+        }
         GUI.color = Color.white;
     }
 
