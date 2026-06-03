@@ -14,6 +14,10 @@ public class UnitEntity : MonoBehaviour, IDamageable
 
     public float hp = 25f;
     public float maxHp = 25f;
+    // Factory-assigned base max HP, captured in Start() before any tech/veterancy/civ
+    // bonus is layered on. RecomputeMaxHp() always derives maxHp from this base so
+    // bonuses can never double-count or freeze (CIVV / RETR / veterancy share one model).
+    public float baseMaxHp;
     public float moveSpeed = 3.5f;
 
     public UnitState state = UnitState.Idle;
@@ -44,9 +48,13 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public Vector3 patrolA, patrolB;
 
     // Veterancy: accumulate kills → rank (0=recruit, 1=veteran, 2=elite).
-    // Each rank grants +10% attack and +10% max HP (applied once on rank-up).
+    // Each rank grants +10% attack (via VeteranMult in AttackDamage) and +10 max HP
+    // (via RecomputeMaxHp). Recruit/Veteran/Elite = ×1.0 / ×1.1 / ×1.2 attack.
     public int killCount;
     public int veteranRank;
+    public const float VetHpPerRank = 10f;   // flat max-HP gained per veteran rank
+    /// <summary>Attack multiplier from veteran rank: +10% per rank (recruit 1.0, elite 1.2).</summary>
+    public float VeteranMult => 1f + 0.10f * veteranRank;
 
     // Monk conversion: time spent channeling on the current target.
     public float convertProgress;
@@ -65,6 +73,10 @@ public class UnitEntity : MonoBehaviour, IDamageable
     // ── Armor (set by UnitFactory) ────────────────────────────────────────────
     public float meleeArmor;
     public float pierceArmor;
+
+    // ── Naval ─────────────────────────────────────────────────────────────────
+    public bool isNaval;
+    public int  navalAgentTypeId = -1;
 
     /// <summary>This unit's per-team <see cref="TechState"/> (null-safe).</summary>
     TechState TeamTech
@@ -91,6 +103,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     {
         UnitType.Militia     => 5f,  UnitType.Archer      => 4f,  UnitType.Cavalry    => 8f,
         UnitType.Trebuchet   => 35f, UnitType.Spearman    => 4f,  UnitType.Longbowman => 5f,
+        UnitType.Galley      => 8f,
         // Support units deal no damage: Scout is pure recon, Medic only heals.
         UnitType.Scout       => 0f,  UnitType.Medic       => 0f,
         _                    => 2f,
@@ -99,6 +112,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     {
         UnitType.Militia     => 1.3f, UnitType.Archer      => 6.5f, UnitType.Cavalry    => 1.4f,
         UnitType.Trebuchet   => 15f,  UnitType.Spearman    => 1.5f, UnitType.Longbowman => 8.5f,
+        UnitType.Galley      => 5.5f,
         _                    => 1.1f,
     };
     /// <summary>Effective damage = base + tech bonus, scaled by civ infantry bonus for infantry types.</summary>
@@ -108,7 +122,8 @@ public class UnitEntity : MonoBehaviour, IDamageable
         {
             float base_ = BaseAttackDamage + (TeamTech?.AttackBonus(type) ?? 0f);
             bool isInfantry = type == UnitType.Militia || type == UnitType.Spearman;
-            return isInfantry ? base_ * TeamCivBonus.infantryAttackMult : base_;
+            float withCiv = isInfantry ? base_ * TeamCivBonus.infantryAttackMult : base_;
+            return withCiv * VeteranMult;   // veteran rank: +10% per rank
         }
     }
     /// <summary>Effective range = base + tech bonus + civ archer range bonus (Britons).</summary>
@@ -125,6 +140,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     {
         UnitType.Militia     => 1.0f, UnitType.Archer      => 1.4f, UnitType.Cavalry    => 1.1f,
         UnitType.Trebuchet   => 5.5f, UnitType.Spearman    => 1.3f, UnitType.Longbowman => 1.6f,
+        UnitType.Galley      => 2.0f,
         _                    => 1.6f,
     };
     /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.</summary>
@@ -132,6 +148,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     {
         UnitType.Militia     => 7f,  UnitType.Archer      => 9f,   UnitType.Cavalry    => 8f,
         UnitType.Trebuchet   => 15f, UnitType.Spearman    => 7f,   UnitType.Longbowman => 11f,
+        UnitType.Galley      => 8f,
         _                    => 0f,
     };
     /// <summary>Trebuchet deals 3× damage vs buildings; others have no multiplier.</summary>
@@ -145,11 +162,13 @@ public class UnitEntity : MonoBehaviour, IDamageable
     {
         UnitType.Archer      => DamageType.Pierce,
         UnitType.Longbowman  => DamageType.Pierce,
+        UnitType.Galley      => DamageType.Pierce,
         UnitType.Trebuchet   => DamageType.Siege,
         _                    => DamageType.Melee,
     };
     /// <summary>Ranged units attack via projectiles instead of melee contact.</summary>
-    public bool IsRanged => type == UnitType.Archer || type == UnitType.Trebuchet || type == UnitType.Longbowman;
+    public bool IsRanged => type == UnitType.Archer || type == UnitType.Trebuchet
+        || type == UnitType.Longbowman || type == UnitType.Galley;
 
     // ── Medic healing (driven by CombatSystem.StepHeal) ──────────────────────
     /// <summary>Radius within which a Medic auto-heals friendly units; 0 = not a healer.</summary>
@@ -169,11 +188,22 @@ public class UnitEntity : MonoBehaviour, IDamageable
         _agent.angularSpeed = 360f;
         _agent.acceleration = 12f;
         _agent.stoppingDistance = 0.25f;
-        _agent.radius = 0.4f;
-        _agent.height = 1.8f;
         _agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
         _agent.avoidancePriority = Random.Range(30, 70);
         _agent.autoRepath = true;
+
+        if (isNaval && navalAgentTypeId >= 0)
+        {
+            // Galley navigates on the water NavMesh only.
+            _agent.agentTypeID = navalAgentTypeId;
+            _agent.radius = 0.5f;
+            _agent.height = 0.8f;
+        }
+        else
+        {
+            _agent.radius = 0.4f;
+            _agent.height = 1.8f;
+        }
     }
 
     // Start (not Awake): the factory assigns `type`/`moveSpeed` right after
@@ -182,21 +212,44 @@ public class UnitEntity : MonoBehaviour, IDamageable
     {
         if (_agent != null) _agent.speed = moveSpeed;
 
-        // Newly trained/spawned units inherit their team's researched hp upgrades.
-        float hpBonus = TeamTech?.HpBonus(type) ?? 0f;
-        if (hpBonus > 0f) { maxHp += hpBonus; hp += hpBonus; }
+        // Capture the factory-assigned base before layering bonuses (single source of truth).
+        baseMaxHp = maxHp;
 
-        // Civ cavalry bonuses (Franks: +HP; Mongols: +speed). Applied once on spawn.
+        // Mongol cavalry speed bonus. Civ is fixed per team, so speed (which never
+        // changes with tech) is applied once from the factory base. HP is handled by
+        // RecomputeMaxHp (always derived from base → no freeze, no double-count).
         if (type == UnitType.Cavalry)
         {
             var civ = TeamCivBonus;
-            if (civ.cavalryHpMult != 1f) { maxHp *= civ.cavalryHpMult; hp *= civ.cavalryHpMult; }
             if (civ.cavalrySpeedMult != 1f)
             {
                 moveSpeed *= civ.cavalrySpeedMult;
                 if (_agent != null) _agent.speed = moveSpeed;
             }
         }
+
+        // Derive maxHp from base + researched tech HP + veterancy + civ cavalry HP,
+        // and fill current hp to full on spawn.
+        RecomputeMaxHp();
+    }
+
+    /// <summary>
+    /// Recompute <see cref="maxHp"/> from <see cref="baseMaxHp"/> plus all live bonuses
+    /// (team tech HP, veteran rank, Franks cavalry HP multiplier). Idempotent — always
+    /// derived from base, so repeated calls (spawn / research / rank-up) never double-count.
+    /// On an increase, current hp rises by the same delta; on a decrease it is clamped.
+    /// </summary>
+    public void RecomputeMaxHp(bool fillOnIncrease = true)
+    {
+        float computed = baseMaxHp
+            + (TeamTech?.HpBonus(type) ?? 0f)
+            + veteranRank * VetHpPerRank;
+        if (type == UnitType.Cavalry) computed *= TeamCivBonus.cavalryHpMult;
+
+        float delta = computed - maxHp;
+        maxHp = computed;
+        if (delta > 0f && fillOnIncrease) hp = Mathf.Min(hp + delta, maxHp);
+        else if (hp > maxHp) hp = maxHp;
     }
 
     /// <summary>Issue a move order; transitions to <see cref="UnitState.Moving"/>.</summary>
@@ -406,9 +459,8 @@ public class UnitEntity : MonoBehaviour, IDamageable
         int newRank = killCount >= 3 ? 2 : killCount >= 1 ? 1 : 0;
         if (newRank <= veteranRank) return false;
         veteranRank = newRank;
-        // Flat bonus: +2 max HP and +10% per rank achieved.
-        float hpBonus = 10f;
-        maxHp += hpBonus; hp = Mathf.Min(hp + hpBonus, maxHp);
+        // +VetHpPerRank max HP (via unified model) and +10%/rank attack (via VeteranMult).
+        RecomputeMaxHp();
         return true;
     }
 

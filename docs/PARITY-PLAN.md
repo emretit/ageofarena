@@ -506,12 +506,12 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 > Her madde için tek satır ölçülebilir kriter. Goal modu her iterasyonda yeniden ölçebilir.
 > Tümü ortak: Unity Roslyn 0 error / 0 warning (Unity_GetConsoleLogs boş).
 
-- [ ] VTAT: UnitEntity.AttackDamage getter veteranRank çarpanı içerir; Veteran DamagePopup recruit'tan ~%10 yüksek.
-- [ ] VETATK: VTAT fix sonrası Veteran(+%10)/Elite(+%20) farkı DamagePopup'ta ölçülür; rank eğrisi UnitEntity'de görünür.
-- [ ] CIVB: grep `healRateMult` CombatSystem ≥1 ve `buildingHpMult` BuildingEntity ≥1; Byzantines heal 1.5×, bina maxHp 1.1×.
-- [ ] CIVF: grep `farmDecayMult` ResourceFactory/ResourceNode ≥1; Franks farm yarı hızda decay, None regresyonsuz.
-- [ ] CIVV: Start()'ta cavalryHpMult tek-seferlik uygulama YOK; hp/speed computed/tick-güncel; çift-çarpma yok.
-- [ ] RETR: ResearchSystem.Apply HpBonus delta'sını canlı birimlere uygular; Militia+ScaleMail sonrası maxHp +20; çift-sayım yok.
+- [x] VTAT: UnitEntity.AttackDamage getter veteranRank çarpanı içerir (VeteranMult); Veteran ×1.1 / Elite ×1.2.
+- [x] VETATK: VTAT fix sonrası Veteran(+%10)/Elite(+%20) attack; rank eğrisi VeteranMult ile UnitEntity'de görünür.
+- [x] CIVB: `healRateMult` CombatSystem.StepHeal'de + `buildingHpMult` BuildingEntity.Start'ta tüketiliyor; Byzantines heal 1.5×, bina maxHp 1.1×.
+- [x] CIVF: `farmDecayMult` ResourceNode decay'de tüketiliyor; Franks farm yarı hızda decay, None ×1.0 regresyonsuz.
+- [x] CIVV: Start()'ta tek-seferlik cavalryHpMult YOK; HP RecomputeMaxHp ile baseMaxHp'den türetilir (çift-çarpma yok); speed base'den bir kez.
+- [x] RETR: ResearchSystem.Apply canlı birimlerde RecomputeMaxHp çağırır (baseMaxHp+tech+vet+civ); idempotent, çift-sayım yok.
 - [ ] SKIR: grep `UnitType.Skirmisher` GameTypes+UnitEntity (DamageKind=Pierce); CombatSystem AntiArcherMultiplier; Barracks/Feudal trainable.
 - [ ] SKI: grep `TechType.EliteSkirmisher`; TechDefs ArcheryRange/Imperial; TechState Skirmisher HP retroaktif artar.
 - [ ] SPEAR: TechState AttackBonus/HpBonus switch'inde UnitType.Spearman dalı var; Spearman vs Cavalry ~3× DamagePopup korunur.

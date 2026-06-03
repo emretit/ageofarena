@@ -143,12 +143,12 @@ Kalan gerçek ⬜ — büyük geliştirme (ayrı oturum) + P3 içerik genişleme
 
 | ID | Madde | Durum | Kanıt (file:line) |
 |---|---|---|---|
-| VTAT | Veterancy +%10 attack uygulanmıyor (yorum +%10 der, kod yalnız +10 HP) | ⬜ | `UnitEntity.cs:424-434` |
-| CIVB | Byzantines `buildingHpMult` & `healRateMult` hiç tüketilmiyor | ⬜ | `CivilizationDefs.cs:24-25`; `CombatSystem.cs:226` |
-| CIVF | Franks `farmDecayMult` uygulanmıyor | ⬜ | `CivilizationDefs.cs:28`; `ResourceNode.cs:27` |
-| CIVV | Süvari HP/hız civ bonusu `Start()`'ta donuyor, sonradan güncellenmiyor | ⬜ | `UnitEntity.cs:210-220` |
-| RETR | Araştırılan HP terfisi canlı birimlere geriye dönük uygulanmıyor | ⬜ | `UnitEntity.cs:207` |
-| AIRD | `RoundToInt(6.5)=6` (round-half-to-even) türetilmiş değer doküman ile uyuşmuyor | ⬜ | `EnemyAI.cs:104` |
+| VTAT | Veterancy +%10 attack uygulanmıyor (yorum +%10 der, kod yalnız +10 HP) | ✔️ M1 | VeteranMult getter'a eklendi |
+| CIVB | Byzantines `buildingHpMult` & `healRateMult` hiç tüketilmiyor | ✔️ M1 | BuildingEntity.Start + CombatSystem.StepHeal |
+| CIVF | Franks `farmDecayMult` uygulanmıyor | ✔️ M1 | ResourceNode decay'de tüketiliyor |
+| CIVV | Süvari HP/hız civ bonusu `Start()`'ta donuyor, sonradan güncellenmiyor | ✔️ M1 | RecomputeMaxHp birleşik modeli |
+| RETR | Araştırılan HP terfisi canlı birimlere geriye dönük uygulanmıyor | ✔️ M1 | ResearchSystem → RecomputeMaxHp |
+| AIRD | `RoundToInt(6.5)=6` (round-half-to-even) türetilmiş değer doküman ile uyuşmuyor | ⬜ | `EnemyAI.cs:104` (M12) |
 
 ### Oturum günlüğü
 

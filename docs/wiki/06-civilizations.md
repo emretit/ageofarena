@@ -23,7 +23,7 @@ bir nötr `None` (bonussuz, dengeli) seçeneği vardır:
 - **Britons** (Britanyalılar) — okçu uzmanı (tek gerçek unique birim sahibi: Longbowman)
 - **Mongols** (Moğollar) — hızlı süvari + altın ekonomisi
 - **Japanese** (Japonlar) — piyade + odun ekonomisi
-- **Byzantines** (Bizanslılar) — savunma + iyileştirme (kısmen inert, bkz. §6)
+- **Byzantines** (Bizanslılar) — savunma + iyileştirme (bina +%10 HP, heal +%50; M1'de aktif)
 
 Medeniyetler **`SetupGameplay`** içinde 4 takımın hepsine **rastgele** atanır
 (`Civilization.None` atlanır) — yani oyuncu civ seçim ekranı henüz yoktur, oyuncu da rastgele
@@ -52,20 +52,26 @@ TeamCivBonus(team) → CivilizationDefs.Get(teamCivs[team])
   ([UnitEntity.cs:117](../../AgeOfArenaUnity/Assets/Scripts/UnitEntity.cs#L117)).
 - **Okçu menzili:** `range = (baz + tech) + archerRangeBonus`, sadece Archer & Longbowman için
   (toplamsal, çarpansal değil) ([UnitEntity.cs:127](../../AgeOfArenaUnity/Assets/Scripts/UnitEntity.cs#L127)).
-- **Süvari HP & hız:** Cavalry **spawn anında bir kez** uygulanır:
-  `maxHp *= cavalryHpMult; hp *= cavalryHpMult`, `moveSpeed *= cavalrySpeedMult`
-  ([UnitEntity.cs:211-220](../../AgeOfArenaUnity/Assets/Scripts/UnitEntity.cs#L211)).
-  Not: çarpan `Start()` içinde uygulandığı için sonradan civ değişse bile mevcut süvariler
-  güncellenmez.
+- **Süvari HP:** Cavalry için `cavalryHpMult`, `RecomputeMaxHp()` içinde `baseMaxHp`'den
+  türetilir (`computed = (baseMaxHp + tech + veterancy) * cavalryHpMult`) — spawn, araştırma ve
+  rütbe atlamada yeniden hesaplanır, idempotenttir (çift-çarpma yok)
+  ([UnitEntity.cs](../../AgeOfArenaUnity/Assets/Scripts/UnitEntity.cs)). (M1'de düzeltildi: eski
+  tek-seferlik `Start()` çarpımı kaldırıldı.)
+- **Süvari hız:** `moveSpeed *= cavalrySpeedMult` `Start()`'ta base'den bir kez (civ takım başına
+  sabit olduğu için hız tech ile değişmez).
 - **Britons Longbowman erişimi:** Archery Range'in eğitim listesi civ'e göre dallanır —
   `IsBritons ? ArcheryTrainablesBritons : ArcheryTrainables`
   ([BuildingEntity.cs:172](../../AgeOfArenaUnity/Assets/Scripts/BuildingEntity.cs#L172),
   [:195](../../AgeOfArenaUnity/Assets/Scripts/BuildingEntity.cs#L195)). Longbowman Castle Age+'ta açılır.
 
-**Inert (tanımlı ama tüketilmeyen) çarpanlar:** `buildingHpMult`, `healRateMult`,
-`farmDecayMult` `CivBonus` içinde tanımlıdır fakat **hiçbir sistem tarafından okunmaz**
-(yalnızca `CivilizationDefs.cs`'te geçer). Yani Byzantines'in bina HP / iyileştirme bonusu ve
-Franks'ın çiftlik bozunma bonusu şu an **oyunda etkisizdir** (bkz. §6, §8).
+**(M1'de düzeltildi — artık aktif):** `buildingHpMult`, `healRateMult`, `farmDecayMult` artık
+tüketiliyor:
+- `buildingHpMult` → `BuildingEntity.Start` (Byzantines bina maxHp ×1.1)
+- `healRateMult` → `CombatSystem.StepHeal` (Byzantines Medic heal ×1.5)
+- `farmDecayMult` → `ResourceNode` decay (Franks çiftlik bozunması ×0.5)
+
+Eskiden bu üç çarpan tanımlı ama hiçbir sistemce okunmuyordu (ölü bonus); M1 milestone'da
+canlandırıldı.
 
 ## 3. Gerçek statlar (koddan)
 
@@ -81,9 +87,9 @@ içinden. `1.0` = bonus yok (nötr), `0` = toplamsal bonus yok.
 | **Japanese** (Japonlar) | 1.0 | **1.1** | 1.0 | 1.0 | 1.0 | +0 | **1.1** | 1.0 | 1.0 | 1.0 | [CivilizationDefs.cs:57](../../AgeOfArenaUnity/Assets/Scripts/CivilizationDefs.cs#L57) |
 | **Byzantines** (Bizanslılar) | 1.0 | 1.0 | 1.0 | 1.0 | 1.0 | +0 | 1.0 | **1.1** | **1.5** | 1.0 | [CivilizationDefs.cs:63](../../AgeOfArenaUnity/Assets/Scripts/CivilizationDefs.cs#L63) |
 
-¹ **Inert:** `buildingHpMult`, `healRateMult`, `farmDecayMult` tabloda tanımlı fakat hiçbir
-sistem okumuyor — gerçek oyun etkisi **yok** (bkz. §6). Franks 0.5 / Byzantines 1.1 & 1.5
-değerleri yalnızca veridir.
+¹ **(M1'de aktifleştirildi):** `buildingHpMult` (BuildingEntity.Start), `healRateMult`
+(CombatSystem.StepHeal), `farmDecayMult` (ResourceNode decay) artık tüketiliyor. Franks 0.5 /
+Byzantines 1.1 & 1.5 değerleri oyunda gerçek etki yapar (bkz. §6).
 
 **Türetilmiş etkiler (koddan, örnek):**
 

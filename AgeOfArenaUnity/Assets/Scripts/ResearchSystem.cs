@@ -90,12 +90,6 @@ public class ResearchSystem : MonoBehaviour
         var tech = gm.teamTech[teamId];
         if (tech.Has(type)) return;
 
-        // Capture each unit type's hp bonus before the tech lands so we can bump the
-        // max-hp (and current hp) of already-spawned units by exactly the delta.
-        var types = (UnitType[])System.Enum.GetValues(typeof(UnitType));
-        var before = new float[types.Length];
-        for (int i = 0; i < types.Length; i++) before[i] = tech.HpBonus(types[i]);
-
         tech.Mark(type);
         if (type == TechType.FeudalAge)
         {
@@ -117,22 +111,14 @@ public class ResearchSystem : MonoBehaviour
             GameEvents.FireResearchCompleted(teamId, type);
         }
 
-        // Per-type hp delta (indexable since UnitType values are contiguous 0..N).
-        var delta = new float[types.Length];
-        bool any = false;
-        for (int i = 0; i < types.Length; i++)
-        {
-            delta[i] = tech.HpBonus(types[i]) - before[i];
-            if (delta[i] > 0f) any = true;
-        }
-        if (!any) return;
-
+        // Retroactively apply the new tech's HP bonus to already-spawned units.
+        // RecomputeMaxHp derives maxHp from base + current tech + veterancy + civ, so it
+        // picks up the just-marked tech with no double-count (idempotent).
         for (int i = 0; i < gm.units.Count; i++)
         {
             var u = gm.units[i];
             if (u == null || u.teamId != teamId) continue;
-            float d = delta[(int)u.type];
-            if (d > 0f) { u.maxHp += d; u.hp += d; }
+            u.RecomputeMaxHp();
         }
     }
 }

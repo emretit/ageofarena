@@ -223,7 +223,9 @@ public class CombatSystem : MonoBehaviour
         if (best != null)
         {
             medic.FaceToward(best.transform.position);
-            best.Heal(medic.HealPower * dt);
+            // Byzantines heal +50% (healRateMult); other civs ×1.0.
+            float healMult = GameManager.Instance?.TeamCivBonus(medic.teamId).healRateMult ?? 1f;
+            best.Heal(medic.HealPower * healMult * dt);
         }
     }
 

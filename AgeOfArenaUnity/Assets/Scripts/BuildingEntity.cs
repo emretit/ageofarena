@@ -45,6 +45,9 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     void Start()
     {
         if (maxHp <= 0f) maxHp = MaxHpFor(type);
+        // Byzantines: buildings +10% HP (buildingHpMult); other civs ×1.0.
+        float bMult = GameManager.Instance?.TeamCivBonus(teamId).buildingHpMult ?? 1f;
+        if (bMult != 1f) maxHp *= bMult;
         if (hp <= 0f) hp = maxHp;
         var def = BuildingDefs.Get(type);
         meleeArmor = def.meleeArmor;
@@ -142,6 +145,11 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         new(UnitType.TradeCart, 35f, 0, 80, 50, "Q"), // wood+gold — trade route unit
     };
 
+    static readonly UnitTrainable[] DockTrainables =
+    {
+        new(UnitType.Galley, 35f, 0, 120, 60, "G"), // wood+gold — naval combat unit
+    };
+
     static readonly UnitTrainable[] Empty = System.Array.Empty<UnitTrainable>();
 
     /// <summary>Age this building's owning team has reached (null-safe → Dark).</summary>
@@ -176,6 +184,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         UnitType.Medic       => Age.Castle,
         UnitType.Monk        => Age.Castle,
         UnitType.Longbowman  => Age.Castle,
+        UnitType.Galley      => Age.Feudal,
         _                    => Age.Dark,
     };
 
@@ -191,6 +200,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
             BuildingType.Castle       => CastleTrainables,
             BuildingType.Monastery    => MonasteryTrainables,
             BuildingType.Market       => MarketTrainables,
+            BuildingType.Dock         => DockTrainables,
             _                         => Empty,
         };
 

@@ -99,8 +99,8 @@ Boştaki birim `AggroRadius > 0` ve stance `NoAttack` değilse en yakın düşma
 | Monk dönüştürme menzili | 2.5 (2× dışında iptal) | [CombatSystem.cs:246-248](../../AgeOfArenaUnity/Assets/Scripts/CombatSystem.cs#L246) |
 | Medic iyileştirme yarıçapı | 6 | [UnitEntity.cs:166](../../AgeOfArenaUnity/Assets/Scripts/UnitEntity.cs#L166) |
 | Medic iyileştirme gücü | 3 hp/s | [UnitEntity.cs:168](../../AgeOfArenaUnity/Assets/Scripts/UnitEntity.cs#L168) |
-| Veterancy: Veteran (1 kill) | +10 maxHP | [UnitEntity.cs:424-432](../../AgeOfArenaUnity/Assets/Scripts/UnitEntity.cs#L424) |
-| Veterancy: Elite (3 kill) | +10 maxHP (rütbe başına) | [UnitEntity.cs:427](../../AgeOfArenaUnity/Assets/Scripts/UnitEntity.cs#L427) |
+| Veterancy: Veteran (1 kill) | +10 maxHP **+ %10 attack** (VeteranMult ×1.1) | [UnitEntity.cs](../../AgeOfArenaUnity/Assets/Scripts/UnitEntity.cs) |
+| Veterancy: Elite (3 kill) | +10 maxHP/rütbe **+ %20 attack** (VeteranMult ×1.2) | [UnitEntity.cs](../../AgeOfArenaUnity/Assets/Scripts/UnitEntity.cs) |
 | Mermi hızı | 22 birim/sn | [Projectile.cs:11](../../AgeOfArenaUnity/Assets/Scripts/Projectile.cs#L11) |
 | Mermi ömrü (safety despawn) | 3 s | [Projectile.cs:13](../../AgeOfArenaUnity/Assets/Scripts/Projectile.cs#L13) |
 
