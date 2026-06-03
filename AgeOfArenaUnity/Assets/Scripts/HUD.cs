@@ -1263,6 +1263,7 @@ public class HUD : MonoBehaviour
         UnitType.Camel       => "Deveci",
         UnitType.Ram         => "Koçbaşı",
         UnitType.Mangonel    => "Mancınık Arabası",
+        UnitType.CavalryArcher => "Atlı Okçu",
         _                    => t.ToString(),
     };
 
@@ -1275,11 +1276,21 @@ public class HUD : MonoBehaviour
             switch (t)
             {
                 case UnitType.Militia:
+                    if (tech.Has(TechType.Champion))      return "Şampiyon";
+                    if (tech.Has(TechType.TwoHandedSwordsman)) return "İki Elli Kılıç";
                     if (tech.Has(TechType.Longswordsman)) return "Uzun Kılıç";
                     if (tech.Has(TechType.ManAtArms))     return "Piyade";
                     break;
                 case UnitType.Archer:
+                    if (tech.Has(TechType.Arbalest))      return "Arbalet";
                     if (tech.Has(TechType.Crossbowman))   return "Arbaletçi";
+                    break;
+                case UnitType.Scout:
+                    if (tech.Has(TechType.Hussar))        return "Hüsar";
+                    if (tech.Has(TechType.LightCavalry))  return "Hafif Süvari";
+                    break;
+                case UnitType.CavalryArcher:
+                    if (tech.Has(TechType.HeavyCavalryArcher)) return "Ağır Atlı Okçu";
                     break;
                 case UnitType.Cavalry:
                     if (tech.Has(TechType.Paladin))       return "Paladin";

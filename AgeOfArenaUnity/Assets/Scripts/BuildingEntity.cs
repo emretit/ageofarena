@@ -128,8 +128,9 @@ public class BuildingEntity : MonoBehaviour, IDamageable
 
     static readonly UnitTrainable[] StableTrainables =
     {
-        new(UnitType.Cavalry, 24f, 80, 0,  0, "C"),
-        new(UnitType.Camel,   22f, 55, 0, 60, "D"), // anti-cavalry; food+gold (Castle)
+        new(UnitType.Cavalry,       24f, 80, 0,  0, "C"),
+        new(UnitType.Camel,         22f, 55, 0, 60, "D"), // anti-cavalry; food+gold (Castle)
+        new(UnitType.CavalryArcher, 26f, 0, 40, 70, "A"), // mobile archer; wood+gold (Castle)
     };
 
     static readonly UnitTrainable[] CastleTrainables =
@@ -198,6 +199,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         UnitType.Camel       => Age.Castle,
         UnitType.Ram         => Age.Castle,
         UnitType.Mangonel    => Age.Castle,
+        UnitType.CavalryArcher => Age.Castle,
         _                    => Age.Dark,
     };
 

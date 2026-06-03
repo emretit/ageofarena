@@ -533,10 +533,10 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] SPLASH: UnitType.Mangonel (DamageKind=Siege, SplashRadius 1.8); Projectile alan hasarı + çoklu DamagePopup. (Runtime: splash1.8 doğrulandı.)
 - [x] RAMS: UnitFactory.Ram pierceArmor=180 (Archer→min-1 doğrulandı: 30 Pierce→delta 1); AntiStructure 5×; SiegeWorkshop'tan üretilir.
 - [x] MINR: UnitEntity.MinAttackRange (Trebuchet 3/Mangonel 2/Galley 1.5); CombatSystem FlatDist<MinAttackRange iken ateş etmez.
-- [ ] SCT2: grep `TechType.LightCavalry`+`Hussar` (Stable Castle/Imperial); Scout HP retroaktif yükselir.
-- [ ] CAVAR: grep `UnitType.CavalryArcher` (DamageKind=Pierce, IsRanged); Stable/Castle; ok atar.
-- [ ] CAVA: grep `TechType.HeavyCavalryArcher` (Imperial); CavalryArcher HP retroaktif artar.
-- [ ] THSW: grep `TechType.TwoHandedSwordsman`; Champion.requires=TwoHandedSwordsman; Militia HP retroaktif.
+- [x] SCT2: LightCavalry(Stable/Castle)+Hussar(Stable/Imperial); Scout recon→combat (tasarım kararı: taban 0dmg/0aggro, tech ile aktif). Runtime: 40→55→70 HP, dmg 5→7, aggro 8.
+- [x] CAVAR: UnitType.CavalryArcher (Pierce, IsRanged, hız 5.2); Stable/Castle. Runtime: hp50/dmg5/range4 doğrulandı.
+- [x] CAVA: TechType.HeavyCavalryArcher (Stable/Imperial); CavalryArcher HP/atk RecomputeMaxHp ile retroaktif.
+- [x] THSW: TechType.TwoHandedSwordsman (Imperial, req Longswordsman); Champion.requires=TwoHandedSwordsman; Militia HP retroaktif; HUD tier adı.
 - [ ] EAGLE: grep `UnitType.Eagle` + UnitFactory.Eagle(); civ-koşullu trainable; EliteEagle tech HP retroaktif.
 - [ ] NAVX: TechDefs WarGalley+Galleon (requires zinciri); grep `UnitType.FireShip`+`DemoShip`; Dock'tan naval spawn.
 - [ ] MFAITH: grep `faith` UnitEntity; ConvertTime faith'e bağlı; Monk relic→Monastery deposit→Gold gain.

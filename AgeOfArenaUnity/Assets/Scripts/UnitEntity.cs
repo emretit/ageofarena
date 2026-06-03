@@ -104,8 +104,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Militia     => 5f,  UnitType.Archer      => 4f,  UnitType.Cavalry    => 8f,
         UnitType.Trebuchet   => 35f, UnitType.Spearman    => 4f,  UnitType.Longbowman => 5f,
         UnitType.Galley      => 8f,  UnitType.Skirmisher  => 3f,  UnitType.Camel      => 7f,
-        UnitType.Ram         => 4f,  UnitType.Mangonel    => 25f,
-        // Support units deal no damage: Scout is pure recon, Medic only heals.
+        UnitType.Ram         => 4f,  UnitType.Mangonel    => 25f, UnitType.CavalryArcher => 5f,
+        // Support units deal no damage: Scout is pure recon (gains attack via Light Cavalry/Hussar
+        // tech, applied through TechState.AttackBonus), Medic only heals.
         UnitType.Scout       => 0f,  UnitType.Medic       => 0f,
         _                    => 2f,
     };
@@ -114,7 +115,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Militia     => 1.3f, UnitType.Archer      => 6.5f, UnitType.Cavalry    => 1.4f,
         UnitType.Trebuchet   => 15f,  UnitType.Spearman    => 1.5f, UnitType.Longbowman => 8.5f,
         UnitType.Galley      => 5.5f, UnitType.Skirmisher  => 5f,   UnitType.Camel      => 1.4f,
-        UnitType.Ram         => 1.3f, UnitType.Mangonel    => 9f,
+        UnitType.Ram         => 1.3f, UnitType.Mangonel    => 9f,   UnitType.CavalryArcher => 4f,
         _                    => 1.1f,
     };
     /// <summary>Effective damage = base + tech bonus, scaled by civ infantry bonus for infantry types.</summary>
@@ -143,16 +144,18 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Militia     => 1.0f, UnitType.Archer      => 1.4f, UnitType.Cavalry    => 1.1f,
         UnitType.Trebuchet   => 5.5f, UnitType.Spearman    => 1.3f, UnitType.Longbowman => 1.6f,
         UnitType.Galley      => 2.0f, UnitType.Skirmisher  => 2.0f, UnitType.Camel      => 1.1f,
-        UnitType.Ram         => 3.0f, UnitType.Mangonel    => 4.0f,
+        UnitType.Ram         => 3.0f, UnitType.Mangonel    => 4.0f, UnitType.CavalryArcher => 2.0f,
         _                    => 1.6f,
     };
-    /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.</summary>
+    /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.
+    /// Scout is passive recon until upgraded to Light Cavalry (then it becomes combat-capable).</summary>
     public float AggroRadius => type switch
     {
         UnitType.Militia     => 7f,  UnitType.Archer      => 9f,   UnitType.Cavalry    => 8f,
         UnitType.Trebuchet   => 15f, UnitType.Spearman    => 7f,   UnitType.Longbowman => 11f,
         UnitType.Galley      => 8f,  UnitType.Skirmisher  => 9f,   UnitType.Camel      => 8f,
-        UnitType.Mangonel    => 11f, UnitType.Ram         => 4f,
+        UnitType.Mangonel    => 11f, UnitType.Ram         => 4f,   UnitType.CavalryArcher => 10f,
+        UnitType.Scout       => (TeamTech?.Has(TechType.LightCavalry) ?? false) ? 8f : 0f,
         _                    => 0f,
     };
     /// <summary>Siege units deal bonus building damage: Trebuchet 3×, Ram 5×.</summary>
@@ -189,6 +192,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Archer      => DamageType.Pierce,
         UnitType.Longbowman  => DamageType.Pierce,
         UnitType.Skirmisher  => DamageType.Pierce,
+        UnitType.CavalryArcher => DamageType.Pierce,
         UnitType.Galley      => DamageType.Pierce,
         UnitType.Trebuchet   => DamageType.Siege,
         UnitType.Mangonel    => DamageType.Siege,
@@ -198,7 +202,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     /// <summary>Ranged units attack via projectiles instead of melee contact.</summary>
     public bool IsRanged => type == UnitType.Archer || type == UnitType.Trebuchet
         || type == UnitType.Longbowman || type == UnitType.Galley || type == UnitType.Skirmisher
-        || type == UnitType.Mangonel;
+        || type == UnitType.Mangonel || type == UnitType.CavalryArcher;
 
     // ── Medic healing (driven by CombatSystem.StepHeal) ──────────────────────
     /// <summary>Radius within which a Medic auto-heals friendly units; 0 = not a healer.</summary>
@@ -271,6 +275,10 @@ public class UnitEntity : MonoBehaviour, IDamageable
     /// </summary>
     public void RecomputeMaxHp(bool fillOnIncrease = true)
     {
+        // Safety: if a research-triggered recompute fires before this unit's Start()
+        // captured the factory base, seed baseMaxHp from the current maxHp now.
+        if (baseMaxHp <= 0f) baseMaxHp = maxHp;
+
         float computed = baseMaxHp
             + (TeamTech?.HpBonus(type) ?? 0f)
             + veteranRank * VetHpPerRank;

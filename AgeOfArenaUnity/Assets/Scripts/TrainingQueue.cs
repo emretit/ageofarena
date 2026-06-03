@@ -132,6 +132,7 @@ public class TrainingQueue : MonoBehaviour
             UnitType.Camel       => UnitFactory.Camel(unitsRoot, spawnPos, teamColor),
             UnitType.Ram         => UnitFactory.Ram(unitsRoot, spawnPos, teamColor),
             UnitType.Mangonel    => UnitFactory.Mangonel(unitsRoot, spawnPos, teamColor),
+            UnitType.CavalryArcher => UnitFactory.CavalryArcher(unitsRoot, spawnPos, teamColor),
             UnitType.Galley      => SpawnGalley(b, unitsRoot, teamColor),
             _                    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
         };

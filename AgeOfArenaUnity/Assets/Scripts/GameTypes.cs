@@ -6,7 +6,7 @@ public enum ResourceKind { Food, Wood, Gold, Stone }
 
 public enum UnitState { Idle, Moving, Gathering, ReturningToDropoff, MovingToAttack, Attacking, Constructing }
 
-public enum UnitType { Villager, Militia, Archer, Cavalry, Trebuchet, Scout, Medic, Spearman, Monk, TradeCart, Galley, Longbowman, Skirmisher, Camel, Ram, Mangonel }
+public enum UnitType { Villager, Militia, Archer, Cavalry, Trebuchet, Scout, Medic, Spearman, Monk, TradeCart, Galley, Longbowman, Skirmisher, Camel, Ram, Mangonel, CavalryArcher }
 
 /// <summary>Damage class for the armor counter matrix. Siege bypasses both armor types.</summary>
 public enum DamageType { Melee, Pierce, Siege }
@@ -54,6 +54,11 @@ public enum TechType
     Pikeman,        // Spearman tier 2 (Castle): +atk, +hp
     Halberdier,     // Spearman tier 3 (Imperial, requires Pikeman)
     HeavyCamel,     // Camel tier 2 (Imperial): +atk, +hp
+    // Mobile-unit lines (M4)
+    TwoHandedSwordsman, // Militia tier 3.5 (Imperial, requires Longswordsman; Champion requires this)
+    LightCavalry,       // Scout tier 2 (Castle): +atk, +hp, combat-capable
+    Hussar,             // Scout tier 3 (Imperial, requires LightCavalry)
+    HeavyCavalryArcher, // Cavalry Archer tier 2 (Imperial): +atk, +hp
     // Economy upgrades
     DoubleBitAxe,   // +wood gather
     Wheelbarrow,    // +all gather

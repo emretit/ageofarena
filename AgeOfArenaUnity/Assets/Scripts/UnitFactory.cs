@@ -332,6 +332,38 @@ public static class UnitFactory
         return e;
     }
 
+    public static UnitEntity CavalryArcher(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("CavalryArcher", parent, worldPos);
+        var t = g.transform;
+
+        var horse = Prims.Mat(Prims.Hex(0x5a4632));
+        var skin  = Prims.Mat(Prims.Hex(0xe0ac69));
+        var cloth = Prims.Mat(teamColor, 0.1f, 0.3f);
+        var wood  = Prims.Mat(Prims.Hex(0x6b4a2a));
+
+        // Horse (same proportions as Cavalry).
+        Prims.Box(t, new Vector3(0, 0.85f, 0), new Vector3(0.5f, 0.5f, 1.2f), horse);       // barrel
+        Prims.Box(t, new Vector3(0, 1.15f, 0.6f), new Vector3(0.32f, 0.55f, 0.35f), horse); // neck
+        Prims.Box(t, new Vector3(0, 1.4f, 0.78f), new Vector3(0.28f, 0.3f, 0.5f), horse);   // head
+        foreach (var lx in new[] { -0.18f, 0.18f })
+            foreach (var lz in new[] { -0.45f, 0.45f })
+                Prims.Box(t, new Vector3(lx, 0.35f, lz), new Vector3(0.12f, 0.7f, 0.12f), horse); // legs
+        // Mounted archer rider.
+        Prims.Box(t, new Vector3(0, 1.45f, -0.1f), new Vector3(0.34f, 0.6f, 0.26f), cloth); // torso
+        Prims.Sphere(t, new Vector3(0, 1.9f, -0.1f), 0.16f, skin);                          // head
+        Prims.Box(t, new Vector3(0, 1.96f, -0.1f), new Vector3(0.3f, 0.16f, 0.3f), Prims.Mat(Prims.Hex(0x3a5a2a))); // hood
+        // Bow held across the body + quiver.
+        Prims.Box(t, new Vector3(-0.34f, 1.5f, 0.15f), new Vector3(0.05f, 0.9f, 0.08f), wood);
+        Prims.Box(t, new Vector3(0.16f, 1.55f, -0.22f), new Vector3(0.1f, 0.4f, 0.1f), wood);
+
+        var e = Finish(g, UnitType.CavalryArcher, teamColor);
+        e.hp = e.maxHp = 50f;
+        e.moveSpeed = 5.2f;     // fast like cavalry
+        e.pierceArmor = 1f;
+        return e;
+    }
+
     public static UnitEntity Monk(Transform parent, Vector3 worldPos, Color teamColor)
     {
         var g = NewUnit("Monk", parent, worldPos);

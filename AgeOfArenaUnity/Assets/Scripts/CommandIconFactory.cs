@@ -116,6 +116,13 @@ public static class CommandIconFactory
                 Add(icon, Square, Wood, 0, 2, 4, 22, 35);          // throwing arm
                 Add(icon, Circle, Stone, 7, 11, 9, 9);             // boulder
                 break;
+            case UnitType.CavalryArcher:
+                Add(icon, Square, Wood, 0, -2, 26, 11);            // horse body
+                Add(icon, Square, Wood, 11, 7, 7, 13, 20);         // neck/head
+                Add(icon, Square, Dark, -7, -12, 3, 10);           // legs
+                Add(icon, Square, Dark, 8, -12, 3, 10);
+                Add(icon, Ring,   Wood, -3, 9, 13, 13);            // rider's bow
+                break;
             case UnitType.Galley:
                 Add(icon, Square,   Wood,  0, -6, 28, 10);         // hull
                 Add(icon, Triangle, Dark, -13, -4, 8, 12);         // bow
@@ -233,6 +240,8 @@ public static class CommandIconFactory
             case TechType.Forging:
             case TechType.ManAtArms:
             case TechType.Longswordsman:
+            case TechType.TwoHandedSwordsman:
+            case TechType.Champion:
                 Add(icon, Square, Steel, 0, 4, 5, 24);             // sword
                 Add(icon, Square, Dark,  0, -8, 14, 4);
                 break;
@@ -245,6 +254,7 @@ public static class CommandIconFactory
             case TechType.Bodkin:
             case TechType.Crossbowman:
             case TechType.EliteSkirmisher:
+            case TechType.HeavyCavalryArcher:
                 Add(icon, Square,   Wood,  -2, 0, 24, 3);          // arrow
                 Add(icon, Triangle, Steel, 11, 0, 9, 9, -90);
                 break;
@@ -252,6 +262,8 @@ public static class CommandIconFactory
             case TechType.Bloodlines:
             case TechType.Cavalier:
             case TechType.HeavyCamel:
+            case TechType.LightCavalry:
+            case TechType.Hussar:
                 Add(icon, Circle, Shield, 0, 2, 22, 22);           // shield
                 Add(icon, Ring,   Steel, 0, 2, 22, 22);
                 break;

@@ -26,6 +26,7 @@ public class TechState
     // Tier-promotion bonuses stack (Castle + Imperial tiers).
     float MilitiaLineAtk => (Has(TechType.ManAtArms) ? 1f : 0f)
                           + (Has(TechType.Longswordsman) ? 2f : 0f)
+                          + (Has(TechType.TwoHandedSwordsman) ? 2f : 0f)
                           + (Has(TechType.Champion) ? 2f : 0f);
     float CavalryLineAtk => (Has(TechType.Cavalier) ? 2f : 0f)
                           + (Has(TechType.Paladin) ? 3f : 0f);
@@ -36,6 +37,10 @@ public class TechState
                              + (Has(TechType.Halberdier) ? 3f : 0f);
     float SkirmisherLineAtk => Has(TechType.EliteSkirmisher) ? 1f : 0f;
     float CamelLineAtk      => Has(TechType.HeavyCamel) ? 3f : 0f;
+    // Mobile-unit lines (M4): Scout→Light Cav→Hussar grants combat; Cavalry Archer tier.
+    float ScoutLineAtk      => (Has(TechType.LightCavalry) ? 5f : 0f)
+                             + (Has(TechType.Hussar) ? 2f : 0f);
+    float CavArcherLineAtk  => Has(TechType.HeavyCavalryArcher) ? 2f : 0f;
 
     /// <summary>Additive attack bonus for a unit type (read live by CombatSystem).</summary>
     public float AttackBonus(UnitType t) => t switch
@@ -46,6 +51,8 @@ public class TechState
         UnitType.Spearman   => MeleeAttackBonus + SpearmanLineAtk,
         UnitType.Skirmisher => ArcherAttackBonus + SkirmisherLineAtk,
         UnitType.Camel      => MeleeAttackBonus + CamelLineAtk,
+        UnitType.Scout      => ScoutLineAtk,
+        UnitType.CavalryArcher => ArcherAttackBonus + CavArcherLineAtk,
         _ => 0f,
     };
 
@@ -63,6 +70,7 @@ public class TechState
         UnitType.Militia => (Has(TechType.ScaleMail) ? 20f : 0f)
                           + (Has(TechType.ManAtArms) ? 10f : 0f)
                           + (Has(TechType.Longswordsman) ? 15f : 0f)
+                          + (Has(TechType.TwoHandedSwordsman) ? 15f : 0f)
                           + (Has(TechType.Champion) ? 20f : 0f),
         UnitType.Cavalry => (Has(TechType.ScaleMail) ? 20f : 0f)
                           + (Has(TechType.Bloodlines) ? 20f : 0f)
@@ -76,6 +84,11 @@ public class TechState
         UnitType.Skirmisher => Has(TechType.EliteSkirmisher) ? 10f : 0f,
         UnitType.Camel   => (Has(TechType.Bloodlines) ? 20f : 0f)
                           + (Has(TechType.HeavyCamel) ? 20f : 0f),
+        UnitType.Scout   => (Has(TechType.LightCavalry) ? 15f : 0f)
+                          + (Has(TechType.Hussar) ? 15f : 0f)
+                          + (Has(TechType.Bloodlines) ? 20f : 0f),
+        UnitType.CavalryArcher => (Has(TechType.Bloodlines) ? 20f : 0f)
+                          + (Has(TechType.HeavyCavalryArcher) ? 20f : 0f),
         _ => 0f,
     };
 

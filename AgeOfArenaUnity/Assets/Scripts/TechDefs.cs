@@ -55,7 +55,8 @@ public static class TechDefs
         // ── Unit upgrade lines (tier promotions) ──────────────────────────────
         new(TechType.ManAtArms,     BuildingType.Barracks,     Age.Feudal,  100,   0,  40, 0, 25f, "Piyade"),
         new(TechType.Longswordsman, BuildingType.Barracks,     Age.Castle,  150,   0, 100, 0, 30f, "Uzun Kılıç",  TechType.ManAtArms),
-        new(TechType.Champion,      BuildingType.Barracks,     Age.Imperial,200,   0, 150, 0, 35f, "Şampiyon",    TechType.Longswordsman),
+        new(TechType.TwoHandedSwordsman, BuildingType.Barracks, Age.Imperial,150,  0, 120, 0, 32f, "İki Elli Kılıç", TechType.Longswordsman),
+        new(TechType.Champion,      BuildingType.Barracks,     Age.Imperial,200,   0, 150, 0, 35f, "Şampiyon",    TechType.TwoHandedSwordsman),
         new(TechType.Crossbowman,   BuildingType.ArcheryRange, Age.Castle,  150,   0, 100, 0, 30f, "Arbaletçi"),
         new(TechType.Arbalest,      BuildingType.ArcheryRange, Age.Imperial,200,   0, 150, 0, 35f, "Arbalet",     TechType.Crossbowman),
         new(TechType.Cavalier,      BuildingType.Stable,       Age.Castle,  150,   0, 100, 0, 30f, "Ağır Süvari"),
@@ -65,6 +66,9 @@ public static class TechDefs
         new(TechType.Halberdier,      BuildingType.Barracks,     Age.Imperial,150,   0, 100, 0, 32f, "Teberli",       TechType.Pikeman),
         new(TechType.EliteSkirmisher, BuildingType.ArcheryRange, Age.Imperial,150,   0, 100, 0, 30f, "Seçkin Avcı"),
         new(TechType.HeavyCamel,      BuildingType.Stable,       Age.Imperial,150,   0, 100, 0, 30f, "Ağır Deve"),
+        new(TechType.LightCavalry,    BuildingType.Stable,       Age.Castle,  150,   0,  50, 0, 25f, "Hafif Süvari"),
+        new(TechType.Hussar,          BuildingType.Stable,       Age.Imperial,150,   0, 100, 0, 30f, "Hüsar",          TechType.LightCavalry),
+        new(TechType.HeavyCavalryArcher, BuildingType.Stable,    Age.Imperial,150,   0, 125, 0, 30f, "Ağır Atlı Okçu"),
         // ── University techs (Imperial) ───────────────────────────────────────
         new(TechType.Masonry,       BuildingType.University,   Age.Castle,  150,   0,   0, 0, 22f, "Duvar Ustalığı"),
         new(TechType.Fortified,     BuildingType.University,   Age.Imperial,200,   0, 150, 0, 30f, "Takviyeli Duvar"),
