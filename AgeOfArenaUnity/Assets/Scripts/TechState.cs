@@ -31,13 +31,21 @@ public class TechState
                           + (Has(TechType.Paladin) ? 3f : 0f);
     float ArcherLineAtk  => (Has(TechType.Crossbowman) ? 2f : 0f)
                           + (Has(TechType.Arbalest) ? 2f : 0f);
+    // Counter-unit tier lines (M2): Spearman→Pikeman→Halberdier, Skirmisher→Elite, Camel→Heavy.
+    float SpearmanLineAtk   => (Has(TechType.Pikeman) ? 2f : 0f)
+                             + (Has(TechType.Halberdier) ? 3f : 0f);
+    float SkirmisherLineAtk => Has(TechType.EliteSkirmisher) ? 1f : 0f;
+    float CamelLineAtk      => Has(TechType.HeavyCamel) ? 3f : 0f;
 
     /// <summary>Additive attack bonus for a unit type (read live by CombatSystem).</summary>
     public float AttackBonus(UnitType t) => t switch
     {
-        UnitType.Militia => MeleeAttackBonus + MilitiaLineAtk,
-        UnitType.Cavalry => MeleeAttackBonus + CavalryLineAtk,
-        UnitType.Archer  => ArcherAttackBonus + ArcherLineAtk,
+        UnitType.Militia    => MeleeAttackBonus + MilitiaLineAtk,
+        UnitType.Cavalry    => MeleeAttackBonus + CavalryLineAtk,
+        UnitType.Archer     => ArcherAttackBonus + ArcherLineAtk,
+        UnitType.Spearman   => MeleeAttackBonus + SpearmanLineAtk,
+        UnitType.Skirmisher => ArcherAttackBonus + SkirmisherLineAtk,
+        UnitType.Camel      => MeleeAttackBonus + CamelLineAtk,
         _ => 0f,
     };
 
@@ -62,6 +70,12 @@ public class TechState
                           + (Has(TechType.Paladin) ? 25f : 0f),
         UnitType.Archer  => (Has(TechType.Crossbowman) ? 10f : 0f)
                           + (Has(TechType.Arbalest) ? 15f : 0f),
+        UnitType.Spearman => (Has(TechType.ScaleMail) ? 20f : 0f)
+                          + (Has(TechType.Pikeman) ? 15f : 0f)
+                          + (Has(TechType.Halberdier) ? 20f : 0f),
+        UnitType.Skirmisher => Has(TechType.EliteSkirmisher) ? 10f : 0f,
+        UnitType.Camel   => (Has(TechType.Bloodlines) ? 20f : 0f)
+                          + (Has(TechType.HeavyCamel) ? 20f : 0f),
         _ => 0f,
     };
 

@@ -122,10 +122,16 @@ public class CombatSystem : MonoBehaviour
             {
                 float dmg = u.AttackDamage;
 
-                // Spearman anti-cavalry bonus (only vs Cavalry UnitEntity targets).
-                if (u.type == UnitType.Spearman &&
-                    u.attackTarget is UnitEntity tu && tu.type == UnitType.Cavalry)
-                    dmg *= u.AntiCavalryMultiplier;
+                // Counter bonuses vs unit classes: anti-cavalry (Spearman/Camel) vs
+                // Cavalry/Camel; anti-archer (Skirmisher) vs archer-class targets.
+                if (u.attackTarget is UnitEntity tu)
+                {
+                    if (tu.type == UnitType.Cavalry || tu.type == UnitType.Camel)
+                        dmg *= u.AntiCavalryMultiplier;
+                    else if (tu.type == UnitType.Archer || tu.type == UnitType.Longbowman
+                          || tu.type == UnitType.Skirmisher)
+                        dmg *= u.AntiArcherMultiplier;
+                }
 
                 // Anti-structure bonus (Trebuchet) when hitting a building.
                 if (u.attackTarget is BuildingEntity)

@@ -522,12 +522,12 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] CIVF: `farmDecayMult` ResourceNode decay'de tüketiliyor; Franks farm yarı hızda decay, None ×1.0 regresyonsuz.
 - [x] CIVV: Start()'ta tek-seferlik cavalryHpMult YOK; HP RecomputeMaxHp ile baseMaxHp'den türetilir (çift-çarpma yok); speed base'den bir kez.
 - [x] RETR: ResearchSystem.Apply canlı birimlerde RecomputeMaxHp çağırır (baseMaxHp+tech+vet+civ); idempotent, çift-sayım yok.
-- [ ] SKIR: grep `UnitType.Skirmisher` GameTypes+UnitEntity (DamageKind=Pierce); CombatSystem AntiArcherMultiplier; Barracks/Feudal trainable.
-- [ ] SKI: grep `TechType.EliteSkirmisher`; TechDefs ArcheryRange/Imperial; TechState Skirmisher HP retroaktif artar.
-- [ ] SPEAR: TechState AttackBonus/HpBonus switch'inde UnitType.Spearman dalı var; Spearman vs Cavalry ~3× DamagePopup korunur.
-- [ ] SPN2: grep `TechType.Pikeman`+`TechType.Halberdier`; Halberdier requires=Pikeman+Imperial; Spearman HP retroaktif.
-- [ ] CAMEL: grep `UnitType.Camel`; anti-cavalry çarpanı CombatSystem'de Camel'i kapsar; Stable/Castle trainable.
-- [ ] CAML: grep `TechType.HeavyCamel` (Stable/Imperial); Camel HP/atk retroaktif artar.
+- [x] SKIR: UnitType.Skirmisher (DamageKind=Pierce, IsRanged, AntiArcherMultiplier 2×); ArcheryRange/Feudal trainable. (Runtime: dmg3/range5/Pierce/antiArcher2 doğrulandı.)
+- [x] SKI: TechType.EliteSkirmisher (ArcheryRange/Imperial); TechState Skirmisher HP/atk RecomputeMaxHp ile retroaktif.
+- [x] SPEAR: TechState AttackBonus/HpBonus'ta UnitType.Spearman dalı (SpearmanLineAtk); CombatSystem 3× anti-cavalry korundu.
+- [x] SPN2: TechType.Pikeman (Castle) + Halberdier (Imperial, requires=Pikeman); Spearman HP retroaktif; HUD tier adı (Kargıcı/Teberli).
+- [x] CAMEL: UnitType.Camel; CombatSystem anti-cavalry Camel'i kapsar (2×); Stable/Castle trainable. (Runtime: hp80/antiCav2 doğrulandı.)
+- [x] CAML: TechType.HeavyCamel (Stable/Imperial); Camel HP/atk RecomputeMaxHp ile retroaktif.
 - [ ] SWRK: grep `BuildingType.SiegeWorkshop` (Castle); SiegeWorkshopTrainables + GetTrainables switch; ≥1 kuşatma birimi üretilir.
 - [ ] AREA: Projectile.Spawn imzasında splashRadius (default 0); 0→tek hedef değişmez; >0→radius-içi düşmana çoklu TakeDamage, friendly skip.
 - [ ] SPLASH: grep `Mangonel` GameTypes (DamageKind=Siege); kümelenmiş 3+ düşmana çoklu DamagePopup.

@@ -114,19 +114,22 @@ public class BuildingEntity : MonoBehaviour, IDamageable
 
     static readonly UnitTrainable[] ArcheryTrainables =
     {
-        new(UnitType.Archer, 22f, 0, 25, 45, "A"),
+        new(UnitType.Archer,     22f, 0, 25, 45, "A"),
+        new(UnitType.Skirmisher, 22f, 0, 25, 35, "K"), // anti-archer; wood+gold (Feudal)
     };
 
     // Britons unique: Longbowman available at ArcheryRange (Castle Age+).
     static readonly UnitTrainable[] ArcheryTrainablesBritons =
     {
         new(UnitType.Archer,      22f, 0, 25, 45, "A"),
+        new(UnitType.Skirmisher,  22f, 0, 25, 35, "K"),
         new(UnitType.Longbowman,  26f, 0, 35, 65, "L"),
     };
 
     static readonly UnitTrainable[] StableTrainables =
     {
-        new(UnitType.Cavalry, 24f, 80, 0, 0, "C"),
+        new(UnitType.Cavalry, 24f, 80, 0,  0, "C"),
+        new(UnitType.Camel,   22f, 55, 0, 60, "D"), // anti-cavalry; food+gold (Castle)
     };
 
     static readonly UnitTrainable[] CastleTrainables =
@@ -185,6 +188,8 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         UnitType.Monk        => Age.Castle,
         UnitType.Longbowman  => Age.Castle,
         UnitType.Galley      => Age.Feudal,
+        UnitType.Skirmisher  => Age.Feudal,
+        UnitType.Camel       => Age.Castle,
         _                    => Age.Dark,
     };
 

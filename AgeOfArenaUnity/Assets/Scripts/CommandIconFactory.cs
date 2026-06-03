@@ -89,6 +89,20 @@ public static class CommandIconFactory
                 Add(icon, Square,   Wood,  -9, 4, 4, 30);          // spear shaft
                 Add(icon, Triangle, Steel, -9, 19, 9, 9, 0);       // spear tip
                 break;
+            case UnitType.Skirmisher:
+                Add(icon, Square,   Wood,  -6, 0, 3, 28, 20);      // javelin 1
+                Add(icon, Triangle, Steel,  2, 12, 8, 8, 20);      // javelin tip
+                Add(icon, Square,   Wood,   6, 0, 3, 28, -20);     // javelin 2
+                Add(icon, Triangle, Steel, -2, -12, 8, 8, 200);    // tip 2
+                break;
+            case UnitType.Camel:
+                Add(icon, Square, Prims.Hex(0xc8a86a), 0, -2, 26, 12); // camel body
+                Add(icon, Square, Prims.Hex(0xc8a86a), -2, 6, 12, 6);  // hump
+                Add(icon, Square, Prims.Hex(0xc8a86a), 11, 7, 6, 13, 20); // neck/head
+                Add(icon, Square, Dark, -7, -12, 3, 11);           // legs
+                Add(icon, Square, Dark, 8, -12, 3, 11);
+                Add(icon, Square, Blue, -1, 10, 7, 7);             // rider
+                break;
             case UnitType.Galley:
                 Add(icon, Square,   Wood,  0, -6, 28, 10);         // hull
                 Add(icon, Triangle, Dark, -13, -4, 8, 12);         // bow
@@ -203,15 +217,22 @@ public static class CommandIconFactory
                 Add(icon, Square, Steel, 0, 4, 5, 24);             // sword
                 Add(icon, Square, Dark,  0, -8, 14, 4);
                 break;
+            case TechType.Pikeman:
+            case TechType.Halberdier:
+                Add(icon, Square,   Wood,  0, -2, 4, 30);          // pike shaft
+                Add(icon, Triangle, Steel, 0, 16, 11, 11, 0);      // pike head
+                break;
             case TechType.Fletching:
             case TechType.Bodkin:
             case TechType.Crossbowman:
+            case TechType.EliteSkirmisher:
                 Add(icon, Square,   Wood,  -2, 0, 24, 3);          // arrow
                 Add(icon, Triangle, Steel, 11, 0, 9, 9, -90);
                 break;
             case TechType.ScaleMail:
             case TechType.Bloodlines:
             case TechType.Cavalier:
+            case TechType.HeavyCamel:
                 Add(icon, Circle, Shield, 0, 2, 22, 22);           // shield
                 Add(icon, Ring,   Steel, 0, 2, 22, 22);
                 break;

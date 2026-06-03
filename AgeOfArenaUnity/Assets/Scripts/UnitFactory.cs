@@ -213,6 +213,66 @@ public static class UnitFactory
         return e;
     }
 
+    public static UnitEntity Skirmisher(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Skirmisher", parent, worldPos);
+        var t = g.transform;
+
+        var skin  = Prims.Mat(Prims.Hex(0xe0ac69));
+        var tunic = Prims.Mat(teamColor, 0f, 0.3f);
+        var hide  = Prims.Mat(Prims.Hex(0x9a7b4f));
+        var wood  = Prims.Mat(Prims.Hex(0x6b4a2a));
+        var metal = Prims.Mat(Prims.Hex(0xc0c0c8), 0.6f, 0.6f);
+
+        Prims.Box(t, new Vector3(0, 0.45f, 0), new Vector3(0.42f, 0.7f, 0.32f), tunic);     // torso
+        Prims.Box(t, new Vector3(0, 0.55f, 0.18f), new Vector3(0.3f, 0.42f, 0.08f), hide);  // leather jerkin
+        Prims.Sphere(t, new Vector3(0, 0.95f, 0), 0.18f, skin);                              // head
+        Prims.Box(t, new Vector3(0, 1.02f, 0), new Vector3(0.3f, 0.16f, 0.3f), hide);        // leather cap
+        // javelin bundle on the back + one readied in hand
+        Prims.Box(t, new Vector3(-0.18f, 0.8f, -0.16f), new Vector3(0.05f, 0.9f, 0.05f), wood);
+        Prims.Box(t, new Vector3(0.32f, 0.9f, 0.1f),  new Vector3(0.04f, 1.0f, 0.04f), wood);
+        Prims.Box(t, new Vector3(0.32f, 1.42f, 0.1f), new Vector3(0.07f, 0.18f, 0.07f), metal); // javelin tip
+
+        var e = Finish(g, UnitType.Skirmisher, teamColor);
+        e.hp = e.maxHp = 30f;
+        e.moveSpeed = 3.2f;
+        e.pierceArmor = 3f;   // skirmishers shrug off arrows
+        return e;
+    }
+
+    public static UnitEntity Camel(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Camel", parent, worldPos);
+        var t = g.transform;
+
+        var camel = Prims.Mat(Prims.Hex(0xc8a86a));
+        var metal = Prims.Mat(Prims.Hex(0xc0c0c8), 0.6f, 0.6f);
+        var skin  = Prims.Mat(Prims.Hex(0xe0ac69));
+        var cloth = Prims.Mat(teamColor, 0.2f, 0.4f);
+
+        // Camel body + hump + neck + head + long legs.
+        Prims.Box(t, new Vector3(0, 0.9f, 0),     new Vector3(0.48f, 0.5f, 1.1f), camel);    // barrel
+        Prims.Box(t, new Vector3(0, 1.25f, -0.1f),new Vector3(0.42f, 0.35f, 0.5f), camel);   // hump
+        Prims.Box(t, new Vector3(0, 1.35f, 0.6f), new Vector3(0.26f, 0.6f, 0.28f), camel);   // neck
+        Prims.Box(t, new Vector3(0, 1.7f, 0.72f), new Vector3(0.24f, 0.26f, 0.42f), camel);  // head
+        foreach (var lx in new[] { -0.16f, 0.16f })
+            foreach (var lz in new[] { -0.4f, 0.4f })
+                Prims.Box(t, new Vector3(lx, 0.4f, lz), new Vector3(0.1f, 0.85f, 0.1f), camel); // legs
+        // Rider on top.
+        Prims.Box(t, new Vector3(0, 1.55f, -0.1f), new Vector3(0.34f, 0.55f, 0.26f), cloth); // rider torso
+        Prims.Sphere(t, new Vector3(0, 1.95f, -0.1f), 0.15f, skin);                          // rider head
+        Prims.Box(t, new Vector3(0, 2.0f, -0.1f), new Vector3(0.3f, 0.15f, 0.3f), metal);    // helmet
+        // spear (anti-cavalry weapon)
+        Prims.Box(t, new Vector3(0.26f, 1.6f, 0.3f), new Vector3(0.05f, 0.05f, 1.5f), metal);
+
+        var e = Finish(g, UnitType.Camel, teamColor);
+        e.hp = e.maxHp = 80f;
+        e.moveSpeed = 5.8f;
+        e.meleeArmor = 1f;
+        e.pierceArmor = 1f;
+        return e;
+    }
+
     public static UnitEntity Monk(Transform parent, Vector3 worldPos, Color teamColor)
     {
         var g = NewUnit("Monk", parent, worldPos);

@@ -60,6 +60,11 @@ public static class TechDefs
         new(TechType.Arbalest,      BuildingType.ArcheryRange, Age.Imperial,200,   0, 150, 0, 35f, "Arbalet",     TechType.Crossbowman),
         new(TechType.Cavalier,      BuildingType.Stable,       Age.Castle,  150,   0, 100, 0, 30f, "Ağır Süvari"),
         new(TechType.Paladin,       BuildingType.Stable,       Age.Imperial,200,   0, 150, 0, 35f, "Paladin",     TechType.Cavalier),
+        // ── Counter-unit tier lines (M2) ──────────────────────────────────────
+        new(TechType.Pikeman,         BuildingType.Barracks,     Age.Castle,  100,   0,  50, 0, 28f, "Mızrakçı"),
+        new(TechType.Halberdier,      BuildingType.Barracks,     Age.Imperial,150,   0, 100, 0, 32f, "Teberli",       TechType.Pikeman),
+        new(TechType.EliteSkirmisher, BuildingType.ArcheryRange, Age.Imperial,150,   0, 100, 0, 30f, "Seçkin Avcı"),
+        new(TechType.HeavyCamel,      BuildingType.Stable,       Age.Imperial,150,   0, 100, 0, 30f, "Ağır Deve"),
         // ── University techs (Imperial) ───────────────────────────────────────
         new(TechType.Masonry,       BuildingType.University,   Age.Castle,  150,   0,   0, 0, 22f, "Duvar Ustalığı"),
         new(TechType.Fortified,     BuildingType.University,   Age.Imperial,200,   0, 150, 0, 30f, "Takviyeli Duvar"),

@@ -1259,6 +1259,8 @@ public class HUD : MonoBehaviour
         UnitType.Spearman    => "Mızrakçı",
         UnitType.Longbowman  => "Uzun Yaylı",
         UnitType.Galley      => "Gemi",
+        UnitType.Skirmisher  => "Avcı",
+        UnitType.Camel       => "Deveci",
         _                    => t.ToString(),
     };
 
@@ -1278,7 +1280,18 @@ public class HUD : MonoBehaviour
                     if (tech.Has(TechType.Crossbowman))   return "Arbaletçi";
                     break;
                 case UnitType.Cavalry:
+                    if (tech.Has(TechType.Paladin))       return "Paladin";
                     if (tech.Has(TechType.Cavalier))      return "Ağır Süvari";
+                    break;
+                case UnitType.Spearman:
+                    if (tech.Has(TechType.Halberdier))    return "Teberli";
+                    if (tech.Has(TechType.Pikeman))       return "Kargıcı";
+                    break;
+                case UnitType.Skirmisher:
+                    if (tech.Has(TechType.EliteSkirmisher)) return "Seçkin Avcı";
+                    break;
+                case UnitType.Camel:
+                    if (tech.Has(TechType.HeavyCamel))    return "Ağır Deve";
                     break;
             }
         }
