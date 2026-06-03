@@ -21,6 +21,13 @@ public class RelicEntity : MonoBehaviour
 
     public readonly List<UnitEntity> unitsNearby = new();
 
+    // Monk relic carry (AoE2 model): a Monk can pick the relic up and haul it to a
+    // friendly Monastery, where it locks in (heldInMonastery) and trickles gold.
+    public UnitEntity carrier;          // Monk currently hauling this relic (null = not carried)
+    public bool heldInMonastery;        // deposited in a Monastery → permanent control + gold
+    /// <summary>Relic is free to be captured-by-proximity or picked up by a Monk.</summary>
+    public bool Available => carrier == null && !heldInMonastery;
+
     const float CaptureSeconds = 5f;   // uncontested presence needed to flip
     const float DecayRate      = 1.5f; // progress lost per second when uncontested
     const float GoldPerSecond  = 0.5f; // passive gold per second while controlled
@@ -79,18 +86,30 @@ public class RelicEntity : MonoBehaviour
             if (captureProgress <= 0f) capturingTeam = -1;
         }
 
-        // Passive gold trickle for the owner (accumulate fractional, grant whole gold).
-        if (controllingTeam >= 0)
+        GrantGold(dt);
+    }
+
+    /// <summary>Passive gold trickle for the controlling team (held or proximity-controlled).</summary>
+    public void GrantGold(float dt)
+    {
+        if (controllingTeam < 0) return;
+        _goldAccum += GoldPerSecond * dt;
+        if (_goldAccum >= 1f)
         {
-            _goldAccum += GoldPerSecond * dt;
-            if (_goldAccum >= 1f)
-            {
-                int g = Mathf.FloorToInt(_goldAccum);
-                _goldAccum -= g;
-                var gm = GameManager.Instance;
-                if (gm != null) gm.teamRes[controllingTeam].Gain(ResourceKind.Gold, g);
-            }
+            int g = Mathf.FloorToInt(_goldAccum);
+            _goldAccum -= g;
+            var gm = GameManager.Instance;
+            if (gm != null) gm.teamRes[controllingTeam].Gain(ResourceKind.Gold, g);
         }
+    }
+
+    /// <summary>Lock the relic to a team (used on Monastery deposit) and re-tint the orb.</summary>
+    public void ForceControl(int team)
+    {
+        controllingTeam = team;
+        capturingTeam = -1;
+        captureProgress = 0f;
+        ApplyColor();
     }
 
     void ApplyColor()

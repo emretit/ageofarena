@@ -65,6 +65,8 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public const float FaithFull = 100f;
     public const float FaithRegenPerSec = 12.5f;     // ~8s to fully recharge
     public bool FaithReady => faith >= FaithFull;
+    // Relic carrying (Monk): true while this Monk is hauling a relic to a Monastery.
+    public bool isCarryingRelic;
 
     // ── Construction (villagers) ─────────────────────────────────────────────
     public BuildingEntity constructTarget;
@@ -234,6 +236,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     void Awake()
     {
         _ring = GetComponentInChildren<SelectionRing>(true);
+        _animator = GetComponentInChildren<Animator>();   // null for primitive units
 
         _agent = gameObject.AddComponent<NavMeshAgent>();
         _agent.speed = moveSpeed;
@@ -521,17 +524,36 @@ public class UnitEntity : MonoBehaviour, IDamageable
     }
 
     float _bobPhase;
+    Animator _animator;
+    static readonly int AnimIsMoving = Animator.StringToHash("IsMoving");
+    static readonly int AnimAttack   = Animator.StringToHash("Attack");
+
+    /// <summary>Fire the attack animation. No-op for primitive units (no Animator).</summary>
+    public void PlayAttack()
+    {
+        if (_animator != null) _animator.SetTrigger(AnimAttack);
+    }
 
     void Update()
     {
-        // Procedural movement bob: unit root bobs up/down while moving.
-        bool isMoving = state == UnitState.Moving;
-        if (isMoving)
+        if (_animator != null)
         {
-            _bobPhase += Time.deltaTime * 8f;
-            float bob = Mathf.Sin(_bobPhase) * 0.04f;
-            var pos = transform.localPosition;
-            transform.localPosition = new Vector3(pos.x, bob, pos.z);
+            // Animated units: drive the idle/walk blend from actual agent motion.
+            bool moving = _agent != null && _agent.isOnNavMesh
+                          && _agent.velocity.sqrMagnitude > 0.04f;
+            _animator.SetBool(AnimIsMoving, moving);
+        }
+        else
+        {
+            // Procedural movement bob: primitive unit root bobs up/down while moving.
+            bool isMoving = state == UnitState.Moving;
+            if (isMoving)
+            {
+                _bobPhase += Time.deltaTime * 8f;
+                float bob = Mathf.Sin(_bobPhase) * 0.04f;
+                var pos = transform.localPosition;
+                transform.localPosition = new Vector3(pos.x, bob, pos.z);
+            }
         }
 
         // Only auto-idle for plain move orders; gather/build transitions are their systems' job.

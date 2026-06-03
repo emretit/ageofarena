@@ -546,9 +546,9 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] TWUP: TechType.GuardTower+Keep (University); BuildingCombatSystem teamTech.TowerAttackBonus okur → WatchTower 7+7=14. (Runtime: bonus 7.)
 - [x] BMBT: BuildingType.BombardTower (Imperial); BuildingDef.attackDamageType=Siege; dmg 30 ≥ 4× WatchTower(7). (Runtime doğrulandı.)
 - [x] WLUP: BuildingEntity.TakeDamage teamTech.BuildingMelee/PierceArmor uygular (tüm binalar); Masonry→2/2 (runtime). Wall/Gate dahil.
-- [ ] RELC: grep `carriedByMonk`/`heldInMonastery`; Monk pickup→Monastery deposit→teamRes.Gain(Gold); MatchSystem relic-zafer kırılmaz.
+- [x] RELC: RelicEntity.carrier + heldInMonastery + Available; RelicSystem Monk pickup→takip→Monastery deposit→ForceControl+GrantGold. Proximity ile uyumlu (relic-zafer iterasyonu değişmedi; değişiklik liste-okuma). Runtime: deposit→controllingTeam=0 doğrulandı.
 - [x] FARM: TechType.HorseCollar(Mill/Feudal)+HeavyPlow(Mill/Castle); TechState.FarmCapacityBonus=150; ResourceNode reseed maxAmount+bonus → >300. (Runtime: 150.)
-- [ ] FISH: grep `UnitType.FishingShip`; DockTrainables'da; su Fish node/Fish Trap; gatherer Dock'a deposit, food artar.
+- [ ] FISH: (→ ERTELENDİ) Su-üstü Fish node + naval gather gerektiriyor (NAV-full su haritasına bağlı, L-effort). Naval/su ekonomisi grubuyla yapılacak: FishingShip + Fish Trap + gather→Dock akışı.
 - [ ] BSMT: grep IronCasting/BlastFurnace/ChainMail/PlateMail; TechState.ArmorBonus + UnitEntity.TakeDamage live; +3 atk doğrulanır.
 - [ ] BFUR: grep ScaleBarding/ChainBarding/PlateBarding; AttackBonus(Cavalry) IronCasting/BlastFurnace dahil; çift-sayım yok.
 - [ ] ARRM: grep Padded/Leather/Ring Archer Armor+Bracer; RangeBonus Bracer +0.5; pierce armor +3.
