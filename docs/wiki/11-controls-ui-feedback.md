@@ -1,5 +1,10 @@
 # Kontroller & UI / Ses / VFX — AoA Wiki
 
+> ⚙️ **Güncel HUD (2026-06-03):** Bu sayfa orijinal HUD'u anlatır. AoE2-sadık yeniden tasarım
+> (dokulu üst/alt bar + kalıcı 4-bölge alt bar + kamera-RTT **diamond minimap** + tıkla-navigasyon)
+> [docs/HUD-AOE2-REWORK.md](../HUD-AOE2-REWORK.md)'de belgelenmiştir (`UiSkin.cs` 9-slice + Kenney CC0).
+> Aşağıdaki üst/alt bar ve minimap bölümleri o rework'le güncellenmiştir.
+
 > Age of Arena'nın **oyuncu arayüzü, girdi (input) ve geri-bildirim katmanı**: AoE2-tarzı
 > komut barı, fare/klavye seçimi ve emirleri, isometric kamera, minimap, ses havuzu, ölüm
 > partikülleri/kamera sarsıntısı, fog of war ve quick-save. Tüm HUD **kod ile runtime'da**

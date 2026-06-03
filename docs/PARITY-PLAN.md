@@ -421,6 +421,16 @@ CIVS → CIVT → CIVU
 
 **Tema:** Çağ önkoşulları, UI cila, hotkey, stance, ses. Çoğu bağımsız S/M.
 
+> 🔧 **Tamamlanan dış katkı — HUD/UI Rework** (2026-06-03, bkz. [docs/HUD-AOE2-REWORK.md](HUD-AOE2-REWORK.md)):
+> AoE2-sadık dokulu üst bar + kalıcı 4-bölge alt bar + **kamera-RTT diamond minimap** (tıkla-navigasyon).
+> Yeni `UiSkin.cs` (9-slice, fallback'li) + `Editor/UiSpriteImporter.cs` + `Resources/UI/*.png` (Kenney CC0).
+> Unity 0 error/warning, Play doğrulandı. **Plana etkisi:**
+> - **MMTR** kapsamı daraldı → minimap artık gerçek terrain RTT render ediyor; kalan iş yalnız
+>   **FogOfWar overlay** (keşfedilmemiş siyah). DoD satırı buna göre güncellendi.
+> - **MPNG** (ping) yeni `MinimapClick` (IPointerClick+IDrag) handler'ı üzerine eklenecek.
+> - **STRT** (kurulum ekranı), **CMDP** (komut sayfalama), **DIPL** (diplomasi paneli) artık
+>   `UiSkin` 9-slice skinning'i yeniden kullanmalı (tutarlı görünüm + sıfır ek asset).
+
 | ID | Başlık | Efor |
 |---|---|---|
 | AGEB | Çağ atlama 2-bina önkoşulu | M |
@@ -589,5 +599,5 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [ ] MPNG: grep `ping` MinimapSystem; modifiyer+tık ping marker+ses; sol-pan/sağ-move bozulmaz.
 - [ ] SUBT: AudioManager birim-sınıfı seçim/onay SoundId; SelectionSystem/CommandSystem tipine göre çalar; villager≠asker.
 - [ ] FOWD: grep FogOfWarSystem.fogEnabled varsayılan true; UI toggle; harita başta karanlık, görüş açıldıkça lit; shader bulunur.
-- [ ] MMTR: grep `fog` MinimapSystem; fog açıkken FogOfWarSystem dokusu overlay; keşfedilmemiş siyah; fog kapalı regresyonsuz.
+- [ ] MMTR: (terrain RTT render HUD-rework'te yapıldı — diamond kamera-RTT minimap) kalan: grep `fog` MinimapSystem; fog açıkken FogOfWarSystem dokusu overlay; keşfedilmemiş siyah; fog kapalı regresyonsuz.
 - [ ] SAVF: grep SaveSystem birim+bina+teamCivs serialize; Load arenayı temizleyip yeniden kurar; F5/F9 birim sayısı/pozisyon geri gelir; NavMesh geçerli.
