@@ -1261,6 +1261,8 @@ public class HUD : MonoBehaviour
         UnitType.Galley      => "Gemi",
         UnitType.Skirmisher  => "Avcı",
         UnitType.Camel       => "Deveci",
+        UnitType.Ram         => "Koçbaşı",
+        UnitType.Mangonel    => "Mancınık Arabası",
         _                    => t.ToString(),
     };
 
@@ -1314,6 +1316,7 @@ public class HUD : MonoBehaviour
         BuildingType.Wall         => "Duvar",
         BuildingType.Gate         => "Kapı",
         BuildingType.Dock         => "Liman",
+        BuildingType.SiegeWorkshop => "Kuşatma Atölyesi",
         _                         => t.ToString(),
     };
 
@@ -1350,6 +1353,7 @@ public class HUD : MonoBehaviour
         BuildingType.Wall         => "Geçişi engelleyen sur. Ucuz ve dayanıklı.",
         BuildingType.Gate         => "Birimlerin geçebildiği kapı.",
         BuildingType.Dock         => "Gemi üretir. Su kenarına inşa et (150 odun).",
+        BuildingType.SiegeWorkshop => "Koçbaşı + mancınık üretir (Kale Çağı, 200 odun).",
         _                         => "",
     };
 

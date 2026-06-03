@@ -118,7 +118,8 @@ public class CombatSystem : MonoBehaviour
             u.state = UnitState.Attacking;
             u.HaltAgent();
             u.FaceToward(tpos);
-            if (u.attackCooldown <= 0f)
+            // Siege weapons (min range) can't fire at point-blank targets.
+            if (u.attackCooldown <= 0f && FlatDist(pos, tpos) >= u.MinAttackRange)
             {
                 float dmg = u.AttackDamage;
 
@@ -139,7 +140,7 @@ public class CombatSystem : MonoBehaviour
 
                 if (u.IsRanged)
                 {
-                    Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, dmg, u.DamageKind);
+                    Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, dmg, u.DamageKind, u.SplashRadius);
                     AudioManager.Play(AudioManager.SoundId.Arrow, 0.6f);
                 }
                 else

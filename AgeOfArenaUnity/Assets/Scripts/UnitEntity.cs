@@ -104,6 +104,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Militia     => 5f,  UnitType.Archer      => 4f,  UnitType.Cavalry    => 8f,
         UnitType.Trebuchet   => 35f, UnitType.Spearman    => 4f,  UnitType.Longbowman => 5f,
         UnitType.Galley      => 8f,  UnitType.Skirmisher  => 3f,  UnitType.Camel      => 7f,
+        UnitType.Ram         => 4f,  UnitType.Mangonel    => 25f,
         // Support units deal no damage: Scout is pure recon, Medic only heals.
         UnitType.Scout       => 0f,  UnitType.Medic       => 0f,
         _                    => 2f,
@@ -113,6 +114,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Militia     => 1.3f, UnitType.Archer      => 6.5f, UnitType.Cavalry    => 1.4f,
         UnitType.Trebuchet   => 15f,  UnitType.Spearman    => 1.5f, UnitType.Longbowman => 8.5f,
         UnitType.Galley      => 5.5f, UnitType.Skirmisher  => 5f,   UnitType.Camel      => 1.4f,
+        UnitType.Ram         => 1.3f, UnitType.Mangonel    => 9f,
         _                    => 1.1f,
     };
     /// <summary>Effective damage = base + tech bonus, scaled by civ infantry bonus for infantry types.</summary>
@@ -141,6 +143,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Militia     => 1.0f, UnitType.Archer      => 1.4f, UnitType.Cavalry    => 1.1f,
         UnitType.Trebuchet   => 5.5f, UnitType.Spearman    => 1.3f, UnitType.Longbowman => 1.6f,
         UnitType.Galley      => 2.0f, UnitType.Skirmisher  => 2.0f, UnitType.Camel      => 1.1f,
+        UnitType.Ram         => 3.0f, UnitType.Mangonel    => 4.0f,
         _                    => 1.6f,
     };
     /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.</summary>
@@ -149,10 +152,26 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Militia     => 7f,  UnitType.Archer      => 9f,   UnitType.Cavalry    => 8f,
         UnitType.Trebuchet   => 15f, UnitType.Spearman    => 7f,   UnitType.Longbowman => 11f,
         UnitType.Galley      => 8f,  UnitType.Skirmisher  => 9f,   UnitType.Camel      => 8f,
+        UnitType.Mangonel    => 11f, UnitType.Ram         => 4f,
         _                    => 0f,
     };
-    /// <summary>Trebuchet deals 3× damage vs buildings; others have no multiplier.</summary>
-    public float AntiStructureMultiplier => type == UnitType.Trebuchet ? 3f : 1f;
+    /// <summary>Siege units deal bonus building damage: Trebuchet 3×, Ram 5×.</summary>
+    public float AntiStructureMultiplier => type switch
+    {
+        UnitType.Trebuchet => 3f,
+        UnitType.Ram       => 5f,
+        _                  => 1f,
+    };
+    /// <summary>Minimum attack range: siege weapons can't fire at point-blank targets.</summary>
+    public float MinAttackRange => type switch
+    {
+        UnitType.Trebuchet => 3f,
+        UnitType.Mangonel  => 2f,
+        UnitType.Galley    => 1.5f,
+        _                  => 0f,
+    };
+    /// <summary>Area-of-effect splash radius for projectiles (0 = single target). Mangonel only.</summary>
+    public float SplashRadius => type == UnitType.Mangonel ? 1.8f : 0f;
     /// <summary>First melee charge hit by a Cavalry unit deals 2.5× damage.</summary>
     public float ChargeMultiplier => type == UnitType.Cavalry ? 2.5f : 1f;
     /// <summary>Anti-cavalry bonus vs Cavalry/Camel targets: Spearman 3×, Camel 2×.</summary>
@@ -172,11 +191,14 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Skirmisher  => DamageType.Pierce,
         UnitType.Galley      => DamageType.Pierce,
         UnitType.Trebuchet   => DamageType.Siege,
+        UnitType.Mangonel    => DamageType.Siege,
+        UnitType.Ram         => DamageType.Siege,
         _                    => DamageType.Melee,
     };
     /// <summary>Ranged units attack via projectiles instead of melee contact.</summary>
     public bool IsRanged => type == UnitType.Archer || type == UnitType.Trebuchet
-        || type == UnitType.Longbowman || type == UnitType.Galley || type == UnitType.Skirmisher;
+        || type == UnitType.Longbowman || type == UnitType.Galley || type == UnitType.Skirmisher
+        || type == UnitType.Mangonel;
 
     // ── Medic healing (driven by CombatSystem.StepHeal) ──────────────────────
     /// <summary>Radius within which a Medic auto-heals friendly units; 0 = not a healer.</summary>

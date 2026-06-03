@@ -129,7 +129,7 @@ Kalan gerçek ⬜ — büyük geliştirme (ayrı oturum) + P3 içerik genişleme
 | SKI | ref/02 | Skirmisher hattı — archer counter (+ Elite Skirmisher) | ✔️ M2 | ArcheryRange/Feudal; AntiArcher 2×; Pierce ranged |
 | SPN2 | ref/02 | Spearman upgrade zinciri (Pikeman Kale, Halberdier İmparatorluk) | ✔️ M2 | TechDefs + TechState; HUD tier adı |
 | SCT2 | ref/02 | Scout → Light Cavalry → Hussar upgrade zinciri | ⬜ | Scout mevcut; upgrade yok (M4) |
-| SIEG | ref/02+03 | Siege Workshop binası + Ram/Mangonel hattı | ⬜ | Yeni bina + 2 kuşatma birimi (M3) |
+| SIEG | ref/02+03 | Siege Workshop binası + Ram/Mangonel hattı | ✔️ M3 | + splash (AREA) + min-range (MINR) + Ram pierce-immune |
 | CAVA | ref/02 | Cavalry Archer hattı (Kale Çağı; 40O+70A) | ⬜ | Montlu okçu; yeni fire pattern (M4) |
 | CAML | ref/02 | Camel Rider hattı — anti-cavalry uzmanı (+ Heavy Camel) | ✔️ M2 | Stable/Castle; AntiCavalry 2× |
 | CIVX | ref/01 | Medeniyet genişletme: 5 → 10+ civ | ⬜ | ref/01'de 45 civ tablosu var |

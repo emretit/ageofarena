@@ -528,6 +528,29 @@ public static class BuildingFactory
         return g;
     }
 
+    public static GameObject SiegeWorkshop(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewBuilding("SiegeWorkshop", parent, worldPos, BuildingType.SiegeWorkshop,
+            new Vector3(0, 1.0f, 0), new Vector3(2.6f, 2.0f, 2.6f));
+        var t = g.transform;
+        var wood   = Prims.Mat(Prims.Hex(0x6b4a2a), 0.05f);
+        var stone  = Prims.Mat(Stone, 0.05f);
+        var metal  = Prims.Mat(Prims.Hex(0x55585e), 0.4f, 0.6f);
+        var accent = Prims.Mat(teamColor, 0.05f, 0.3f);
+
+        Prims.Box(t, new Vector3(0, 0.15f, 0), new Vector3(2.6f, 0.3f, 2.6f), stone);   // foundation
+        Prims.Box(t, new Vector3(0, 0.9f, -0.4f), new Vector3(2.4f, 1.2f, 1.6f), wood); // open workshop shed
+        Prims.Box(t, new Vector3(0, 1.6f, -0.4f), new Vector3(2.6f, 0.18f, 1.8f), accent); // roof
+        // A half-built ram/log on the work floor + a stacked boulder.
+        Prims.Cylinder(t, new Vector3(0.2f, 0.55f, 0.7f), 0.16f, 1.4f, wood)
+            .transform.localRotation = Quaternion.Euler(0, 0, 90f);
+        Prims.Box(t, new Vector3(0.95f, 0.5f, 0.7f), new Vector3(0.3f, 0.3f, 0.3f), metal); // ram head
+        Prims.Sphere(t, new Vector3(-0.9f, 0.4f, 0.8f), 0.25f, stone);                       // boulder
+
+        Prims.EnableShadows(g);
+        return g;
+    }
+
     public static GameObject Monastery(Transform parent, Vector3 worldPos, Color teamColor)
     {
         var g = NewBuilding("Monastery", parent, worldPos, BuildingType.Monastery,
@@ -625,6 +648,7 @@ public static class BuildingFactory
         BuildingType.Monastery    => Monastery(parent, worldPos, teamColor),
         BuildingType.University   => University(parent, worldPos, teamColor),
         BuildingType.Dock         => Dock(parent, worldPos, teamColor),
+        BuildingType.SiegeWorkshop => SiegeWorkshop(parent, worldPos, teamColor),
         _                         => House(parent, worldPos, teamColor),
     };
 

@@ -130,6 +130,8 @@ public class TrainingQueue : MonoBehaviour
             UnitType.Longbowman  => UnitFactory.Longbowman(unitsRoot, spawnPos, teamColor),
             UnitType.Skirmisher  => UnitFactory.Skirmisher(unitsRoot, spawnPos, teamColor),
             UnitType.Camel       => UnitFactory.Camel(unitsRoot, spawnPos, teamColor),
+            UnitType.Ram         => UnitFactory.Ram(unitsRoot, spawnPos, teamColor),
+            UnitType.Mangonel    => UnitFactory.Mangonel(unitsRoot, spawnPos, teamColor),
             UnitType.Galley      => SpawnGalley(b, unitsRoot, teamColor),
             _                    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
         };

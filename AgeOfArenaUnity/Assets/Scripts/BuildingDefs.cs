@@ -91,6 +91,8 @@ public static class BuildingDefs
         new(BuildingType.University,    0,  200,  0,150,  28f,  0,  400f, "Üniversite",      'U', true,  minAge: Age.Castle),
         // Dock: naval unit production. Build near a lake; Galley spawns into water.
         new(BuildingType.Dock,          0,  150,  0,  0,  25f,  0,  300f, "Liman",           'X', true,  true,  MaskFood, minAge: Age.Dark),
+        // Siege Workshop: builds rams + mangonels (Castle Age).
+        new(BuildingType.SiegeWorkshop, 0,  200,  0,  0,  28f,  0,  400f, "Kuşatma Atölyesi",'J', true,  minAge: Age.Castle),
     };
 
     public static BuildingDef Get(BuildingType t)

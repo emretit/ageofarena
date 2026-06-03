@@ -103,6 +103,19 @@ public static class CommandIconFactory
                 Add(icon, Square, Dark, 8, -12, 3, 11);
                 Add(icon, Square, Blue, -1, 10, 7, 7);             // rider
                 break;
+            case UnitType.Ram:
+                Add(icon, Square, Wood,  0, 2, 30, 14);            // shed
+                Add(icon, Triangle, Dark, 0, 12, 30, 8);           // peaked roof
+                Add(icon, Square, Wood, 0, -8, 22, 5);             // ram log
+                Add(icon, Square, Steel, 13, -8, 6, 7);            // iron head
+                break;
+            case UnitType.Mangonel:
+                Add(icon, Square, Wood, 0, -8, 24, 5);             // base
+                Add(icon, Square, Dark, -8, -14, 5, 5);            // wheels
+                Add(icon, Square, Dark, 8, -14, 5, 5);
+                Add(icon, Square, Wood, 0, 2, 4, 22, 35);          // throwing arm
+                Add(icon, Circle, Stone, 7, 11, 9, 9);             // boulder
+                break;
             case UnitType.Galley:
                 Add(icon, Square,   Wood,  0, -6, 28, 10);         // hull
                 Add(icon, Triangle, Dark, -13, -4, 8, 12);         // bow
@@ -194,6 +207,12 @@ public static class CommandIconFactory
                 Add(icon, Square, Dark, -8, -12, 4, 10);           // pile left
                 Add(icon, Square, Dark,  8, -12, 4, 10);           // pile right
                 Add(icon, Square, Prims.Hex(0x2a5db0), 0, -16, 28, 5); // water line
+                break;
+            case BuildingType.SiegeWorkshop:
+                Add(icon, Square,   Wood,  0, -2, 28, 16);         // shed
+                Add(icon, Square,   Dark,  0, 9, 30, 5);           // roof beam
+                Add(icon, Square,   Wood,  2, -2, 22, 4, 30);      // ram log
+                Add(icon, Square,   Steel, 13, 4, 6, 6, 30);       // ram head
                 break;
         }
     }

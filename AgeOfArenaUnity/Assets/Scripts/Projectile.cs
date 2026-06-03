@@ -15,23 +15,27 @@ public class Projectile : MonoBehaviour
     IDamageable _target;
     float _damage;
     DamageType _damageType = DamageType.Pierce;
+    float _splashRadius;   // 0 = single target; >0 = area damage on impact
     float _age;
 
     static readonly Color ArrowColor = Prims.Hex(0x4a3018);
 
     /// <summary>Fire an arrow from <paramref name="from"/> at <paramref name="target"/>.</summary>
     public static void Spawn(Vector3 from, IDamageable target, float damage,
-                             DamageType damageType = DamageType.Pierce)
+                             DamageType damageType = DamageType.Pierce, float splashRadius = 0f)
     {
         if (target == null || !target.IsAlive) return;
         var go = new GameObject("Arrow");
         go.transform.position = from;
         var mat = Prims.Mat(ArrowColor);
-        Prims.Box(go.transform, Vector3.zero, new Vector3(0.06f, 0.06f, 0.5f), mat);
+        // Siege projectiles (splash) render as a bigger boulder.
+        float s = splashRadius > 0f ? 0.35f : 0.06f;
+        Prims.Box(go.transform, Vector3.zero, new Vector3(s, s, splashRadius > 0f ? 0.35f : 0.5f), mat);
         var p = go.AddComponent<Projectile>();
         p._target = target;
         p._damage = damage;
         p._damageType = damageType;
+        p._splashRadius = splashRadius;
     }
 
     void Update()
@@ -53,7 +57,33 @@ public class Projectile : MonoBehaviour
             var tgt = _target as Component;
             if (tgt != null)
                 DamagePopup.Show(tgt.transform.position + Vector3.up * 1.5f,
-                    Mathf.RoundToInt(_damage), false);
+                    Mathf.RoundToInt(_damage), _splashRadius > 0f);
+
+            // Area splash (Mangonel/Onager): hit every other unit on the target's
+            // side within the radius. Friendly units (other teams' attackers) are
+            // skipped because only the primary target's team is damaged.
+            if (_splashRadius > 0f)
+            {
+                var gm = GameManager.Instance;
+                if (gm != null)
+                {
+                    Vector3 ip = tp;
+                    float r2 = _splashRadius * _splashRadius;
+                    int enemyTeam = _target.TeamId;
+                    var units = gm.units;
+                    for (int i = 0; i < units.Count; i++)
+                    {
+                        var o = units[i];
+                        if (o == null || !o.IsAlive || ReferenceEquals(o, _target)) continue;
+                        if (o.teamId != enemyTeam) continue;
+                        Vector3 op = o.transform.position;
+                        float dx = op.x - ip.x, dz = op.z - ip.z;
+                        if (dx * dx + dz * dz > r2) continue;
+                        o.TakeDamage(_damage, _damageType);
+                        DamagePopup.Show(op + Vector3.up * 1.5f, Mathf.RoundToInt(_damage), true);
+                    }
+                }
+            }
             Destroy(gameObject);
             return;
         }

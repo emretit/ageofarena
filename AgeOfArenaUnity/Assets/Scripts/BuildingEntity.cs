@@ -153,6 +153,12 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         new(UnitType.Galley, 35f, 0, 120, 60, "G"), // wood+gold — naval combat unit
     };
 
+    static readonly UnitTrainable[] SiegeWorkshopTrainables =
+    {
+        new(UnitType.Ram,      40f, 0, 160,  75, "R"), // anti-structure, pierce-immune
+        new(UnitType.Mangonel, 45f, 0, 160, 135, "M"), // area-damage siege
+    };
+
     static readonly UnitTrainable[] Empty = System.Array.Empty<UnitTrainable>();
 
     /// <summary>Age this building's owning team has reached (null-safe → Dark).</summary>
@@ -190,6 +196,8 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         UnitType.Galley      => Age.Feudal,
         UnitType.Skirmisher  => Age.Feudal,
         UnitType.Camel       => Age.Castle,
+        UnitType.Ram         => Age.Castle,
+        UnitType.Mangonel    => Age.Castle,
         _                    => Age.Dark,
     };
 
@@ -206,6 +214,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
             BuildingType.Monastery    => MonasteryTrainables,
             BuildingType.Market       => MarketTrainables,
             BuildingType.Dock         => DockTrainables,
+            BuildingType.SiegeWorkshop => SiegeWorkshopTrainables,
             _                         => Empty,
         };
 

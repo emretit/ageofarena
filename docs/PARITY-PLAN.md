@@ -528,11 +528,11 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] SPN2: TechType.Pikeman (Castle) + Halberdier (Imperial, requires=Pikeman); Spearman HP retroaktif; HUD tier adı (Kargıcı/Teberli).
 - [x] CAMEL: UnitType.Camel; CombatSystem anti-cavalry Camel'i kapsar (2×); Stable/Castle trainable. (Runtime: hp80/antiCav2 doğrulandı.)
 - [x] CAML: TechType.HeavyCamel (Stable/Imperial); Camel HP/atk RecomputeMaxHp ile retroaktif.
-- [ ] SWRK: grep `BuildingType.SiegeWorkshop` (Castle); SiegeWorkshopTrainables + GetTrainables switch; ≥1 kuşatma birimi üretilir.
-- [ ] AREA: Projectile.Spawn imzasında splashRadius (default 0); 0→tek hedef değişmez; >0→radius-içi düşmana çoklu TakeDamage, friendly skip.
-- [ ] SPLASH: grep `Mangonel` GameTypes (DamageKind=Siege); kümelenmiş 3+ düşmana çoklu DamagePopup.
-- [ ] RAMS: UnitFactory.Ram pierceArmor≥100; Archer hasarı min-1; AntiStructureMultiplier≥3; SWRK'den üretilir.
-- [ ] MINR: UnitEntity.MinAttackRange var (Trebuchet/Galley >0); FlatDist<MinAttackRange iken ranged ateş etmez.
+- [x] SWRK: BuildingType.SiegeWorkshop (Castle, buildable); SiegeWorkshopTrainables (Ram+Mangonel) + GetTrainables + BuildingFactory mesh.
+- [x] AREA: Projectile.Spawn(splashRadius=0 default); 0→tek hedef; >0→radius-içi target-takımı çoklu TakeDamage, friendly (diğer takımlar) skip.
+- [x] SPLASH: UnitType.Mangonel (DamageKind=Siege, SplashRadius 1.8); Projectile alan hasarı + çoklu DamagePopup. (Runtime: splash1.8 doğrulandı.)
+- [x] RAMS: UnitFactory.Ram pierceArmor=180 (Archer→min-1 doğrulandı: 30 Pierce→delta 1); AntiStructure 5×; SiegeWorkshop'tan üretilir.
+- [x] MINR: UnitEntity.MinAttackRange (Trebuchet 3/Mangonel 2/Galley 1.5); CombatSystem FlatDist<MinAttackRange iken ateş etmez.
 - [ ] SCT2: grep `TechType.LightCavalry`+`Hussar` (Stable Castle/Imperial); Scout HP retroaktif yükselir.
 - [ ] CAVAR: grep `UnitType.CavalryArcher` (DamageKind=Pierce, IsRanged); Stable/Castle; ok atar.
 - [ ] CAVA: grep `TechType.HeavyCavalryArcher` (Imperial); CavalryArcher HP retroaktif artar.
