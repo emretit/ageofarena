@@ -537,7 +537,7 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] CAVAR: UnitType.CavalryArcher (Pierce, IsRanged, hız 5.2); Stable/Castle. Runtime: hp50/dmg5/range4 doğrulandı.
 - [x] CAVA: TechType.HeavyCavalryArcher (Stable/Imperial); CavalryArcher HP/atk RecomputeMaxHp ile retroaktif.
 - [x] THSW: TechType.TwoHandedSwordsman (Imperial, req Longswordsman); Champion.requires=TwoHandedSwordsman; Militia HP retroaktif; HUD tier adı.
-- [ ] EAGLE: grep `UnitType.Eagle` + UnitFactory.Eagle(); civ-koşullu trainable; EliteEagle tech HP retroaktif.
+- [ ] EAGLE: (→ M9'a ERTELENDİ) Eagle meso-Amerikan medeniyetine bağlı; mevcut 5 civ'in hiçbiri Eagle civ'i değil. Gerçek önkoşul CIVX/M9 (meso civ ekleme). O zaman: UnitType.Eagle + UnitFactory.Eagle() + civ-koşullu trainable + EliteEagle tech.
 - [ ] NAVX: TechDefs WarGalley+Galleon (requires zinciri); grep `UnitType.FireShip`+`DemoShip`; Dock'tan naval spawn.
 - [ ] MFAITH: grep `faith` UnitEntity; ConvertTime faith'e bağlı; Monk relic→Monastery deposit→Gold gain.
 - [ ] CSTL: BuildingDefs Castle def'inde `minAge: Age.Castle`; UnlockedAt(Castle,Feudal)==false, (Castle,Castle)==true.
