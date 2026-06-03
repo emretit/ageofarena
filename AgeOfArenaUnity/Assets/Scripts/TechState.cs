@@ -101,6 +101,13 @@ public class TechState
     public float BuildingMeleeArmor => (Has(TechType.Masonry) ? 2f : 0f) + (Has(TechType.Fortified) ? 3f : 0f);
     public float BuildingPierceArmor => (Has(TechType.Masonry) ? 2f : 0f) + (Has(TechType.Fortified) ? 3f : 0f);
 
+    /// <summary>Watch Tower line upgrades (Guard Tower / Keep): tower attack + range bonus.</summary>
+    public float TowerAttackBonus => (Has(TechType.GuardTower) ? 3f : 0f) + (Has(TechType.Keep) ? 4f : 0f);
+    public float TowerRangeBonus  => Has(TechType.Keep) ? 1.5f : 0f;
+
+    /// <summary>Farm food capacity bonus from Horse Collar / Heavy Plow (Mill techs).</summary>
+    public int FarmCapacityBonus => (Has(TechType.HorseCollar) ? 75 : 0) + (Has(TechType.HeavyPlow) ? 75 : 0);
+
     /// <summary>Multiplier on resources gained per deposit of a given kind.</summary>
     public float GatherMult(ResourceKind kind)
     {

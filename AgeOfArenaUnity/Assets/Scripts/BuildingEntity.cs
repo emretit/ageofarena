@@ -63,10 +63,12 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     public void TakeDamage(float amount, DamageType damageType = DamageType.Melee)
     {
         if (hp <= 0f) return;
+        // Masonry / Fortified Wall (University techs) add armor to all team buildings.
+        var tech = GameManager.Instance?.teamTech[teamId];
         float armor = damageType switch
         {
-            DamageType.Pierce => pierceArmor,
-            DamageType.Melee  => meleeArmor,
+            DamageType.Pierce => pierceArmor + (tech?.BuildingPierceArmor ?? 0f),
+            DamageType.Melee  => meleeArmor + (tech?.BuildingMeleeArmor ?? 0f),
             _                 => 0f,  // Siege bypasses armor
         };
         hp -= Mathf.Max(1f, amount - armor);

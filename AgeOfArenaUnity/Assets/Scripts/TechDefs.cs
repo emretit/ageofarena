@@ -71,9 +71,14 @@ public static class TechDefs
         new(TechType.HeavyCavalryArcher, BuildingType.Stable,    Age.Imperial,150,   0, 125, 0, 30f, "Ağır Atlı Okçu"),
         new(TechType.WarGalley,       BuildingType.Dock,         Age.Castle,  150,   0,  50, 0, 28f, "Savaş Kadırgası"),
         new(TechType.Galleon,         BuildingType.Dock,         Age.Imperial,150,   0, 100, 0, 32f, "Kalyon",         TechType.WarGalley),
-        // ── University techs (Imperial) ───────────────────────────────────────
+        // ── Mill farm techs ───────────────────────────────────────────────────
+        new(TechType.HorseCollar,   BuildingType.Mill,         Age.Feudal,  75,    0,   0, 0, 20f, "At Koşumu"),
+        new(TechType.HeavyPlow,     BuildingType.Mill,         Age.Castle,  125,   0,   0, 0, 25f, "Ağır Saban",   TechType.HorseCollar),
+        // ── University techs ──────────────────────────────────────────────────
         new(TechType.Masonry,       BuildingType.University,   Age.Castle,  150,   0,   0, 0, 22f, "Duvar Ustalığı"),
         new(TechType.Fortified,     BuildingType.University,   Age.Imperial,200,   0, 150, 0, 30f, "Takviyeli Duvar"),
+        new(TechType.GuardTower,    BuildingType.University,   Age.Castle,  100,   0,  50, 0, 22f, "Muhafız Kulesi"),
+        new(TechType.Keep,          BuildingType.University,   Age.Imperial,150,   0, 100, 0, 28f, "Burç",          TechType.GuardTower),
     };
 
     public static TechDef Get(TechType t)

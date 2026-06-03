@@ -47,7 +47,9 @@ public class ResourceNode : MonoBehaviour
             if (rm != null && rm.CanAfford(0, reseedWoodCost, 0, 0))
             {
                 rm.Deduct(0, reseedWoodCost, 0, 0);
-                amount = maxAmount;
+                // Horse Collar / Heavy Plow raise the reseeded farm's food capacity.
+                int farmBonus = GameManager.Instance?.teamTech[ownerTeamId]?.FarmCapacityBonus ?? 0;
+                amount = maxAmount + farmBonus;
             }
         }
 

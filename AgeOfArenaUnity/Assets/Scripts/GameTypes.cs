@@ -11,7 +11,7 @@ public enum UnitType { Villager, Militia, Archer, Cavalry, Trebuchet, Scout, Med
 /// <summary>Damage class for the armor counter matrix. Siege bypasses both armor types.</summary>
 public enum DamageType { Melee, Pierce, Siege }
 
-public enum BuildingType { TownCenter, House, Barracks, ArcheryRange, Stable, Farm, LumberCamp, MiningCamp, Mill, Market, Castle, Wall, Gate, Wonder, WatchTower, Blacksmith, Monastery, University, Dock, SiegeWorkshop }
+public enum BuildingType { TownCenter, House, Barracks, ArcheryRange, Stable, Farm, LumberCamp, MiningCamp, Mill, Market, Castle, Wall, Gate, Wonder, WatchTower, Blacksmith, Monastery, University, Dock, SiegeWorkshop, Outpost, BombardTower }
 
 /// <summary>Tech progression tier. Higher ages gate buildings/units/techs.</summary>
 public enum Age { Dark, Feudal, Castle, Imperial }
@@ -64,9 +64,13 @@ public enum TechType
     // Economy upgrades
     DoubleBitAxe,   // +wood gather
     Wheelbarrow,    // +all gather
+    HorseCollar,    // +farm food capacity (Feudal)
+    HeavyPlow,      // +farm food capacity (Castle)
     // University techs
     Masonry,        // +stone wall hp
     Fortified,      // +building armor
+    GuardTower,     // Watch Tower → Guard Tower: +tower attack/hp (Castle)
+    Keep,           // Guard Tower → Keep: +tower attack/range/hp (Imperial, requires GuardTower)
 }
 
 /// <summary>Stance controlling auto-aggro and pursuit behavior.</summary>

@@ -133,7 +133,7 @@ Kalan gerçek ⬜ — büyük geliştirme (ayrı oturum) + P3 içerik genişleme
 | CAVA | ref/02 | Cavalry Archer hattı (Kale Çağı) + Heavy Cav Archer | ✔️ M4 | CavalryArcher Stable/Castle; Pierce ranged |
 | CAML | ref/02 | Camel Rider hattı — anti-cavalry uzmanı (+ Heavy Camel) | ✔️ M2 | Stable/Castle; AntiCavalry 2× |
 | CIVX | ref/01 | Medeniyet genişletme: 5 → 10+ civ | ⬜ | ref/01'de 45 civ tablosu var |
-| BTOW | ref/03 | Bombard Tower (top mermisi; 125O+100T; İmparatorluk) | ⬜ | Watch Tower var; Bombard ayrı |
+| BTOW | ref/03 | Bombard Tower (top mermisi; 125O+100T; İmparatorluk) | ✔️ M5 | Siege hasar 30 (≥4× WatchTower); + Outpost + Guard Tower/Keep zinciri |
 
 ### P3b — Wiki denetiminde bulunan gerçek defektler (parite değil, kod bug'ı)
 

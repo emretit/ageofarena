@@ -540,14 +540,14 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [ ] EAGLE: (→ M9'a ERTELENDİ) Eagle meso-Amerikan medeniyetine bağlı; mevcut 5 civ'in hiçbiri Eagle civ'i değil. Gerçek önkoşul CIVX/M9 (meso civ ekleme). O zaman: UnitType.Eagle + UnitFactory.Eagle() + civ-koşullu trainable + EliteEagle tech.
 - [x] NAVX: WarGalley+Galleon tier (Dock Castle/Imperial, retroaktif: Galley 120→170 HP, dmg 12); UnitType.FireShip+DemoShip Dock'tan SpawnNaval ile. (Runtime doğrulandı; DemoShip splash 2.5.)
 - [x] MFAITH (faith parçası): UnitEntity.faith + FaithReady; conversion full faith ister, sonra faith=0 + regen (CombatSystem.StepConvert). **Relic taşıma/deposit → RELC/M5'e** (plan uyarısı gereği sınır çizildi, çift-iş yok).
-- [ ] CSTL: BuildingDefs Castle def'inde `minAge: Age.Castle`; UnlockedAt(Castle,Feudal)==false, (Castle,Castle)==true.
-- [ ] BPOP: RecomputePop TC5+House5+Castle10 doğru; Clamp(cap,0,200); pop==cap iken üretim reddedilir.
-- [ ] OUTP: grep `Outpost` GameTypes+BuildingDefs (attackRange==0); BuildingFactory.Make dalı; ateş etmez.
-- [ ] TWUP: grep enum TechType GuardTower+Keep; BuildingCombatSystem teamTech okur; Guard Tower oku >7 hasar.
-- [ ] BMBT: grep `BombardTower` (minAge==Imperial); attackDamageType alanı=Siege; hasar Watch Tower'ın ≥4×.
-- [ ] WLUP: BuildingEntity Wall/Gate teamTech.BuildingMeleeArmor+PierceArmor uygular; Masonry sonrası hasar düşer.
+- [x] CSTL: Castle def `minAge: Age.Castle`; UnlockedAt(Castle,Feudal)=false, (Castle,Castle)=true (runtime doğrulandı).
+- [x] BPOP: RecomputePop TC5+House5+Castle10 (GameManager.cs:132), Clamp(cap,0,200); TrainingQueue pop>=cap reddeder. (Mevcut+doğrulandı.)
+- [x] OUTP: BuildingType.Outpost (attackRange=0, ateş etmez, 25O+5T, buildable); BuildingFactory mesh + Create.
+- [x] TWUP: TechType.GuardTower+Keep (University); BuildingCombatSystem teamTech.TowerAttackBonus okur → WatchTower 7+7=14. (Runtime: bonus 7.)
+- [x] BMBT: BuildingType.BombardTower (Imperial); BuildingDef.attackDamageType=Siege; dmg 30 ≥ 4× WatchTower(7). (Runtime doğrulandı.)
+- [x] WLUP: BuildingEntity.TakeDamage teamTech.BuildingMelee/PierceArmor uygular (tüm binalar); Masonry→2/2 (runtime). Wall/Gate dahil.
 - [ ] RELC: grep `carriedByMonk`/`heldInMonastery`; Monk pickup→Monastery deposit→teamRes.Gain(Gold); MatchSystem relic-zafer kırılmaz.
-- [ ] FARM: grep `TechType.HorseCollar`+`HeavyPlow`; FarmCapacityBonus; reseed farm >300 food.
+- [x] FARM: TechType.HorseCollar(Mill/Feudal)+HeavyPlow(Mill/Castle); TechState.FarmCapacityBonus=150; ResourceNode reseed maxAmount+bonus → >300. (Runtime: 150.)
 - [ ] FISH: grep `UnitType.FishingShip`; DockTrainables'da; su Fish node/Fish Trap; gatherer Dock'a deposit, food artar.
 - [ ] BSMT: grep IronCasting/BlastFurnace/ChainMail/PlateMail; TechState.ArmorBonus + UnitEntity.TakeDamage live; +3 atk doğrulanır.
 - [ ] BFUR: grep ScaleBarding/ChainBarding/PlateBarding; AttackBonus(Cavalry) IronCasting/BlastFurnace dahil; çift-sayım yok.

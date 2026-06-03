@@ -232,6 +232,16 @@ public static class CommandIconFactory
                 Add(icon, Square,   Wood,  2, -2, 22, 4, 30);      // ram log
                 Add(icon, Square,   Steel, 13, 4, 6, 6, 30);       // ram head
                 break;
+            case BuildingType.Outpost:
+                Add(icon, Square,   Wood, 0, -4, 7, 28);           // post
+                Add(icon, Square,   Wood, 0, 10, 18, 7);           // platform
+                Add(icon, Triangle, Dark, 0, 17, 18, 8);           // roof
+                break;
+            case BuildingType.BombardTower:
+                Add(icon, Square,   Stone, 0, -2, 18, 30);         // tower
+                Add(icon, Square,   Dark, 9, 9, 16, 6, -20);       // cannon barrel
+                Add(icon, Circle,   Dark, 15, 6, 7, 7);            // muzzle
+                break;
         }
     }
 
@@ -287,6 +297,18 @@ public static class CommandIconFactory
             case TechType.DoubleBitAxe:
                 Add(icon, Square,   Dark,  0, -4, 4, 22);          // axe handle
                 Add(icon, Triangle, Steel, 6, 6, 14, 12, 90);      // axe head
+                break;
+            case TechType.HorseCollar:
+            case TechType.HeavyPlow:
+                Add(icon, Square, Prims.Hex(0x6a9a3a), 0, -6, 26, 10); // green field
+                Add(icon, Square, Wood, 0, 6, 4, 16);              // plow handle
+                Add(icon, Triangle, Steel, 6, 12, 10, 8);          // blade
+                break;
+            case TechType.GuardTower:
+            case TechType.Keep:
+                Add(icon, Square, Stone, 0, -2, 16, 28);           // tower
+                Add(icon, Square, Stone, -7, 13, 5, 6);            // battlement
+                Add(icon, Square, Stone, 7, 13, 5, 6);
                 break;
             case TechType.Wheelbarrow:
                 Add(icon, Ring,   Dark, 0, -2, 20, 20);            // wheel

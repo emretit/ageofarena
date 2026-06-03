@@ -510,6 +510,48 @@ public static class BuildingFactory
         return g;
     }
 
+    public static GameObject Outpost(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewBuilding("Outpost", parent, worldPos, BuildingType.Outpost,
+            new Vector3(0, 1.2f, 0), new Vector3(1.0f, 2.6f, 1.0f));
+        var t = g.transform;
+        var wood  = Prims.Mat(Prims.Hex(0x6b4a2a), 0.05f);
+        var roof  = Prims.Mat(teamColor, 0.05f, 0.3f);
+
+        Prims.Box(t, new Vector3(0, 0.1f, 0), new Vector3(0.9f, 0.2f, 0.9f), Prims.Mat(Stone, 0.05f));
+        foreach (var cx in new[] { -0.32f, 0.32f })
+            foreach (var cz in new[] { -0.32f, 0.32f })
+                Prims.Box(t, new Vector3(cx, 1.1f, cz), new Vector3(0.14f, 2.0f, 0.14f), wood); // legs
+        Prims.Box(t, new Vector3(0, 2.2f, 0), new Vector3(1.0f, 0.5f, 1.0f), wood);             // platform
+        Prims.Cone(t, new Vector3(0, 2.7f, 0), 0.7f, 0.5f, 4, roof, 45f);                       // small roof
+
+        Prims.EnableShadows(g);
+        return g;
+    }
+
+    public static GameObject BombardTower(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewBuilding("BombardTower", parent, worldPos, BuildingType.BombardTower,
+            new Vector3(0, 1.6f, 0), new Vector3(1.6f, 3.4f, 1.6f));
+        var t = g.transform;
+        var stoneMat = Prims.Mat(Stone, 0.05f);
+        var darkMat  = Prims.Mat(Prims.Hex(0x33363c), 0.4f, 0.6f);
+        var roofMat  = Prims.Mat(teamColor, 0.05f, 0.3f);
+
+        Prims.Cylinder(t, new Vector3(0, 1.6f, 0), 0.8f, 3.2f, stoneMat);
+        Prims.Box(t, new Vector3(0, 3.3f, 0), new Vector3(1.8f, 0.2f, 1.8f), stoneMat);
+        foreach (var cx in new[] { -0.7f, 0.7f })
+            foreach (var cz in new[] { -0.7f, 0.7f })
+                Prims.Box(t, new Vector3(cx, 3.55f, cz), new Vector3(0.32f, 0.4f, 0.32f), stoneMat);
+        // Cannon barrel poking out the top.
+        Prims.Cylinder(t, new Vector3(0, 3.5f, 0.7f), 0.22f, 1.0f, darkMat)
+            .transform.localRotation = Quaternion.Euler(70f, 0, 0);
+        Prims.Box(t, new Vector3(0, 3.0f, 0), new Vector3(1.6f, 0.2f, 1.6f), roofMat); // banner band
+
+        Prims.EnableShadows(g);
+        return g;
+    }
+
     public static GameObject Blacksmith(Transform parent, Vector3 worldPos, Color teamColor)
     {
         var g = NewBuilding("Blacksmith", parent, worldPos, BuildingType.Blacksmith,
@@ -649,6 +691,8 @@ public static class BuildingFactory
         BuildingType.University   => University(parent, worldPos, teamColor),
         BuildingType.Dock         => Dock(parent, worldPos, teamColor),
         BuildingType.SiegeWorkshop => SiegeWorkshop(parent, worldPos, teamColor),
+        BuildingType.Outpost      => Outpost(parent, worldPos, teamColor),
+        BuildingType.BombardTower => BombardTower(parent, worldPos, teamColor),
         _                         => House(parent, worldPos, teamColor),
     };
 

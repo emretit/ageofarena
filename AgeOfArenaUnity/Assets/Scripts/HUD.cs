@@ -1334,6 +1334,8 @@ public class HUD : MonoBehaviour
         BuildingType.Gate         => "Kapı",
         BuildingType.Dock         => "Liman",
         BuildingType.SiegeWorkshop => "Kuşatma Atölyesi",
+        BuildingType.Outpost      => "Gözcü Kulesi",
+        BuildingType.BombardTower => "Bombard Kulesi",
         _                         => t.ToString(),
     };
 
@@ -1371,6 +1373,8 @@ public class HUD : MonoBehaviour
         BuildingType.Gate         => "Birimlerin geçebildiği kapı.",
         BuildingType.Dock         => "Gemi üretir. Su kenarına inşa et (150 odun).",
         BuildingType.SiegeWorkshop => "Koçbaşı + mancınık üretir (Kale Çağı, 200 odun).",
+        BuildingType.Outpost      => "Ucuz gözcü kulesi. Ateş etmez (25 odun + 5 taş).",
+        BuildingType.BombardTower => "Top kulesi: Siege hasarı, uzun menzil (İmparatorluk, 125 odun + 100 taş).",
         _                         => "",
     };
 
