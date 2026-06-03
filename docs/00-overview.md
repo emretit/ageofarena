@@ -77,6 +77,38 @@ Yeni içerik çoğunlukla **mimari değiştirmeden veri tablolarına satır** ek
 
 ---
 
+## AoE2 Kaynak Referans Dokümantasyonu
+
+`docs/reference/` klasörü AoE2'nin gerçek mekaniklerini sayısal detayla saklar.
+Gap-analiz dosyaları "AoA'da ne var?" diye sorarken, reference "AoE2'de gerçekte ne var?" sorusuna cevap verir.
+
+| Dosya | İçerik |
+|---|---|
+| [reference/01-civilizations.md](reference/01-civilizations.md) | 45 medeniyetin tam tablosu (unique unit, tech, takım bonusu) |
+| [reference/02-units-upgrade-chains.md](reference/02-units-upgrade-chains.md) | Militia/Archer/Scout/Knight/Siege hatları + stat'lar |
+| [reference/03-buildings-by-age.md](reference/03-buildings-by-age.md) | Çağa göre tüm binalar: maliyet, HP, üretim/araştırma |
+| [reference/04-tech-tree.md](reference/04-tech-tree.md) | Ekonomi + askeri teknoloji ağacı (bina, çağ, maliyet, etki) |
+| [reference/05-economy-trade.md](reference/05-economy-trade.md) | Kaynak sistemi, çiftlik yönetimi, market, trade cart, relik |
+| [reference/06-victory-game-modes.md](reference/06-victory-game-modes.md) | Zafer koşulları + oyun modları |
+| [reference/07-unit-counter-system.md](reference/07-unit-counter-system.md) | Rock-paper-scissors counter matrisi + bonus damage değerleri |
+
+---
+
+## Oyun Wiki (AoA gerçek implementasyonu)
+
+`docs/wiki/` klasörü AoA'nın **şu an gerçekte nasıl çalıştığını** sayfa sayfa, her stat
+`file:line` referanslı olarak belgeler (O26'da çok-ajanlı workflow + adversarial stat denetimi
+ile üretildi). Üç katman birbirini tamamlar: **reference** = "AoE2'de ne var", **bu klasör
+(01-12)** = "ne eksik / nasıl kapatılır", **wiki** = "BİZDE ne var, nasıl çalışıyor".
+
+→ Başlangıç: [wiki/00-index.md](wiki/00-index.md) — 11 kategori sayfası + okuma sırası + 4-katman diyagramı
+
+Wiki sayfalarının §8 "Eksikler" bölümleri tek dosyada toplandı:
+[wiki/99-backlog.md](wiki/99-backlog.md) (72 tekil madde). Bu, P3 backlog kaynağıdır;
+onaylananlar [HANDOFF.md](../HANDOFF.md) P3 tablosuna taşınır.
+
+---
+
 ## Referans repolar (kod kopyalanmadı, yalnızca yaklaşım)
 
 - **openage** — data-driven (nyan DSL), event-loop → [11](11-civilizations-balance.md), [05](05-tech-ages.md)
