@@ -45,6 +45,18 @@ public class WorldRoot : MonoBehaviour
 
     MeshRenderer _groundRenderer;  // saved for FogOfWarSystem.Init
 
+    // NAV: fixed lake positions (world XZ) and baked naval agent type ID.
+    static readonly Vector3[] LakePositions =
+    {
+        new(-40f, 0f,  0f),
+        new( 40f, 0f,  0f),
+    };
+    const float LakeRadius = 15f;
+
+    int _navalAgentTypeId = -1;
+    /// <summary>NavMesh agent type ID for Galley units (baked in SetupWaterBodies/BakeNavMesh).</summary>
+    public int NavalAgentTypeId => _navalAgentTypeId;
+
     // Enemy brain flavours (index = teamId; slot 0 is the player and unused).
     static readonly AIPersonality[] Personalities =
     {
@@ -82,6 +94,7 @@ public class WorldRoot : MonoBehaviour
         BuildForestRing();
         BuildMines();
         BuildRelics();
+        SetupWaterBodies();
         BakeNavMesh();
         gm.cameraRig = cam;
         SetupGameplay(gm);
@@ -486,12 +499,51 @@ public class WorldRoot : MonoBehaviour
 
     // ── NavMesh ───────────────────────────────────────────────────────────────
 
+    // Builds two visual lake quads (matte blue, no collider) and stores lake
+    // positions so BakeNavMesh can punch them out of the land NavMesh and add
+    // a separate water NavMesh for Galley units.
+    void SetupWaterBodies()
+    {
+        var waterRoot = new GameObject("WaterBodies");
+        waterRoot.transform.SetParent(transform, false);
+
+        var waterMat = new Material(Shader.Find("Standard"));
+        waterMat.color = new Color(0.10f, 0.38f, 0.68f, 0.82f);
+        waterMat.SetFloat("_Metallic", 0f);
+        waterMat.SetFloat("_Glossiness", 0.9f);
+        waterMat.SetFloat("_Mode", 3f);   // Transparent
+        waterMat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        waterMat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        waterMat.SetInt("_ZWrite", 0);
+        waterMat.DisableKeyword("_ALPHATEST_ON");
+        waterMat.EnableKeyword("_ALPHABLEND_ON");
+        waterMat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+        waterMat.renderQueue = 3000;
+
+        float d = LakeRadius * 2f;
+        foreach (var lakePos in LakePositions)
+        {
+            var quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            quad.name = "Lake";
+            quad.transform.SetParent(waterRoot.transform, false);
+            quad.transform.position = new Vector3(lakePos.x, 0.03f, lakePos.z);
+            quad.transform.localScale = new Vector3(d, d, 1f);
+            quad.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            Object.Destroy(quad.GetComponent<MeshCollider>());
+            quad.GetComponent<MeshRenderer>().sharedMaterial = waterMat;
+        }
+    }
+
     void BakeNavMesh()
     {
-        const float groundHalf  = 100f; // 200×200 map half-extent
+        const float groundHalf  = 100f;
         const float agentHeight = 2f;
+        var bounds = new Bounds(Vector3.zero,
+            new Vector3(groundHalf * 2f + 4f, agentHeight * 2f, groundHalf * 2f + 4f));
 
-        var sources = new List<NavMeshBuildSource>
+        // ── Land NavMesh (default agent, area 0 = Walkable) ─────────────────
+        // Lakes are punched out as Not Walkable (area 1) so land units can't path onto water.
+        var landSources = new List<NavMeshBuildSource>
         {
             new NavMeshBuildSource
             {
@@ -501,11 +553,44 @@ public class WorldRoot : MonoBehaviour
                 area      = 0,
             }
         };
+        foreach (var lakePos in LakePositions)
+        {
+            landSources.Add(new NavMeshBuildSource
+            {
+                shape     = NavMeshBuildSourceShape.Box,
+                size      = new Vector3(LakeRadius * 2f, 0.3f, LakeRadius * 2f),
+                transform = Matrix4x4.TRS(lakePos, Quaternion.identity, Vector3.one),
+                area      = 1, // Not Walkable
+            });
+        }
+        var landSettings = NavMesh.GetSettingsByIndex(0);
+        var landData = NavMeshBuilder.BuildNavMeshData(
+            landSettings, landSources, bounds, Vector3.zero, Quaternion.identity);
+        if (landData != null) NavMesh.AddNavMeshData(landData);
 
-        var settings = NavMesh.GetSettingsByIndex(0);
-        var bounds   = new Bounds(Vector3.zero, new Vector3(groundHalf * 2f + 4f, agentHeight * 2f, groundHalf * 2f + 4f));
-        var data     = NavMeshBuilder.BuildNavMeshData(settings, sources, bounds, Vector3.zero, Quaternion.identity);
-        if (data != null) NavMesh.AddNavMeshData(data);
+        // ── Water NavMesh (custom agent type, water areas = Walkable) ────────
+        // Galley units use this NavMesh; land units can't access it (different agentTypeID).
+        var navalSettings = NavMesh.CreateSettings();
+        navalSettings.agentRadius  = 0.5f;
+        navalSettings.agentHeight  = 1.0f;
+        navalSettings.agentClimb   = 0f;
+        navalSettings.agentSlope   = 0f;
+        _navalAgentTypeId = navalSettings.agentTypeID;
+
+        var waterSources = new List<NavMeshBuildSource>();
+        foreach (var lakePos in LakePositions)
+        {
+            waterSources.Add(new NavMeshBuildSource
+            {
+                shape     = NavMeshBuildSourceShape.Box,
+                size      = new Vector3(LakeRadius * 2f, 0.1f, LakeRadius * 2f),
+                transform = Matrix4x4.TRS(lakePos, Quaternion.identity, Vector3.one),
+                area      = 0,
+            });
+        }
+        var waterData = NavMeshBuilder.BuildNavMeshData(
+            navalSettings, waterSources, bounds, Vector3.zero, Quaternion.identity);
+        if (waterData != null) NavMesh.AddNavMeshData(waterData);
     }
 
     // ── Systems & Gameplay ────────────────────────────────────────────────────

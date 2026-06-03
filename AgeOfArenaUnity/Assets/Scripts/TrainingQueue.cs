@@ -128,6 +128,7 @@ public class TrainingQueue : MonoBehaviour
             UnitType.Monk        => UnitFactory.Monk(unitsRoot, spawnPos, teamColor),
             UnitType.TradeCart   => UnitFactory.TradeCart(unitsRoot, spawnPos, teamColor),
             UnitType.Longbowman  => UnitFactory.Longbowman(unitsRoot, spawnPos, teamColor),
+            UnitType.Galley      => SpawnGalley(b, unitsRoot, teamColor),
             _                    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
         };
 
@@ -138,6 +139,30 @@ public class TrainingQueue : MonoBehaviour
         // If the building has a rally point, the fresh unit walks there instead of
         // idling at the gate (AoE behaviour).
         if (b.hasRally && unit != null) unit.MoveTo(b.rallyPoint);
+    }
+
+    // Spawn a Galley toward the nearest lake centre so it lands on the water NavMesh.
+    static UnitEntity SpawnGalley(BuildingEntity dock, Transform unitsRoot, Color teamColor)
+    {
+        var wr = Object.FindAnyObjectByType<WorldRoot>();
+        int navalId = wr != null ? wr.NavalAgentTypeId : -1;
+
+        // Offset 5 units toward the nearest lake so the spawn is inside the water area.
+        Vector3 dockPos = dock.transform.position;
+        Vector3[] lakeCenters = { new Vector3(-40f, 0f, 0f), new Vector3(40f, 0f, 0f) };
+        Vector3 nearest = lakeCenters[0];
+        float minSq = float.MaxValue;
+        foreach (var lc in lakeCenters)
+        {
+            float sq = (dockPos - lc).sqrMagnitude;
+            if (sq < minSq) { minSq = sq; nearest = lc; }
+        }
+        Vector3 dir = (nearest - dockPos);
+        dir.y = 0f;
+        if (dir.sqrMagnitude > 0.01f) dir.Normalize();
+        Vector3 spawnPos = dockPos + dir * 5f;
+
+        return UnitFactory.Galley(unitsRoot, spawnPos, teamColor, navalId);
     }
 
     static bool BlacksmithNearby(BuildingEntity b, float radius)

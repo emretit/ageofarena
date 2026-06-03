@@ -89,8 +89,8 @@ public static class BuildingDefs
         new(BuildingType.Monastery,     0,  175,  0,  0,  22f,  0,  350f, "Manastır",        'N', true,  minAge: Age.Castle),
         // University: Imperial techs (Masonry, Fortified Wall, etc.).
         new(BuildingType.University,    0,  200,  0,150,  28f,  0,  400f, "Üniversite",      'U', true,  minAge: Age.Castle),
-        // Dock: naval unit production (NAV — requires water map; stub for data completeness).
-        new(BuildingType.Dock,          0,  150,  0,  0,  25f,  0,  300f, "Liman",           'X', false, minAge: Age.Dark),
+        // Dock: naval unit production. Build near a lake; Galley spawns into water.
+        new(BuildingType.Dock,          0,  150,  0,  0,  25f,  0,  300f, "Liman",           'X', true,  true,  MaskFood, minAge: Age.Dark),
     };
 
     public static BuildingDef Get(BuildingType t)

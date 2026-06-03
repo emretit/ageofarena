@@ -723,5 +723,6 @@ public class EnemyAI : MonoBehaviour
 
     static bool IsMilitary(UnitEntity u) =>
         u.type == UnitType.Militia || u.type == UnitType.Archer ||
-        u.type == UnitType.Cavalry || u.type == UnitType.Trebuchet;
+        u.type == UnitType.Cavalry || u.type == UnitType.Trebuchet ||
+        u.type == UnitType.Galley;
 }

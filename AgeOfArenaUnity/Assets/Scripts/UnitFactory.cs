@@ -259,6 +259,58 @@ public static class UnitFactory
         return e;
     }
 
+    public static UnitEntity Galley(Transform parent, Vector3 worldPos, Color teamColor, int navalAgentTypeId)
+    {
+        var g = new GameObject("Galley");
+        g.transform.SetParent(parent, false);
+        g.transform.position = worldPos;
+        var t = g.transform;
+
+        var wood  = Prims.Mat(Prims.Hex(0x7a5c3a));
+        var sail  = Prims.Mat(teamColor, 0f, 0.3f);
+        var dark  = Prims.Mat(Prims.Hex(0x4a3a22), 0.05f);
+
+        // Boat hull
+        Prims.Box(t, new Vector3(0, 0.2f, 0),    new Vector3(1.6f, 0.5f, 3.5f), wood);
+        // Raised bow and stern
+        Prims.Box(t, new Vector3(0, 0.45f, 1.6f), new Vector3(1.3f, 0.4f, 0.4f), dark);
+        Prims.Box(t, new Vector3(0, 0.55f,-1.6f), new Vector3(1.0f, 0.3f, 0.4f), dark);
+        // Mast
+        Prims.Cylinder(t, new Vector3(0, 1.4f, 0.3f), 0.08f, 2.0f, dark);
+        // Sail
+        Prims.Box(t, new Vector3(0.4f, 1.7f, 0.3f), new Vector3(0.05f, 0.9f, 1.2f), sail);
+        // Oars
+        foreach (float rx in new[] { -0.85f, 0.85f })
+            Prims.Box(t, new Vector3(rx, 0.15f, 0), new Vector3(0.06f, 0.06f, 2.8f), dark);
+
+        g.transform.localScale = new Vector3(1.25f, 1.25f, 1.25f);
+        Prims.EnableShadows(g);
+        Prims.BlobShadow(t, 0.9f);
+
+        var ringGo = new GameObject("SelectionRing");
+        ringGo.transform.SetParent(g.transform, false);
+        ringGo.AddComponent<UnityEngine.LineRenderer>();
+        ringGo.AddComponent<SelectionRing>();
+
+        var col = g.AddComponent<UnityEngine.CapsuleCollider>();
+        col.center = new Vector3(0, 0.6f, 0);
+        col.radius = 0.4f;
+        col.height = 1.2f;
+
+        var e = g.AddComponent<UnitEntity>();
+        e.unitId  = _nextId++;
+        e.teamId  = 0;
+        e.type    = UnitType.Galley;
+        e.state   = UnitState.Idle;
+        e.targetPos = g.transform.position;
+        e.isNaval = true;
+        e.navalAgentTypeId = navalAgentTypeId;
+        e.hp = e.maxHp = 120f;
+        e.moveSpeed = 4.5f;
+        e.pierceArmor = 1f;
+        return e;
+    }
+
     public static UnitEntity TradeCart(Transform parent, Vector3 worldPos, Color teamColor)
     {
         var g = new GameObject("TradeCart");

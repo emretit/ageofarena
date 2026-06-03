@@ -569,6 +569,36 @@ public static class BuildingFactory
         return g;
     }
 
+    public static GameObject Dock(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewBuilding("Dock", parent, worldPos, BuildingType.Dock,
+            new Vector3(0, 0.7f, 0), new Vector3(3.0f, 1.4f, 3.0f));
+        var t = g.transform;
+
+        var plankMat = Prims.Mat(Prims.Hex(0x7a5230), 0.05f);
+        var darkMat  = Prims.Mat(Prims.Hex(0x4a3018), 0.05f);
+        var roofMat  = Prims.Mat(teamColor, 0.05f, 0.3f);
+        var mastMat  = Prims.Mat(Prims.Hex(0x6e4a28));
+
+        // Dock platform (wooden planks)
+        Prims.Box(t, new Vector3(0, 0.3f, 0), new Vector3(3.0f, 0.15f, 3.0f), plankMat);
+        // Support piles
+        foreach (float px in new[] { -1.1f, 0f, 1.1f })
+            foreach (float pz in new[] { -1.1f, 1.1f })
+                Prims.Cylinder(t, new Vector3(px, -0.15f, pz), 0.1f, 1.0f, darkMat);
+        // Small warehouse/office
+        Prims.Box(t, new Vector3(-0.7f, 0.9f, 0), new Vector3(1.2f, 0.9f, 1.3f), plankMat);
+        Prims.Box(t, new Vector3(-0.7f, 1.45f, 0), new Vector3(1.35f, 0.18f, 1.45f), roofMat);
+        // Flagpole
+        Prims.Cylinder(t, new Vector3(-0.7f, 2.4f, 0), 0.04f, 1.4f, mastMat);
+        Prims.Box(t, new Vector3(-0.4f, 2.85f, 0), new Vector3(0.65f, 0.4f, 0.04f),
+            Prims.Mat(teamColor, 0, 0.4f)).name = "Flag";
+
+        Prims.BlobShadow(t, 1.8f);
+        Prims.EnableShadows(g);
+        return g;
+    }
+
     /// <summary>
     /// Generic dispatcher used by the placement system and enemy AI to build any
     /// type by enum. Uses <paramref name="teamColor"/> for the roof so buildings
@@ -594,6 +624,7 @@ public static class BuildingFactory
         BuildingType.Blacksmith   => Blacksmith(parent, worldPos, teamColor),
         BuildingType.Monastery    => Monastery(parent, worldPos, teamColor),
         BuildingType.University   => University(parent, worldPos, teamColor),
+        BuildingType.Dock         => Dock(parent, worldPos, teamColor),
         _                         => House(parent, worldPos, teamColor),
     };
 

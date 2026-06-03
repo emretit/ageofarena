@@ -89,6 +89,12 @@ public static class CommandIconFactory
                 Add(icon, Square,   Wood,  -9, 4, 4, 30);          // spear shaft
                 Add(icon, Triangle, Steel, -9, 19, 9, 9, 0);       // spear tip
                 break;
+            case UnitType.Galley:
+                Add(icon, Square,   Wood,  0, -6, 28, 10);         // hull
+                Add(icon, Triangle, Dark, -13, -4, 8, 12);         // bow
+                Add(icon, Square,   Dark,  0, 6, 3, 22);           // mast
+                Add(icon, Square,   Blue,  5, 8, 12, 8, -15);      // sail
+                break;
         }
     }
 
@@ -168,6 +174,12 @@ public static class CommandIconFactory
                 Add(icon, Square, Stone, 10, -2, 8, 26);
                 Add(icon, Square, Stone, 0, 12, 30, 6);            // lintel
                 Add(icon, Square, Prims.Hex(0x33291c), 0, -4, 11, 18); // opening
+                break;
+            case BuildingType.Dock:
+                Add(icon, Square, Wood,  0, -5, 28, 12);           // platform
+                Add(icon, Square, Dark, -8, -12, 4, 10);           // pile left
+                Add(icon, Square, Dark,  8, -12, 4, 10);           // pile right
+                Add(icon, Square, Prims.Hex(0x2a5db0), 0, -16, 28, 5); // water line
                 break;
         }
     }

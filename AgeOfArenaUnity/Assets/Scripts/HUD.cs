@@ -29,7 +29,6 @@ public class HUD : MonoBehaviour
 
     // ── Command bar ──────────────────────────────────────────────────────────
     RectTransform _cmdBar;
-    bool _barActive;
     // Left info panel
     Text _infoName, _infoSub, _hpText;
     RectTransform _hpBarBg, _hpBarFill;
@@ -68,8 +67,14 @@ public class HUD : MonoBehaviour
     const int   Cols   = 5;
     const int   Rows   = 3;            // fixed AoE-style slot grid (Cols×Rows)
     const float BtnW   = 60f, BtnH = 60f, Gap = 6f;
-    const float BarH   = 210f;
-    const float LeftW  = 240f;
+    const float BarH   = 220f;
+    const float LeftW  = 240f;         // info panel width
+    const float CmdZoneW = 352f;       // left command-grid zone (14 + 5×60+4×6 + 14)
+    const float MinW   = 230f;         // right minimap zone width (diamond sits here)
+
+    // Right minimap zone inside the bottom bar — MinimapSystem parents its diamond here.
+    RectTransform _minimapZone;
+    public RectTransform MinimapZone => _minimapZone;
 
     // Command-button category colors.
     static readonly Color TrainCol  = Prims.Hex(0x3a6ea5);
@@ -188,9 +193,11 @@ public class HUD : MonoBehaviour
         bar.anchorMin = new Vector2(0, 1);
         bar.anchorMax = new Vector2(1, 1);
         bar.pivot     = new Vector2(0.5f, 1);
-        bar.sizeDelta = new Vector2(0, 56);
+        bar.sizeDelta = new Vector2(0, 64);
         bar.anchoredPosition = Vector2.zero;
-        bar.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.55f);
+        var topBg = bar.gameObject.AddComponent<Image>();
+        topBg.color = new Color(0f, 0f, 0f, 0.55f);            // flat fallback
+        UiSkin.SkinPanel(topBg, UiSkin.BarBg, Color.white);    // wooden frame when kit present
 
         float x = 24f;
         _foodText  = AddEntry(bar, ref x, Prims.Hex(0xd64545), "Food");
@@ -229,6 +236,7 @@ public class HUD : MonoBehaviour
         rect.anchoredPosition = new Vector2(-490, 0);
         var img = rect.gameObject.AddComponent<Image>();
         img.color = new Color(0.22f, 0.22f, 0.30f, 0.92f);
+        UiSkin.SkinPanel(img, UiSkin.PillNormal, Color.white);
         var btn = rect.gameObject.AddComponent<Button>();
         btn.targetGraphic = img;
         btn.onClick.AddListener(CycleDifficulty);
@@ -273,6 +281,7 @@ public class HUD : MonoBehaviour
         rect.anchoredPosition = new Vector2(-665, 0);
         var img = rect.gameObject.AddComponent<Image>();
         img.color = new Color(0.18f, 0.14f, 0.30f, 0.92f);
+        UiSkin.SkinPanel(img, UiSkin.PillNormal, Color.white);
         var btn = rect.gameObject.AddComponent<Button>();
         btn.targetGraphic = img;
         btn.onClick.AddListener(CycleCiv);
@@ -354,7 +363,9 @@ public class HUD : MonoBehaviour
         _cmdBar.pivot     = new Vector2(0.5f, 0);
         _cmdBar.sizeDelta = new Vector2(0, BarH);
         _cmdBar.anchoredPosition = Vector2.zero;
-        _cmdBar.gameObject.AddComponent<Image>().color = new Color(0.05f, 0.06f, 0.08f, 0.9f);
+        var barBg = _cmdBar.gameObject.AddComponent<Image>();
+        barBg.color = new Color(0.05f, 0.06f, 0.08f, 0.9f);   // flat fallback
+        UiSkin.SkinPanel(barBg, UiSkin.BarBg, Color.white);   // wooden frame when kit present
 
         // Thin gold accent along the top edge gives the bar a crisp boundary.
         var topLine = NewRect("BarTopAccent", _cmdBar);
@@ -364,21 +375,28 @@ public class HUD : MonoBehaviour
         topLine.anchoredPosition = Vector2.zero;
         topLine.gameObject.AddComponent<Image>().color = new Color(0.78f, 0.64f, 0.28f, 0.9f);
 
-        // ── Left info panel ──
+        // ── Info panel (2nd zone, right of the command grid; AoE-faithful order) ──
         var left = NewRect("InfoPanel", _cmdBar);
         left.anchorMin = new Vector2(0, 0); left.anchorMax = new Vector2(0, 1);
         left.pivot = new Vector2(0, 0.5f);
-        left.sizeDelta = new Vector2(LeftW, 0);
-        left.anchoredPosition = Vector2.zero;
-        left.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.35f);
+        left.sizeDelta = new Vector2(LeftW, -16);
+        left.anchoredPosition = new Vector2(CmdZoneW, 0);
+        var infoBg = left.gameObject.AddComponent<Image>();
+        infoBg.color = new Color(0f, 0f, 0f, 0.35f);
+        UiSkin.SkinPanel(infoBg, UiSkin.PanelInset, Color.white);
 
-        // Vertical divider between the info panel and the command grid.
-        var sep = NewRect("InfoSep", _cmdBar);
-        sep.anchorMin = new Vector2(0, 0); sep.anchorMax = new Vector2(0, 1);
-        sep.pivot = new Vector2(0.5f, 0.5f);
-        sep.sizeDelta = new Vector2(2, -20);
-        sep.anchoredPosition = new Vector2(LeftW, 0);
-        sep.gameObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.08f);
+        // Vertical dividers marking the zone boundaries (grid | info | centre).
+        void Divider(float xPos)
+        {
+            var d = NewRect("Sep", _cmdBar);
+            d.anchorMin = new Vector2(0, 0); d.anchorMax = new Vector2(0, 1);
+            d.pivot = new Vector2(0.5f, 0.5f);
+            d.sizeDelta = new Vector2(2, -20);
+            d.anchoredPosition = new Vector2(xPos, 0);
+            d.gameObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.08f);
+        }
+        Divider(CmdZoneW);
+        Divider(CmdZoneW + LeftW);
 
         var nameRect = NewRect("InfoName", left);
         nameRect.anchorMin = new Vector2(0, 1); nameRect.anchorMax = new Vector2(1, 1);
@@ -447,14 +465,14 @@ public class HUD : MonoBehaviour
         _queueStrip.sizeDelta = new Vector2(-16, 40);
         _queueStrip.anchoredPosition = new Vector2(10, -136);
 
-        // ── Right command card: a fixed Cols×Rows slot grid (AoE-style). The grid
-        // is vertically centred; empty slots show a dark frame, commands fill the
-        // first N slots so the panel always reads as deliberate. ──
+        // ── Command card (1st zone, far left — AoE-faithful). A fixed Cols×Rows slot
+        // grid; empty slots show a dark frame, commands fill the first N so the panel
+        // always reads as deliberate. ──
         _cardRoot = NewRect("CommandCard", _cmdBar);
-        _cardRoot.anchorMin = new Vector2(0, 0); _cardRoot.anchorMax = new Vector2(1, 1);
-        _cardRoot.pivot = new Vector2(0.5f, 0.5f);
-        _cardRoot.offsetMin = new Vector2(LeftW + 14f, 8f);
-        _cardRoot.offsetMax = new Vector2(-16f, -8f);
+        _cardRoot.anchorMin = new Vector2(0, 0); _cardRoot.anchorMax = new Vector2(0, 1);
+        _cardRoot.pivot = new Vector2(0, 0.5f);
+        _cardRoot.sizeDelta = new Vector2(CmdZoneW, 0);
+        _cardRoot.anchoredPosition = Vector2.zero;
 
         float gridW = Cols * BtnW + (Cols - 1) * Gap;
         float gridH = Rows * BtnH + (Rows - 1) * Gap;
@@ -462,7 +480,7 @@ public class HUD : MonoBehaviour
         _gridRoot.anchorMin = new Vector2(0, 0.5f); _gridRoot.anchorMax = new Vector2(0, 0.5f);
         _gridRoot.pivot = new Vector2(0, 0.5f);
         _gridRoot.sizeDelta = new Vector2(gridW, gridH);
-        _gridRoot.anchoredPosition = Vector2.zero;
+        _gridRoot.anchoredPosition = new Vector2(14f, 0);
 
         for (int i = 0; i < Cols * Rows; i++)
         {
@@ -472,12 +490,36 @@ public class HUD : MonoBehaviour
             slot.pivot = new Vector2(0, 1);
             slot.sizeDelta = new Vector2(BtnW, BtnH);
             slot.anchoredPosition = new Vector2(col * (BtnW + Gap), -row * (BtnH + Gap));
-            slot.gameObject.AddComponent<Image>().color = new Color(0.11f, 0.12f, 0.14f, 0.65f);
+            var slotImg = slot.gameObject.AddComponent<Image>();
+            slotImg.color = new Color(0.11f, 0.12f, 0.14f, 0.65f);
+            UiSkin.SkinPanel(slotImg, UiSkin.SlotFrame, new Color(1f, 1f, 1f, 0.45f));
         }
 
-        BuildTooltip();
+        // ── Centre emblem zone (3rd zone, decorative; stretches with screen width). ──
+        var center = NewRect("CenterEmblem", _cmdBar);
+        center.anchorMin = new Vector2(0, 0); center.anchorMax = new Vector2(1, 1);
+        center.offsetMin = new Vector2(CmdZoneW + LeftW, 8f);
+        center.offsetMax = new Vector2(-MinW, -8f);
+        var titleRect = NewRect("GameTitle", center);
+        titleRect.anchorMin = titleRect.anchorMax = titleRect.pivot = new Vector2(0.5f, 0.5f);
+        titleRect.sizeDelta = new Vector2(360, 60);
+        titleRect.anchoredPosition = Vector2.zero;
+        var titleTxt = AddText(titleRect, "AGE OF ARENA", TextAnchor.MiddleCenter);
+        titleTxt.fontSize = 24; titleTxt.fontStyle = FontStyle.Bold;
+        titleTxt.color = Prims.Hex(0xe8d4a0);
+        AddOutline(titleTxt, 0.7f);
 
-        _cmdBar.gameObject.SetActive(false);
+        // ── Minimap zone (4th zone, far right). MinimapSystem parents its rotated
+        // diamond render here; kept empty (transparent) so the map fills it. ──
+        _minimapZone = NewRect("MinimapZone", _cmdBar);
+        _minimapZone.anchorMin = new Vector2(1, 0); _minimapZone.anchorMax = new Vector2(1, 1);
+        _minimapZone.pivot = new Vector2(1, 0.5f);
+        _minimapZone.sizeDelta = new Vector2(MinW, 0);
+        _minimapZone.anchoredPosition = Vector2.zero;
+
+        BuildTooltip();
+        // Bar is persistent (always visible) — no SetActive toggle; idle state shows
+        // empty slots + blank info, matching AoE2.
     }
 
     // ── Hover tooltip ──────────────────────────────────────────────────────────
@@ -559,6 +601,7 @@ public class HUD : MonoBehaviour
 
         var bg = rt.gameObject.AddComponent<Image>();
         bg.color = color;
+        UiSkin.Slice(bg, UiSkin.ButtonNormal);   // wooden button frame; keeps category tint
 
         var btn = rt.gameObject.AddComponent<Button>();
         btn.targetGraphic = bg;
@@ -675,18 +718,7 @@ public class HUD : MonoBehaviour
             for (int i = 0; i < sel.Count; i++)
                 if (sel[i] != null && sel[i].type == UnitType.Villager) { hasVillager = true; break; }
 
-        bool show = b != null || unitCount > 0;
-        if (show != _barActive)
-        {
-            _barActive = show;
-            _cmdBar.gameObject.SetActive(show);
-        }
-        if (!show)
-        {
-            _lastBld = null; _lastUnitCount = -1; _lastHasVillager = false; _lastTechVer = -1;
-            return;
-        }
-
+        // Bar is persistent; rebuild the card only when the selection signature changes.
         int techVer = gm.teamTech != null ? gm.teamTech[0].Version : 0;
         if (b != _lastBld || unitCount != _lastUnitCount || hasVillager != _lastHasVillager
             || techVer != _lastTechVer)
@@ -861,9 +893,10 @@ public class HUD : MonoBehaviour
         _queueText.text = "";
         _progressFill.sizeDelta = Vector2.zero;
 
-        if (b != null)        BuildBuildingCard(gm, b);
-        else if (hasVillager) BuildVillagerCard(gm, sel, unitCount);
-        else                  BuildUnitInfo(sel, unitCount);
+        if (b != null)             BuildBuildingCard(gm, b);
+        else if (hasVillager)      BuildVillagerCard(gm, sel, unitCount);
+        else if (unitCount > 0)    BuildUnitInfo(sel, unitCount);
+        else { _infoName.text = ""; _infoSub.text = ""; ShowHpBar(false); }  // nothing selected → idle bar
     }
 
     void BuildBuildingCard(GameManager gm, BuildingEntity b)
@@ -1039,10 +1072,20 @@ public class HUD : MonoBehaviour
     {
         var s = NewRect(label + "Swatch", bar);
         s.anchorMin = s.anchorMax = s.pivot = new Vector2(0, 0.5f);
-        s.sizeDelta = new Vector2(22, 22);
+        s.sizeDelta = new Vector2(24, 24);
         s.anchoredPosition = new Vector2(x, 0);
-        s.gameObject.AddComponent<Image>().color = swatch;
-        x += 30f;
+        var swImg = s.gameObject.AddComponent<Image>();
+        swImg.color = swatch;
+        // AoE feel: when the kit is present, nest the coloured chip inside an inset frame.
+        if (UiSkin.Available)
+        {
+            UiSkin.SkinPanel(swImg, UiSkin.SlotFrame, Color.white);
+            var chip = NewRect(label + "Chip", s);
+            chip.anchorMin = new Vector2(0, 0); chip.anchorMax = new Vector2(1, 1);
+            chip.offsetMin = new Vector2(5, 5); chip.offsetMax = new Vector2(-5, -5);
+            chip.gameObject.AddComponent<Image>().color = swatch;
+        }
+        x += 32f;
 
         var v = NewRect(label + "Text", bar);
         v.anchorMin = v.anchorMax = v.pivot = new Vector2(0, 0.5f);
@@ -1215,6 +1258,7 @@ public class HUD : MonoBehaviour
         UnitType.Medic       => "Şifacı",
         UnitType.Spearman    => "Mızrakçı",
         UnitType.Longbowman  => "Uzun Yaylı",
+        UnitType.Galley      => "Gemi",
         _                    => t.ToString(),
     };
 
@@ -1256,6 +1300,7 @@ public class HUD : MonoBehaviour
         BuildingType.Castle       => "Kale",
         BuildingType.Wall         => "Duvar",
         BuildingType.Gate         => "Kapı",
+        BuildingType.Dock         => "Liman",
         _                         => t.ToString(),
     };
 
@@ -1272,6 +1317,7 @@ public class HUD : MonoBehaviour
         UnitType.Medic       => "Yakındaki dost birimleri iyileştirir.",
         UnitType.Spearman    => "Süvariye karşı uzman. Mızraklı piyade.",
         UnitType.Longbowman  => "Britanyalılar özgün birimi. Çok uzun menzil, delik zırh.",
+        UnitType.Galley      => "Su birimi. Göldeki düşman gemilerine saldırır.",
         _                    => "",
     };
 
@@ -1290,6 +1336,7 @@ public class HUD : MonoBehaviour
         BuildingType.Castle       => "Güçlü savunma kulesi; mancınık/şifacı eğitir.",
         BuildingType.Wall         => "Geçişi engelleyen sur. Ucuz ve dayanıklı.",
         BuildingType.Gate         => "Birimlerin geçebildiği kapı.",
+        BuildingType.Dock         => "Gemi üretir. Su kenarına inşa et (150 odun).",
         _                         => "",
     };
 
