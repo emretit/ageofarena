@@ -151,7 +151,9 @@ public class BuildingEntity : MonoBehaviour, IDamageable
 
     static readonly UnitTrainable[] DockTrainables =
     {
-        new(UnitType.Galley, 35f, 0, 120, 60, "G"), // wood+gold — naval combat unit
+        new(UnitType.Galley,   35f, 0, 120, 60, "G"), // wood+gold — naval combat unit
+        new(UnitType.FireShip, 32f, 0, 100, 45, "F"), // anti-ship (Feudal)
+        new(UnitType.DemoShip, 30f, 0,  70, 50, "D"), // explosive splash (Castle)
     };
 
     static readonly UnitTrainable[] SiegeWorkshopTrainables =
@@ -200,6 +202,8 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         UnitType.Ram         => Age.Castle,
         UnitType.Mangonel    => Age.Castle,
         UnitType.CavalryArcher => Age.Castle,
+        UnitType.FireShip    => Age.Feudal,
+        UnitType.DemoShip    => Age.Castle,
         _                    => Age.Dark,
     };
 

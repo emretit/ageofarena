@@ -123,6 +123,17 @@ public static class CommandIconFactory
                 Add(icon, Square, Dark, 8, -12, 3, 10);
                 Add(icon, Ring,   Wood, -3, 9, 13, 13);            // rider's bow
                 break;
+            case UnitType.FireShip:
+                Add(icon, Square,   Wood,  0, -6, 28, 10);         // hull
+                Add(icon, Triangle, Dark, -13, -4, 8, 12);         // bow
+                Add(icon, Triangle, Prims.Hex(0xf06010), 6, 7, 12, 16); // flame
+                break;
+            case UnitType.DemoShip:
+                Add(icon, Square,   Wood,  0, -6, 26, 10);         // hull
+                Add(icon, Triangle, Dark, -12, -4, 8, 12);         // bow
+                Add(icon, Circle,   Prims.Hex(0x8a3018), 3, 5, 12, 12); // barrel
+                Add(icon, Circle,   Prims.Hex(0xf0c020), 3, 5, 4, 4);   // fuse spark
+                break;
             case UnitType.Galley:
                 Add(icon, Square,   Wood,  0, -6, 28, 10);         // hull
                 Add(icon, Triangle, Dark, -13, -4, 8, 12);         // bow
@@ -257,6 +268,12 @@ public static class CommandIconFactory
             case TechType.HeavyCavalryArcher:
                 Add(icon, Square,   Wood,  -2, 0, 24, 3);          // arrow
                 Add(icon, Triangle, Steel, 11, 0, 9, 9, -90);
+                break;
+            case TechType.WarGalley:
+            case TechType.Galleon:
+                Add(icon, Square,   Wood, 0, -6, 26, 9);           // hull
+                Add(icon, Square,   Dark, 0, 4, 3, 18);            // mast
+                Add(icon, Triangle, Steel, 7, 6, 10, 12);          // sail
                 break;
             case TechType.ScaleMail:
             case TechType.Bloodlines:

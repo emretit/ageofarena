@@ -59,6 +59,12 @@ public class UnitEntity : MonoBehaviour, IDamageable
     // Monk conversion: time spent channeling on the current target.
     public float convertProgress;
     public const float ConvertTime = 4f;  // seconds to convert an enemy unit
+    // Faith: a Monk must be at full faith to start a conversion; faith drops to 0
+    // after a successful convert and regenerates over time (AoE2 recharge model).
+    public float faith = FaithFull;
+    public const float FaithFull = 100f;
+    public const float FaithRegenPerSec = 12.5f;     // ~8s to fully recharge
+    public bool FaithReady => faith >= FaithFull;
 
     // ── Construction (villagers) ─────────────────────────────────────────────
     public BuildingEntity constructTarget;
@@ -105,6 +111,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Trebuchet   => 35f, UnitType.Spearman    => 4f,  UnitType.Longbowman => 5f,
         UnitType.Galley      => 8f,  UnitType.Skirmisher  => 3f,  UnitType.Camel      => 7f,
         UnitType.Ram         => 4f,  UnitType.Mangonel    => 25f, UnitType.CavalryArcher => 5f,
+        UnitType.FireShip    => 6f,  UnitType.DemoShip    => 40f,
         // Support units deal no damage: Scout is pure recon (gains attack via Light Cavalry/Hussar
         // tech, applied through TechState.AttackBonus), Medic only heals.
         UnitType.Scout       => 0f,  UnitType.Medic       => 0f,
@@ -116,6 +123,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Trebuchet   => 15f,  UnitType.Spearman    => 1.5f, UnitType.Longbowman => 8.5f,
         UnitType.Galley      => 5.5f, UnitType.Skirmisher  => 5f,   UnitType.Camel      => 1.4f,
         UnitType.Ram         => 1.3f, UnitType.Mangonel    => 9f,   UnitType.CavalryArcher => 4f,
+        UnitType.FireShip    => 3f,   UnitType.DemoShip    => 1.5f,
         _                    => 1.1f,
     };
     /// <summary>Effective damage = base + tech bonus, scaled by civ infantry bonus for infantry types.</summary>
@@ -145,6 +153,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Trebuchet   => 5.5f, UnitType.Spearman    => 1.3f, UnitType.Longbowman => 1.6f,
         UnitType.Galley      => 2.0f, UnitType.Skirmisher  => 2.0f, UnitType.Camel      => 1.1f,
         UnitType.Ram         => 3.0f, UnitType.Mangonel    => 4.0f, UnitType.CavalryArcher => 2.0f,
+        UnitType.FireShip    => 0.8f, UnitType.DemoShip    => 2.0f,
         _                    => 1.6f,
     };
     /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.
@@ -155,6 +164,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Trebuchet   => 15f, UnitType.Spearman    => 7f,   UnitType.Longbowman => 11f,
         UnitType.Galley      => 8f,  UnitType.Skirmisher  => 9f,   UnitType.Camel      => 8f,
         UnitType.Mangonel    => 11f, UnitType.Ram         => 4f,   UnitType.CavalryArcher => 10f,
+        UnitType.FireShip    => 8f,  UnitType.DemoShip    => 6f,
         UnitType.Scout       => (TeamTech?.Has(TechType.LightCavalry) ?? false) ? 8f : 0f,
         _                    => 0f,
     };
@@ -173,8 +183,13 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Galley    => 1.5f,
         _                  => 0f,
     };
-    /// <summary>Area-of-effect splash radius for projectiles (0 = single target). Mangonel only.</summary>
-    public float SplashRadius => type == UnitType.Mangonel ? 1.8f : 0f;
+    /// <summary>Area-of-effect splash radius for projectiles (0 = single target).</summary>
+    public float SplashRadius => type switch
+    {
+        UnitType.Mangonel => 1.8f,
+        UnitType.DemoShip => 2.5f,   // explosive area attack
+        _                 => 0f,
+    };
     /// <summary>First melee charge hit by a Cavalry unit deals 2.5× damage.</summary>
     public float ChargeMultiplier => type == UnitType.Cavalry ? 2.5f : 1f;
     /// <summary>Anti-cavalry bonus vs Cavalry/Camel targets: Spearman 3×, Camel 2×.</summary>
@@ -194,15 +209,18 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Skirmisher  => DamageType.Pierce,
         UnitType.CavalryArcher => DamageType.Pierce,
         UnitType.Galley      => DamageType.Pierce,
+        UnitType.FireShip    => DamageType.Pierce,
         UnitType.Trebuchet   => DamageType.Siege,
         UnitType.Mangonel    => DamageType.Siege,
         UnitType.Ram         => DamageType.Siege,
+        UnitType.DemoShip    => DamageType.Siege,
         _                    => DamageType.Melee,
     };
     /// <summary>Ranged units attack via projectiles instead of melee contact.</summary>
     public bool IsRanged => type == UnitType.Archer || type == UnitType.Trebuchet
         || type == UnitType.Longbowman || type == UnitType.Galley || type == UnitType.Skirmisher
-        || type == UnitType.Mangonel || type == UnitType.CavalryArcher;
+        || type == UnitType.Mangonel || type == UnitType.CavalryArcher
+        || type == UnitType.FireShip || type == UnitType.DemoShip;
 
     // ── Medic healing (driven by CombatSystem.StepHeal) ──────────────────────
     /// <summary>Radius within which a Medic auto-heals friendly units; 0 = not a healer.</summary>

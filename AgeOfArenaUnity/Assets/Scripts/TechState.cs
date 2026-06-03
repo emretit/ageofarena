@@ -41,6 +41,8 @@ public class TechState
     float ScoutLineAtk      => (Has(TechType.LightCavalry) ? 5f : 0f)
                              + (Has(TechType.Hussar) ? 2f : 0f);
     float CavArcherLineAtk  => Has(TechType.HeavyCavalryArcher) ? 2f : 0f;
+    float GalleyLineAtk     => (Has(TechType.WarGalley) ? 2f : 0f)
+                             + (Has(TechType.Galleon) ? 2f : 0f);
 
     /// <summary>Additive attack bonus for a unit type (read live by CombatSystem).</summary>
     public float AttackBonus(UnitType t) => t switch
@@ -53,6 +55,7 @@ public class TechState
         UnitType.Camel      => MeleeAttackBonus + CamelLineAtk,
         UnitType.Scout      => ScoutLineAtk,
         UnitType.CavalryArcher => ArcherAttackBonus + CavArcherLineAtk,
+        UnitType.Galley     => GalleyLineAtk,
         _ => 0f,
     };
 
@@ -89,6 +92,8 @@ public class TechState
                           + (Has(TechType.Bloodlines) ? 20f : 0f),
         UnitType.CavalryArcher => (Has(TechType.Bloodlines) ? 20f : 0f)
                           + (Has(TechType.HeavyCavalryArcher) ? 20f : 0f),
+        UnitType.Galley  => (Has(TechType.WarGalley) ? 20f : 0f)
+                          + (Has(TechType.Galleon) ? 30f : 0f),
         _ => 0f,
     };
 

@@ -1264,6 +1264,8 @@ public class HUD : MonoBehaviour
         UnitType.Ram         => "Koçbaşı",
         UnitType.Mangonel    => "Mancınık Arabası",
         UnitType.CavalryArcher => "Atlı Okçu",
+        UnitType.FireShip    => "Ateş Gemisi",
+        UnitType.DemoShip    => "Patlayıcı Gemi",
         _                    => t.ToString(),
     };
 
@@ -1291,6 +1293,10 @@ public class HUD : MonoBehaviour
                     break;
                 case UnitType.CavalryArcher:
                     if (tech.Has(TechType.HeavyCavalryArcher)) return "Ağır Atlı Okçu";
+                    break;
+                case UnitType.Galley:
+                    if (tech.Has(TechType.Galleon))       return "Kalyon";
+                    if (tech.Has(TechType.WarGalley))     return "Savaş Kadırgası";
                     break;
                 case UnitType.Cavalry:
                     if (tech.Has(TechType.Paladin))       return "Paladin";

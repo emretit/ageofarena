@@ -133,7 +133,9 @@ public class TrainingQueue : MonoBehaviour
             UnitType.Ram         => UnitFactory.Ram(unitsRoot, spawnPos, teamColor),
             UnitType.Mangonel    => UnitFactory.Mangonel(unitsRoot, spawnPos, teamColor),
             UnitType.CavalryArcher => UnitFactory.CavalryArcher(unitsRoot, spawnPos, teamColor),
-            UnitType.Galley      => SpawnGalley(b, unitsRoot, teamColor),
+            UnitType.Galley      => SpawnNaval(b, unitsRoot, teamColor, UnitType.Galley),
+            UnitType.FireShip    => SpawnNaval(b, unitsRoot, teamColor, UnitType.FireShip),
+            UnitType.DemoShip    => SpawnNaval(b, unitsRoot, teamColor, UnitType.DemoShip),
             _                    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
         };
 
@@ -147,7 +149,7 @@ public class TrainingQueue : MonoBehaviour
     }
 
     // Spawn a Galley toward the nearest lake centre so it lands on the water NavMesh.
-    static UnitEntity SpawnGalley(BuildingEntity dock, Transform unitsRoot, Color teamColor)
+    static UnitEntity SpawnNaval(BuildingEntity dock, Transform unitsRoot, Color teamColor, UnitType type)
     {
         var wr = Object.FindAnyObjectByType<WorldRoot>();
         int navalId = wr != null ? wr.NavalAgentTypeId : -1;
@@ -167,7 +169,12 @@ public class TrainingQueue : MonoBehaviour
         if (dir.sqrMagnitude > 0.01f) dir.Normalize();
         Vector3 spawnPos = dockPos + dir * 5f;
 
-        return UnitFactory.Galley(unitsRoot, spawnPos, teamColor, navalId);
+        return type switch
+        {
+            UnitType.FireShip => UnitFactory.FireShip(unitsRoot, spawnPos, teamColor, navalId),
+            UnitType.DemoShip => UnitFactory.DemoShip(unitsRoot, spawnPos, teamColor, navalId),
+            _                 => UnitFactory.Galley(unitsRoot, spawnPos, teamColor, navalId),
+        };
     }
 
     static bool BlacksmithNearby(BuildingEntity b, float radius)

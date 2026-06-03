@@ -538,8 +538,8 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] CAVA: TechType.HeavyCavalryArcher (Stable/Imperial); CavalryArcher HP/atk RecomputeMaxHp ile retroaktif.
 - [x] THSW: TechType.TwoHandedSwordsman (Imperial, req Longswordsman); Champion.requires=TwoHandedSwordsman; Militia HP retroaktif; HUD tier adı.
 - [ ] EAGLE: (→ M9'a ERTELENDİ) Eagle meso-Amerikan medeniyetine bağlı; mevcut 5 civ'in hiçbiri Eagle civ'i değil. Gerçek önkoşul CIVX/M9 (meso civ ekleme). O zaman: UnitType.Eagle + UnitFactory.Eagle() + civ-koşullu trainable + EliteEagle tech.
-- [ ] NAVX: TechDefs WarGalley+Galleon (requires zinciri); grep `UnitType.FireShip`+`DemoShip`; Dock'tan naval spawn.
-- [ ] MFAITH: grep `faith` UnitEntity; ConvertTime faith'e bağlı; Monk relic→Monastery deposit→Gold gain.
+- [x] NAVX: WarGalley+Galleon tier (Dock Castle/Imperial, retroaktif: Galley 120→170 HP, dmg 12); UnitType.FireShip+DemoShip Dock'tan SpawnNaval ile. (Runtime doğrulandı; DemoShip splash 2.5.)
+- [x] MFAITH (faith parçası): UnitEntity.faith + FaithReady; conversion full faith ister, sonra faith=0 + regen (CombatSystem.StepConvert). **Relic taşıma/deposit → RELC/M5'e** (plan uyarısı gereği sınır çizildi, çift-iş yok).
 - [ ] CSTL: BuildingDefs Castle def'inde `minAge: Age.Castle`; UnlockedAt(Castle,Feudal)==false, (Castle,Castle)==true.
 - [ ] BPOP: RecomputePop TC5+House5+Castle10 doğru; Clamp(cap,0,200); pop==cap iken üretim reddedilir.
 - [ ] OUTP: grep `Outpost` GameTypes+BuildingDefs (attackRange==0); BuildingFactory.Make dalı; ateş etmez.

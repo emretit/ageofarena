@@ -69,6 +69,8 @@ public static class TechDefs
         new(TechType.LightCavalry,    BuildingType.Stable,       Age.Castle,  150,   0,  50, 0, 25f, "Hafif Süvari"),
         new(TechType.Hussar,          BuildingType.Stable,       Age.Imperial,150,   0, 100, 0, 30f, "Hüsar",          TechType.LightCavalry),
         new(TechType.HeavyCavalryArcher, BuildingType.Stable,    Age.Imperial,150,   0, 125, 0, 30f, "Ağır Atlı Okçu"),
+        new(TechType.WarGalley,       BuildingType.Dock,         Age.Castle,  150,   0,  50, 0, 28f, "Savaş Kadırgası"),
+        new(TechType.Galleon,         BuildingType.Dock,         Age.Imperial,150,   0, 100, 0, 32f, "Kalyon",         TechType.WarGalley),
         // ── University techs (Imperial) ───────────────────────────────────────
         new(TechType.Masonry,       BuildingType.University,   Age.Castle,  150,   0,   0, 0, 22f, "Duvar Ustalığı"),
         new(TechType.Fortified,     BuildingType.University,   Age.Imperial,200,   0, 150, 0, 30f, "Takviyeli Duvar"),

@@ -462,6 +462,85 @@ public static class UnitFactory
         return e;
     }
 
+    /// <summary>Shared naval entity finalization (collider + ring + naval UnitEntity).
+    /// Mirrors Galley's setup so Fire/Demo ships behave identically on the water mesh.</summary>
+    static UnitEntity FinishBoat(GameObject g, UnitType type, int navalAgentTypeId)
+    {
+        g.transform.localScale = new Vector3(1.25f, 1.25f, 1.25f);
+        Prims.EnableShadows(g);
+        Prims.BlobShadow(g.transform, 0.9f);
+
+        var ringGo = new GameObject("SelectionRing");
+        ringGo.transform.SetParent(g.transform, false);
+        ringGo.AddComponent<UnityEngine.LineRenderer>();
+        ringGo.AddComponent<SelectionRing>();
+
+        var col = g.AddComponent<UnityEngine.CapsuleCollider>();
+        col.center = new Vector3(0, 0.6f, 0);
+        col.radius = 0.4f;
+        col.height = 1.2f;
+
+        var e = g.AddComponent<UnitEntity>();
+        e.unitId = _nextId++;
+        e.teamId = 0;
+        e.type = type;
+        e.state = UnitState.Idle;
+        e.targetPos = g.transform.position;
+        e.isNaval = true;
+        e.navalAgentTypeId = navalAgentTypeId;
+        return e;
+    }
+
+    public static UnitEntity FireShip(Transform parent, Vector3 worldPos, Color teamColor, int navalAgentTypeId)
+    {
+        var g = new GameObject("FireShip");
+        g.transform.SetParent(parent, false);
+        g.transform.position = worldPos;
+        var t = g.transform;
+
+        var wood  = Prims.Mat(Prims.Hex(0x5a3a20));
+        var dark  = Prims.Mat(Prims.Hex(0x3a2a18), 0.05f);
+        var flame = Prims.Mat(Prims.Hex(0xf06010), 0.3f, 0.6f);
+        var sail  = Prims.Mat(teamColor, 0f, 0.3f);
+
+        Prims.Box(t, new Vector3(0, 0.2f, 0),     new Vector3(1.4f, 0.45f, 2.8f), wood);  // hull
+        Prims.Box(t, new Vector3(0, 0.45f, 1.3f), new Vector3(1.1f, 0.4f, 0.4f), dark);   // bow
+        Prims.Cylinder(t, new Vector3(0, 1.2f, 0.2f), 0.07f, 1.6f, dark);                 // mast
+        Prims.Box(t, new Vector3(0.35f, 1.45f, 0.2f), new Vector3(0.05f, 0.7f, 1.0f), sail);
+        Prims.Cone(t, new Vector3(0, 0.9f, 1.25f), 0.35f, 0.8f, 6, flame, 0f);            // fire pot at the bow
+
+        var e = FinishBoat(g, UnitType.FireShip, navalAgentTypeId);
+        e.hp = e.maxHp = 100f;
+        e.moveSpeed = 5.5f;     // fast — closes on enemy ships
+        e.pierceArmor = 2f;
+        return e;
+    }
+
+    public static UnitEntity DemoShip(Transform parent, Vector3 worldPos, Color teamColor, int navalAgentTypeId)
+    {
+        var g = new GameObject("DemoShip");
+        g.transform.SetParent(parent, false);
+        g.transform.position = worldPos;
+        var t = g.transform;
+
+        var wood   = Prims.Mat(Prims.Hex(0x4a3520));
+        var dark   = Prims.Mat(Prims.Hex(0x2a1e12), 0.05f);
+        var barrel = Prims.Mat(Prims.Hex(0x8a3018), 0.1f);
+
+        Prims.Box(t, new Vector3(0, 0.2f, 0),     new Vector3(1.3f, 0.45f, 2.4f), wood); // small hull
+        Prims.Box(t, new Vector3(0, 0.45f, 1.1f), new Vector3(1.0f, 0.4f, 0.4f), dark);  // bow
+        // Stacked explosive barrels.
+        Prims.Cylinder(t, new Vector3(-0.25f, 0.65f, 0), 0.22f, 0.5f, barrel);
+        Prims.Cylinder(t, new Vector3(0.25f, 0.65f, 0),  0.22f, 0.5f, barrel);
+        Prims.Cylinder(t, new Vector3(0, 0.9f, -0.3f),   0.22f, 0.5f, barrel);
+
+        var e = FinishBoat(g, UnitType.DemoShip, navalAgentTypeId);
+        e.hp = e.maxHp = 50f;
+        e.moveSpeed = 4.5f;
+        e.pierceArmor = 1f;
+        return e;
+    }
+
     public static UnitEntity TradeCart(Transform parent, Vector3 worldPos, Color teamColor)
     {
         var g = new GameObject("TradeCart");

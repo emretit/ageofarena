@@ -243,6 +243,10 @@ public class CombatSystem : MonoBehaviour
     /// </summary>
     void StepConvert(UnitEntity monk, List<UnitEntity> units, float dt)
     {
+        // Recharge faith over time whenever not at full (so a monk can convert again).
+        if (monk.faith < UnitEntity.FaithFull)
+            monk.faith = Mathf.Min(UnitEntity.FaithFull, monk.faith + UnitEntity.FaithRegenPerSec * dt);
+
         if (monk.attackTarget == null) return;
         var tgt = monk.attackTarget as UnitEntity;
         if (tgt == null || !tgt.IsAlive || tgt.teamId == monk.teamId)
@@ -251,6 +255,9 @@ public class CombatSystem : MonoBehaviour
             monk.convertProgress = 0f;
             return;
         }
+
+        // Can't begin/continue a conversion without full faith (must recharge first).
+        if (!monk.FaithReady) { monk.convertProgress = 0f; return; }
 
         const float ConvertRange = 2.5f;
         float dist = FlatDist(monk.transform.position, tgt.transform.position);
@@ -278,6 +285,7 @@ public class CombatSystem : MonoBehaviour
         if (monk.convertProgress >= UnitEntity.ConvertTime)
         {
             monk.convertProgress = 0f;
+            monk.faith = 0f;            // spent — must recharge before the next convert
             monk.attackTarget = null;
             // Switch team: update teamId and tint renderers with new team colour.
             var gm = GM;
