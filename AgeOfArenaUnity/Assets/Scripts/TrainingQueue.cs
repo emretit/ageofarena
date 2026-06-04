@@ -125,13 +125,7 @@ public class TrainingQueue : MonoBehaviour
         Vector3 spawnPos = b.transform.position + new Vector3(0, 0, -3.5f);
 
         int tid = b.teamId;
-        Color teamColor = tid switch
-        {
-            1 => Prims.Hex(0xd42020),
-            2 => Prims.Hex(0x1e9e40),
-            3 => Prims.Hex(0xf0a010),
-            _ => Prims.Hex(0x1e5fcc),
-        };
+        Color teamColor = TeamPalette.For(tid);
         UnitEntity unit = unitType switch
         {
             UnitType.Villager    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor, tid),

@@ -26,13 +26,6 @@ public class MinimapSystem : MonoBehaviour
     RectTransform _mapRT;       // the rotated RawImage rect: blip parent + click target
     readonly List<Image> _blips = new();
 
-    static readonly Color[] TeamCol =
-    {
-        new Color(0.16f, 0.36f, 0.69f), // 0 blue
-        new Color(0.75f, 0.22f, 0.17f), // 1 red
-        new Color(0.15f, 0.68f, 0.38f), // 2 green
-        new Color(0.95f, 0.61f, 0.07f), // 3 yellow
-    };
     static readonly Color RelicGold = new Color(1f, 0.82f, 0.2f);
 
     void Start()
@@ -153,8 +146,8 @@ public class MinimapSystem : MonoBehaviour
         {
             var r = relics[i];
             if (r == null) continue;
-            Color c = (r.controllingTeam >= 0 && r.controllingTeam < TeamCol.Length)
-                ? TeamCol[r.controllingTeam] : RelicGold;
+            Color c = (r.controllingTeam >= 0)
+                ? TeamPalette.For(r.controllingTeam) : RelicGold;
             idx = Place(idx, r.transform.position, c, 8f);
         }
 
@@ -192,7 +185,7 @@ public class MinimapSystem : MonoBehaviour
         return _blips[i];
     }
 
-    static Color TeamColor(int t) => (t >= 0 && t < TeamCol.Length) ? TeamCol[t] : Color.white;
+    static Color TeamColor(int t) => (t >= 0) ? TeamPalette.For(t) : Color.white;
 
     /// <summary>Called by <see cref="MinimapClick"/> with a rotation-aware local point
     /// inside the RawImage. Left/drag = recentre camera; right = order selection there.</summary>

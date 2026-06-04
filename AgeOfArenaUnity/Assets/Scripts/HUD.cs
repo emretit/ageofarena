@@ -1667,7 +1667,6 @@ public class HUD : MonoBehaviour
         bg.color = new Color(0f, 0f, 0f, 0.78f);
 
         string[] teamNames = { "", "Kırmızı", "Yeşil", "Sarı" };
-        Color[] teamColors = { Color.white, Prims.Hex(0xd42020), Prims.Hex(0x1e9e40), Prims.Hex(0xf0a010) };
 
         for (int t = 1; t < 4; t++)
         {
@@ -1684,7 +1683,7 @@ public class HUD : MonoBehaviour
             nameRect.anchorMin = Vector2.zero; nameRect.anchorMax = new Vector2(0.55f, 1);
             nameRect.offsetMin = new Vector2(8, 0); nameRect.offsetMax = Vector2.zero;
             var nameText = AddText(nameRect, teamNames[t], TextAnchor.MiddleLeft);
-            nameText.color = teamColors[t];
+            nameText.color = TeamPalette.For(t);
             nameText.fontSize = 14;
 
             var btnRect = NewRect($"DiplBtn_{t}", rowRt);

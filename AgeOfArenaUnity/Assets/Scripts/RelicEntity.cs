@@ -34,13 +34,6 @@ public class RelicEntity : MonoBehaviour
 
     // Neutral gold + per-team tints (match WorldRoot.TeamColors / minimap dots).
     static readonly Color Neutral = new Color(1f, 0.82f, 0.2f);
-    static readonly Color[] TeamTint =
-    {
-        new Color(0.16f, 0.36f, 0.69f), // blue
-        new Color(0.75f, 0.22f, 0.17f), // red
-        new Color(0.15f, 0.68f, 0.38f), // green
-        new Color(0.95f, 0.61f, 0.07f), // yellow
-    };
 
     float _goldAccum;
     Material _orbMat;
@@ -115,8 +108,8 @@ public class RelicEntity : MonoBehaviour
     void ApplyColor()
     {
         if (_orbMat == null) return;
-        _orbMat.color = controllingTeam >= 0 && controllingTeam < TeamTint.Length
-            ? TeamTint[controllingTeam]
+        _orbMat.color = controllingTeam >= 0
+            ? TeamPalette.For(controllingTeam)
             : Neutral;
     }
 }

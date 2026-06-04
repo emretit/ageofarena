@@ -294,8 +294,8 @@ public class CombatSystem : MonoBehaviour
             // Switch team: update teamId and tint renderers with new team colour.
             var gm = GM;
             int newTeam = monk.teamId;
-            Color newColor = gm != null && newTeam < 4
-                ? new Color[] { Prims.Hex(0x1e5fcc), Prims.Hex(0xd42020), Prims.Hex(0x1e9e40), Prims.Hex(0xf0a010) }[newTeam]
+            Color newColor = gm != null && newTeam >= 0
+                ? TeamPalette.For(newTeam)
                 : Color.white;
             tgt.teamId = newTeam;
             // Tint primitive units (MeshRenderer)

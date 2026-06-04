@@ -316,7 +316,7 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 ### Wave 2 — İçerik + Combat + N-team
 - [ ] N4.registry: `UnitType/BuildingType/TechType` data-driven registry; `UnitEntity` stat'ları lookup; yeni unit = data satırı (switch değil).
 - [ ] N4.civgate: Civ row'ları uniqueUnit/castle+imperial unique-tech/denied-set; TrainingQueue/ResearchSystem/komut-kartı civ-gate'li; ≥2 civ tech-tree subtraction'ı Play'de farklı.
-- [ ] N4.palette: Tek-kaynak takım paleti; 4-renk literal'leri kalkar.
+- [x] N4.palette: `TeamPalette.cs` tek-kaynak palet (8 AoE2 rengi: blue/red/green/yellow/teal/purple/grey/orange; `For(int)` güvenli wrap). 6 duplike literal kalktı (`WorldRoot`/`CombatSystem`/`TrainingQueue`/`MinimapSystem`/`RelicEntity`/`HUD`). N-team (N5) için 5+ takım renk-literal'i gerektirmiyor. Runtime: count=8, c0=1E5FCC, c4=16B8C8, wrap9==red True.
 - [ ] N4.civ13: AoK-13 set tamam (Celts/Chinese/Goths/Turks data); her biri UU + 2 unique tech + bonus + denial.
 - [ ] N4.uu (N0.7 Part B devri): UU'suz 4 civ'e unique unit — Franks→Throwing Axeman, Byzantines→Cataphract, Vikings→Berserk, Saracens→Mameluke; tüm switch'lerde tanımlı + `CastleUniqueFor` civ-gated; Play'de yalnız ilgili civ'in Castle menüsünde.
 - [ ] N5.nteam: `[4]` diziler/`<4` guard'lar konfigüre takım sayısı; teamCount=5+ skirmish çalışır (TC/relic/save/repair doğru).

@@ -35,13 +35,10 @@ public class WorldRoot : MonoBehaviour
         new( 58, 0,  0), // team 3 – yellow
     };
 
-    static readonly Color[] TeamColors =
-    {
-        Prims.Hex(0x1e5fcc), // blue  — more saturated AoE2 blue
-        Prims.Hex(0xd42020), // red   — deeper red
-        Prims.Hex(0x1e9e40), // green — vivid
-        Prims.Hex(0xf0a010), // yellow— warm gold
-    };
+    // Team tints now come from the single-source TeamPalette (N4.palette); this
+    // indexer keeps the existing TeamColors[i] call sites working unchanged.
+    sealed class TeamColorsProxy { public Color this[int i] => TeamPalette.For(i); }
+    static readonly TeamColorsProxy TeamColors = new TeamColorsProxy();
 
     static readonly Color RoofColor = Prims.Hex(0xa6402f);
 
