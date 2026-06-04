@@ -56,6 +56,9 @@ public class GameManager : MonoBehaviour
     /// <summary>Global AI difficulty (applied by every <see cref="EnemyAI"/>).</summary>
     public Difficulty difficulty = Difficulty.Normal;
 
+    /// <summary>Active game mode — set by WorldRoot before gameplay begins.</summary>
+    public GameMode gameMode = GameMode.Random;
+
     /// <summary>Per-team civilization. Index 0 = player; 1-3 = AI teams.</summary>
     public Civilization[] teamCivs = { Civilization.None, Civilization.None, Civilization.None, Civilization.None };
 

@@ -126,7 +126,8 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.FireShip    => 6f,  UnitType.DemoShip    => 40f,
         // M9 unique units
         UnitType.TeutonicKnight => 12f, UnitType.WarElephant => 20f, UnitType.Mangudai => 6f,
-        UnitType.Samurai     => 9f,  UnitType.Eagle       => 7f,
+        UnitType.Samurai     => 9f,  UnitType.Eagle       => 7f,  UnitType.EliteEagle  => 9f,
+        UnitType.King        => 6f,  // Regicide king: fights but is not a front-liner
         // Support units deal no damage: Scout is pure recon (gains attack via Light Cavalry/Hussar
         // tech, applied through TechState.AttackBonus), Medic only heals.
         UnitType.Scout       => 0f,  UnitType.Medic       => 0f,
@@ -140,7 +141,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Ram         => 1.3f, UnitType.Mangonel    => 9f,   UnitType.CavalryArcher => 4f,
         UnitType.FireShip    => 3f,   UnitType.DemoShip    => 1.5f,
         UnitType.TeutonicKnight => 1.4f, UnitType.WarElephant => 1.4f, UnitType.Mangudai => 5f,
-        UnitType.Samurai     => 1.2f, UnitType.Eagle       => 1.3f,
+        UnitType.Samurai     => 1.2f, UnitType.Eagle       => 1.3f,  UnitType.EliteEagle => 1.3f,
         _                    => 1.1f,
     };
     /// <summary>Effective damage = base + tech bonus, scaled by civ infantry bonus for infantry types.</summary>
@@ -176,7 +177,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Ram         => 3.0f, UnitType.Mangonel    => 4.0f, UnitType.CavalryArcher => 2.0f,
         UnitType.FireShip    => 0.8f, UnitType.DemoShip    => 2.0f,
         UnitType.TeutonicKnight => 2.0f, UnitType.WarElephant => 2.5f, UnitType.Mangudai => 2.0f,
-        UnitType.Samurai     => 1.3f, UnitType.Eagle       => 1.5f,
+        UnitType.Samurai     => 1.3f, UnitType.Eagle       => 1.5f,  UnitType.EliteEagle => 1.4f,
         _                    => 1.6f,
     };
     /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.
@@ -189,9 +190,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Mangonel    => 11f, UnitType.Ram         => 4f,   UnitType.CavalryArcher => 10f,
         UnitType.FireShip    => 8f,  UnitType.DemoShip    => 6f,
         UnitType.TeutonicKnight => 7f, UnitType.WarElephant => 8f, UnitType.Mangudai => 10f,
-        UnitType.Samurai     => 8f,  UnitType.Eagle       => 8f,
+        UnitType.Samurai     => 8f,  UnitType.Eagle       => 8f,  UnitType.EliteEagle => 8f,
         UnitType.Scout       => (TeamTech?.Has(TechType.LightCavalry) ?? false) ? 8f : 0f,
-        _                    => 0f,
+        _                    => 0f,  // King, Villager, Monk, Medic — never auto-aggro
     };
     /// <summary>Armor classes this unit belongs to (M7/ARMC) — what incoming bonus
     /// damage applies to it. Cavalry-class is shared by Camel/Scout/Cavalry Archer so
@@ -199,7 +200,8 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public ArmorClass ArmorClasses => type switch
     {
         UnitType.Militia or UnitType.Spearman                       => ArmorClass.Infantry,
-        UnitType.TeutonicKnight or UnitType.Samurai or UnitType.Eagle => ArmorClass.Infantry,
+        UnitType.TeutonicKnight or UnitType.Samurai or UnitType.Eagle or UnitType.EliteEagle => ArmorClass.Infantry,
+        UnitType.King => ArmorClass.Infantry,
         UnitType.Archer or UnitType.Skirmisher or UnitType.Longbowman => ArmorClass.Archer,
         UnitType.CavalryArcher                                       => ArmorClass.Archer | ArmorClass.Cavalry,
         UnitType.Mangudai                                           => ArmorClass.Archer | ArmorClass.Cavalry,

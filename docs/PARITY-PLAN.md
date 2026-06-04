@@ -573,12 +573,12 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] CIVX: CivilizationDefs tek kanonik ID/isim kaynağı (dosya başında belgeli; HUD/seçim oradan okur); 10 display string dolu+tekil (Franklar..Saracenler). _Not: wiki 06 (5 civ) batch tazelemede 10'a senkronlanacak._
 - [x] CIVT: TechType Chivalry/BeardedAxe (Franks) + Ironclad/Crenellations (Teutons); TechDef.requiredCiv + ForBuilding civ+çağ gating; Castle'da araştırılır. Efektler: Chivalry cav +20hp, BeardedAxe militia +2atk, Ironclad siege +4 armor, Crenellations +1 tower range. Runtime: Franks→[Chivalry,BeardedAxe], Teutons→[Ironclad,Crenellations], çağ-gating + efektler doğrulandı.
 - [x] CIVU: 5 yeni unique UnitType (TeutonicKnight/WarElephant/Mangudai/Samurai + Eagle); UnitEntity tüm switch'lerde tanımlı (atk/range/interval/aggro/DamageKind/IsRanged/ArmorClass/BonusDamageVs) + UnitFactory mesh + TrainingQueue spawn + CommandIconFactory/HUD ad. Castle GetTrainables civ-koşullu (CastleUniqueFor: Teutons→TK, Persians→WarEle, Mongols→Mangudai, Japanese→Samurai). Runtime doğrulandı.
-- [ ] GMODE-ENUM: grep `enum GameMode` (4 değer); GameManager `GameMode gameMode` alanı; davranış değişmez.
-- [ ] VHOLD: grep `WonderHoldTime` const değil; WorldRoot `HoldTime` atar; countdown yeni süreden sayar; default 60sn.
-- [ ] VTIME: grep `TimeLimit` MatchSystem + sayaç; süre dolunca 4 takım Score() max; limit 0 regresyonsuz.
-- [ ] VDEATH: grep `Deathmatch` WorldRoot; 4 takım food≥20000; RandomMap 200F/200W/100G/0S regresyonsuz.
-- [ ] VREGI: grep `King` GameTypes+UnitFactory+WorldRoot; King ölünce eleme; Wonder/Relic countdown atlanır.
-- [ ] VNOMAD: grep `Nomad` WorldRoot (BuildBase yok, Villager spawn); ilk-TC-yok grace; AI ≥1 TC inşa eder.
+- [x] GMODE-ENUM: grep `enum GameMode` (4 değer); GameManager `GameMode gameMode` alanı; davranış değişmez.
+- [x] VHOLD: grep `WonderHoldTime` const değil; WorldRoot `HoldTime` atar; countdown yeni süreden sayar; default 60sn.
+- [x] VTIME: grep `TimeLimit` MatchSystem + sayaç; süre dolunca 4 takım Score() max; limit 0 regresyonsuz.
+- [x] VDEATH: grep `Deathmatch` WorldRoot; 4 takım food≥20000; RandomMap 200F/200W/100G/0S regresyonsuz.
+- [x] VREGI: grep `King` GameTypes+UnitFactory+WorldRoot; King ölünce eleme; Wonder/Relic countdown atlanır.
+- [x] VNOMAD: grep `Nomad` WorldRoot (BuildBase yok, Villager spawn); ilk-TC-yok grace; AI ≥1 TC inşa eder.
 - [ ] VDIPL: grep `Diplomacy` GameManager (4×4); MatchSystem matris okur (hardcoded kalkar); CombatSystem Allied/Neutral'a saldırmaz.
 - [ ] DIPL: grep `Diplom` HUD; panel tıkla→GameManager matris güncellenir; text.font=null render.
 - [ ] AIDP: grep `Diplomacy` EnemyAI; Allied takım hedeflenmez; default-düşman regresyonsuz.

@@ -498,6 +498,31 @@ public static class UnitFactory
         return e;
     }
 
+    // ── M10/VREGI: Regicide King ─────────────────────────────────────────────
+
+    /// <summary>Regicide mode: each team has one King. Its death eliminates the team.</summary>
+    public static UnitEntity King(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
+    {
+        var g = NewUnit("King", parent, worldPos);
+        var visual = VisualFor(UnitType.Militia, teamId); // regal warrior silhouette
+        if (visual == null)
+        {
+            var t = g.transform;
+            var crown = Prims.Mat(Prims.Hex(0xf5c842), 0.5f, 0.8f); // gold
+            var robe  = Prims.Mat(teamColor, 0.1f, 0.3f);
+            var skin  = Prims.Mat(Prims.Hex(0xe0ac69));
+            Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.46f, 0.85f, 0.38f), robe);
+            Prims.Sphere(t, new Vector3(0, 1.04f, 0), 0.19f, skin);
+            Prims.Box(t, new Vector3(0, 1.2f, 0), new Vector3(0.38f, 0.2f, 0.38f), crown);
+        }
+        var e = Finish(g, UnitType.King, teamColor, visual, teamId);
+        e.hp = e.maxHp = 75f;
+        e.moveSpeed = 3.2f;
+        e.meleeArmor = 1f;
+        e.pierceArmor = 1f;
+        return e;
+    }
+
     public static UnitEntity Monk(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
     {
         var g = NewUnit("Monk", parent, worldPos);

@@ -31,6 +31,12 @@ public static class GameBootstrap
     /// civ-select screen only needs to be answered once. None until the player picks.</summary>
     public static Civilization PlayerCiv = Civilization.None;
 
+    /// <summary>GMODE-ENUM: game mode for the next (or current) match.</summary>
+    public static GameMode NextGameMode = GameMode.Random;
+
+    /// <summary>ARES: difficulty for the next match. Persists across restarts.</summary>
+    public static Difficulty NextDifficulty = Difficulty.Normal;
+
     /// <summary>Restart with a fresh random seed so the next map looks different.</summary>
     public static void Restart(int seed = 0)
     {

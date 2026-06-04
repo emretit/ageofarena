@@ -48,11 +48,11 @@ public class WorldRoot : MonoBehaviour
     MeshRenderer _groundRenderer;  // saved for FogOfWarSystem.Init
 
     // ── Island geometry (AoE2 "Arena island": round land ringed by ocean) ──────
-    const float LandRadius  = 84f;   // grass disc radius (coastline)
-    const float BeachRadius = 88f;   // sand rim just past the grass
-    const float OceanHalf   = 110f;  // ocean plane half-extent (square sea frame)
-    const float CoastInner  = 76f;   // coastal forest ring starts beyond the base back walls
-    const float CoastOuter  = 84f;   // …and hugs the shoreline
+    const float LandRadius  = 92f;   // grass disc radius (coastline)
+    const float BeachRadius = 94f;   // thin sand rim just past the grass
+    const float OceanHalf   = 116f;  // ocean plane half-extent (square sea frame)
+    const float CoastInner  = 76f;   // coastal forest belt starts beyond the base back walls
+    const float CoastOuter  = 91f;   // …and packs a thick belt up to the shoreline
 
     // Land disc mesh, reused as an exact NavMesh build source so the walkable area is a
     // true circle (no box approximation) and the sea is simply its inverse.
@@ -97,9 +97,13 @@ public class WorldRoot : MonoBehaviour
         cam.bounds  = new Vector2(95f, 95f); // match bigger 200×200 map
         cam.maxSize = 42f;                   // allow wider zoom-out
         var gm  = SetupGameManager();
+        gm.gameMode  = GameBootstrap.NextGameMode;
+        gm.difficulty = GameBootstrap.NextDifficulty;
 
-        for (int i = 0; i < 4; i++)
-            BuildBase(BasePositions[i], TeamColors[i], i);
+        // VNOMAD: skip static base construction; villagers scatter mid-map.
+        if (gm.gameMode != GameMode.Nomad)
+            for (int i = 0; i < 4; i++)
+                BuildBase(BasePositions[i], TeamColors[i], i);
 
         BuildCoastalForest();   // dense conifer wall hugging the shoreline (blocks units)
         BuildInteriorClumps();  // a few broadleaf groves in the open battlefield
@@ -184,7 +188,7 @@ public class WorldRoot : MonoBehaviour
 
         // ── Beach (sand rim, y=0.03) — a flat-coloured disc poking out past the grass.
         var sand = NewMeshObject("Beach", BuildDiscMesh(BeachRadius, 72, 0f),
-            Prims.Mat(Prims.Hex(0xd9c9a3), 0f, 0.05f), 0.03f);
+            Prims.Mat(Prims.Hex(0x9c8350), 0f, 0.05f), 0.03f);
         sand.GetComponent<MeshRenderer>().receiveShadows = true;
 
         // ── Grass (playable land, y=0.05) — reuses the seamless grass texture, tiled via
@@ -525,51 +529,35 @@ public class WorldRoot : MonoBehaviour
         right    = Vector3.Cross(Vector3.up, forward).normalized;
     }
 
-    // Dense conifer wall hugging the shoreline (CoastInner..CoastOuter), clustered for
-    // a natural look, with a beach gap behind each base so the shore stays reachable.
-    // Every coastal tree is also registered as a NavMesh obstacle → the ring is a wall.
+    // Thick conifer belt filling the whole shoreline (CoastInner..CoastOuter) — a
+    // continuous natural wall, deliberately dense behind every base. Each tree is also a
+    // NavMesh obstacle, so the belt blocks movement just like the castle walls do.
     void BuildCoastalForest()
     {
         var forest = new GameObject("CoastalForest");
         forest.transform.SetParent(transform, false);
         var gm = GameManager.Instance;
 
-        // Backward heading (radians) of each base — leave a gap centred there.
-        var gaps = new float[BasePositions.Length];
-        for (int i = 0; i < BasePositions.Length; i++)
-            gaps[i] = Mathf.Atan2(-BasePositions[i].z, -BasePositions[i].x);
-        const float gapHalf = 0.16f; // ~9° each side
-
-        const int clusters = 72;
+        // Angular clusters around the full ring; each spans the belt's depth for a wall
+        // that's several trees thick. No gaps — the forest hugs the coast all the way round.
+        const int clusters = 104;
         for (int c = 0; c < clusters; c++)
         {
             float clusterA = c / (float)clusters * Mathf.PI * 2f;
-            if (InAnyGap(clusterA, gaps, gapHalf)) continue;
-            int n = Random.Range(3, 6);
+            int n = Random.Range(5, 9);
             for (int k = 0; k < n; k++)
             {
-                float a = clusterA + Random.Range(-0.05f, 0.05f);
+                float a = clusterA + Random.Range(-0.045f, 0.045f);
                 float r = Random.Range(CoastInner, CoastOuter);
                 var pos = new Vector3(Mathf.Cos(a) * r, 0f, Mathf.Sin(a) * r);
                 gm.RegisterNode(ResourceFactory.Tree(forest.transform, pos, ResourceFactory.TreeKind.Conifer));
-                AddObstacle(pos, 1.4f, 1.4f, 0f);
+                AddObstacle(pos, 1.5f, 1.5f, 0f);
             }
         }
 
-        // Floating lilies in the shallows + ground foliage carpeting the interior.
-        Decor.ScatterLilies(forest.transform, BeachRadius + 2f, OceanHalf * 0.55f, 40);
-        Decor.Scatter(forest.transform, Vector3.zero, 6f, CoastInner - 4f, 130);
-    }
-
-    // Minimal angular distance (radians) check against any base's beach gap.
-    static bool InAnyGap(float angle, float[] gaps, float half)
-    {
-        foreach (var g in gaps)
-        {
-            float d = Mathf.Abs(Mathf.Repeat(angle - g + Mathf.PI, Mathf.PI * 2f) - Mathf.PI);
-            if (d < half) return true;
-        }
-        return false;
+        // Floating lilies in the surrounding shallows + ground foliage on the interior grass.
+        Decor.ScatterLilies(forest.transform, BeachRadius + 2f, OceanHalf - 6f, 60);
+        Decor.Scatter(forest.transform, Vector3.zero, 6f, CoastInner - 4f, 160);
     }
 
     // A few broadleaf groves dotting the open battlefield (the central forest blobs in
@@ -616,9 +604,8 @@ public class WorldRoot : MonoBehaviour
             gm.RegisterNode(ResourceFactory.Tree(root.transform,
                 center + backward * 10.5f + right * (k * 3.5f), ResourceFactory.TreeKind.Broadleaf));
 
-        // 2 fish in the coastal shallows behind the base (reached via the beach gap).
-        gm.RegisterNode(ResourceFactory.FishPond(root.transform, center + backward * 20f + right *  3f));
-        gm.RegisterNode(ResourceFactory.FishPond(root.transform, center + backward * 20f + right * -3f));
+        // 1 fish pond on open grass just outside the side wall (reachable extra food).
+        gm.RegisterNode(ResourceFactory.FishPond(root.transform, center + right * -16f));
     }
 
     // Extra deposits in the open centre — the prize that pulls armies out of the walls.
@@ -798,6 +785,61 @@ public class WorldRoot : MonoBehaviour
 
         // popCap now derives from team-0 buildings (TC + Houses) via RecomputePop.
         gm.RecomputePop();
+
+        // ── Game-mode post-setup ─────────────────────────────────────────────────
+        switch (gm.gameMode)
+        {
+            case GameMode.Deathmatch:
+                ApplyDeathmatch(gm);
+                break;
+            case GameMode.Regicide:
+                SpawnKings(gm, unitsRoot.transform);
+                break;
+            case GameMode.Nomad:
+                SpawnNomad(gm, unitsRoot.transform);
+                break;
+        }
+    }
+
+    // VDEATH: all teams start with abundant resources.
+    static void ApplyDeathmatch(GameManager gm)
+    {
+        for (int t = 0; t < 4; t++)
+        {
+            var r = gm.teamRes[t];
+            r.food  = Mathf.Max(r.food,  20000);
+            r.wood  = Mathf.Max(r.wood,  20000);
+            r.gold  = Mathf.Max(r.gold,  10000);
+            r.stone = Mathf.Max(r.stone,  5000);
+        }
+    }
+
+    // VREGI: one King unit per team; MatchSystem handles elimination on King death.
+    void SpawnKings(GameManager gm, Transform unitsRoot)
+    {
+        for (int t = 0; t < 4; t++)
+        {
+            var pos = BasePositions[t] + new Vector3(0, 0, 1.5f);
+            var king = UnitFactory.King(unitsRoot, pos, TeamColors[t], t);
+            gm.RegisterUnit(king);
+        }
+    }
+
+    // VNOMAD: no TC — scatter 6 villagers per team around the map centre.
+    void SpawnNomad(GameManager gm, Transform unitsRoot)
+    {
+        for (int t = 0; t < 4; t++)
+        {
+            var dir   = (BasePositions[t] - Vector3.zero).normalized;
+            var right = Vector3.Cross(Vector3.up, dir).normalized;
+            for (int i = 0; i < 6; i++)
+            {
+                float off = (i - 2.5f) * 3f;
+                var pos = dir * 25f + right * off;
+                var v = UnitFactory.Villager(unitsRoot, pos, TeamColors[t], t);
+                gm.RegisterUnit(v);
+            }
+        }
     }
 
     void SpawnGarrison(GameManager gm, Transform parent, Vector3 center, Color color, int teamId)

@@ -16,6 +16,10 @@ public enum UnitType
     Mangudai,        // Mongols — cavalry archer, bonus vs siege
     Samurai,         // Japanese — fast infantry
     Eagle,           // Aztecs — fast scout-warrior (EAGLE)
+    // ── M9/EAGLE upgrade ──
+    EliteEagle,      // Eagle → Elite Eagle (Aztecs, Imperial)
+    // ── M10/VREGI: Regicide mode ──
+    King,            // Regicide — each team's royal unit; losing it = eliminated
 }
 
 /// <summary>Damage class for the armor counter matrix. Siege bypasses both armor types.</summary>
@@ -44,6 +48,12 @@ public enum BuildingType { TownCenter, House, Barracks, ArcheryRange, Stable, Fa
 
 /// <summary>Tech progression tier. Higher ages gate buildings/units/techs.</summary>
 public enum Age { Dark, Feudal, Castle, Imperial }
+
+/// <summary>
+/// Match setup mode. Controls starting resources, spawn layout and victory paths.
+/// Random = standard AoE2 arena. Others mirror AoE2 game modes.
+/// </summary>
+public enum GameMode { Random, Deathmatch, Regicide, Nomad }
 
 /// <summary>
 /// Strategic flavour for an <see cref="EnemyAI"/> brain. Tunes army size, push
