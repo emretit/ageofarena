@@ -19,6 +19,10 @@ public class HUD : MonoBehaviour
     Transform _canvasRoot;
     bool _gameOverShown;
     GameObject _pauseMenu;
+    // N9.hotkeys: remap panel state
+    GameObject _hotkeyPanel;
+    HotkeyAction? _listeningAction;          // action awaiting its next key press
+    readonly System.Collections.Generic.Dictionary<HotkeyAction, Text> _hotkeyKeyLabels = new();
 
     // Top bar
     Text _foodText, _woodText, _goldText, _stoneText, _popText, _ageText, _relicText;
@@ -728,6 +732,10 @@ public class HUD : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null || _cmdBar == null) return;
 
+        // N9.hotkeys: while a remap row is listening, capture the key here and consume
+        // all input this frame so the pressed key doesn't also fire a game action.
+        if (_listeningAction.HasValue) { PollHotkeyRebind(); return; }
+
         // Escape: toggle pause menu (resign / resume).
         if (Input.GetKeyDown(KeyCode.Escape) && !_gameOverShown)
         {
@@ -1355,18 +1363,137 @@ public class HUD : MonoBehaviour
             txt.fontSize = 22; txt.fontStyle = FontStyle.Bold;
         }
 
-        AddBtn("Devam", () => ClosePauseMenu(), 40f);
-        AddBtn("Teslim Ol", () => { ClosePauseMenu(); gm.match?.Resign(); }, -20f);
-        AddBtn("Yeniden Başlat", () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -80f);
+        AddBtn("Devam", () => ClosePauseMenu(), 70f);
+        AddBtn("Tuşlar", () => OpenHotkeyPanel(), 10f);   // N9.hotkeys: remap UI
+        AddBtn("Teslim Ol", () => { ClosePauseMenu(); gm.match?.Resign(); }, -50f);
+        AddBtn("Yeniden Başlat", () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -110f);
         // FOWD: fog toggle in pause menu
         AddBtn(gm.fow != null && gm.fow.fogEnabled ? "Sis Kapat" : "Sis Aç",
-            () => { if (gm.fow != null) { gm.fow.fogEnabled = !gm.fow.fogEnabled; ClosePauseMenu(); } }, -140f);
+            () => { if (gm.fow != null) { gm.fow.fogEnabled = !gm.fow.fogEnabled; ClosePauseMenu(); } }, -170f);
     }
 
     void ClosePauseMenu()
     {
         if (_pauseMenu != null) _pauseMenu.SetActive(false);
+        if (_hotkeyPanel != null) _hotkeyPanel.SetActive(false);
+        _listeningAction = null;
         if (Time.timeScale == 0f) Time.timeScale = 1f;
+    }
+
+    // ── N9.hotkeys: rebindable-key settings panel ────────────────────────────
+    static readonly (HotkeyAction action, string label)[] RemapRows =
+    {
+        (HotkeyAction.Stop,        "Durdur"),
+        (HotkeyAction.AttackMove,  "Saldır-Yürü"),
+        (HotkeyAction.Stance,      "Duruş Değiştir"),
+        (HotkeyAction.Garrison,    "Garnizona Gir"),
+        (HotkeyAction.Ungarrison,  "Garnizon Boşalt"),
+        (HotkeyAction.Diplomacy,   "Diplomasi"),
+        (HotkeyAction.SelectIdle,  "Boşta İşçi Seç"),
+        (HotkeyAction.BuildMenu,   "İnşa Menüsü"),
+        (HotkeyAction.Repair,      "Onar"),
+    };
+
+    void OpenHotkeyPanel()
+    {
+        if (_canvasRoot == null) return;
+        Time.timeScale = 0f;
+        if (_pauseMenu != null) _pauseMenu.SetActive(false);
+        if (_hotkeyPanel != null) { _hotkeyPanel.SetActive(true); RefreshHotkeyLabels(); return; }
+
+        var overlay = new GameObject("HotkeyPanel");
+        overlay.transform.SetParent(_canvasRoot, false);
+        _hotkeyPanel = overlay;
+        var ort = overlay.AddComponent<RectTransform>();
+        ort.anchorMin = Vector2.zero; ort.anchorMax = Vector2.one;
+        ort.offsetMin = Vector2.zero; ort.offsetMax = Vector2.zero;
+        overlay.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.78f);
+
+        var titleRect = NewRect("HotkeyTitle", overlay.transform);
+        titleRect.anchorMin = titleRect.anchorMax = new Vector2(0.5f, 0.5f);
+        titleRect.sizeDelta = new Vector2(520, 44);
+        titleRect.anchoredPosition = new Vector2(0, 250);
+        var title = AddText(titleRect, "TUŞ ATAMALARI", TextAnchor.MiddleCenter);
+        title.fontSize = 28; title.fontStyle = FontStyle.Bold; title.color = Prims.Hex(0xf2d59b);
+
+        float y = 190f;
+        foreach (var (action, label) in RemapRows)
+        {
+            HotkeyAction act = action;   // capture
+            var row = NewRect("Row_" + action, overlay.transform);
+            row.anchorMin = row.anchorMax = new Vector2(0.5f, 0.5f);
+            row.sizeDelta = new Vector2(460, 38);
+            row.anchoredPosition = new Vector2(0, y);
+
+            var nameRect = NewRect("Name", row);
+            nameRect.anchorMin = new Vector2(0, 0); nameRect.anchorMax = new Vector2(0.6f, 1);
+            nameRect.offsetMin = new Vector2(8, 0); nameRect.offsetMax = Vector2.zero;
+            var nameTxt = AddText(nameRect, label, TextAnchor.MiddleLeft);
+            nameTxt.fontSize = 20;
+
+            var keyRect = NewRect("Key", row);
+            keyRect.anchorMin = new Vector2(0.62f, 0); keyRect.anchorMax = new Vector2(1, 1);
+            keyRect.offsetMin = keyRect.offsetMax = Vector2.zero;
+            var keyImg = keyRect.gameObject.AddComponent<Image>();
+            keyImg.color = new Color(0.12f, 0.13f, 0.2f, 0.95f);
+            var keyBtn = keyRect.gameObject.AddComponent<Button>();
+            keyBtn.targetGraphic = keyImg;
+            var keyTxt = AddText(keyRect, KeyLabel(Hotkeys.Get(act)), TextAnchor.MiddleCenter);
+            keyTxt.fontSize = 20; keyTxt.fontStyle = FontStyle.Bold;
+            _hotkeyKeyLabels[act] = keyTxt;
+            keyBtn.onClick.AddListener(() => { _listeningAction = act; RefreshHotkeyLabels(); });
+
+            y -= 42f;
+        }
+
+        void Btn(string lbl, System.Action onClick, float xoff)
+        {
+            var br = NewRect("HkBtn_" + lbl, overlay.transform);
+            br.anchorMin = br.anchorMax = new Vector2(0.5f, 0.5f);
+            br.sizeDelta = new Vector2(210, 46);
+            br.anchoredPosition = new Vector2(xoff, -230);
+            var img = br.gameObject.AddComponent<Image>();
+            img.color = new Color(0.1f, 0.1f, 0.15f, 0.95f);
+            var b = br.gameObject.AddComponent<Button>();
+            b.targetGraphic = img;
+            b.onClick.AddListener(() => onClick());
+            var t = AddText(br, lbl, TextAnchor.MiddleCenter);
+            t.fontSize = 20; t.fontStyle = FontStyle.Bold;
+        }
+        Btn("Varsayılana Dön", () => { Hotkeys.ResetAll(); _listeningAction = null; RefreshHotkeyLabels(); }, -115f);
+        Btn("Geri", () => { _listeningAction = null; _hotkeyPanel.SetActive(false); if (_pauseMenu != null) _pauseMenu.SetActive(true); }, 115f);
+    }
+
+    /// <summary>Display string for a key (None → "—", listening row → "...").</summary>
+    static string KeyLabel(KeyCode k) => k == KeyCode.None ? "—" : k.ToString();
+
+    void RefreshHotkeyLabels()
+    {
+        foreach (var kv in _hotkeyKeyLabels)
+        {
+            if (kv.Value == null) continue;
+            if (_listeningAction.HasValue && _listeningAction.Value == kv.Key)
+            { kv.Value.text = "<bekleniyor>"; kv.Value.color = Prims.Hex(0xffd34a); }
+            else
+            { kv.Value.text = KeyLabel(Hotkeys.Get(kv.Key)); kv.Value.color = Color.white; }
+        }
+    }
+
+    /// <summary>Called from Update: while a row is listening, capture the next key press
+    /// and rebind (evicting any conflicting action). Esc cancels the capture.</summary>
+    void PollHotkeyRebind()
+    {
+        if (!_listeningAction.HasValue) return;
+        if (Input.GetKeyDown(KeyCode.Escape)) { _listeningAction = null; RefreshHotkeyLabels(); return; }
+        foreach (KeyCode kc in System.Enum.GetValues(typeof(KeyCode)))
+        {
+            if (kc == KeyCode.None || kc == KeyCode.Escape) continue;
+            if (!Input.GetKeyDown(kc)) continue;
+            Hotkeys.Rebind(_listeningAction.Value, kc);   // evicts conflicts to None
+            _listeningAction = null;
+            RefreshHotkeyLabels();
+            return;
+        }
     }
 
     public void ShowGameOver(bool playerWon, string subtitle = "")

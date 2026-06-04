@@ -80,4 +80,35 @@ public static class Hotkeys
         var k = Get(action);
         return k != KeyCode.None && Input.GetKeyDown(k);
     }
+
+    /// <summary>N9.hotkeys: which action currently holds this key (null if unbound).
+    /// Used by the remap UI to detect conflicts before assigning.</summary>
+    public static HotkeyAction? ActionFor(KeyCode key)
+    {
+        if (key == KeyCode.None) return null;
+        for (int i = 0; i < _bindings.Length; i++)
+            if (_bindings[i] == key) return (HotkeyAction)i;
+        return null;
+    }
+
+    /// <summary>N9.hotkeys: rebind, evicting any other action that held the key to None so
+    /// no two actions ever share a binding. Returns the evicted action (if any).</summary>
+    public static HotkeyAction? Rebind(HotkeyAction action, KeyCode key)
+    {
+        HotkeyAction? evicted = null;
+        if (key != KeyCode.None)
+        {
+            var holder = ActionFor(key);
+            if (holder.HasValue && holder.Value != action)
+            {
+                evicted = holder;
+                Set(holder.Value, KeyCode.None);
+            }
+        }
+        Set(action, key);
+        return evicted;
+    }
+
+    /// <summary>Number of actions (for iterating in the remap UI).</summary>
+    public static int Count => _defaults.Length;
 }
