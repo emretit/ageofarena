@@ -15,6 +15,7 @@ public struct TechDef
     public string display;
     public TechType requires;   // prerequisite tech that must already be researched
     public bool hasRequires;    // false → no prerequisite (ignore `requires`)
+    public Civilization requiredCiv; // M9: civ-gated tech (None = available to every civ)
 
     public TechDef(TechType t, BuildingType b, Age req, int f, int w, int g, int s,
         float time, string name)
@@ -23,6 +24,7 @@ public struct TechDef
         food = f; wood = w; gold = g; stone = s;
         researchTime = time; display = name;
         requires = default; hasRequires = false;
+        requiredCiv = Civilization.None;
     }
 
     /// <summary>Overload for a tech gated behind another tech (e.g. Longswordsman ← ManAtArms).</summary>
@@ -31,6 +33,14 @@ public struct TechDef
         : this(t, b, req, f, w, g, s, time, name)
     {
         requires = prereq; hasRequires = true;
+    }
+
+    /// <summary>Overload for a civ-gated tech (M9: unique/Elite techs available to one civ only).</summary>
+    public TechDef(TechType t, BuildingType b, Age req, int f, int w, int g, int s,
+        float time, string name, Civilization reqCiv)
+        : this(t, b, req, f, w, g, s, time, name)
+    {
+        requiredCiv = reqCiv;
     }
 }
 
@@ -120,6 +130,9 @@ public static class TechDefs
         new(TechType.Coinage,       BuildingType.Market,       Age.Castle,    0,   0, 200, 0, 30f, "Sikke Basımı"),
         new(TechType.Banking,       BuildingType.Market,       Age.Imperial,  0,   0, 300, 0, 35f, "Bankacılık",   TechType.Coinage),
         new(TechType.Guilds,        BuildingType.Market,       Age.Imperial,300,   0,   0, 0, 35f, "Loncalar"),
+
+        // ── M9 (EAGLE): Aztec-only Eagle upgrade ──────────────────────────────
+        new(TechType.EliteEagle,    BuildingType.Barracks,     Age.Imperial,200,   0, 100, 0, 35f, "Seçkin Kartal", Civilization.Aztecs),
     };
 
     public static TechDef Get(TechType t)
@@ -136,7 +149,8 @@ public static class TechDefs
     /// needs Feudal, Imperial needs Castle); upgrades require being at or beyond their
     /// <c>requiredAge</c>.
     /// </summary>
-    public static List<TechDef> ForBuilding(BuildingType building, Age age, TechState tech)
+    public static List<TechDef> ForBuilding(BuildingType building, Age age, TechState tech,
+        Civilization civ = Civilization.None)
     {
         var list = new List<TechDef>();
         for (int i = 0; i < Table.Length; i++)
@@ -145,6 +159,7 @@ public static class TechDefs
             if (d.building != building) continue;
             if (tech != null && tech.Has(d.type)) continue;
             if (d.hasRequires && (tech == null || !tech.Has(d.requires))) continue; // prerequisite tech
+            if (d.requiredCiv != Civilization.None && d.requiredCiv != civ) continue; // M9: civ-gated tech
             if (!IsAvailable(d, age)) continue;
             list.Add(d);
         }

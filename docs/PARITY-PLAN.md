@@ -537,7 +537,7 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] CAVAR: UnitType.CavalryArcher (Pierce, IsRanged, hız 5.2); Stable/Castle. Runtime: hp50/dmg5/range4 doğrulandı.
 - [x] CAVA: TechType.HeavyCavalryArcher (Stable/Imperial); CavalryArcher HP/atk RecomputeMaxHp ile retroaktif.
 - [x] THSW: TechType.TwoHandedSwordsman (Imperial, req Longswordsman); Champion.requires=TwoHandedSwordsman; Militia HP retroaktif; HUD tier adı.
-- [ ] EAGLE: (→ M9'a ERTELENDİ) Eagle meso-Amerikan medeniyetine bağlı; mevcut 5 civ'in hiçbiri Eagle civ'i değil. Gerçek önkoşul CIVX/M9 (meso civ ekleme). O zaman: UnitType.Eagle + UnitFactory.Eagle() + civ-koşullu trainable + EliteEagle tech.
+- [x] EAGLE: (M9b'de açıldı) UnitType.Eagle + UnitFactory.Eagle() (hp55/hız4.5); Aztecs Barracks-koşullu trainable (BarracksTrainablesAztec); TechType.EliteEagle (Aztec-gated, +20hp/+3atk retroaktif). Runtime: Aztek Barracks Eagle içerir, Frank içermez; EliteEagle yalnız Aztek menüsünde.
 - [x] NAVX: WarGalley+Galleon tier (Dock Castle/Imperial, retroaktif: Galley 120→170 HP, dmg 12); UnitType.FireShip+DemoShip Dock'tan SpawnNaval ile. (Runtime doğrulandı; DemoShip splash 2.5.)
 - [x] MFAITH (faith parçası): UnitEntity.faith + FaithReady; conversion full faith ister, sonra faith=0 + regen (CombatSystem.StepConvert). **Relic taşıma/deposit → RELC/M5'e** (plan uyarısı gereği sınır çizildi, çift-iş yok).
 - [x] CSTL: Castle def `minAge: Age.Castle`; UnlockedAt(Castle,Feudal)=false, (Castle,Castle)=true (runtime doğrulandı).
@@ -572,7 +572,7 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] CIVC: Civilization enum 11 total/10 oynanabilir (+Aztecs/Teutons/Persians/Vikings/Saracens); her civ Row() ile tam doldurulu; WorldRoot Random.Range(1,length) yeni civ'leri seçer. Runtime doğrulandı.
 - [x] CIVX: CivilizationDefs tek kanonik ID/isim kaynağı (dosya başında belgeli; HUD/seçim oradan okur); 10 display string dolu+tekil (Franklar..Saracenler). _Not: wiki 06 (5 civ) batch tazelemede 10'a senkronlanacak._
 - [ ] CIVT: grep enum TechType civ-özel değerler; ResearchSystem civ+çağ gating; ≥2 civ Castle+Imperial unique tech.
-- [ ] CIVU: grep ≥4 yeni unique UnitType; tüm switch'lerde tanımlı; bina GetTrainables civ-koşullu; isimler referansa uyar.
+- [x] CIVU: 5 yeni unique UnitType (TeutonicKnight/WarElephant/Mangudai/Samurai + Eagle); UnitEntity tüm switch'lerde tanımlı (atk/range/interval/aggro/DamageKind/IsRanged/ArmorClass/BonusDamageVs) + UnitFactory mesh + TrainingQueue spawn + CommandIconFactory/HUD ad. Castle GetTrainables civ-koşullu (CastleUniqueFor: Teutons→TK, Persians→WarEle, Mongols→Mangudai, Japanese→Samurai). Runtime doğrulandı.
 - [ ] GMODE-ENUM: grep `enum GameMode` (4 değer); GameManager `GameMode gameMode` alanı; davranış değişmez.
 - [ ] VHOLD: grep `WonderHoldTime` const değil; WorldRoot `HoldTime` atar; countdown yeni süreden sayar; default 60sn.
 - [ ] VTIME: grep `TimeLimit` MatchSystem + sayaç; süre dolunca 4 takım Score() max; limit 0 regresyonsuz.

@@ -145,6 +145,25 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         new(UnitType.Medic,     26f, 60, 0,   0, "H"),
     };
 
+    // M9/CIVU: civilization unique unit trained at the Castle (null → civ has none here).
+    static UnitTrainable? CastleUniqueFor(Civilization civ) => civ switch
+    {
+        Civilization.Teutons  => new UnitTrainable(UnitType.TeutonicKnight, 30f, 0,  0,  85, "U"),
+        Civilization.Persians => new UnitTrainable(UnitType.WarElephant,    36f, 100,0,  70, "U"),
+        Civilization.Mongols  => new UnitTrainable(UnitType.Mangudai,       28f, 0,  55, 65, "U"),
+        Civilization.Japanese => new UnitTrainable(UnitType.Samurai,        26f, 60, 0,  30, "U"),
+        _                     => (UnitTrainable?)null,
+    };
+
+    // Aztecs unique (EAGLE): Eagle Warrior available at the Barracks (Castle Age+).
+    static readonly UnitTrainable[] BarracksTrainablesAztec =
+    {
+        new(UnitType.Militia,   21f,  0, 60, 20, "M"),
+        new(UnitType.Spearman,  18f, 35, 25,  0, "P"),
+        new(UnitType.Scout,     14f, 30,  0,  0, "S"),
+        new(UnitType.Eagle,     20f, 20,  0, 50, "E"),
+    };
+
     static readonly UnitTrainable[] MonasteryTrainables =
     {
         new(UnitType.Monk, 30f, 0, 0, 100, "K"), // gold cost — holy unit
@@ -191,6 +210,18 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     }
 
     bool IsBritons => TeamCiv == Civilization.Britons;
+    bool IsAztecs  => TeamCiv == Civilization.Aztecs;
+
+    /// <summary>Castle trainables for this building's team, with the civ's unique unit appended.</summary>
+    UnitTrainable[] CastleTrainablesForCiv()
+    {
+        var uniq = CastleUniqueFor(TeamCiv);
+        if (uniq == null) return CastleTrainables;
+        var arr = new UnitTrainable[CastleTrainables.Length + 1];
+        System.Array.Copy(CastleTrainables, arr, CastleTrainables.Length);
+        arr[CastleTrainables.Length] = uniq.Value;
+        return arr;
+    }
 
     /// <summary>Minimum age a unit type can be trained at.</summary>
     static Age MinAgeFor(UnitType t) => t switch
@@ -210,6 +241,12 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         UnitType.CavalryArcher => Age.Castle,
         UnitType.FireShip    => Age.Feudal,
         UnitType.DemoShip    => Age.Castle,
+        // M9 unique units (Castle-age)
+        UnitType.TeutonicKnight => Age.Castle,
+        UnitType.WarElephant => Age.Castle,
+        UnitType.Mangudai    => Age.Castle,
+        UnitType.Samurai     => Age.Castle,
+        UnitType.Eagle       => Age.Castle,
         _                    => Age.Dark,
     };
 
@@ -219,10 +256,10 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         var all = type switch
         {
             BuildingType.TownCenter   => TownCenterTrainables,
-            BuildingType.Barracks     => BarracksTrainables,
+            BuildingType.Barracks     => IsAztecs ? BarracksTrainablesAztec : BarracksTrainables,
             BuildingType.ArcheryRange => IsBritons ? ArcheryTrainablesBritons : ArcheryTrainables,
             BuildingType.Stable       => StableTrainables,
-            BuildingType.Castle       => CastleTrainables,
+            BuildingType.Castle       => CastleTrainablesForCiv(),
             BuildingType.Monastery    => MonasteryTrainables,
             BuildingType.Market       => MarketTrainables,
             BuildingType.Dock         => DockTrainables,
@@ -250,6 +287,6 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         if (underConstruction || gm == null)
             return new System.Collections.Generic.List<TechDef>();
         var tech = gm.teamTech[teamId];
-        return TechDefs.ForBuilding(type, tech.age, tech);
+        return TechDefs.ForBuilding(type, tech.age, tech, TeamCiv);
     }
 }

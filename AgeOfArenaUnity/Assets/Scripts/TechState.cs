@@ -67,6 +67,7 @@ public class TechState
         UnitType.Scout      => ScoutLineAtk,
         UnitType.CavalryArcher => ArcherAttackBonus + CavArcherLineAtk,
         UnitType.Galley     => GalleyLineAtk,
+        UnitType.Eagle      => Has(TechType.EliteEagle) ? 3f : 0f,   // EAGLE upgrade
         _ => 0f,
     };
 
@@ -114,6 +115,7 @@ public class TechState
                           + (Has(TechType.Galleon) ? 30f : 0f),
         UnitType.Villager => Has(TechType.Loom) ? 15f : 0f,   // ECON: Loom +15 hp
         UnitType.Monk    => Has(TechType.Sanctity) ? 15f : 0f, // MONK: Sanctity +15 hp
+        UnitType.Eagle   => Has(TechType.EliteEagle) ? 20f : 0f, // EAGLE upgrade
         _ => 0f,
     };
 

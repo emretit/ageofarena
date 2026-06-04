@@ -1266,6 +1266,12 @@ public class HUD : MonoBehaviour
         UnitType.CavalryArcher => "Atlı Okçu",
         UnitType.FireShip    => "Ateş Gemisi",
         UnitType.DemoShip    => "Patlayıcı Gemi",
+        // M9 unique units
+        UnitType.TeutonicKnight => "Töton Şövalyesi",
+        UnitType.WarElephant => "Savaş Fili",
+        UnitType.Mangudai    => "Mangudai",
+        UnitType.Samurai     => "Samuray",
+        UnitType.Eagle       => "Kartal Savaşçı",
         _                    => t.ToString(),
     };
 
@@ -1311,6 +1317,9 @@ public class HUD : MonoBehaviour
                     break;
                 case UnitType.Camel:
                     if (tech.Has(TechType.HeavyCamel))    return "Ağır Deve";
+                    break;
+                case UnitType.Eagle:
+                    if (tech.Has(TechType.EliteEagle))    return "Seçkin Kartal Savaşçı";
                     break;
             }
         }
@@ -1427,6 +1436,7 @@ public class HUD : MonoBehaviour
         TechType.Coinage       => "Haraç vergisiz gönderilir.",
         TechType.Banking       => "Ticaret arabası geliri +.",
         TechType.Guilds        => "Pazar alış-satış farkı daralır.",
+        TechType.EliteEagle    => "Kartal Savaşçı → Seçkin: can ve saldırı +.",
         _                      => "",
     };
 

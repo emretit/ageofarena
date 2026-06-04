@@ -6,7 +6,17 @@ public enum ResourceKind { Food, Wood, Gold, Stone }
 
 public enum UnitState { Idle, Moving, Gathering, ReturningToDropoff, MovingToAttack, Attacking, Constructing }
 
-public enum UnitType { Villager, Militia, Archer, Cavalry, Trebuchet, Scout, Medic, Spearman, Monk, TradeCart, Galley, Longbowman, Skirmisher, Camel, Ram, Mangonel, CavalryArcher, FireShip, DemoShip }
+public enum UnitType
+{
+    Villager, Militia, Archer, Cavalry, Trebuchet, Scout, Medic, Spearman, Monk, TradeCart,
+    Galley, Longbowman, Skirmisher, Camel, Ram, Mangonel, CavalryArcher, FireShip, DemoShip,
+    // ── M9/CIVU: civilization unique units (Castle) + M9/EAGLE (Barracks) ──
+    TeutonicKnight,  // Teutons — slow heavy infantry, high armor
+    WarElephant,     // Persians — massive HP, bonus vs buildings
+    Mangudai,        // Mongols — cavalry archer, bonus vs siege
+    Samurai,         // Japanese — fast infantry
+    Eagle,           // Aztecs — fast scout-warrior (EAGLE)
+}
 
 /// <summary>Damage class for the armor counter matrix. Siege bypasses both armor types.</summary>
 public enum DamageType { Melee, Pierce, Siege }
@@ -128,6 +138,8 @@ public enum TechType
     Coinage,        // tribute sent tax-free (Castle)
     Banking,        // +trade cart gold (stacks with Caravan) (Imperial)
     Guilds,         // narrows market sell/buy spread (Imperial)
+    // ── M9 (EAGLE): Eagle Warrior upgrade ──
+    EliteEagle,     // Eagle → Elite Eagle: +hp/+atk (Aztecs, Imperial)
 }
 
 /// <summary>Stance controlling auto-aggro and pursuit behavior.</summary>

@@ -140,6 +140,32 @@ public static class CommandIconFactory
                 Add(icon, Square,   Dark,  0, 6, 3, 22);           // mast
                 Add(icon, Square,   Blue,  5, 8, 12, 8, -15);      // sail
                 break;
+            case UnitType.TeutonicKnight:
+                Add(icon, Square, Steel, 0, -3, 22, 24);           // bulky armor
+                Add(icon, Square, Dark,  0, 11, 16, 8);            // great helm
+                Add(icon, Square, Steel, 11, 2, 4, 26, -25);       // sword
+                break;
+            case UnitType.WarElephant:
+                Add(icon, Square, Stone, 0, -2, 28, 16);           // body
+                Add(icon, Square, Stone, 11, 0, 8, 8);             // head
+                Add(icon, Square, Stone, 17, -4, 4, 12, 60);       // trunk
+                Add(icon, Square, Blue,  -2, 10, 16, 8);           // howdah
+                break;
+            case UnitType.Mangudai:
+                Add(icon, Square, Wood, 0, -2, 26, 11);            // horse
+                Add(icon, Square, Wood, 11, 7, 7, 13, 20);
+                Add(icon, Ring,   Steel, -3, 9, 13, 13);           // bow
+                break;
+            case UnitType.Samurai:
+                Add(icon, Circle, Red,   0, 11, 16, 12);           // kabuto crest
+                Add(icon, Square, Steel, -4, -3, 18, 22);          // armor
+                Add(icon, Square, Steel, 10, 2, 3, 26, -20);       // katana
+                break;
+            case UnitType.Eagle:
+                Add(icon, Triangle, Gold, 0, 8, 22, 16);           // feathered headdress
+                Add(icon, Circle,   Skin, 0, -2, 14, 14);          // body
+                Add(icon, Triangle, Prims.Hex(0xeac24a), 8, 2, 8, 8, -90); // beak
+                break;
         }
     }
 
@@ -279,6 +305,7 @@ public static class CommandIconFactory
             case TechType.Crossbowman:
             case TechType.EliteSkirmisher:
             case TechType.HeavyCavalryArcher:
+            case TechType.EliteEagle:
             case TechType.Ballistics:
             case TechType.Chemistry:
                 Add(icon, Square,   Wood,  -2, 0, 24, 3);          // arrow
