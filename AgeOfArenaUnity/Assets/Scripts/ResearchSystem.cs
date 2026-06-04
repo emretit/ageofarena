@@ -114,6 +114,8 @@ public class ResearchSystem : MonoBehaviour
         else
         {
             GameEvents.FireResearchCompleted(teamId, type);
+            // N7.sfx: research complete sound (player team only).
+            if (teamId == 0) AudioManager.Play(AudioManager.SoundId.Research, 0.9f);
         }
 
         // Retroactively apply the new tech's HP bonus to already-spawned units.

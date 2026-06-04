@@ -133,7 +133,11 @@ public class BuildSystem : MonoBehaviour
         }
 
         site.hp = Mathf.Min(site.maxHp, site.hp + heal);
-        if (site.hp >= site.maxHp) _repairOwed.Remove(site);
+        if (site.hp >= site.maxHp)
+        {
+            _repairOwed.Remove(site);
+            if (site.teamId == 0) AudioManager.Play(AudioManager.SoundId.Repair, 0.7f); // N7.sfx
+        }
     }
 
     static Vector3 ApproachPoint(Vector3 center, Vector3 from, float dist)

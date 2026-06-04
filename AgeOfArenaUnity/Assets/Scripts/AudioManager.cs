@@ -13,11 +13,22 @@ public class AudioManager : MonoBehaviour
         UnitSelect,   // SUBT: generic unit selection
         UnitMove,     // SUBT: unit move-order confirm
         UnitVillager, // SUBT: villager-specific select
-        AgeUp         // AGFX: age advance fanfare
+        AgeUp,        // AGFX: age advance fanfare
+        // N7.sfx additions
+        Gather,       // villager hits a resource node
+        Research,     // tech research complete
+        Ping,         // minimap / attack ping
+        Repair,       // villager repairing a building
     }
 
-    const int PoolSize = 10;
+    const int PoolSize = 12;   // N7.sfx: extra pool slots for new sounds
     const int SampleRate = 22050;
+
+    // N7.sfx: pitch variation range ±PitchJitter per shot — avoids "machine gun" sameness.
+    const float PitchJitter = 0.10f;
+
+    // N7.sfx: per-SoundId round-robin counter to cycle between variant takes (future: load _1, _2, _3).
+    readonly int[] _rrIdx = new int[System.Enum.GetValues(typeof(SoundId)).Length];
 
     static AudioManager _instance;
     AudioSource[] _pool;
@@ -38,6 +49,10 @@ public class AudioManager : MonoBehaviour
         "Audio/unit_select",    // UnitMove
         "Audio/unit_select",    // UnitVillager
         "Audio/unit_trained",   // AgeUp
+        "Audio/gather",         // Gather      (N7.sfx)
+        "Audio/research",       // Research    (N7.sfx)
+        "Audio/ping",           // Ping        (N7.sfx)
+        "Audio/build_complete", // Repair      (N7.sfx — reuse build_complete pitch-shifted)
     };
 
     public static void Play(SoundId id, float volumeScale = 1f)
@@ -71,7 +86,12 @@ public class AudioManager : MonoBehaviour
         if (clip == null) return;
         var src = _pool[_poolIdx];
         _poolIdx = (_poolIdx + 1) % PoolSize;
+        // N7.sfx: pitch variation ±PitchJitter to avoid "machine gun" identical repeats.
+        src.pitch = 1f + Random.Range(-PitchJitter, PitchJitter);
         src.PlayOneShot(clip, vol * 0.65f);
+        // Advance round-robin counter for this SoundId (used if variant clips are loaded later).
+        int idx = (int)id;
+        _rrIdx[idx] = (_rrIdx[idx] + 1) % 3;
     }
 
     // ── Procedural clip generation ────────────────────────────────────────────
@@ -90,6 +110,11 @@ public class AudioManager : MonoBehaviour
             case SoundId.UnitMove:     return Tone(480f,  0.07f, 0f, 0.07f, wave: Wave.Sine);
             case SoundId.UnitVillager: return Tone(520f,  0.07f, 0f, 0.07f, wave: Wave.Sine);
             case SoundId.AgeUp:        return Fanfare();
+            // N7.sfx new sounds
+            case SoundId.Gather:       return Tone(320f, 0.01f, 0f, 0.06f, wave: Wave.Square, freqMult: 0.8f);
+            case SoundId.Research:     return Ding(550f, 0.40f);
+            case SoundId.Ping:         return Tone(880f, 0.01f, 0f, 0.18f, wave: Wave.Sine);
+            case SoundId.Repair:       return Tone(260f, 0.02f, 0f, 0.10f, wave: Wave.Triangle);
             default:                   return Tone(440f, 0.1f, 0f, 0.1f, wave: Wave.Sine);
         }
     }

@@ -249,7 +249,7 @@ public class MinimapSystem : MonoBehaviour
         mr.material.color = new Color(1f, 0.9f, 0.1f, 0.85f);
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         go.AddComponent<PingDecay>();
-        AudioManager.Play(AudioManager.SoundId.ButtonClick, 0.4f);
+        AudioManager.Play(AudioManager.SoundId.Ping, 0.5f); // N7.sfx: dedicated ping sound
     }
 
     static Mesh CreateQuadMesh(float size)
