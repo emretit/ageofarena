@@ -581,9 +581,25 @@ public class UnitEntity : MonoBehaviour, IDamageable
         int newRank = killCount >= 3 ? 2 : killCount >= 1 ? 1 : 0;
         if (newRank <= veteranRank) return false;
         veteranRank = newRank;
-        // +VetHpPerRank max HP (via unified model) and +10%/rank attack (via VeteranMult).
         RecomputeMaxHp();
+        ApplyVeteranTint();
         return true;
+    }
+
+    // Veteran tint: recruit = team color, veteran = slight gold shift, elite = gold.
+    void ApplyVeteranTint()
+    {
+        if (veteranRank == 0) return;
+        Color gold = veteranRank == 2 ? new Color(1f, 0.85f, 0.1f) : new Color(0.9f, 0.75f, 0.3f);
+        var block = new MaterialPropertyBlock();
+        block.SetColor("_Color", Color.Lerp(Color.white, gold, veteranRank == 2 ? 0.5f : 0.28f));
+        foreach (var smr in GetComponentsInChildren<SkinnedMeshRenderer>())
+            smr.SetPropertyBlock(block);
+        foreach (var mr in GetComponentsInChildren<MeshRenderer>())
+        {
+            if (mr.gameObject.name == "BlobShadow" || mr.gameObject.name.StartsWith("SelectionRing")) continue;
+            mr.material.color = Color.Lerp(mr.material.color, gold, 0.2f);
+        }
     }
 
     float _bobPhase;
