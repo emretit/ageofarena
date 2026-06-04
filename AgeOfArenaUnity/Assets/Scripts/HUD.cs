@@ -683,6 +683,10 @@ public class HUD : MonoBehaviour
             else OpenPauseMenu(gm);
         }
 
+        // DIPL: D key toggles diplomacy panel.
+        if (Input.GetKeyDown(KeyCode.D) && !_gameOverShown)
+            ToggleDiplomacyPanel();
+
         // Relics held readout in the top bar (replaces RelicSystem's IMGUI label).
         if (_relicText != null)
         {
@@ -1443,6 +1447,112 @@ public class HUD : MonoBehaviour
         TechType.Ironclad      => "Töton: kuşatma birimi zırhı +4.",
         TechType.Crenellations => "Töton: kule menzili +.",
         _                      => "",
+    };
+
+    // ── DIPL: Diplomacy panel ────────────────────────────────────────────────
+
+    bool _diplPanelOpen;
+    GameObject _diplPanel;
+
+    /// <summary>Toggle the diplomacy panel (called from a HUD button or hotkey).</summary>
+    public void ToggleDiplomacyPanel()
+    {
+        _diplPanelOpen = !_diplPanelOpen;
+        if (_diplPanel != null) { Object.Destroy(_diplPanel); _diplPanel = null; }
+        if (!_diplPanelOpen) return;
+        BuildDiplomacyPanel();
+    }
+
+    void BuildDiplomacyPanel()
+    {
+        if (_canvasRoot == null) return;
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+
+        _diplPanel = new GameObject("DiplPanel");
+        var rt = _diplPanel.AddComponent<RectTransform>();
+        rt.SetParent(_canvasRoot, false);
+        rt.anchorMin = new Vector2(0f, 0.5f); rt.anchorMax = new Vector2(0f, 0.5f);
+        rt.pivot = new Vector2(0f, 0.5f);
+        rt.sizeDelta = new Vector2(220, 160);
+        rt.anchoredPosition = new Vector2(8, 0);
+        var bg = _diplPanel.AddComponent<Image>();
+        bg.color = new Color(0f, 0f, 0f, 0.78f);
+
+        string[] teamNames = { "", "Kırmızı", "Yeşil", "Sarı" };
+        Color[] teamColors = { Color.white, Prims.Hex(0xd42020), Prims.Hex(0x1e9e40), Prims.Hex(0xf0a010) };
+
+        for (int t = 1; t < 4; t++)
+        {
+            int team = t; // capture for lambda
+            var row = new GameObject($"DiplRow_{t}");
+            var rowRt = row.AddComponent<RectTransform>();
+            rowRt.SetParent(rt, false);
+            rowRt.anchorMin = new Vector2(0, 1); rowRt.anchorMax = new Vector2(1, 1);
+            rowRt.pivot = new Vector2(0, 1);
+            rowRt.sizeDelta = new Vector2(0, 36);
+            rowRt.anchoredPosition = new Vector2(0, -(8 + (t - 1) * 40f));
+
+            var nameRect = NewRect($"DiplName_{t}", rowRt);
+            nameRect.anchorMin = Vector2.zero; nameRect.anchorMax = new Vector2(0.55f, 1);
+            nameRect.offsetMin = new Vector2(8, 0); nameRect.offsetMax = Vector2.zero;
+            var nameText = AddText(nameRect, teamNames[t], TextAnchor.MiddleLeft);
+            nameText.color = teamColors[t];
+            nameText.fontSize = 14;
+
+            var btnRect = NewRect($"DiplBtn_{t}", rowRt);
+            btnRect.anchorMin = new Vector2(0.55f, 0.1f); btnRect.anchorMax = new Vector2(0.98f, 0.9f);
+            btnRect.offsetMin = Vector2.zero; btnRect.offsetMax = Vector2.zero;
+            var btnImg = btnRect.gameObject.AddComponent<Image>();
+            btnImg.color = new Color(0.25f, 0.25f, 0.35f, 1f);
+
+            var btnLabelRect = NewRect($"DiplBtnLabel_{t}", btnRect);
+            btnLabelRect.anchorMin = Vector2.zero; btnLabelRect.anchorMax = Vector2.one;
+            btnLabelRect.offsetMin = Vector2.zero; btnLabelRect.offsetMax = Vector2.zero;
+            var btnLabel = AddText(btnLabelRect, DiplStateLabel(gm.diplomacy[0, team]), TextAnchor.MiddleCenter);
+            btnLabel.fontSize = 13;
+
+            var btn = btnRect.gameObject.AddComponent<Button>();
+            btn.onClick.AddListener(() =>
+            {
+                var cur = gm.diplomacy[0, team];
+                var next = cur == DiplomacyState.Enemy ? DiplomacyState.Neutral
+                         : cur == DiplomacyState.Neutral ? DiplomacyState.Allied
+                         : DiplomacyState.Enemy;
+                gm.diplomacy[0, team] = next;
+                btnLabel.text = DiplStateLabel(next);
+                btnLabel.color = DiplStateColor(next);
+            });
+            btnLabel.color = DiplStateColor(gm.diplomacy[0, team]);
+        }
+
+        var closeRect = NewRect("DiplClose", rt);
+        closeRect.anchorMin = new Vector2(0.7f, 0); closeRect.anchorMax = new Vector2(1, 0);
+        closeRect.pivot = new Vector2(1, 0);
+        closeRect.sizeDelta = new Vector2(0, 28);
+        closeRect.anchoredPosition = new Vector2(-4, 4);
+        var closeImg = closeRect.gameObject.AddComponent<Image>();
+        closeImg.color = new Color(0.45f, 0.15f, 0.15f, 1f);
+        var closeLabelRect = NewRect("DiplCloseLabel", closeRect);
+        closeLabelRect.anchorMin = Vector2.zero; closeLabelRect.anchorMax = Vector2.one;
+        closeLabelRect.offsetMin = Vector2.zero; closeLabelRect.offsetMax = Vector2.zero;
+        var closeLabel = AddText(closeLabelRect, "Kapat", TextAnchor.MiddleCenter);
+        closeLabel.fontSize = 12;
+        var closeBtn = closeRect.gameObject.AddComponent<Button>();
+        closeBtn.onClick.AddListener(ToggleDiplomacyPanel);
+    }
+
+    static string DiplStateLabel(DiplomacyState s) => s switch
+    {
+        DiplomacyState.Allied  => "İttifak",
+        DiplomacyState.Neutral => "Tarafsız",
+        _                      => "Düşman",
+    };
+    static Color DiplStateColor(DiplomacyState s) => s switch
+    {
+        DiplomacyState.Allied  => Prims.Hex(0x4cdd70),
+        DiplomacyState.Neutral => Prims.Hex(0xf0d050),
+        _                      => Prims.Hex(0xff5555),
     };
 
     /// <summary>Compact cost string, e.g. "60O 20A" (Y=food, O=wood, A=gold, T=stone).</summary>

@@ -579,10 +579,10 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] VDEATH: grep `Deathmatch` WorldRoot; 4 takım food≥20000; RandomMap 200F/200W/100G/0S regresyonsuz.
 - [x] VREGI: grep `King` GameTypes+UnitFactory+WorldRoot; King ölünce eleme; Wonder/Relic countdown atlanır.
 - [x] VNOMAD: grep `Nomad` WorldRoot (BuildBase yok, Villager spawn); ilk-TC-yok grace; AI ≥1 TC inşa eder.
-- [ ] VDIPL: grep `Diplomacy` GameManager (4×4); MatchSystem matris okur (hardcoded kalkar); CombatSystem Allied/Neutral'a saldırmaz.
-- [ ] DIPL: grep `Diplom` HUD; panel tıkla→GameManager matris güncellenir; text.font=null render.
-- [ ] AIDP: grep `Diplomacy` EnemyAI; Allied takım hedeflenmez; default-düşman regresyonsuz.
-- [ ] AIWN: MatchSystem countdown public getter; EnemyAI Wonder'a countdown'da hedef değeri yükseltir; AI ordusu Wonder'a yönelir.
+- [x] VDIPL: grep `Diplomacy` GameManager (4×4); MatchSystem matris okur (hardcoded kalkar); CombatSystem Allied/Neutral'a saldırmaz.
+- [x] DIPL: grep `Diplom` HUD; panel tıkla→GameManager matris güncellenir; text.font=null render.
+- [x] AIDP: grep `Diplomacy` EnemyAI; Allied takım hedeflenmez; default-düşman regresyonsuz.
+- [x] AIWN: MatchSystem countdown public getter; EnemyAI Wonder'a countdown'da hedef değeri yükseltir; AI ordusu Wonder'a yönelir.
 - [ ] AIRD: EnemyAI ApplyDifficulty türevleri doküman ile tutarlı (FloorToInt(x+0.5f) veya wiki güncel).
 - [ ] AIDF: grep `enum Difficulty` 6 değer; ApplyDifficulty 6 case (default'a düşmez); HUD 6 seviye döner; monoton.
 - [ ] AICH: EnemyAI eko/üretim hızında difficulty çarpanı; bedava kaynak YOK; Easy az / Insane çok birim.

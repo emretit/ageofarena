@@ -177,7 +177,8 @@ public class CombatSystem : MonoBehaviour
         for (int i = 0; i < units.Count; i++)
         {
             var o = units[i];
-            if (o == null || o.teamId == u.teamId || o.isGarrisoned) continue;
+            if (o == null || o.isGarrisoned) continue;
+            if (!GM.IsEnemy(u.teamId, o.teamId)) continue;
             float sq = FlatSq(pos, o.transform.position);
             if (sq < bestSq) { bestSq = sq; best = o; }
         }
@@ -186,7 +187,7 @@ public class CombatSystem : MonoBehaviour
         for (int i = 0; i < buildings.Count; i++)
         {
             var b = buildings[i];
-            if (b == null || b.teamId == u.teamId) continue;
+            if (b == null || !GM.IsEnemy(u.teamId, b.teamId)) continue;
             float sq = FlatSq(pos, b.transform.position);
             if (sq < bestSq) { bestSq = sq; best = b; }
         }

@@ -56,6 +56,13 @@ public enum Age { Dark, Feudal, Castle, Imperial }
 public enum GameMode { Random, Deathmatch, Regicide, Nomad }
 
 /// <summary>
+/// A team's diplomatic stance toward another team.
+/// Enemy = attack on sight; Neutral = no auto-attack, trade/pass allowed;
+/// Allied = treated as friendly (share vision, never auto-attacked).
+/// </summary>
+public enum DiplomacyState { Enemy, Neutral, Allied }
+
+/// <summary>
 /// Strategic flavour for an <see cref="EnemyAI"/> brain. Tunes army size, push
 /// timing and economy weight so the three enemy teams play differently.
 /// </summary>

@@ -362,6 +362,8 @@ public class EnemyAI : MonoBehaviour
         {
             var u = gm.units[i];
             if (u == null || u.teamId == _teamId) continue;
+            // AIDP: skip allies/neutrals — only enemies threaten our base.
+            if (!(GameManager.Instance?.IsEnemy(_teamId, u.teamId) ?? true)) continue;
             Vector3 d = u.transform.position - homeTc.transform.position; d.y = 0;
             if (d.sqrMagnitude <= threatSq) { threatened = true; break; }
         }
@@ -406,7 +408,9 @@ public class EnemyAI : MonoBehaviour
 
         if (_target == null || !_target.IsAlive)
         {
-            var t = FindBestTarget(gm, army);
+            // AIWN: if an enemy Wonder or Relic countdown is ticking, prioritize it.
+            var urgentTarget = FindWinConditionTarget(gm);
+            var t = urgentTarget ?? FindBestTarget(gm, army);
             if (t == null) { SetStance(Stance.Gathering); return; }
             _target = t; _rallyPoint = ComputeRally(t.Transform.position);
         }
@@ -438,7 +442,8 @@ public class EnemyAI : MonoBehaviour
 
         if (_target == null || !_target.IsAlive)
         {
-            var t = FindBestTarget(gm, army);
+            // AIWN: re-check win-condition threat on target loss.
+            var t = FindWinConditionTarget(gm) ?? FindBestTarget(gm, army);
             if (t == null) { SetStance(Stance.Gathering); return; }
             _target = t;
         }
@@ -672,18 +677,40 @@ public class EnemyAI : MonoBehaviour
         for (int i = 0; i < gm.units.Count; i++)
         {
             var u = gm.units[i];
-            if (u == null || u.teamId == _teamId) continue;
+            // AIDP: skip self and non-enemies (allied/neutral).
+            if (u == null || !gm.IsEnemy(_teamId, u.teamId)) continue;
             float s = UnitValue(u) - DistPenalty(u.transform.position, origin);
             if (s > bestScore) { bestScore = s; best = u; }
         }
         for (int i = 0; i < gm.buildings.Count; i++)
         {
             var b = gm.buildings[i];
-            if (b == null || b.teamId == _teamId) continue;
+            if (b == null || !gm.IsEnemy(_teamId, b.teamId)) continue;
             float s = BuildingValue(b) - DistPenalty(b.transform.position, origin);
             if (s > bestScore) { bestScore = s; best = b; }
         }
         return best;
+    }
+
+    // AIWN: return a Wonder/Relic-carrier that is actively counting down to victory,
+    // so the AI prioritizes destroying it over general economy harassment.
+    IDamageable FindWinConditionTarget(GameManager gm)
+    {
+        var match = gm.match;
+        if (match == null || match.TimeRemaining == float.MaxValue) return null;
+
+        // If VictoryStatus mentions a countdown, find an enemy Wonder or Relic holder.
+        string status = match.VictoryStatus;
+        if (string.IsNullOrEmpty(status)) return null;
+
+        // Search for enemy Wonder buildings first (highest urgency).
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b == null || b.type != BuildingType.Wonder) continue;
+            if (gm.IsEnemy(_teamId, b.teamId)) return b;
+        }
+        return null;
     }
 
     static float UnitValue(UnitEntity u) =>

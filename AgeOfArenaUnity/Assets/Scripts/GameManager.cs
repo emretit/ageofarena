@@ -59,6 +59,25 @@ public class GameManager : MonoBehaviour
     /// <summary>Active game mode — set by WorldRoot before gameplay begins.</summary>
     public GameMode gameMode = GameMode.Random;
 
+    /// <summary>
+    /// VDIPL: 4×4 diplomacy matrix. diplomacy[a,b] = team a's stance toward team b.
+    /// Default: all teams are enemies; self-to-self is Allied.
+    /// </summary>
+    public DiplomacyState[,] diplomacy = InitDiplomacy();
+
+    static DiplomacyState[,] InitDiplomacy()
+    {
+        var d = new DiplomacyState[4, 4];
+        for (int a = 0; a < 4; a++)
+            for (int b = 0; b < 4; b++)
+                d[a, b] = (a == b) ? DiplomacyState.Allied : DiplomacyState.Enemy;
+        return d;
+    }
+
+    /// <summary>True if team a considers team b an enemy (i.e. will attack on sight).</summary>
+    public bool IsEnemy(int a, int b) =>
+        a != b && a >= 0 && a < 4 && b >= 0 && b < 4 && diplomacy[a, b] == DiplomacyState.Enemy;
+
     /// <summary>Per-team civilization. Index 0 = player; 1-3 = AI teams.</summary>
     public Civilization[] teamCivs = { Civilization.None, Civilization.None, Civilization.None, Civilization.None };
 

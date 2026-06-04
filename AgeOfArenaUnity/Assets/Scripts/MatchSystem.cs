@@ -128,9 +128,11 @@ public class MatchSystem : MonoBehaviour
             if (!anyEnemyKing) { End(true, "Regicide zaferi", gm); return; }
         }
 
-        // ── Conquest ─────────────────────────────────────────────────────────────
+        // ── Conquest (VDIPL: only counts enemy teams) ────────────────────────────
         bool playerAlive = tcAlive[0];
-        bool anyEnemy    = tcAlive[1] || tcAlive[2] || tcAlive[3];
+        bool anyEnemy = false;
+        for (int t = 1; t < 4; t++)
+            if (tcAlive[t] && gm.IsEnemy(0, t)) { anyEnemy = true; break; }
         if (!playerAlive)   End(false, "Fetih (TC yıkıldı)", gm);
         else if (!anyEnemy) End(true,  "Fetih", gm);
     }
