@@ -101,6 +101,7 @@ public class GatherSystem : MonoBehaviour
                 {
                     timer -= interval;
                     v.carrying.amount += node.Take(GatherRateFor(node.kind));
+                    v.PlayWorkSwing(); // N8.anim: axe/scythe swing on each gather tick
                     if (v.carrying.amount >= CarryCapacityFor(v) || node.Depleted)
                         BeginReturn(v);
                 }

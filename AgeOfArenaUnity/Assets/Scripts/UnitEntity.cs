@@ -667,12 +667,16 @@ public class UnitEntity : MonoBehaviour, IDamageable
 
     float _bobPhase;
     Animator _animator;
-    static readonly int AnimIsMoving = Animator.StringToHash("IsMoving");
-    static readonly int AnimAttack   = Animator.StringToHash("Attack");
-    static readonly int AnimDie      = Animator.StringToHash("Die");
+    static readonly int AnimIsMoving  = Animator.StringToHash("IsMoving");
+    static readonly int AnimAttack    = Animator.StringToHash("Attack");
+    static readonly int AnimDie       = Animator.StringToHash("Die");
+    static readonly int AnimIsWorking = Animator.StringToHash("IsMoving"); // N8.anim: gather/build reuse walk blend
 
     /// <summary>Fire the attack animation. No-op for primitive units (no Animator).</summary>
     public void PlayAttack() { if (_animator != null) _animator.SetTrigger(AnimAttack); }
+
+    /// <summary>N8.anim: Fire a gather/build "swing" animation (reuses Attack trigger).</summary>
+    public void PlayWorkSwing() { if (_animator != null) _animator.SetTrigger(AnimAttack); }
 
     /// <summary>Fire the death animation and freeze locomotion. No-op for primitive units.</summary>
     public void PlayDie()
@@ -693,14 +697,23 @@ public class UnitEntity : MonoBehaviour, IDamageable
         }
         else
         {
-            // Procedural movement bob: primitive unit root bobs up/down while moving.
+            // Procedural animation for primitive (non-KayKit) units.
             bool isMoving = state == UnitState.Moving;
             if (isMoving)
             {
+                // Bob up/down while walking.
                 _bobPhase += Time.deltaTime * 8f;
                 float bob = Mathf.Sin(_bobPhase) * 0.04f;
                 var pos = transform.localPosition;
                 transform.localPosition = new Vector3(pos.x, bob, pos.z);
+            }
+            // N8.anim: attack swing — brief Y rotation oscillation on Attacking.
+            if (state == UnitState.Attacking)
+            {
+                _bobPhase += Time.deltaTime * 16f;
+                float swing = Mathf.Sin(_bobPhase) * 18f;
+                var euler = transform.localEulerAngles;
+                transform.localEulerAngles = new Vector3(euler.x, euler.y + swing, euler.z);
             }
         }
 

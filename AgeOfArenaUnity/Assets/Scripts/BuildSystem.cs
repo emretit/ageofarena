@@ -71,12 +71,21 @@ public class BuildSystem : MonoBehaviour
         u.HaltAgent();
         u.FaceToward(sp);
 
-        if (needsBuild) StepConstruction(site, dt);
+        if (needsBuild) StepConstruction(site, u, dt);
         else            StepRepair(site, dt);
     }
 
-    void StepConstruction(BuildingEntity site, float dt)
+    // N8.anim: per-unit swing timer for build animation
+    readonly System.Collections.Generic.Dictionary<UnitEntity, float> _swingTimers = new();
+
+    void StepConstruction(BuildingEntity site, UnitEntity builder, float dt)
     {
+        // N8.anim: trigger hammer swing every ~0.8s during construction
+        _swingTimers.TryGetValue(builder, out float st);
+        st -= dt;
+        if (st <= 0f) { st = 0.8f; builder.PlayWorkSwing(); }
+        _swingTimers[builder] = st;
+
         float time = Mathf.Max(0.1f, site.buildTime);
         site.buildProgress = Mathf.Clamp01(site.buildProgress + dt / time);
         site.hp = Mathf.Max(1f, site.maxHp * site.buildProgress);
