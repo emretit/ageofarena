@@ -116,7 +116,7 @@ public class SaveSystem : MonoBehaviour
         foreach (var b in gm.buildings)
         {
             if (b == null) continue;
-            bool hr = b.rallyPoint != Vector3.zero;
+            bool hr = b.hasRally;   // use the real flag, not a (0,0,0)-sentinel that loses rallies set near map origin
             data.buildings.Add(new BuildingSnap
             {
                 type              = (int)b.type,

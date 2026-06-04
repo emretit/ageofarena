@@ -929,6 +929,61 @@ public static class UnitFactory
         return e;
     }
 
+    /// <summary>
+    /// Central type→factory dispatch. The single source of truth for "spawn a unit
+    /// of this type." Always assigns <c>teamId</c> on the result — fixing two bugs:
+    /// (1) factory methods that take no teamId param (Cavalry, Trebuchet, Camel,
+    /// uniques, TradeCart…) used to leave teamId=0, so AI-trained Cavalry silently
+    /// joined the player's team; (2) save-restore previously only knew ~10 types and
+    /// turned everything else (Trebuchet, Monk, uniques, the King!) into a Villager.
+    /// Ship types need <paramref name="navalAgentTypeId"/>; everything else ignores it.
+    /// </summary>
+    public static UnitEntity Spawn(UnitType type, Transform parent, Vector3 pos, int teamId, int navalAgentTypeId = -1)
+    {
+        Color c = TeamPalette.For(teamId);
+        UnitEntity e = type switch
+        {
+            UnitType.Villager       => Villager(parent, pos, c, teamId),
+            UnitType.Militia        => Militia(parent, pos, c, teamId),
+            UnitType.Archer         => Archer(parent, pos, c, teamId),
+            UnitType.Cavalry        => Cavalry(parent, pos, c),
+            UnitType.Trebuchet      => Trebuchet(parent, pos, c),
+            UnitType.Scout          => Scout(parent, pos, c, teamId),
+            UnitType.Medic          => Medic(parent, pos, c, teamId),
+            UnitType.Spearman       => Spearman(parent, pos, c, teamId),
+            UnitType.Monk           => Monk(parent, pos, c, teamId),
+            UnitType.TradeCart      => TradeCart(parent, pos, c),
+            UnitType.Longbowman     => Longbowman(parent, pos, c, teamId),
+            UnitType.Skirmisher     => Skirmisher(parent, pos, c, teamId),
+            UnitType.Camel          => Camel(parent, pos, c),
+            UnitType.Ram            => Ram(parent, pos, c),
+            UnitType.Mangonel       => Mangonel(parent, pos, c),
+            UnitType.CavalryArcher  => CavalryArcher(parent, pos, c),
+            UnitType.Galley         => Galley(parent, pos, c, navalAgentTypeId),
+            UnitType.FireShip       => FireShip(parent, pos, c, navalAgentTypeId),
+            UnitType.DemoShip       => DemoShip(parent, pos, c, navalAgentTypeId),
+            UnitType.FishingShip    => FishingShip(parent, pos, c, navalAgentTypeId),
+            UnitType.TeutonicKnight => TeutonicKnight(parent, pos, c),
+            UnitType.WarElephant    => WarElephant(parent, pos, c),
+            UnitType.Mangudai       => Mangudai(parent, pos, c),
+            UnitType.Samurai        => Samurai(parent, pos, c),
+            UnitType.ThrowingAxeman => ThrowingAxeman(parent, pos, c),
+            UnitType.Cataphract     => Cataphract(parent, pos, c),
+            UnitType.Berserk        => Berserk(parent, pos, c),
+            UnitType.Mameluke       => Mameluke(parent, pos, c),
+            UnitType.WoadRaider     => WoadRaider(parent, pos, c),
+            UnitType.ChuKoNu        => ChuKoNu(parent, pos, c),
+            UnitType.Huskarl        => Huskarl(parent, pos, c),
+            UnitType.Janissary      => Janissary(parent, pos, c),
+            UnitType.Eagle          => Eagle(parent, pos, c),
+            UnitType.EliteEagle     => Eagle(parent, pos, c),   // Elite Eagle = Eagle visual + EliteEagle tech bonuses
+            UnitType.King           => King(parent, pos, c, teamId),
+            _                       => Villager(parent, pos, c, teamId),
+        };
+        if (e != null) e.teamId = teamId;   // covers the no-teamId factory methods
+        return e;
+    }
+
     static GameObject NewUnit(string name, Transform parent, Vector3 worldPos)
     {
         var g = new GameObject(name);

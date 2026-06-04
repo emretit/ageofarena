@@ -643,6 +643,23 @@ public class EnemyAI : MonoBehaviour
     {
         if (!_res.CanAfford(VillagerCostFood, 0, 0, 0)) return;
 
+        // N5.pop: villager training must respect the pop-cap just like military
+        // (TrySpawn). Without this the AI could stack villagers past popCap and then
+        // permanently deadlock military production (which IS pop-gated).
+        if (_res.pop >= _res.popCap) return;
+
+        // Require a live Town Center. No TC (Nomad start, or TC destroyed) means no
+        // free villagers — the old code magically spawned them at _home regardless.
+        BuildingEntity tc = null;
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b != null && b.teamId == _teamId && b.type == BuildingType.TownCenter
+                && !b.underConstruction && b.hp > 0f)
+            { tc = b; break; }
+        }
+        if (tc == null) return;
+
         int count = 0;
         for (int i = 0; i < gm.units.Count; i++)
         {
@@ -652,8 +669,9 @@ public class EnemyAI : MonoBehaviour
         if (count >= _villagerTarget) return;
 
         _res.Deduct(VillagerCostFood, 0, 0, 0);
-        Vector3 fwd = _home.sqrMagnitude > 0.01f ? (-_home).normalized : Vector3.forward;
-        Vector3 pos = _home - fwd * 2f + Vector3.right * SimRandom.Range(-1.5f, 1.5f); // N3: sim RNG
+        Vector3 home = tc.transform.position;
+        Vector3 fwd = home.sqrMagnitude > 0.01f ? (-home).normalized : Vector3.forward;
+        Vector3 pos = home - fwd * 2f + Vector3.right * SimRandom.Range(-1.5f, 1.5f); // N3: sim RNG
         var v = UnitFactory.Villager(_unitsRoot, pos, _teamColor);
         v.teamId = _teamId;
         gm.RegisterUnit(v);
@@ -851,8 +869,14 @@ public class EnemyAI : MonoBehaviour
         return best;
     }
 
+    // Denylist: everything that is NOT a frontline combat unit. Counting via a
+    // denylist means Spearman, Skirmisher, Camel, Mangonel, Cavalry Archer, every
+    // unique/tier-promoted unit, Eagle, ships etc. all count toward the army —
+    // fixing the old allowlist that silently ignored the counter units the AI itself
+    // trains (Spearman vs cavalry) and broke army-cap / rush-threshold / retreat logic.
     static bool IsMilitary(UnitEntity u) =>
-        u.type == UnitType.Militia || u.type == UnitType.Archer ||
-        u.type == UnitType.Cavalry || u.type == UnitType.Trebuchet ||
-        u.type == UnitType.Galley;
+        u.type != UnitType.Villager   && u.type != UnitType.Scout &&
+        u.type != UnitType.Medic      && u.type != UnitType.TradeCart &&
+        u.type != UnitType.King       && u.type != UnitType.FishingShip &&
+        u.type != UnitType.Monk;
 }

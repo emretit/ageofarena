@@ -38,7 +38,10 @@ public class TrainingQueue : MonoBehaviour
         var rm = Res(b);                                   // N0.9: owner's ledger
         // N0.7: this civ may be denied the unit (tech-tree subtraction, e.g. Aztecs no cavalry).
         if (CivilizationDefs.IsUnitDenied(GM.teamCivs[b.teamId], def.unitType)) return false;
-        if (rm.pop >= rm.popCap) return false;             // population cap reached
+        // Population cap: count already-queued (reserved) units too, so a full queue
+        // can't overshoot popCap (e.g. queueing 5 at pop 4/5 → 9/5). Each queued unit
+        // reserves 1 pop. ReservedPop() skips destroyed buildings, so it never leaks.
+        if (rm.pop + ReservedPop(b.teamId) >= rm.popCap) return false;
         if (!rm.CanAfford(def.food, def.wood, def.gold, 0)) return false;
 
         if (!_queues.TryGetValue(b, out var q)) _queues[b] = q = new List<TrainingItem>();
@@ -72,6 +75,21 @@ public class TrainingQueue : MonoBehaviour
 
     public int GetQueueCount(BuildingEntity b)
         => _queues.TryGetValue(b, out var q) ? q.Count : 0;
+
+    /// <summary>Total queued (reserved) population across a team's buildings. Each
+    /// queued unit reserves 1 pop. Destroyed buildings (null key) are skipped, so the
+    /// reservation self-corrects and never leaks.</summary>
+    int ReservedPop(int teamId)
+    {
+        int n = 0;
+        foreach (var kvp in _queues)
+        {
+            var b = kvp.Key;
+            if (b == null || b.teamId != teamId) continue;
+            n += kvp.Value.Count;
+        }
+        return n;
+    }
 
     /// <summary>
     /// Read-only snapshot of a building's queue for the HUD queue strip: the
@@ -125,49 +143,31 @@ public class TrainingQueue : MonoBehaviour
     void SpawnUnit(BuildingEntity b, UnitType unitType, GameManager gm)
     {
         var unitsRoot = GameObject.Find("Units")?.transform ?? b.transform.parent;
-        // Spawn slightly in front of the building (toward the arena's south gate).
-        Vector3 spawnPos = b.transform.position + new Vector3(0, 0, -3.5f);
-
         int tid = b.teamId;
-        Color teamColor = TeamPalette.For(tid);
-        UnitEntity unit = unitType switch
+
+        // Ships spawn outward toward the open sea (the map is an island ringed by ocean)
+        // so they land on the naval NavMesh; everyone else spawns at the building's gate.
+        bool naval = unitType is UnitType.Galley or UnitType.FireShip
+                              or UnitType.DemoShip or UnitType.FishingShip;
+        int navalId = -1;
+        Vector3 spawnPos;
+        if (naval)
         {
-            UnitType.Villager    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor, tid),
-            UnitType.Militia     => UnitFactory.Militia(unitsRoot, spawnPos, teamColor, tid),
-            UnitType.Archer      => UnitFactory.Archer(unitsRoot, spawnPos, teamColor, tid),
-            UnitType.Cavalry     => UnitFactory.Cavalry(unitsRoot, spawnPos, teamColor),
-            UnitType.Trebuchet   => UnitFactory.Trebuchet(unitsRoot, spawnPos, teamColor),
-            UnitType.Scout       => UnitFactory.Scout(unitsRoot, spawnPos, teamColor, tid),
-            UnitType.Medic       => UnitFactory.Medic(unitsRoot, spawnPos, teamColor, tid),
-            UnitType.Spearman    => UnitFactory.Spearman(unitsRoot, spawnPos, teamColor, tid),
-            UnitType.Monk        => UnitFactory.Monk(unitsRoot, spawnPos, teamColor, tid),
-            UnitType.TradeCart   => UnitFactory.TradeCart(unitsRoot, spawnPos, teamColor),
-            UnitType.Longbowman  => UnitFactory.Longbowman(unitsRoot, spawnPos, teamColor, tid),
-            UnitType.Skirmisher  => UnitFactory.Skirmisher(unitsRoot, spawnPos, teamColor, tid),
-            UnitType.Camel       => UnitFactory.Camel(unitsRoot, spawnPos, teamColor),
-            UnitType.Ram         => UnitFactory.Ram(unitsRoot, spawnPos, teamColor),
-            UnitType.Mangonel    => UnitFactory.Mangonel(unitsRoot, spawnPos, teamColor),
-            UnitType.CavalryArcher => UnitFactory.CavalryArcher(unitsRoot, spawnPos, teamColor),
-            UnitType.Galley      => SpawnNaval(b, unitsRoot, teamColor, UnitType.Galley),
-            UnitType.FireShip    => SpawnNaval(b, unitsRoot, teamColor, UnitType.FireShip),
-            UnitType.DemoShip    => SpawnNaval(b, unitsRoot, teamColor, UnitType.DemoShip),
-            UnitType.FishingShip => SpawnNaval(b, unitsRoot, teamColor, UnitType.FishingShip),
-            // M9 unique units (Castle) + Eagle (Barracks)
-            UnitType.TeutonicKnight => UnitFactory.TeutonicKnight(unitsRoot, spawnPos, teamColor),
-            UnitType.WarElephant => UnitFactory.WarElephant(unitsRoot, spawnPos, teamColor),
-            UnitType.Mangudai    => UnitFactory.Mangudai(unitsRoot, spawnPos, teamColor),
-            UnitType.Samurai     => UnitFactory.Samurai(unitsRoot, spawnPos, teamColor),
-            UnitType.ThrowingAxeman => UnitFactory.ThrowingAxeman(unitsRoot, spawnPos, teamColor),
-            UnitType.Cataphract  => UnitFactory.Cataphract(unitsRoot, spawnPos, teamColor),
-            UnitType.Berserk     => UnitFactory.Berserk(unitsRoot, spawnPos, teamColor),
-            UnitType.Mameluke    => UnitFactory.Mameluke(unitsRoot, spawnPos, teamColor),
-            UnitType.WoadRaider  => UnitFactory.WoadRaider(unitsRoot, spawnPos, teamColor),
-            UnitType.ChuKoNu     => UnitFactory.ChuKoNu(unitsRoot, spawnPos, teamColor),
-            UnitType.Huskarl     => UnitFactory.Huskarl(unitsRoot, spawnPos, teamColor),
-            UnitType.Janissary   => UnitFactory.Janissary(unitsRoot, spawnPos, teamColor),
-            UnitType.Eagle       => UnitFactory.Eagle(unitsRoot, spawnPos, teamColor),
-            _                    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor, tid),
-        };
+            var wr = Object.FindAnyObjectByType<WorldRoot>();
+            navalId = wr != null ? wr.NavalAgentTypeId : -1;
+            Vector3 dockPos = b.transform.position;
+            Vector3 dir = dockPos; dir.y = 0f;
+            dir = dir.sqrMagnitude > 0.01f ? dir.normalized : Vector3.forward;
+            spawnPos = dockPos + dir * 6f;
+        }
+        else
+        {
+            spawnPos = b.transform.position + new Vector3(0, 0, -3.5f);
+        }
+
+        // Central dispatch — sets teamId correctly for every type (fixes AI Cavalry
+        // joining team 0 via the no-teamId factory methods).
+        UnitEntity unit = UnitFactory.Spawn(unitType, unitsRoot, spawnPos, tid, navalId);
 
         gm.RegisterUnit(unit);
         gm.RecomputePop();
@@ -176,28 +176,6 @@ public class TrainingQueue : MonoBehaviour
         // If the building has a rally point, the fresh unit walks there instead of
         // idling at the gate (AoE behaviour).
         if (b.hasRally && unit != null) unit.MoveTo(b.rallyPoint);
-    }
-
-    // Spawn a Galley toward the open sea so it lands on the naval NavMesh. The map is an
-    // island ringed by ocean, so "water" is simply outward (away from the map centre).
-    static UnitEntity SpawnNaval(BuildingEntity dock, Transform unitsRoot, Color teamColor, UnitType type)
-    {
-        var wr = Object.FindAnyObjectByType<WorldRoot>();
-        int navalId = wr != null ? wr.NavalAgentTypeId : -1;
-
-        // Offset outward from the island centre so the spawn lands in the surrounding sea.
-        Vector3 dockPos = dock.transform.position;
-        Vector3 dir = dockPos; dir.y = 0f;
-        dir = dir.sqrMagnitude > 0.01f ? dir.normalized : Vector3.forward;
-        Vector3 spawnPos = dockPos + dir * 6f;
-
-        return type switch
-        {
-            UnitType.FireShip    => UnitFactory.FireShip(unitsRoot, spawnPos, teamColor, navalId),
-            UnitType.DemoShip    => UnitFactory.DemoShip(unitsRoot, spawnPos, teamColor, navalId),
-            UnitType.FishingShip => UnitFactory.FishingShip(unitsRoot, spawnPos, teamColor, navalId),
-            _                    => UnitFactory.Galley(unitsRoot, spawnPos, teamColor, navalId),
-        };
     }
 
     static bool BlacksmithNearby(BuildingEntity b, float radius)

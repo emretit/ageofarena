@@ -51,6 +51,9 @@ public class WorldRoot : MonoBehaviour
     const float LandRadius  = 92f;   // grass disc radius (coastline)
     const float BeachRadius = 94f;   // thin sand rim just past the grass
     const float OceanHalf   = 116f;  // ocean plane half-extent (square sea frame)
+    const float OceanDepth  = 0.25f; // ocean sits just below the flat (y=0) terrain so the
+                                     // sea never z-fights up through flattened base/lane zones
+                                     // (otherwise the blue plane bleeds through as fake "lakes")
     const float CoastInner  = 76f;   // coastal forest belt starts beyond the base back walls
     const float CoastOuter  = 91f;   // …and packs a thick belt up to the shoreline
 
@@ -196,11 +199,14 @@ public class WorldRoot : MonoBehaviour
     // the playable land; the ocean shows in the ring/corners around it.
     void SetupGround()
     {
-        // ── Ocean (bottom layer, y=0) — large flat plane with animated water shader.
-        // Keeps its MeshCollider so naval click-to-move raycasts resolve on the sea.
+        // ── Ocean (bottom layer, y=-OceanDepth) — large flat plane with animated water
+        // shader. Sits just under the terrain's y=0 floor so flattened base/lane zones
+        // don't z-fight the sea up through the land. Keeps its MeshCollider so naval
+        // click-to-move raycasts resolve on the sea.
         var ocean = GameObject.CreatePrimitive(PrimitiveType.Plane);
         ocean.name = "Ocean";
         ocean.transform.SetParent(transform, false);
+        ocean.transform.localPosition = new Vector3(0f, -OceanDepth, 0f);
         ocean.transform.localScale = new Vector3(OceanHalf * 2f / 10f, 1f, OceanHalf * 2f / 10f);
         var oceanRend = ocean.GetComponent<MeshRenderer>();
         // N8.terrain: water shader with animated waves; fallback to flat material.
@@ -835,8 +841,9 @@ public class WorldRoot : MonoBehaviour
         });
     }
 
-    // Three contested relics near the map centre (clear of the ±8 mines): one dead
-    // centre, two on a diagonal. Whoever holds them earns a passive gold trickle.
+    // Five contested relics near the map centre (clear of the ±8 mines), AoE2 parity:
+    // one dead centre and four spread around it on the diagonals. Whoever holds them
+    // earns a passive gold trickle.
     void BuildRelics()
     {
         var relics = new GameObject("Relics");
@@ -845,6 +852,8 @@ public class WorldRoot : MonoBehaviour
         gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3(  0, 0,   0)));
         gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3(-22, 0,  22)));
         gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3( 22, 0, -22)));
+        gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3(-22, 0, -22)));
+        gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3( 22, 0,  22)));
     }
 
     // ── NavMesh ───────────────────────────────────────────────────────────────
@@ -1074,37 +1083,24 @@ public class WorldRoot : MonoBehaviour
         }
         gm.units.Clear();
 
-        // Respawn saved units.
-        int nTeams = gm.TeamCount;
-        var cols = new Color[nTeams];
-        for (int i = 0; i < nTeams; i++) cols[i] = TeamColors[i];
+        // Respawn saved units via the central dispatch — handles ALL unit types. The
+        // old switch only knew ~10 types and turned everything else (Trebuchet, Monk,
+        // uniques, and the King!) into a Villager, which silently broke Regicide saves.
+        int navalId = Object.FindAnyObjectByType<WorldRoot>()?.NavalAgentTypeId ?? -1;
         foreach (var us in data.units)
         {
             if (us == null) continue;
-            Color c = us.teamId >= 0 && us.teamId < nTeams ? cols[us.teamId] : Color.white;
             var pos = new Vector3(us.x, 0, us.z);
-            UnitEntity e = null;
-            switch ((UnitType)us.type)
-            {
-                case UnitType.Militia:   e = UnitFactory.Militia(unitsRoot, pos, c, us.teamId); break;
-                case UnitType.Villager:  e = UnitFactory.Villager(unitsRoot, pos, c, us.teamId); break;
-                case UnitType.Archer:    e = UnitFactory.Archer(unitsRoot, pos, c, us.teamId); break;
-                case UnitType.Cavalry:   e = UnitFactory.Cavalry(unitsRoot, pos, c); break;
-                case UnitType.Spearman:  e = UnitFactory.Spearman(unitsRoot, pos, c, us.teamId); break;
-                case UnitType.Scout:     e = UnitFactory.Scout(unitsRoot, pos, c, us.teamId); break;
-                case UnitType.Monk:      e = UnitFactory.Monk(unitsRoot, pos, c, us.teamId); break;
-                case UnitType.Medic:     e = UnitFactory.Medic(unitsRoot, pos, c, us.teamId); break;
-                case UnitType.Longbowman:e = UnitFactory.Longbowman(unitsRoot, pos, c, us.teamId); break;
-                case UnitType.Skirmisher:e = UnitFactory.Skirmisher(unitsRoot, pos, c, us.teamId); break;
-                default:                 e = UnitFactory.Villager(unitsRoot, pos, c, us.teamId); break;
-            }
+            UnitEntity e = UnitFactory.Spawn((UnitType)us.type, unitsRoot, pos, us.teamId, navalId);
             if (e != null)
             {
-                e.hp = us.hp;
-                // N12.savefull: restore veterancy + stance
+                // Restore veterancy/stance first, recompute maxHp WITHOUT refilling,
+                // then restore the saved (possibly damaged) hp. Order matters: doing it
+                // the other way heals a wounded veteran by its own veteran HP bonus.
                 e.veteranRank = us.veteranRank;
                 e.stance      = (AttackStance)us.stance;
-                e.RecomputeMaxHp();
+                e.RecomputeMaxHp(fillOnIncrease: false);
+                e.hp = Mathf.Min(us.hp, e.maxHp);
                 if (us.isGarrisoned) e.isGarrisoned = true; // garrisoned state (hidden)
                 gm.RegisterUnit(e);
             }
@@ -1122,8 +1118,12 @@ public class WorldRoot : MonoBehaviour
                 if (dist < 3f)
                 {
                     b.hp = bs.hp;
-                    // N12.savefull: restore rally point
-                    if (bs.hasRally) b.rallyPoint = new Vector3(bs.rallyX, 0f, bs.rallyZ);
+                    // N12.savefull: restore rally point (set the flag too, not just the vector)
+                    if (bs.hasRally)
+                    {
+                        b.hasRally   = true;
+                        b.rallyPoint = new Vector3(bs.rallyX, 0f, bs.rallyZ);
+                    }
                     break;
                 }
             }
