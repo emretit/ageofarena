@@ -269,6 +269,25 @@ public class EnemyAI : MonoBehaviour
 
     // ── Military: reinforcement ────────────────────────────────────────────────
 
+    // N14.aieco: route unit type to the building it trains from.
+    static BuildingType BuildingFor(UnitType t) => t switch
+    {
+        UnitType.Archer or UnitType.Skirmisher or UnitType.CavalryArcher or
+        UnitType.Longbowman or UnitType.ChuKoNu or UnitType.Janissary => BuildingType.ArcheryRange,
+
+        UnitType.Cavalry or UnitType.Camel or
+        UnitType.Cataphract or UnitType.Mameluke or UnitType.WarElephant => BuildingType.Stable,
+
+        UnitType.Trebuchet or UnitType.Mangonel or UnitType.Scorpion or
+        UnitType.Ram => BuildingType.SiegeWorkshop,
+
+        UnitType.Medic => BuildingType.Castle,
+
+        UnitType.Villager => BuildingType.TownCenter,
+
+        _ => BuildingType.Barracks,  // Militia, Spearman, Halberdier, WoadRaider, etc.
+    };
+
     void TrySpawn(GameManager gm)
     {
         if (CountArmy(gm) >= _armyCap) return;
@@ -279,45 +298,32 @@ public class EnemyAI : MonoBehaviour
         var pick = ChooseUnit(gm);
         if (pick == null) return;
 
-        Vector3 fwd   = _home.sqrMagnitude > 0.01f ? (-_home).normalized : Vector3.forward;
-        Vector3 right = Vector3.Cross(Vector3.up, fwd);
-        Vector3 pos   = _home + fwd * 4f + right * SimRandom.Range(-2.5f, 2.5f); // N3: sim RNG
+        // N14.aieco: find an idle team building of the right type and use TrainingQueue.
+        var tq = gm.training;
+        if (tq == null) return;
 
-        UnitEntity u;
-        switch (pick.Value)
+        BuildingType needed = BuildingFor(pick.Value);
+        BuildingEntity prod = null;
+        for (int i = 0; i < gm.buildings.Count; i++)
         {
-            case UnitType.Archer:
-                _res.Deduct(0, ArcherCostWood, ArcherCostGold, 0);
-                u = UnitFactory.Archer(_unitsRoot, pos, _teamColor);
-                break;
-            case UnitType.Cavalry:
-                _res.Deduct(CavalryCostFood, 0, 0, 0);
-                u = UnitFactory.Cavalry(_unitsRoot, pos, _teamColor);
-                break;
-            case UnitType.Spearman:
-                _res.Deduct(SpearmanCostFood, SpearmanCostWood, 0, 0);
-                u = UnitFactory.Spearman(_unitsRoot, pos, _teamColor);
-                break;
-            case UnitType.Medic:
-                _res.Deduct(MedicCostFood, 0, 0, 0);
-                u = UnitFactory.Medic(_unitsRoot, pos, _teamColor);
-                break;
-            case UnitType.Trebuchet:
-                _res.Deduct(0, TrebuchetCostWood, TrebuchetCostGold, 0);
-                u = UnitFactory.Trebuchet(_unitsRoot, pos, _teamColor);
-                break;
-            default:
-                _res.Deduct(MilitiaCostFood, 0, 0, 0);
-                u = UnitFactory.Militia(_unitsRoot, pos, _teamColor);
-                break;
+            var b = gm.buildings[i];
+            if (b != null && b.teamId == _teamId && b.type == needed
+                && !b.underConstruction && b.hp > 0f
+                && tq.GetQueueCount(b) < 3)
+            { prod = b; break; }
         }
-        u.teamId = _teamId;
-        gm.RegisterUnit(u);
+        if (prod == null) return;   // no matching production building ready
 
-        // Fresh troops fold straight into an ongoing assault so reinforcements
-        // don't idle at home while the main force fights.
-        if (_stance == Stance.Attacking && _target != null && _target.IsAlive)
-            u.AttackOrder(_target);
+        // Find the matching UnitTrainable from the building's list and enqueue it.
+        var trainables = prod.GetTrainables();
+        for (int i = 0; i < trainables.Length; i++)
+        {
+            if (trainables[i].unitType == pick.Value)
+            {
+                tq.Enqueue(prod, trainables[i]);
+                return;
+            }
+        }
     }
 
     /// <summary>Pick the next unit to reinforce with: keep a thin siege line for
@@ -575,6 +581,44 @@ public class EnemyAI : MonoBehaviour
     {
         AssignVillagersToGather(gm);
         TryTrainVillager(gm);
+        TryRepairBuildings(gm);     // N14.aieco: idle villagers repair damaged buildings
+        CheckTcRecovery(gm);        // N14.aieco: retreat if TC is critically damaged
+    }
+
+    // N14.aieco: send idle villagers to repair any friendly building below 60% HP.
+    void TryRepairBuildings(GameManager gm)
+    {
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b == null || b.teamId != _teamId || b.hp <= 0f) continue;
+            if (b.hp >= b.maxHp * 0.6f) continue; // only repair below 60%
+            // Find the nearest idle villager.
+            UnitEntity repairer = null;
+            float bestDist = float.MaxValue;
+            for (int j = 0; j < gm.units.Count; j++)
+            {
+                var u = gm.units[j];
+                if (u == null || u.teamId != _teamId || u.type != UnitType.Villager) continue;
+                if (u.state != UnitState.Idle) continue;
+                float d = (u.transform.position - b.transform.position).sqrMagnitude;
+                if (d < bestDist) { bestDist = d; repairer = u; }
+            }
+            if (repairer != null) repairer.constructTarget = b; // BuildSystem.Tick picks this up
+        }
+    }
+
+    // N14.aieco: if TC HP < 30%, switch to Retreating stance so the army defends home.
+    void CheckTcRecovery(GameManager gm)
+    {
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b == null || b.teamId != _teamId || b.type != BuildingType.TownCenter) continue;
+            if (b.hp < b.maxHp * 0.3f && _stance != Stance.Retreating)
+                SetStance(Stance.Retreating);
+            break;
+        }
     }
 
     void AssignVillagersToGather(GameManager gm)

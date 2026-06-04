@@ -391,6 +391,15 @@ public class WorldRoot : MonoBehaviour
         var barracks = BuildingFactory.Barracks(baseGo.transform, center + backward * 8.5f, RoofColor);
         SetBuildingTeam(barracks, teamId);
         gm.RegisterBuilding(barracks.GetComponent<BuildingEntity>());
+
+        // N14.aieco: Stable + ArcheryRange so AI has production buildings for cavalry/archers.
+        var stable = BuildingFactory.Stable(baseGo.transform, center + right * 8f + backward * 6f, RoofColor);
+        SetBuildingTeam(stable, teamId);
+        gm.RegisterBuilding(stable.GetComponent<BuildingEntity>());
+
+        var archRange = BuildingFactory.ArcheryRange(baseGo.transform, center - right * 8f + backward * 6f, RoofColor);
+        SetBuildingTeam(archRange, teamId);
+        gm.RegisterBuilding(archRange.GetComponent<BuildingEntity>());
     }
 
     static void SetBuildingTeam(GameObject go, int teamId)
