@@ -549,15 +549,15 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] RELC: RelicEntity.carrier + heldInMonastery + Available; RelicSystem Monk pickup→takip→Monastery deposit→ForceControl+GrantGold. Proximity ile uyumlu (relic-zafer iterasyonu değişmedi; değişiklik liste-okuma). Runtime: deposit→controllingTeam=0 doğrulandı.
 - [x] FARM: TechType.HorseCollar(Mill/Feudal)+HeavyPlow(Mill/Castle); TechState.FarmCapacityBonus=150; ResourceNode reseed maxAmount+bonus → >300. (Runtime: 150.)
 - [ ] FISH: (→ ERTELENDİ) Su-üstü Fish node + naval gather gerektiriyor (NAV-full su haritasına bağlı, L-effort). Naval/su ekonomisi grubuyla yapılacak: FishingShip + Fish Trap + gather→Dock akışı.
-- [ ] BSMT: grep IronCasting/BlastFurnace/ChainMail/PlateMail; TechState.ArmorBonus + UnitEntity.TakeDamage live; +3 atk doğrulanır.
-- [ ] BFUR: grep ScaleBarding/ChainBarding/PlateBarding; AttackBonus(Cavalry) IronCasting/BlastFurnace dahil; çift-sayım yok.
-- [ ] ARRM: grep Padded/Leather/Ring Archer Armor+Bracer; RangeBonus Bracer +0.5; pierce armor +3.
-- [ ] ECON: grep Loom/HorseCollar/BowSaw/GoldMining/StoneMining; GatherMult(Wood) BowSaw +0.2, GatherMult(Gold) GoldMining +0.15.
-- [ ] GRATE: GatherSystem GatherRateFor(kind)/GatherIntervalFor(kind); Wood<Gold/Stone<Food; farklı birikim hızı.
-- [ ] RPCT: TechState CarryCapacityMult/CarryBonus; GatherSystem sabit CarryCapacity yerine tech okur; Wheelbarrow deposit frekansı artar.
-- [ ] CAVT: grep `TechType.Husbandry`; TechState.MoveSpeedMult(Cavalry) Husbandry ile 1.1; NavMeshAgent.speed artar.
-- [ ] CARA: grep `TechType.Caravan`; TradingSystem StepCart Caravan çarpanı; Trade Cog/Dock-tabanlı rota tanımlı.
-- [ ] UNIV: grep Ballistics/Chemistry/Architecture; TechState BuildingHpMult + Chemistry atk; Architecture bina maxHp↑, Chemistry +1 atk.
+- [x] BSMT: IronCasting/BlastFurnace (MeleeAttackBonus, infantry+cavalry) + ChainMail/PlateMail (TechState.ArmorBonus infantry); UnitEntity.TakeDamage live okur. Runtime: Forging+IronCasting Militia atk=+3, infantry armor 3/3 doğrulandı.
+- [x] BFUR: ScaleBarding/ChainBarding/PlateBarding (ArmorBonus cavalry); Cavalry attack MeleeAttackBonus üzerinden IronCasting/BlastFurnace alır (tek kaynak → çift-sayım yok). Runtime: Cavalry atk=+5, barding melee=+4.
+- [x] ARRM: PaddedArcherArmor/LeatherArcherArmor/RingArcherArmor (ArmorBonus archer pierce +3) + Bracer (ArcherAttackBonus +1, RangeBonus +0.5). Runtime: archer pierce armor 3, Bracer atk 1/range 0.5.
+- [x] ECON: Loom/BowSaw/GoldMining/StoneMining/CropRotation (HorseCollar/HeavyPlow mevcut); GatherMult kind-bazlı. Runtime: Wood 1.2 (BowSaw +0.2), Gold 1.15 (GoldMining +0.15), Stone 1.15; Loom Villager +15hp/+1armor; Farm 225.
+- [x] GRATE: GatherSystem.GatherRateFor(kind)+GatherIntervalFor(kind); Food 0.5s < Gold/Stone 0.6s < Wood 0.7s → rate Wood<Gold/Stone<Food.
+- [x] RPCT: TechState.CarryCapacityMult (Wheelbarrow 1.25) + CarryBonus; GatherSystem.CarryCapacityFor tech okur; Wheelbarrow ayrıca villager MoveSpeedMult 1.1 (GatherMult'tan çıkarıldı → çift-buff yok). Runtime: 1.25/1.1.
+- [x] CAVT: TechType.Husbandry; TechState.MoveSpeedMult(Cavalry)=1.1; UnitEntity.RecomputeSpeed (baseMoveSpeed) + ResearchSystem.Apply canlı birimlere uygular → NavMeshAgent.speed. Runtime: 1.1.
+- [x] CARA: TechType.Caravan; TradingSystem StepCart TradeGoldMult (×1.5); Dock/Trade Cog rotası aynı StepCart mantığını paylaşır (su haritası gelince). Runtime: 1.5.
+- [x] UNIV: Ballistics/Chemistry/Architecture; BuildingHpMult (Architecture 1.10, BuildingEntity.Start) + Building armor +1; Chemistry +1 missile atk (archer/galley/tower). Ballistics = homing mermi zaten %100 isabet (Projectile not). Runtime: Architecture 1.1/armor1, Chemistry archer1/tower1.
 - [ ] ARMC: ArmorClass enum/flag (GameTypes/UnitEntity); UnitFactory atar; BuildingEntity Building class; melee/pierce regresyonsuz.
 - [ ] BNUS: CombatSystem dmg=base+bonus, sonra max(1,amount-armor); `*= AntiCavalryMultiplier` yok/taşınmış; tüm counter Play testleri geçer.
 - [ ] MONK: grep Sanctity/BlockPrinting/Redemption (Monastery); HpBonus(Monk)+15; StepConvert ConvertRange BlockPrinting ile artar.

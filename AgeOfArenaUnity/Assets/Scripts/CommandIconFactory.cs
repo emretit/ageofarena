@@ -259,6 +259,8 @@ public static class CommandIconFactory
                 Add(icon, Square,   Gold, 0, -8, 6, 10);
                 break;
             case TechType.Forging:
+            case TechType.IronCasting:
+            case TechType.BlastFurnace:
             case TechType.ManAtArms:
             case TechType.Longswordsman:
             case TechType.TwoHandedSwordsman:
@@ -273,9 +275,12 @@ public static class CommandIconFactory
                 break;
             case TechType.Fletching:
             case TechType.Bodkin:
+            case TechType.Bracer:
             case TechType.Crossbowman:
             case TechType.EliteSkirmisher:
             case TechType.HeavyCavalryArcher:
+            case TechType.Ballistics:
+            case TechType.Chemistry:
                 Add(icon, Square,   Wood,  -2, 0, 24, 3);          // arrow
                 Add(icon, Triangle, Steel, 11, 0, 9, 9, -90);
                 break;
@@ -286,26 +291,51 @@ public static class CommandIconFactory
                 Add(icon, Triangle, Steel, 7, 6, 10, 12);          // sail
                 break;
             case TechType.ScaleMail:
+            case TechType.ChainMail:
+            case TechType.PlateMail:
+            case TechType.ScaleBarding:
+            case TechType.ChainBarding:
+            case TechType.PlateBarding:
+            case TechType.PaddedArcherArmor:
+            case TechType.LeatherArcherArmor:
+            case TechType.RingArcherArmor:
             case TechType.Bloodlines:
             case TechType.Cavalier:
             case TechType.HeavyCamel:
             case TechType.LightCavalry:
             case TechType.Hussar:
+            case TechType.Husbandry:
                 Add(icon, Circle, Shield, 0, 2, 22, 22);           // shield
                 Add(icon, Ring,   Steel, 0, 2, 22, 22);
                 break;
             case TechType.DoubleBitAxe:
+            case TechType.BowSaw:
                 Add(icon, Square,   Dark,  0, -4, 4, 22);          // axe handle
                 Add(icon, Triangle, Steel, 6, 6, 14, 12, 90);      // axe head
                 break;
             case TechType.HorseCollar:
             case TechType.HeavyPlow:
+            case TechType.CropRotation:
                 Add(icon, Square, Prims.Hex(0x6a9a3a), 0, -6, 26, 10); // green field
                 Add(icon, Square, Wood, 0, 6, 4, 16);              // plow handle
                 Add(icon, Triangle, Steel, 6, 12, 10, 8);          // blade
                 break;
+            case TechType.GoldMining:
+                Add(icon, Circle, Gold, -5, 4, 14, 14);            // gold nugget
+                Add(icon, Square, Steel, 6, -3, 4, 16, 45);        // pick
+                break;
+            case TechType.StoneMining:
+                Add(icon, Circle, Stone, -5, 4, 14, 14);           // stone
+                Add(icon, Square, Steel, 6, -3, 4, 16, 45);        // pick
+                break;
+            case TechType.Caravan:
+                Add(icon, Circle, Gold, 0, -4, 14, 14);            // coin
+                Add(icon, Ring,   Steel, 0, -4, 14, 14);
+                Add(icon, Triangle, Steel, 9, 6, 10, 8, -90);      // route arrow
+                break;
             case TechType.GuardTower:
             case TechType.Keep:
+            case TechType.Architecture:
                 Add(icon, Square, Stone, 0, -2, 16, 28);           // tower
                 Add(icon, Square, Stone, -7, 13, 5, 6);            // battlement
                 Add(icon, Square, Stone, 7, 13, 5, 6);

@@ -9,8 +9,6 @@ using UnityEngine;
 /// </summary>
 public class GatherSystem : MonoBehaviour
 {
-    const float GatherInterval = 0.6f;
-    const int GatherRate = 1;
     const int CarryCapacity = 10;
     const float DropoffRange = 2.2f;
 
@@ -25,6 +23,29 @@ public class GatherSystem : MonoBehaviour
         ResourceKind.Stone => 2.2f,
         _                  => 1.4f,
     };
+
+    /// <summary>Resources harvested per gather tick (GRATE). Flat 1 for now; the
+    /// per-kind speed difference is carried by <see cref="GatherIntervalFor"/>.</summary>
+    static int GatherRateFor(ResourceKind kind) => 1;
+
+    /// <summary>Seconds between gather ticks by resource kind (GRATE): Food fastest,
+    /// then Gold/Stone, Wood slowest → effective rate Wood &lt; Gold/Stone &lt; Food.</summary>
+    static float GatherIntervalFor(ResourceKind kind) => kind switch
+    {
+        ResourceKind.Food  => 0.5f,
+        ResourceKind.Gold  => 0.6f,
+        ResourceKind.Stone => 0.6f,
+        ResourceKind.Wood  => 0.7f,
+        _                  => 0.6f,
+    };
+
+    /// <summary>Per-trip carry capacity (RPCT): base × Wheelbarrow multiplier + flat bonus.</summary>
+    int CarryCapacityFor(UnitEntity v)
+    {
+        var tech = GM != null ? GM.teamTech[v.teamId] : null;
+        if (tech == null) return CarryCapacity;
+        return Mathf.RoundToInt(CarryCapacity * tech.CarryCapacityMult) + tech.CarryBonus;
+    }
 
     public void AssignGather(UnitEntity v, ResourceNode node)
     {
@@ -75,11 +96,12 @@ public class GatherSystem : MonoBehaviour
 
                 _timers.TryGetValue(v, out float timer);
                 timer += dt;
-                if (timer >= GatherInterval)
+                float interval = GatherIntervalFor(node.kind);
+                if (timer >= interval)
                 {
-                    timer -= GatherInterval;
-                    v.carrying.amount += node.Take(GatherRate);
-                    if (v.carrying.amount >= CarryCapacity || node.Depleted)
+                    timer -= interval;
+                    v.carrying.amount += node.Take(GatherRateFor(node.kind));
+                    if (v.carrying.amount >= CarryCapacityFor(v) || node.Depleted)
                         BeginReturn(v);
                 }
                 _timers[v] = timer;

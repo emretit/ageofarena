@@ -19,6 +19,10 @@ public class UnitEntity : MonoBehaviour, IDamageable
     // bonuses can never double-count or freeze (CIVV / RETR / veterancy share one model).
     public float baseMaxHp;
     public float moveSpeed = 3.5f;
+    // Factory-assigned base move speed, captured in Start() before civ/tech multipliers.
+    // RecomputeSpeed() always derives moveSpeed from this base (Husbandry / Wheelbarrow /
+    // Mongol cavalry) so multipliers never compound or freeze.
+    public float baseMoveSpeed;
 
     public UnitState state = UnitState.Idle;
     public Vector3 targetPos;
@@ -265,27 +269,31 @@ public class UnitEntity : MonoBehaviour, IDamageable
     // AddComponent, so the per-type speed must be pushed to the agent one step later.
     void Start()
     {
-        if (_agent != null) _agent.speed = moveSpeed;
-
-        // Capture the factory-assigned base before layering bonuses (single source of truth).
+        // Capture the factory-assigned bases before layering bonuses (single source of truth).
         baseMaxHp = maxHp;
+        baseMoveSpeed = moveSpeed;
 
-        // Mongol cavalry speed bonus. Civ is fixed per team, so speed (which never
-        // changes with tech) is applied once from the factory base. HP is handled by
-        // RecomputeMaxHp (always derived from base → no freeze, no double-count).
-        if (type == UnitType.Cavalry)
-        {
-            var civ = TeamCivBonus;
-            if (civ.cavalrySpeedMult != 1f)
-            {
-                moveSpeed *= civ.cavalrySpeedMult;
-                if (_agent != null) _agent.speed = moveSpeed;
-            }
-        }
+        // Speed: base × civ cavalry bonus (Mongols) × tech (Husbandry/Wheelbarrow), live-recomputable.
+        RecomputeSpeed();
 
         // Derive maxHp from base + researched tech HP + veterancy + civ cavalry HP,
         // and fill current hp to full on spawn.
         RecomputeMaxHp();
+    }
+
+    /// <summary>
+    /// Recompute <see cref="moveSpeed"/> from <see cref="baseMoveSpeed"/> × civ cavalry
+    /// speed (Mongols) × tech speed (Husbandry / Wheelbarrow). Idempotent — always from
+    /// base, so research-time recompute never compounds. Pushes the result to the agent.
+    /// </summary>
+    public void RecomputeSpeed()
+    {
+        if (baseMoveSpeed <= 0f) baseMoveSpeed = moveSpeed;
+        float s = baseMoveSpeed;
+        if (type == UnitType.Cavalry) s *= TeamCivBonus.cavalrySpeedMult;
+        s *= TeamTech?.MoveSpeedMult(type) ?? 1f;
+        moveSpeed = s;
+        if (_agent != null) _agent.speed = s;
     }
 
     /// <summary>
@@ -456,10 +464,13 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public void TakeDamage(float amount, DamageType damageType = DamageType.Melee)
     {
         if (hp <= 0f) return;
+        // Base armor (UnitFactory) + live Blacksmith armor research (ChainMail/PlateMail,
+        // barding, archer armor, Loom) read from this team's TechState each hit.
+        var tech = TeamTech;
         float armor = damageType switch
         {
-            DamageType.Pierce => pierceArmor,
-            DamageType.Melee  => meleeArmor,
+            DamageType.Pierce => pierceArmor + (tech?.ArmorBonus(type, DamageType.Pierce) ?? 0f),
+            DamageType.Melee  => meleeArmor + (tech?.ArmorBonus(type, DamageType.Melee) ?? 0f),
             _                 => 0f,  // Siege bypasses armor
         };
         hp -= Mathf.Max(1f, amount - armor);

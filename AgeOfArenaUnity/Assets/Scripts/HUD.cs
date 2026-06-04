@@ -1393,7 +1393,31 @@ public class HUD : MonoBehaviour
         TechType.Crossbowman   => "Okçu yükseltmesi: Arbaletçi.",
         TechType.Cavalier      => "Süvari yükseltmesi: Ağır Süvari.",
         TechType.DoubleBitAxe  => "Odun toplama hızı +.",
-        TechType.Wheelbarrow   => "Tüm toplama hızı +.",
+        TechType.Wheelbarrow   => "Köylü taşıma kapasitesi ve hızı +.",
+        // ── M6 Blacksmith ──
+        TechType.IronCasting   => "Yakın dövüş saldırısı + (asker & süvari).",
+        TechType.BlastFurnace  => "Yakın dövüş saldırısı ++ (asker & süvari).",
+        TechType.ChainMail     => "Piyade zırhı + (yakın & delici).",
+        TechType.PlateMail     => "Piyade zırhı ++ (yakın & delici).",
+        TechType.ScaleBarding  => "Süvari zırhı +.",
+        TechType.ChainBarding  => "Süvari zırhı +.",
+        TechType.PlateBarding  => "Süvari zırhı ++.",
+        TechType.PaddedArcherArmor  => "Okçu zırhı +.",
+        TechType.LeatherArcherArmor => "Okçu zırhı +.",
+        TechType.RingArcherArmor    => "Okçu zırhı ++.",
+        TechType.Bracer        => "Okçu saldırısı ve menzili +.",
+        // ── M6 Ekonomi ──
+        TechType.Loom          => "Köylü canı ve zırhı +.",
+        TechType.BowSaw        => "Odun toplama hızı +.",
+        TechType.GoldMining    => "Altın toplama hızı +.",
+        TechType.StoneMining   => "Taş toplama hızı +.",
+        TechType.CropRotation  => "Tarla yiyecek kapasitesi +.",
+        TechType.Husbandry     => "Süvari hareket hızı +.",
+        TechType.Caravan       => "Ticaret arabası geliri +.",
+        // ── M6 Üniversite ──
+        TechType.Ballistics    => "Mermiler hareketli hedefleri daha iyi vurur.",
+        TechType.Chemistry     => "Tüm menzilli saldırılar +1.",
+        TechType.Architecture  => "Bina canı ve zırhı +.",
         _                      => "",
     };
 

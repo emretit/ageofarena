@@ -45,8 +45,9 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     void Start()
     {
         if (maxHp <= 0f) maxHp = MaxHpFor(type);
-        // Byzantines: buildings +10% HP (buildingHpMult); other civs ×1.0.
+        // Byzantines: buildings +10% HP (buildingHpMult); University Architecture +10%.
         float bMult = GameManager.Instance?.TeamCivBonus(teamId).buildingHpMult ?? 1f;
+        bMult *= GameManager.Instance?.teamTech[teamId].BuildingHpMult ?? 1f;
         if (bMult != 1f) maxHp *= bMult;
         if (hp <= 0f) hp = maxHp;
         var def = BuildingDefs.Get(type);

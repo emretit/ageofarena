@@ -71,6 +71,35 @@ public enum TechType
     Fortified,      // +building armor
     GuardTower,     // Watch Tower → Guard Tower: +tower attack/hp (Castle)
     Keep,           // Guard Tower → Keep: +tower attack/range/hp (Imperial, requires GuardTower)
+    // ── M6: Blacksmith attack lines (additive on top of base, infantry & cavalry) ──
+    IronCasting,    // +melee attack (Castle, requires Forging)
+    BlastFurnace,   // +melee attack (Imperial, requires IronCasting)
+    // ── M6: Blacksmith infantry armor (ScaleMail→ChainMail→PlateMail) ──
+    ChainMail,      // +infantry melee/pierce armor (Castle)
+    PlateMail,      // +infantry melee/pierce armor (Imperial)
+    // ── M6 (BFUR): Blacksmith cavalry armor (barding) ──
+    ScaleBarding,   // +cavalry armor (Feudal)
+    ChainBarding,   // +cavalry armor (Castle)
+    PlateBarding,   // +cavalry armor (Imperial)
+    // ── M6 (ARRM): Blacksmith archer armor + Bracer ──
+    PaddedArcherArmor,  // +archer melee/pierce armor (Feudal)
+    LeatherArcherArmor, // +archer armor (Castle)
+    RingArcherArmor,    // +archer armor (Imperial)
+    Bracer,             // +archer attack & range (Imperial, requires Bodkin)
+    // ── M6 (ECON): economy gather techs ──
+    Loom,           // +villager hp & armor (Dark, Town Center)
+    BowSaw,         // +wood gather (Castle, Lumber Camp)
+    GoldMining,     // +gold gather (Feudal, Mining Camp)
+    StoneMining,    // +stone gather (Feudal, Mining Camp)
+    CropRotation,   // +farm food capacity (Imperial, Mill)
+    // ── M6 (CAVT): Stable husbandry ──
+    Husbandry,      // +cavalry move speed (Castle)
+    // ── M6 (CARA): Market caravan ──
+    Caravan,        // +trade cart yield (Castle)
+    // ── M6 (UNIV): University military techs ──
+    Ballistics,     // projectile accuracy vs moving targets (Castle)
+    Chemistry,      // +1 missile attack: archers/towers/galleys (Imperial)
+    Architecture,   // +building hp & armor (Castle)
 }
 
 /// <summary>Stance controlling auto-aggro and pursuit behavior.</summary>

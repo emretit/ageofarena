@@ -5,6 +5,11 @@ using UnityEngine;
 /// frame and applies the carried damage on arrival. Fizzles harmlessly if the
 /// target dies (or is destroyed) mid-flight — the <see cref="IDamageable.IsAlive"/>
 /// guard handles the Unity fake-null.
+///
+/// Note: projectiles are perfectly homing (100% hit on a live target), so the AoE2
+/// University tech "Ballistics" (lead-firing accuracy vs moving targets) is already
+/// fully satisfied by this model — no per-shot miss to correct. Ballistics therefore
+/// exists as a researchable tech for tree completeness without altering this code.
 /// </summary>
 public class Projectile : MonoBehaviour
 {

@@ -79,6 +79,36 @@ public static class TechDefs
         new(TechType.Fortified,     BuildingType.University,   Age.Imperial,200,   0, 150, 0, 30f, "Takviyeli Duvar"),
         new(TechType.GuardTower,    BuildingType.University,   Age.Castle,  100,   0,  50, 0, 22f, "Muhafız Kulesi"),
         new(TechType.Keep,          BuildingType.University,   Age.Imperial,150,   0, 100, 0, 28f, "Burç",          TechType.GuardTower),
+
+        // ── M6 (BSMT): Blacksmith melee attack line (infantry + cavalry) ──────
+        new(TechType.IronCasting,   BuildingType.Blacksmith,   Age.Castle,  220,   0, 120, 0, 28f, "Demir Döküm",     TechType.Forging),
+        new(TechType.BlastFurnace,  BuildingType.Blacksmith,   Age.Imperial,275,   0, 225, 0, 32f, "Yüksek Fırın",    TechType.IronCasting),
+        // ── M6 (BSMT): Blacksmith infantry armor ──────────────────────────────
+        new(TechType.ChainMail,     BuildingType.Blacksmith,   Age.Castle,  200,   0, 100, 0, 28f, "Zincir Zırh",     TechType.ScaleMail),
+        new(TechType.PlateMail,     BuildingType.Blacksmith,   Age.Imperial,300,   0, 150, 0, 32f, "Levha Zırh",      TechType.ChainMail),
+        // ── M6 (BFUR): Blacksmith cavalry armor (barding) ─────────────────────
+        new(TechType.ScaleBarding,  BuildingType.Blacksmith,   Age.Feudal,  150,   0,   0, 0, 22f, "Pul Eyer Zırhı"),
+        new(TechType.ChainBarding,  BuildingType.Blacksmith,   Age.Castle,  250,   0, 150, 0, 28f, "Zincir Eyer Zırhı", TechType.ScaleBarding),
+        new(TechType.PlateBarding,  BuildingType.Blacksmith,   Age.Imperial,350,   0, 200, 0, 32f, "Levha Eyer Zırhı",  TechType.ChainBarding),
+        // ── M6 (ARRM): Blacksmith archer armor + Bracer ───────────────────────
+        new(TechType.PaddedArcherArmor,  BuildingType.Blacksmith, Age.Feudal,  100, 0,  50, 0, 22f, "Dolgulu Okçu Zırhı"),
+        new(TechType.LeatherArcherArmor, BuildingType.Blacksmith, Age.Castle,  150, 0, 100, 0, 28f, "Deri Okçu Zırhı",  TechType.PaddedArcherArmor),
+        new(TechType.RingArcherArmor,    BuildingType.Blacksmith, Age.Imperial,250, 0, 200, 0, 32f, "Halka Okçu Zırhı", TechType.LeatherArcherArmor),
+        new(TechType.Bracer,             BuildingType.Blacksmith, Age.Imperial,200, 0, 175, 0, 30f, "Kol Koruması",     TechType.Bodkin),
+        // ── M6 (ECON): economy gather techs ───────────────────────────────────
+        new(TechType.Loom,          BuildingType.TownCenter,   Age.Dark,     0,    0,  50, 0, 25f, "Dokuma"),
+        new(TechType.BowSaw,        BuildingType.LumberCamp,   Age.Castle,  150,   0, 100, 0, 25f, "Tezgah Testere",  TechType.DoubleBitAxe),
+        new(TechType.GoldMining,    BuildingType.MiningCamp,   Age.Feudal,  100,   0,  75, 0, 22f, "Altın Madenciliği"),
+        new(TechType.StoneMining,   BuildingType.MiningCamp,   Age.Feudal,  100,   0,  75, 0, 22f, "Taş Madenciliği"),
+        new(TechType.CropRotation,  BuildingType.Mill,         Age.Imperial,250,   0, 100, 0, 28f, "Ekin Rotasyonu",  TechType.HeavyPlow),
+        // ── M6 (CAVT): Stable husbandry ───────────────────────────────────────
+        new(TechType.Husbandry,     BuildingType.Stable,       Age.Castle,  150,   0,   0, 0, 22f, "Hayvancılık"),
+        // ── M6 (CARA): Market caravan ─────────────────────────────────────────
+        new(TechType.Caravan,       BuildingType.Market,       Age.Castle,    0,   0, 200, 0, 28f, "Kervan"),
+        // ── M6 (UNIV): University military techs ──────────────────────────────
+        new(TechType.Ballistics,    BuildingType.University,   Age.Castle,  300,   0, 175, 0, 35f, "Balistik"),
+        new(TechType.Chemistry,     BuildingType.University,   Age.Imperial,300,   0, 200, 0, 40f, "Kimya"),
+        new(TechType.Architecture,  BuildingType.University,   Age.Castle,  300,   0,   0, 0, 35f, "Mimari"),
     };
 
     public static TechDef Get(TechType t)

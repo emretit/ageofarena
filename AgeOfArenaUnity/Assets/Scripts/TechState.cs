@@ -20,8 +20,18 @@ public class TechState
     public void Mark(TechType t) { if (_researched.Add(t)) Version++; }
 
     // ── Attack bonuses (additive) ────────────────────────────────────────────
-    float MeleeAttackBonus  => Has(TechType.Forging) ? 2f : 0f;
-    float ArcherAttackBonus => (Has(TechType.Fletching) ? 1f : 0f) + (Has(TechType.Bodkin) ? 1f : 0f);
+    // Blacksmith melee line: Forging +2, Iron Casting +1, Blast Furnace +2 — shared
+    // by infantry AND cavalry (read once, no double-count: BFUR cavalry flows here).
+    float MeleeAttackBonus  => (Has(TechType.Forging) ? 2f : 0f)
+                             + (Has(TechType.IronCasting) ? 1f : 0f)
+                             + (Has(TechType.BlastFurnace) ? 2f : 0f);
+    // Blacksmith missile line: Fletching +1, Bodkin +1, Bracer +1; University Chemistry +1.
+    float ArcherAttackBonus => (Has(TechType.Fletching) ? 1f : 0f)
+                             + (Has(TechType.Bodkin) ? 1f : 0f)
+                             + (Has(TechType.Bracer) ? 1f : 0f)
+                             + ChemistryBonus;
+    /// <summary>University Chemistry: +1 to every missile attack (archers, towers, galleys).</summary>
+    float ChemistryBonus => Has(TechType.Chemistry) ? 1f : 0f;
 
     // Tier-promotion bonuses stack (Castle + Imperial tiers).
     float MilitiaLineAtk => (Has(TechType.ManAtArms) ? 1f : 0f)
@@ -42,7 +52,8 @@ public class TechState
                              + (Has(TechType.Hussar) ? 2f : 0f);
     float CavArcherLineAtk  => Has(TechType.HeavyCavalryArcher) ? 2f : 0f;
     float GalleyLineAtk     => (Has(TechType.WarGalley) ? 2f : 0f)
-                             + (Has(TechType.Galleon) ? 2f : 0f);
+                             + (Has(TechType.Galleon) ? 2f : 0f)
+                             + ChemistryBonus;
 
     /// <summary>Additive attack bonus for a unit type (read live by CombatSystem).</summary>
     public float AttackBonus(UnitType t) => t switch
@@ -59,13 +70,20 @@ public class TechState
         _ => 0f,
     };
 
-    /// <summary>Additive attack-range bonus (archers only).</summary>
-    public float RangeBonus(UnitType t) =>
-        t == UnitType.Archer
-            ? (Has(TechType.Fletching) ? 0.5f : 0f)
-            + (Has(TechType.Crossbowman) ? 0.5f : 0f)
-            + (Has(TechType.Arbalest) ? 0.5f : 0f)
-            : 0f;
+    /// <summary>Additive attack-range bonus for archer-class units. Bracer (+0.5) applies
+    /// to every archer; the Archer's own tier upgrades (Fletching/Crossbow/Arbalest) stack.</summary>
+    public float RangeBonus(UnitType t)
+    {
+        bool archerClass = t == UnitType.Archer || t == UnitType.Longbowman
+                        || t == UnitType.Skirmisher || t == UnitType.CavalryArcher;
+        if (!archerClass) return 0f;
+        float r = Has(TechType.Bracer) ? 0.5f : 0f;
+        if (t == UnitType.Archer)
+            r += (Has(TechType.Fletching) ? 0.5f : 0f)
+               + (Has(TechType.Crossbowman) ? 0.5f : 0f)
+               + (Has(TechType.Arbalest) ? 0.5f : 0f);
+        return r;
+    }
 
     /// <summary>Additive max-hp bonus for a unit type.</summary>
     public float HpBonus(UnitType t) => t switch
@@ -94,26 +112,105 @@ public class TechState
                           + (Has(TechType.HeavyCavalryArcher) ? 20f : 0f),
         UnitType.Galley  => (Has(TechType.WarGalley) ? 20f : 0f)
                           + (Has(TechType.Galleon) ? 30f : 0f),
+        UnitType.Villager => Has(TechType.Loom) ? 15f : 0f,   // ECON: Loom +15 hp
         _ => 0f,
     };
 
-    /// <summary>Extra melee armor from Masonry/Fortified Wall (University techs).</summary>
-    public float BuildingMeleeArmor => (Has(TechType.Masonry) ? 2f : 0f) + (Has(TechType.Fortified) ? 3f : 0f);
-    public float BuildingPierceArmor => (Has(TechType.Masonry) ? 2f : 0f) + (Has(TechType.Fortified) ? 3f : 0f);
+    /// <summary>
+    /// Additive armor bonus for a unit type and damage class (read live by
+    /// <see cref="UnitEntity.TakeDamage"/>). Blacksmith armor lines: infantry
+    /// (ChainMail/PlateMail), cavalry barding (Scale/Chain/Plate), archer armor
+    /// (Padded/Leather/Ring). Loom gives villagers a little armor too.
+    /// </summary>
+    public float ArmorBonus(UnitType t, DamageType dmg)
+    {
+        float melee = 0f, pierce = 0f;
+        switch (t)
+        {
+            case UnitType.Militia:
+            case UnitType.Spearman:                       // BSMT: infantry armor
+                if (Has(TechType.ChainMail)) { melee += 1f; pierce += 1f; }
+                if (Has(TechType.PlateMail)) { melee += 2f; pierce += 2f; }
+                break;
+            case UnitType.Cavalry:
+            case UnitType.Camel:
+            case UnitType.Scout:                          // BFUR: cavalry barding
+                if (Has(TechType.ScaleBarding)) { melee += 1f; pierce += 1f; }
+                if (Has(TechType.ChainBarding)) { melee += 1f; pierce += 1f; }
+                if (Has(TechType.PlateBarding)) { melee += 2f; pierce += 2f; }
+                break;
+            case UnitType.Archer:
+            case UnitType.Longbowman:
+            case UnitType.Skirmisher:
+            case UnitType.CavalryArcher:                  // ARRM: archer armor (+3 pierce total)
+                if (Has(TechType.PaddedArcherArmor))  { melee += 1f; pierce += 1f; }
+                if (Has(TechType.LeatherArcherArmor)) { melee += 1f; pierce += 1f; }
+                if (Has(TechType.RingArcherArmor))    { melee += 1f; pierce += 1f; }
+                break;
+            case UnitType.Villager:                       // ECON: Loom armor
+                if (Has(TechType.Loom)) { melee += 1f; pierce += 1f; }
+                break;
+        }
+        return dmg switch { DamageType.Pierce => pierce, DamageType.Melee => melee, _ => 0f };
+    }
 
-    /// <summary>Watch Tower line upgrades (Guard Tower / Keep): tower attack + range bonus.</summary>
-    public float TowerAttackBonus => (Has(TechType.GuardTower) ? 3f : 0f) + (Has(TechType.Keep) ? 4f : 0f);
+    /// <summary>Cavalry/villager move-speed multiplier: Husbandry (cavalry ×1.1),
+    /// Wheelbarrow (villager ×1.1). Read live by <see cref="UnitEntity.RecomputeSpeed"/>.</summary>
+    public float MoveSpeedMult(UnitType t)
+    {
+        float m = 1f;
+        bool cav = t == UnitType.Cavalry || t == UnitType.Camel
+                || t == UnitType.Scout || t == UnitType.CavalryArcher;
+        if (cav && Has(TechType.Husbandry)) m *= 1.1f;
+        if (t == UnitType.Villager && Has(TechType.Wheelbarrow)) m *= 1.1f;
+        return m;
+    }
+
+    /// <summary>Villager carry-capacity multiplier (Wheelbarrow ×1.25) — more per trip.</summary>
+    public float CarryCapacityMult => Has(TechType.Wheelbarrow) ? 1.25f : 1f;
+    /// <summary>Flat carry bonus (reserved for a future Hand Cart tier).</summary>
+    public int CarryBonus => 0;
+
+    /// <summary>Trade-cart gold multiplier (Caravan ×1.5) — read by TradingSystem.</summary>
+    public float TradeGoldMult => Has(TechType.Caravan) ? 1.5f : 1f;
+
+    /// <summary>University Architecture: +10% building max-HP (applied in BuildingEntity.Start).</summary>
+    public float BuildingHpMult => Has(TechType.Architecture) ? 1.10f : 1f;
+
+    /// <summary>Extra melee armor from Masonry/Fortified Wall + Architecture (University techs).</summary>
+    public float BuildingMeleeArmor => (Has(TechType.Masonry) ? 2f : 0f) + (Has(TechType.Fortified) ? 3f : 0f)
+                                     + (Has(TechType.Architecture) ? 1f : 0f);
+    public float BuildingPierceArmor => (Has(TechType.Masonry) ? 2f : 0f) + (Has(TechType.Fortified) ? 3f : 0f)
+                                      + (Has(TechType.Architecture) ? 1f : 0f);
+
+    /// <summary>Watch Tower line upgrades (Guard Tower / Keep) + Chemistry: tower attack + range bonus.</summary>
+    public float TowerAttackBonus => (Has(TechType.GuardTower) ? 3f : 0f) + (Has(TechType.Keep) ? 4f : 0f)
+                                   + ChemistryBonus;
     public float TowerRangeBonus  => Has(TechType.Keep) ? 1.5f : 0f;
 
-    /// <summary>Farm food capacity bonus from Horse Collar / Heavy Plow (Mill techs).</summary>
-    public int FarmCapacityBonus => (Has(TechType.HorseCollar) ? 75 : 0) + (Has(TechType.HeavyPlow) ? 75 : 0);
+    /// <summary>Farm food capacity bonus from Horse Collar / Heavy Plow / Crop Rotation (Mill techs).</summary>
+    public int FarmCapacityBonus => (Has(TechType.HorseCollar) ? 75 : 0) + (Has(TechType.HeavyPlow) ? 75 : 0)
+                                  + (Has(TechType.CropRotation) ? 75 : 0);
 
-    /// <summary>Multiplier on resources gained per deposit of a given kind.</summary>
+    /// <summary>Multiplier on resources gained per deposit of a given kind. Kind-specific
+    /// economy techs: Double-Bit Axe/Bow Saw (wood), Gold Mining (gold), Stone Mining (stone).
+    /// (Wheelbarrow no longer scales the deposit — it now raises carry capacity & villager speed.)</summary>
     public float GatherMult(ResourceKind kind)
     {
         float m = 1f;
-        if (Has(TechType.Wheelbarrow)) m += 0.2f;
-        if (kind == ResourceKind.Wood && Has(TechType.DoubleBitAxe)) m += 0.25f;
+        switch (kind)
+        {
+            case ResourceKind.Wood:
+                if (Has(TechType.DoubleBitAxe)) m += 0.25f;
+                if (Has(TechType.BowSaw))       m += 0.2f;
+                break;
+            case ResourceKind.Gold:
+                if (Has(TechType.GoldMining))   m += 0.15f;
+                break;
+            case ResourceKind.Stone:
+                if (Has(TechType.StoneMining))  m += 0.15f;
+                break;
+        }
         return m;
     }
 }

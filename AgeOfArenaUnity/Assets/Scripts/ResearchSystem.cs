@@ -119,6 +119,7 @@ public class ResearchSystem : MonoBehaviour
             var u = gm.units[i];
             if (u == null || u.teamId != teamId) continue;
             u.RecomputeMaxHp();
+            u.RecomputeSpeed();   // CAVT: Husbandry / Wheelbarrow apply to live units immediately
         }
     }
 }
