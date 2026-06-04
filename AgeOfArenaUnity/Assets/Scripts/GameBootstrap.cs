@@ -15,6 +15,7 @@ public static class GameBootstrap
     {
         if (Object.FindAnyObjectByType<WorldRoot>() != null) return; // already built
         var root = new GameObject("AgeOfArena").AddComponent<WorldRoot>();
+        root.gameObject.AddComponent<FocusPause>(); // N9: pause the sim when the window loses focus
         root.mapSeed = _nextSeed;
         root.Build();
     }

@@ -31,6 +31,10 @@ public class MatchSystem : MonoBehaviour
     float _matchElapsed;
     bool  _over;
 
+    /// <summary>True once the match has ended (win/lose/resign). Read by FocusPause (N9) so
+    /// resuming from a focus-loss pause never un-freezes a finished game.</summary>
+    public bool IsOver => _over;
+
     readonly float[] _wonderTimer = new float[4];
     readonly float[] _relicTimer  = new float[4];
 

@@ -302,6 +302,17 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 - [ ] N3.fixedstep: Fixed-step accumulator (~30Hz) tüm Tick'lere sabit dt; render interpolasyon; pause/hız sim-step üzerinden; `Time.deltaTime` sim'de yok.
 - [ ] N3.cmdlog: Command type seti + `CommandSystem`/`EnemyAI` enqueue eder; sim tick-başı uygular; lokal command recorder (seed+per-tick) replay temeli.
 
+### Paralel görünür kazanımlar (gün-1'den; N7 müzik · N9 UX/a11y/i18n)
+- [x] N9.pause: Pause-on-blur — `FocusPause.cs` (OnApplicationFocus/Pause → timeScale 0 + "Duraklatıldı" overlay); odak dönünce önceki hız geri yüklenir; game-over (`MatchSystem.IsOver`) / Esc-menü pause'larına dokunmaz. GameBootstrap'ta WorldRoot'a bağlı. Runtime: 1.5→0→1.5 doğrulandı.
+- [ ] N9.hotkeys: Remappable `HotkeyAction`→`KeyCode` + ayar UI + PlayerPrefs + çakışma tespiti + buton-üstü hotkey etiketi (mevcut `Hotkeys.cs` üzerine).
+- [ ] N9.feedback: Attack-move zemin göstergesi + rally çizgileri + shift-kuyruk waypoint görseli; FoW varsayılan açık toggle.
+- [ ] N9.i18n: Lokalizasyon tablosu (key→string, TR+EN) + TR-glyph kapsamlı TMP/SDF font; tüm HUD string'leri buradan.
+- [ ] N9.a11y: Colorblind-güvenli palet + şekil/ikon kodlama (minimap/HP/diplomasi); UI-ölçek slider; caption toggle.
+- [ ] N9.postgame: Maç-sonu özet (kaynak/birim/çağ-zamanları/skor grafiği) + birim stat paneli + canlı tech-boost'lu tooltip + olay-uyarı logu.
+- [ ] N7.music: Menü teması + çağ-başına in-game müzik (Dark/Feudal/Castle/Imperial) + zafer/yenilgi sting'leri (WebGL-sıkıştırılmış); savaşta ducking.
+- [ ] N7.sfx: Gerçek SFX seti (kılıç/ok/inşa/eğitim/ölüm/UI/çağ-fanfar) `Resources/Audio`'ya (loader zaten dosyayı tercih eder); pitch-vary + round-robin.
+- [ ] N7.spatial: Master/SFX/Müzik ses slider'ları (PlayerPrefs); 3D/spatial savaş-inşa SFX'i; biome-bağlı ambient loop.
+
 ### Wave 2 — İçerik + Combat + N-team
 - [ ] N4.registry: `UnitType/BuildingType/TechType` data-driven registry; `UnitEntity` stat'ları lookup; yeni unit = data satırı (switch değil).
 - [ ] N4.civgate: Civ row'ları uniqueUnit/castle+imperial unique-tech/denied-set; TrainingQueue/ResearchSystem/komut-kartı civ-gate'li; ≥2 civ tech-tree subtraction'ı Play'de farklı.
