@@ -1382,6 +1382,9 @@ public class HUD : MonoBehaviour
         // N9.a11y: UI scale +/-
         AddBtn("UI +", () => { AccessibilitySettings.SetUiScale(AccessibilitySettings.UiScale + 0.1f); ApplyUiScale(); }, -290f, 60f);
         AddBtn("UI -", () => { AccessibilitySettings.SetUiScale(AccessibilitySettings.UiScale - 0.1f); ApplyUiScale(); }, -290f, -60f);
+        // N7.spatial: volume buttons
+        AddBtn("Vol +", () => AudioManager.MasterVolume = Mathf.Clamp01(AudioManager.MasterVolume + 0.1f), -350f, 60f);
+        AddBtn("Vol -", () => AudioManager.MasterVolume = Mathf.Clamp01(AudioManager.MasterVolume - 0.1f), -350f, -60f);
     }
 
     void ApplyUiScale()

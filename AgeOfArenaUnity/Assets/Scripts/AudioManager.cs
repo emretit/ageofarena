@@ -55,6 +55,19 @@ public class AudioManager : MonoBehaviour
         "Audio/build_complete", // Repair      (N7.sfx — reuse build_complete pitch-shifted)
     };
 
+    // N7.spatial: volume controls — Master (all) × SFX (shots/UI). Music handled separately.
+    static float _masterVol = 1f;
+    static float _sfxVol    = 1f;
+
+    public static float MasterVolume { get => _masterVol; set { _masterVol = Mathf.Clamp01(value); PlayerPrefs.SetFloat("Audio.Master", _masterVol); PlayerPrefs.Save(); } }
+    public static float SfxVolume    { get => _sfxVol;    set { _sfxVol    = Mathf.Clamp01(value); PlayerPrefs.SetFloat("Audio.SFX",    _sfxVol);    PlayerPrefs.Save(); } }
+
+    public static void LoadVolumes()
+    {
+        _masterVol = PlayerPrefs.GetFloat("Audio.Master", 1f);
+        _sfxVol    = PlayerPrefs.GetFloat("Audio.SFX",    1f);
+    }
+
     public static void Play(SoundId id, float volumeScale = 1f)
     {
         if (_instance == null) return;
@@ -64,6 +77,7 @@ public class AudioManager : MonoBehaviour
     public static void Init()
     {
         if (_instance != null) return;
+        LoadVolumes();
         var go = new GameObject("AudioManager");
         DontDestroyOnLoad(go);
         _instance = go.AddComponent<AudioManager>();
@@ -88,7 +102,7 @@ public class AudioManager : MonoBehaviour
         _poolIdx = (_poolIdx + 1) % PoolSize;
         // N7.sfx: pitch variation ±PitchJitter to avoid "machine gun" identical repeats.
         src.pitch = 1f + Random.Range(-PitchJitter, PitchJitter);
-        src.PlayOneShot(clip, vol * 0.65f);
+        src.PlayOneShot(clip, vol * 0.65f * _masterVol * _sfxVol);
         // Advance round-robin counter for this SoundId (used if variant clips are loaded later).
         int idx = (int)id;
         _rrIdx[idx] = (_rrIdx[idx] + 1) % 3;

@@ -13,6 +13,7 @@ public static class GameBootstrap
     {
         Loc.LoadSaved();                 // N9.i18n
         AccessibilitySettings.Load();    // N9.a11y
+        AudioManager.LoadVolumes();      // N7.spatial
         BuildIfNeeded();
     }
 
