@@ -49,18 +49,20 @@
 
 | Kategori | Olgunluk | Ana eksik |
 |---|---|---|
-| 01 Ekonomi | ~75% | Trade cart, idle worker, taxation, kaynak çeşidi |
-| 02 Birimler | ~65% | Zırh tipleri, Monk dönüştürme, naval, özel yetenek |
-| 03 Binalar | ~70% | **Garnizon (P0)**, kule, repair, Blacksmith/Monastery |
-| 04 Savaş | ~60% | Hasar↔zırh matrisi, stance, formasyon kohezyonu |
-| 05 Tech & Çağ | ~70% | **Imperial çağ**, University tech, research queue |
-| 06 AI | ~70% | Zorluk seviyeleri, Medic/Scout, stance bilinci |
-| 07 UI/UX & QoL | ~55% | Control group, idle worker, minimap-pan, stance ikon |
-| 08 Ses/Anim/VFX | ~10% | **Ses sistemi sıfır**, müzik, birim animasyonu |
-| 09 Zafer/Objektif | ~55% | **Wonder**, relic-win, score, conquest |
+| 01 Ekonomi | ~85% | Balık ekonomisi (FISH ertelendi), dalgalı fiyat |
+| 02 Birimler | ~85% | Naval derinlik, FishingShip |
+| 03 Binalar | ~85% | Garnizon sistemi tam (M5), kule/repair var |
+| 04 Savaş | ~85% | Formasyon kohezyonu, friendly fire |
+| 05 Tech & Çağ | ~90% | AGEB önkoşul sistemi tam, 4 çağ + Imperial tamam |
+| 06 AI | ~85% | Medic/Scout üretimi, flanking farkındalığı |
+| 07 UI/UX & QoL | ~90% | Hotkey rebind UI, çift-klik + control-grup tam |
+| 08 Ses/Anim/VFX | ~65% | Müzik yok; KayKit 9-birim animasyonlu; procedural SFX var |
+| 09 Zafer/Objektif | ~90% | 4 oyun modu, diplomasi, Wonder/Relic/Score/Regicide/Nomad |
 | 10 Multiplayer | ~0% | Lockstep/networking altyapısı |
-| 11 Medeniyet | ~0% | Civ veri yapısı, bonus, unique unit/tech |
-| 12 Harita/Senaryo | ~30% | Save/load, prosedürel harita, senaryo editörü |
+| 11 Medeniyet | ~90% | 11 civ; unique birim/tech; civ-seçim ekranı |
+| 12 Harita/Senaryo | ~75% | Save/Load F5/F9 tam; prosedürel harita; senaryo editörü yok |
+
+> 📅 Son güncelleme: 2026-06-04 (M10–M14 + KayKit + ses + oyun hızı + veteranlık)
 
 ---
 
