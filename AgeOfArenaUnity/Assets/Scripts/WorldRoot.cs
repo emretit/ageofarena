@@ -882,10 +882,19 @@ public class WorldRoot : MonoBehaviour
                 case UnitType.Skirmisher:e = UnitFactory.Skirmisher(unitsRoot, pos, c, us.teamId); break;
                 default:                 e = UnitFactory.Villager(unitsRoot, pos, c, us.teamId); break;
             }
-            if (e != null) { e.hp = us.hp; gm.RegisterUnit(e); }
+            if (e != null)
+            {
+                e.hp = us.hp;
+                // N12.savefull: restore veterancy + stance
+                e.veteranRank = us.veteranRank;
+                e.stance      = (AttackStance)us.stance;
+                e.RecomputeMaxHp();
+                if (us.isGarrisoned) e.isGarrisoned = true; // garrisoned state (hidden)
+                gm.RegisterUnit(e);
+            }
         }
 
-        // Restore building HPs (buildings are already placed by BuildBase).
+        // Restore building HPs + rally (buildings are already placed by BuildBase).
         foreach (var bs in data.buildings)
         {
             if (bs == null) continue;
@@ -894,7 +903,13 @@ public class WorldRoot : MonoBehaviour
             {
                 if (b == null || b.teamId != bs.teamId || (int)b.type != bs.type) continue;
                 float dist = Vector3.Distance(b.transform.position, pos);
-                if (dist < 3f) { b.hp = bs.hp; break; }
+                if (dist < 3f)
+                {
+                    b.hp = bs.hp;
+                    // N12.savefull: restore rally point
+                    if (bs.hasRally) b.rallyPoint = new Vector3(bs.rallyX, 0f, bs.rallyZ);
+                    break;
+                }
             }
         }
 

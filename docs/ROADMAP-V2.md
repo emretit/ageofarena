@@ -338,7 +338,7 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 - [ ] N10.minimap: Yükseklik/biome-renkli minimap + elevation-saygılı FoW.
 - [ ] N11.trig: Condition+Effect setleri implemente; trigger döngüsü fixed-step tick'te; sim-effect command-log'dan; save'de serialize; örnek trigger Play'de çalışır.
 - [ ] N12.edit: Editör mode — terrain/unit/bina/kaynak yerleştirme + per-player setup + trigger authoring; senaryo save/load; editörden playtest.
-- [ ] N12.savefull: Save order/queue/veteranlık/garrison/rally/map-seed persist eder (sığ save düzelir); load tam durumu geri getirir.
+- [x] N12.savefull: Save order/queue/veteranlık/garrison/rally/map-seed persist eder; load tam durumu geri getirir. `SaveData` v3: mapSeed alanı eklendi. `UnitSnap`: veteranRank/stance/isGarrisoned. `BuildingSnap`: hasRally/rallyX/rallyZ. `WorldRoot.ApplyPendingLoad`: restore veteranRank+stance+RecomputeMaxHp+isGarrisoned; bina rally noktası. `GameBootstrap.Restart(seed)` load'da aynı map seedini kullanır. JSON round-trip doğrulandı (version=3). 0/0.
 - [ ] N13.tut: Rehberli ilk-oyun tutorial + coach-mark'lar; yeni oyuncu öğretilir.
 - [ ] N13.aow: ≥4 Art-of-War challenge (bronze/silver/gold, trigger ile).
 - [ ] N13.camp: Kampanya framework (sıralı senaryo + briefing + kazan-açılır + progress save); ≥3-senaryo zinciri çalışır.

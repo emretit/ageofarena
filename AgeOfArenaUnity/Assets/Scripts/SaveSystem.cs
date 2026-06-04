@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// SAVF: Full game-state save/load. F5 = quick-save, F9 = quick-load.
+/// SAVF / N12.savefull: Full game-state save/load. F5 = quick-save, F9 = quick-load.
 ///
-/// Save captures: player resources + tech, all unit snapshots (type/team/pos/hp),
-/// all building snapshots (type/team/pos/hp/underConstruction), and team civs.
+/// Now persists: unit veteranRank + stance + isGarrisoned, building rallyPoint,
+/// map seed (so reload reproduces the same terrain/resources layout).
+/// Version bumped to "3" — incompatible v2 saves are rejected.
 ///
-/// Load flow: serialise → Restart() → WorldRoot reads <see cref="GameBootstrap.PendingLoad"/>
-/// and re-applies the snapshot instead of the default spawn (NavMesh re-baked fresh).
+/// Load flow: serialise → Restart() → WorldRoot reads PendingLoad and re-applies.
 /// </summary>
 public class SaveSystem : MonoBehaviour
 {
@@ -18,16 +18,23 @@ public class SaveSystem : MonoBehaviour
     [Serializable]
     public class UnitSnap
     {
-        public int type, teamId;
+        public int   type, teamId;
         public float x, z, hp;
+        // N12.savefull additions
+        public int   veteranRank;
+        public int   stance;          // (int)AttackStance
+        public bool  isGarrisoned;
     }
 
     [Serializable]
     public class BuildingSnap
     {
-        public int type, teamId;
+        public int   type, teamId;
         public float x, z, hp;
-        public bool underConstruction;
+        public bool  underConstruction;
+        // N12.savefull: rally point
+        public float rallyX, rallyZ;
+        public bool  hasRally;
     }
 
     [Serializable]
@@ -45,8 +52,9 @@ public class SaveSystem : MonoBehaviour
         public List<UnitSnap>     units     = new();
         public List<BuildingSnap> buildings = new();
         public TeamSnap[]         teams     = new TeamSnap[GameManager.MaxTeams];
-        public int gameMode, difficulty;
-        public string version = "2";
+        public int  gameMode, difficulty;
+        public int  mapSeed;          // N12.savefull: reproduce same map
+        public string version = "3";  // bumped: veterancy/stance/rally added
     }
 
     void Update()
@@ -60,10 +68,13 @@ public class SaveSystem : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null) return;
 
+        var wr = UnityEngine.Object.FindAnyObjectByType<WorldRoot>();
+
         var data = new SaveData
         {
-            gameMode   = (int)gm.gameMode,
+            gameMode = (int)gm.gameMode,
             difficulty = (int)gm.difficulty,
+            mapSeed  = wr != null ? wr.mapSeed : 0,
         };
 
         // Teams
@@ -83,33 +94,45 @@ public class SaveSystem : MonoBehaviour
             data.teams[t] = ts;
         }
 
-        // Units
+        // Units (skip garrisoned — they're saved as "isGarrisoned=true" and respawned hidden)
         foreach (var u in gm.units)
         {
             if (u == null) continue;
             data.units.Add(new UnitSnap
             {
-                type = (int)u.type, teamId = u.teamId,
-                x = u.transform.position.x, z = u.transform.position.z,
-                hp = u.hp,
+                type        = (int)u.type,
+                teamId      = u.teamId,
+                x           = u.transform.position.x,
+                z           = u.transform.position.z,
+                hp          = u.hp,
+                veteranRank = u.veteranRank,
+                stance      = (int)u.stance,
+                isGarrisoned = u.isGarrisoned,
             });
         }
 
-        // Buildings
+        // Buildings (include rally point)
         foreach (var b in gm.buildings)
         {
             if (b == null) continue;
+            bool hr = b.rallyPoint != Vector3.zero;
             data.buildings.Add(new BuildingSnap
             {
-                type = (int)b.type, teamId = b.teamId,
-                x = b.transform.position.x, z = b.transform.position.z,
-                hp = b.hp, underConstruction = b.underConstruction,
+                type              = (int)b.type,
+                teamId            = b.teamId,
+                x                 = b.transform.position.x,
+                z                 = b.transform.position.z,
+                hp                = b.hp,
+                underConstruction = b.underConstruction,
+                hasRally          = hr,
+                rallyX            = hr ? b.rallyPoint.x : 0f,
+                rallyZ            = hr ? b.rallyPoint.z : 0f,
             });
         }
 
         PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(data));
         PlayerPrefs.Save();
-        Debug.Log($"[SaveSystem] Saved {data.units.Count} units, {data.buildings.Count} buildings.");
+        Debug.Log($"[SaveSystem] Saved {data.units.Count} units, {data.buildings.Count} buildings, seed={data.mapSeed}.");
     }
 
     public void Load()
@@ -117,12 +140,12 @@ public class SaveSystem : MonoBehaviour
         string json = PlayerPrefs.GetString(SaveKey, "");
         if (string.IsNullOrEmpty(json)) { Debug.Log("[SaveSystem] No save found."); return; }
         var data = JsonUtility.FromJson<SaveData>(json);
-        if (data == null || data.version != "2") { Debug.Log("[SaveSystem] Incompatible save."); return; }
+        if (data == null || data.version != "3") { Debug.Log("[SaveSystem] Incompatible save (need v3)."); return; }
 
-        GameBootstrap.PendingLoad = data;
+        GameBootstrap.PendingLoad    = data;
         GameBootstrap.NextGameMode   = (GameMode)data.gameMode;
         GameBootstrap.NextDifficulty = (Difficulty)data.difficulty;
         Time.timeScale = 1f;
-        GameBootstrap.Restart();
+        GameBootstrap.Restart(data.mapSeed);  // N12.savefull: replay same seed → same map
     }
 }
