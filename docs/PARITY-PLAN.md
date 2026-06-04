@@ -598,6 +598,6 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] CMDP: grep `page` HUD; 15+ slot sayfalama; aktif sayfa render; seçimde page=0.
 - [x] MPNG: grep `ping` MinimapSystem; modifiyer+tık ping marker+ses; sol-pan/sağ-move bozulmaz.
 - [x] SUBT: AudioManager birim-sınıfı seçim/onay SoundId; SelectionSystem/CommandSystem tipine göre çalar; villager≠asker.
-- [ ] FOWD: grep FogOfWarSystem.fogEnabled varsayılan true; UI toggle; harita başta karanlık, görüş açıldıkça lit; shader bulunur.
-- [ ] MMTR: (terrain RTT render HUD-rework'te yapıldı — diamond kamera-RTT minimap) kalan: grep `fog` MinimapSystem; fog açıkken FogOfWarSystem dokusu overlay; keşfedilmemiş siyah; fog kapalı regresyonsuz.
-- [ ] SAVF: grep SaveSystem birim+bina+teamCivs serialize; Load arenayı temizleyip yeniden kurar; F5/F9 birim sayısı/pozisyon geri gelir; NavMesh geçerli.
+- [x] FOWD: grep FogOfWarSystem.fogEnabled varsayılan true; UI toggle; harita başta karanlık, görüş açıldıkça lit; shader bulunur.
+- [x] MMTR: (terrain RTT render HUD-rework'te yapıldı — diamond kamera-RTT minimap) kalan: grep `fog` MinimapSystem; fog açıkken FogOfWarSystem dokusu overlay; keşfedilmemiş siyah; fog kapalı regresyonsuz.
+- [x] SAVF: grep SaveSystem birim+bina+teamCivs serialize; Load arenayı temizleyip yeniden kurar; F5/F9 birim sayısı/pozisyon geri gelir; NavMesh geçerli.

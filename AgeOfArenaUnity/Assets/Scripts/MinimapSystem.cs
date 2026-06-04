@@ -89,6 +89,16 @@ public class MinimapSystem : MonoBehaviour
         raw.texture       = _rt;
         raw.raycastTarget = true; // receives clicks → MinimapClick (also marks "over UI")
 
+        // MMTR: fog overlay image — same size, on top of the terrain render.
+        var fogGo = new GameObject("FogOverlay", typeof(RectTransform), typeof(RawImage));
+        var fogRt = (RectTransform)fogGo.transform;
+        fogRt.SetParent(_mapRT, false);
+        fogRt.anchorMin = fogRt.anchorMax = fogRt.pivot = new Vector2(0.5f, 0.5f);
+        fogRt.sizeDelta = new Vector2(Side, Side);
+        fogGo.GetComponent<RawImage>().color = new Color(1, 1, 1, 0.55f); // semi-transparent
+        fogGo.GetComponent<RawImage>().raycastTarget = false;
+        StartCoroutine(UpdateFogOverlay(fogGo.GetComponent<RawImage>()));
+
         var click = imgGo.AddComponent<MinimapClick>();
         click.Init(this, _mapRT);
     }
@@ -210,6 +220,19 @@ public class MinimapSystem : MonoBehaviour
         else if (gm.cameraRig != null)
         {
             gm.cameraRig.FocusOn(world);
+        }
+    }
+
+    // MMTR: every 0.5s sync the FoW texture to the minimap fog overlay.
+    System.Collections.IEnumerator UpdateFogOverlay(RawImage overlay)
+    {
+        while (overlay != null)
+        {
+            yield return new WaitForSeconds(0.5f);
+            var gm = GameManager.Instance;
+            var fogTex = gm?.fow?.FogTexture;
+            overlay.texture = fogTex;
+            overlay.enabled = fogTex != null;
         }
     }
 

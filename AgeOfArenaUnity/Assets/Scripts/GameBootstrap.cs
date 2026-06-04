@@ -34,6 +34,9 @@ public static class GameBootstrap
     /// <summary>GMODE-ENUM: game mode for the next (or current) match.</summary>
     public static GameMode NextGameMode = GameMode.Random;
 
+    /// <summary>SAVF: if non-null, WorldRoot applies this snapshot instead of the default spawn.</summary>
+    public static SaveSystem.SaveData PendingLoad;
+
     /// <summary>ARES: difficulty for the next match. Persists across restarts.</summary>
     public static Difficulty NextDifficulty = Difficulty.Normal;
 

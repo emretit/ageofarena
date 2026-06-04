@@ -1291,6 +1291,9 @@ public class HUD : MonoBehaviour
         AddBtn("Devam", () => ClosePauseMenu(), 40f);
         AddBtn("Teslim Ol", () => { ClosePauseMenu(); gm.match?.Resign(); }, -20f);
         AddBtn("Yeniden Başlat", () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -80f);
+        // FOWD: fog toggle in pause menu
+        AddBtn(gm.fow != null && gm.fow.fogEnabled ? "Sis Kapat" : "Sis Aç",
+            () => { if (gm.fow != null) { gm.fow.fogEnabled = !gm.fow.fogEnabled; ClosePauseMenu(); } }, -140f);
     }
 
     void ClosePauseMenu()

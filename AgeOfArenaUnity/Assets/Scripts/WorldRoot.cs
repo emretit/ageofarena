@@ -788,6 +788,15 @@ public class WorldRoot : MonoBehaviour
         // popCap now derives from team-0 buildings (TC + Houses) via RecomputePop.
         gm.RecomputePop();
 
+        // SAVF: if a save snapshot is pending, apply it (overrides default spawn).
+        var pending = GameBootstrap.PendingLoad;
+        if (pending != null)
+        {
+            GameBootstrap.PendingLoad = null; // consume
+            ApplyPendingLoad(gm, unitsRoot.transform, pending);
+            return; // skip game-mode post-setup (already captured in snapshot)
+        }
+
         // ── Game-mode post-setup ─────────────────────────────────────────────────
         switch (gm.gameMode)
         {
@@ -801,6 +810,70 @@ public class WorldRoot : MonoBehaviour
                 SpawnNomad(gm, unitsRoot.transform);
                 break;
         }
+    }
+
+    // SAVF: restore a full game snapshot after arena rebuild (NavMesh already fresh).
+    static void ApplyPendingLoad(GameManager gm, Transform unitsRoot, SaveSystem.SaveData data)
+    {
+        // Restore team resources, tech, civs.
+        for (int t = 0; t < 4 && t < data.teams.Length; t++)
+        {
+            var ts = data.teams[t];
+            if (ts == null) continue;
+            var r = gm.teamRes[t];
+            r.food = ts.food; r.wood = ts.wood; r.gold = ts.gold; r.stone = ts.stone;
+            gm.teamCivs[t] = (Civilization)ts.civ;
+            foreach (int id in ts.techs)
+                ResearchSystem.Apply((TechType)id, t);
+        }
+
+        // Remove default-spawned units (from SetupGameplay).
+        for (int i = gm.units.Count - 1; i >= 0; i--)
+        {
+            var u = gm.units[i];
+            if (u != null) Object.Destroy(u.gameObject);
+        }
+        gm.units.Clear();
+
+        // Respawn saved units.
+        Color[] cols = { TeamColors[0], TeamColors[1], TeamColors[2], TeamColors[3] };
+        foreach (var us in data.units)
+        {
+            if (us == null) continue;
+            Color c = us.teamId >= 0 && us.teamId < 4 ? cols[us.teamId] : Color.white;
+            var pos = new Vector3(us.x, 0, us.z);
+            UnitEntity e = null;
+            switch ((UnitType)us.type)
+            {
+                case UnitType.Militia:   e = UnitFactory.Militia(unitsRoot, pos, c, us.teamId); break;
+                case UnitType.Villager:  e = UnitFactory.Villager(unitsRoot, pos, c, us.teamId); break;
+                case UnitType.Archer:    e = UnitFactory.Archer(unitsRoot, pos, c, us.teamId); break;
+                case UnitType.Cavalry:   e = UnitFactory.Cavalry(unitsRoot, pos, c); break;
+                case UnitType.Spearman:  e = UnitFactory.Spearman(unitsRoot, pos, c, us.teamId); break;
+                case UnitType.Scout:     e = UnitFactory.Scout(unitsRoot, pos, c, us.teamId); break;
+                case UnitType.Monk:      e = UnitFactory.Monk(unitsRoot, pos, c, us.teamId); break;
+                case UnitType.Medic:     e = UnitFactory.Medic(unitsRoot, pos, c, us.teamId); break;
+                case UnitType.Longbowman:e = UnitFactory.Longbowman(unitsRoot, pos, c, us.teamId); break;
+                case UnitType.Skirmisher:e = UnitFactory.Skirmisher(unitsRoot, pos, c, us.teamId); break;
+                default:                 e = UnitFactory.Villager(unitsRoot, pos, c, us.teamId); break;
+            }
+            if (e != null) { e.hp = us.hp; gm.RegisterUnit(e); }
+        }
+
+        // Restore building HPs (buildings are already placed by BuildBase).
+        foreach (var bs in data.buildings)
+        {
+            if (bs == null) continue;
+            var pos = new Vector3(bs.x, 0, bs.z);
+            foreach (var b in gm.buildings)
+            {
+                if (b == null || b.teamId != bs.teamId || (int)b.type != bs.type) continue;
+                float dist = Vector3.Distance(b.transform.position, pos);
+                if (dist < 3f) { b.hp = bs.hp; break; }
+            }
+        }
+
+        gm.RecomputePop();
     }
 
     // VDEATH: all teams start with abundant resources.
