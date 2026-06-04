@@ -307,8 +307,11 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public float HealPower  => type == UnitType.Medic ? 3f : 0f;
 
     /// <summary>N4/CIVU: HP this unit regenerates on its own each second (Vikings'
-    /// Berserk signature trait); 0 = no self-regen. Applied in CombatSystem's tick.</summary>
-    public float SelfRegenPerSecond => type == UnitType.Berserk ? 0.6f : 0f;
+    /// Berserk signature trait); 0 = no self-regen. Berserkergang (N4/CIVT) doubles it.
+    /// Applied in CombatSystem's tick.</summary>
+    public float SelfRegenPerSecond => type == UnitType.Berserk
+        ? 0.6f * ((TeamTech?.Has(TechType.Berserkergang) ?? false) ? 2f : 1f)
+        : 0f;
 
     NavMeshAgent _agent;
     SelectionRing _ring;

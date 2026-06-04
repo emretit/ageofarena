@@ -169,6 +169,23 @@ public enum TechType
     BeardedAxe,     // Franks (Imperial): infantry +2 atk
     Ironclad,       // Teutons (Castle): siege +4 armor
     Crenellations,  // Teutons (Imperial): +tower range
+    // ── N4 (CIVT): unique tech pairs for the remaining UU civilizations ──
+    Yeomen,         // Britons (Castle): foot archers +1 range, towers +2 atk
+    Warwolf,        // Britons (Imperial): Trebuchet +12 atk
+    Nomads,         // Mongols (Castle): Mangudai +3 atk
+    Drill,          // Mongols (Imperial): siege units move ×1.5
+    Yasama,         // Japanese (Castle): towers +2 atk
+    Kataparuto,     // Japanese (Imperial): Trebuchet +6 atk
+    Kamandaran,     // Persians (Castle): Archer +2 atk
+    Mahouts,        // Persians (Imperial): War Elephant moves ×1.3
+    Atlatl,         // Aztecs (Castle): Skirmisher +1 atk & +1 range
+    GarlandWars,    // Aztecs (Imperial): infantry (Militia/Spearman/Eagle) +4 atk
+    GreekFire,      // Byzantines (Castle): Fire Ship +1 atk & +1 range
+    Logistica,      // Byzantines (Imperial): Cataphract +6 atk
+    Chieftains,     // Vikings (Castle): infantry (Militia/Spearman) +4 atk
+    Berserkergang,  // Vikings (Imperial): Berserk regenerates ×2 faster
+    Madrasah,       // Saracens (Castle): Monk +20 hp
+    Zealotry,       // Saracens (Imperial): Camel & Mameluke +20 hp
 }
 
 /// <summary>Stance controlling auto-aggro and pursuit behavior.</summary>

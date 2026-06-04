@@ -38,15 +38,21 @@ public class TechState
                           + (Has(TechType.Longswordsman) ? 2f : 0f)
                           + (Has(TechType.TwoHandedSwordsman) ? 2f : 0f)
                           + (Has(TechType.Champion) ? 2f : 0f)
-                          + (Has(TechType.BeardedAxe) ? 2f : 0f);   // CIVT Franks (civ-gated)
+                          + (Has(TechType.BeardedAxe) ? 2f : 0f)    // CIVT Franks (civ-gated)
+                          + (Has(TechType.GarlandWars) ? 4f : 0f)   // N4/CIVT Aztecs
+                          + (Has(TechType.Chieftains) ? 4f : 0f);   // N4/CIVT Vikings
     float CavalryLineAtk => (Has(TechType.Cavalier) ? 2f : 0f)
                           + (Has(TechType.Paladin) ? 3f : 0f);
     float ArcherLineAtk  => (Has(TechType.Crossbowman) ? 2f : 0f)
-                          + (Has(TechType.Arbalest) ? 2f : 0f);
+                          + (Has(TechType.Arbalest) ? 2f : 0f)
+                          + (Has(TechType.Kamandaran) ? 2f : 0f);   // N4/CIVT Persians
     // Counter-unit tier lines (M2): Spearman→Pikeman→Halberdier, Skirmisher→Elite, Camel→Heavy.
     float SpearmanLineAtk   => (Has(TechType.Pikeman) ? 2f : 0f)
-                             + (Has(TechType.Halberdier) ? 3f : 0f);
-    float SkirmisherLineAtk => Has(TechType.EliteSkirmisher) ? 1f : 0f;
+                             + (Has(TechType.Halberdier) ? 3f : 0f)
+                             + (Has(TechType.GarlandWars) ? 4f : 0f)  // N4/CIVT Aztecs
+                             + (Has(TechType.Chieftains) ? 4f : 0f);  // N4/CIVT Vikings
+    float SkirmisherLineAtk => (Has(TechType.EliteSkirmisher) ? 1f : 0f)
+                             + (Has(TechType.Atlatl) ? 1f : 0f);      // N4/CIVT Aztecs
     float CamelLineAtk      => Has(TechType.HeavyCamel) ? 3f : 0f;
     // Mobile-unit lines (M4): Scout→Light Cav→Hussar grants combat; Cavalry Archer tier.
     float ScoutLineAtk      => (Has(TechType.LightCavalry) ? 5f : 0f)
@@ -68,7 +74,14 @@ public class TechState
         UnitType.Scout      => ScoutLineAtk,
         UnitType.CavalryArcher => ArcherAttackBonus + CavArcherLineAtk,
         UnitType.Galley     => GalleyLineAtk,
-        UnitType.Eagle      => Has(TechType.EliteEagle) ? 3f : 0f,   // EAGLE upgrade
+        UnitType.Eagle      => (Has(TechType.EliteEagle) ? 3f : 0f)   // EAGLE upgrade
+                             + (Has(TechType.GarlandWars) ? 4f : 0f), // N4/CIVT Aztecs
+        // ── N4/CIVT: civ-gated unique-tech attack bonuses for UU/siege ──
+        UnitType.Trebuchet  => (Has(TechType.Warwolf) ? 12f : 0f)     // Britons
+                             + (Has(TechType.Kataparuto) ? 6f : 0f),  // Japanese
+        UnitType.Mangudai   => Has(TechType.Nomads) ? 3f : 0f,        // Mongols
+        UnitType.Cataphract => Has(TechType.Logistica) ? 6f : 0f,     // Byzantines
+        UnitType.FireShip   => Has(TechType.GreekFire) ? 2f : 0f,     // Byzantines
         _ => 0f,
     };
 
@@ -76,6 +89,8 @@ public class TechState
     /// to every archer; the Archer's own tier upgrades (Fletching/Crossbow/Arbalest) stack.</summary>
     public float RangeBonus(UnitType t)
     {
+        // N4/CIVT Byzantines: Greek Fire gives the Fire Ship +1 range.
+        if (t == UnitType.FireShip) return Has(TechType.GreekFire) ? 1f : 0f;
         bool archerClass = t == UnitType.Archer || t == UnitType.Longbowman
                         || t == UnitType.Skirmisher || t == UnitType.CavalryArcher;
         if (!archerClass) return 0f;
@@ -84,6 +99,11 @@ public class TechState
             r += (Has(TechType.Fletching) ? 0.5f : 0f)
                + (Has(TechType.Crossbowman) ? 0.5f : 0f)
                + (Has(TechType.Arbalest) ? 0.5f : 0f);
+        // N4/CIVT: foot archers (Archer/Skirmisher) gain range from Britons' Yeomen
+        // and Aztecs' Atlatl (the Skirmisher).
+        bool footArcher = t == UnitType.Archer || t == UnitType.Skirmisher;
+        if (footArcher && Has(TechType.Yeomen)) r += 1f;
+        if (t == UnitType.Skirmisher && Has(TechType.Atlatl)) r += 1f;
         return r;
     }
 
@@ -107,7 +127,9 @@ public class TechState
                           + (Has(TechType.Halberdier) ? 20f : 0f),
         UnitType.Skirmisher => Has(TechType.EliteSkirmisher) ? 10f : 0f,
         UnitType.Camel   => (Has(TechType.Bloodlines) ? 20f : 0f)
-                          + (Has(TechType.HeavyCamel) ? 20f : 0f),
+                          + (Has(TechType.HeavyCamel) ? 20f : 0f)
+                          + (Has(TechType.Zealotry) ? 20f : 0f),   // N4/CIVT Saracens
+        UnitType.Mameluke => Has(TechType.Zealotry) ? 20f : 0f,    // N4/CIVT Saracens
         UnitType.Scout   => (Has(TechType.LightCavalry) ? 15f : 0f)
                           + (Has(TechType.Hussar) ? 15f : 0f)
                           + (Has(TechType.Bloodlines) ? 20f : 0f),
@@ -116,7 +138,8 @@ public class TechState
         UnitType.Galley  => (Has(TechType.WarGalley) ? 20f : 0f)
                           + (Has(TechType.Galleon) ? 30f : 0f),
         UnitType.Villager => Has(TechType.Loom) ? 15f : 0f,   // ECON: Loom +15 hp
-        UnitType.Monk    => Has(TechType.Sanctity) ? 15f : 0f, // MONK: Sanctity +15 hp
+        UnitType.Monk    => (Has(TechType.Sanctity) ? 15f : 0f) // MONK: Sanctity +15 hp
+                          + (Has(TechType.Madrasah) ? 20f : 0f), // N4/CIVT Saracens
         UnitType.Eagle   => Has(TechType.EliteEagle) ? 20f : 0f, // EAGLE upgrade
         _ => 0f,
     };
@@ -191,6 +214,11 @@ public class TechState
                 || t == UnitType.Scout || t == UnitType.CavalryArcher;
         if (cav && Has(TechType.Husbandry)) m *= 1.1f;
         if (t == UnitType.Villager && Has(TechType.Wheelbarrow)) m *= 1.1f;
+        // N4/CIVT Mongols (Drill): siege units move 50% faster.
+        bool siege = t == UnitType.Ram || t == UnitType.Mangonel || t == UnitType.Trebuchet;
+        if (siege && Has(TechType.Drill)) m *= 1.5f;
+        // N4/CIVT Persians (Mahouts): War Elephant moves 30% faster.
+        if (t == UnitType.WarElephant && Has(TechType.Mahouts)) m *= 1.3f;
         return m;
     }
 
@@ -216,7 +244,9 @@ public class TechState
 
     /// <summary>Watch Tower line upgrades (Guard Tower / Keep) + Chemistry: tower attack + range bonus.</summary>
     public float TowerAttackBonus => (Has(TechType.GuardTower) ? 3f : 0f) + (Has(TechType.Keep) ? 4f : 0f)
-                                   + ChemistryBonus;
+                                   + ChemistryBonus
+                                   + (Has(TechType.Yeomen) ? 2f : 0f)   // N4/CIVT Britons
+                                   + (Has(TechType.Yasama) ? 2f : 0f);  // N4/CIVT Japanese
     public float TowerRangeBonus  => (Has(TechType.Keep) ? 1.5f : 0f)
                                    + (Has(TechType.Crenellations) ? 1f : 0f);  // CIVT Teutons
 

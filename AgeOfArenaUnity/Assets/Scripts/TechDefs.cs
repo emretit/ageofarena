@@ -139,6 +139,23 @@ public static class TechDefs
         new(TechType.BeardedAxe,    BuildingType.Castle,       Age.Imperial,  0,   0, 400, 0, 40f, "Sakallı Balta", Civilization.Franks),
         new(TechType.Ironclad,      BuildingType.Castle,       Age.Castle,    0,   0, 400, 0, 40f, "Zırhlı",        Civilization.Teutons),
         new(TechType.Crenellations, BuildingType.Castle,       Age.Imperial,  0,   0, 400, 0, 40f, "Mazgallar",     Civilization.Teutons),
+        // ── N4 (CIVT): unique tech pairs for the remaining UU civilizations ───
+        new(TechType.Yeomen,        BuildingType.Castle,       Age.Castle,    0,   0, 350, 0, 40f, "Yeomen",         Civilization.Britons),
+        new(TechType.Warwolf,       BuildingType.Castle,       Age.Imperial,  0,   0, 800, 0, 40f, "Warwolf",        Civilization.Britons),
+        new(TechType.Nomads,        BuildingType.Castle,       Age.Castle,    0,   0, 300, 0, 40f, "Göçebeler",      Civilization.Mongols),
+        new(TechType.Drill,         BuildingType.Castle,       Age.Imperial,  0,   0, 500, 0, 40f, "Talim",          Civilization.Mongols),
+        new(TechType.Yasama,        BuildingType.Castle,       Age.Castle,  100,   0, 100, 0, 40f, "Yasama",         Civilization.Japanese),
+        new(TechType.Kataparuto,    BuildingType.Castle,       Age.Imperial,  0,   0, 750, 0, 40f, "Kataparuto",     Civilization.Japanese),
+        new(TechType.Kamandaran,    BuildingType.Castle,       Age.Castle,    0,   0, 300, 0, 40f, "Kamandaran",     Civilization.Persians),
+        new(TechType.Mahouts,       BuildingType.Castle,       Age.Imperial,  0,   0, 300, 0, 40f, "Mahut",          Civilization.Persians),
+        new(TechType.Atlatl,        BuildingType.Castle,       Age.Castle,  400,   0, 350, 0, 40f, "Atlatl",         Civilization.Aztecs),
+        new(TechType.GarlandWars,   BuildingType.Castle,       Age.Imperial,450,   0, 750, 0, 40f, "Çiçek Savaşları",Civilization.Aztecs),
+        new(TechType.GreekFire,     BuildingType.Castle,       Age.Castle,  300,   0, 100, 0, 40f, "Rum Ateşi",      Civilization.Byzantines),
+        new(TechType.Logistica,     BuildingType.Castle,       Age.Imperial,500,   0, 600, 0, 40f, "Lojistika",      Civilization.Byzantines),
+        new(TechType.Chieftains,    BuildingType.Castle,       Age.Castle,  400,   0, 200, 0, 40f, "Reisler",        Civilization.Vikings),
+        new(TechType.Berserkergang, BuildingType.Castle,       Age.Imperial,300,   0, 350, 0, 40f, "Berserkergang",  Civilization.Vikings),
+        new(TechType.Madrasah,      BuildingType.Castle,       Age.Castle,    0,   0, 200, 0, 40f, "Medrese",        Civilization.Saracens),
+        new(TechType.Zealotry,      BuildingType.Castle,       Age.Imperial,750,   0, 800, 0, 40f, "Bağnazlık",      Civilization.Saracens),
     };
 
     public static TechDef Get(TechType t)
