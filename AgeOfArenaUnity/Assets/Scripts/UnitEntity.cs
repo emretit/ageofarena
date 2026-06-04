@@ -145,7 +145,11 @@ public class UnitEntity : MonoBehaviour, IDamageable
         {
             float base_ = BaseAttackDamage + (TeamTech?.AttackBonus(type) ?? 0f);
             bool isInfantry = type == UnitType.Militia || type == UnitType.Spearman;
-            float withCiv = isInfantry ? base_ * TeamCivBonus.infantryAttackMult : base_;
+            bool isArcher = type == UnitType.Archer || type == UnitType.Longbowman
+                         || type == UnitType.Skirmisher || type == UnitType.CavalryArcher;
+            float withCiv = base_;
+            if (isInfantry)     withCiv *= TeamCivBonus.infantryAttackMult; // Japanese/Teutons
+            else if (isArcher)  withCiv *= TeamCivBonus.archerAttackMult;   // Vikings/Saracens (CIVD)
             return withCiv * VeteranMult;   // veteran rank: +10% per rank
         }
     }

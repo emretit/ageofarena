@@ -68,6 +68,16 @@ public class GameManager : MonoBehaviour
     /// <summary>Civ bonus for any team.</summary>
     public CivBonus TeamCivBonus(int teamId) => CivilizationDefs.Get(teamCivs[teamId]);
 
+    /// <summary>CIVM: aggregated team (shared) bonus for a team. Once alliances land (M11)
+    /// this will sum every allied team's <see cref="TeamBonus"/>; for now each team stands
+    /// alone, so it returns that team's own civ team bonus. Consumed by gameplay systems
+    /// (e.g. GatherSystem food deposit).</summary>
+    public TeamBonus TeamSharedBonus(int teamId)
+    {
+        if (teamId < 0 || teamId >= teamCivs.Length) return default;
+        return CivilizationDefs.Get(teamCivs[teamId]).teamBonus;
+    }
+
     void Awake()
     {
         _instance = this;

@@ -122,6 +122,9 @@ public class GatherSystem : MonoBehaviour
                         // civilization bonus stacks on top (Franks: +20% food, Britons: +15% wood, etc.).
                         float mult = GM.teamTech[v.teamId].GatherMult(v.carrying.kind);
                         mult *= CivGatherMult(v.teamId, v.carrying.kind);
+                        // CIVM: team (shared) food bonus stacks on food deposits.
+                        if (v.carrying.kind == ResourceKind.Food)
+                            mult *= 1f + GM.TeamSharedBonus(v.teamId).gatherFoodBonus;
                         int gained = Mathf.RoundToInt(v.carrying.amount * mult);
                         GM.teamRes[v.teamId].Gain(v.carrying.kind, gained);
                     }

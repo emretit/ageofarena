@@ -39,6 +39,7 @@ public class TrainingQueue : MonoBehaviour
         // Blacksmith aura: 20% faster training for military buildings within 14u.
         float time = def.trainTime;
         if (BlacksmithNearby(b, 14f)) time *= 0.80f;
+        time *= GM.TeamCivBonus(b.teamId).unitTrainTimeMult;   // CIVD: Mongols/Aztecs train faster
         q.Add(new TrainingItem
         {
             unitType  = def.unitType,
@@ -114,21 +115,28 @@ public class TrainingQueue : MonoBehaviour
         // Spawn slightly in front of the building (toward the arena's south gate).
         Vector3 spawnPos = b.transform.position + new Vector3(0, 0, -3.5f);
 
-        var teamColor = Prims.Hex(0x2a5db0);
+        int tid = b.teamId;
+        Color teamColor = tid switch
+        {
+            1 => Prims.Hex(0xd42020),
+            2 => Prims.Hex(0x1e9e40),
+            3 => Prims.Hex(0xf0a010),
+            _ => Prims.Hex(0x1e5fcc),
+        };
         UnitEntity unit = unitType switch
         {
-            UnitType.Villager    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
-            UnitType.Militia     => UnitFactory.Militia(unitsRoot, spawnPos, teamColor),
-            UnitType.Archer      => UnitFactory.Archer(unitsRoot, spawnPos, teamColor),
+            UnitType.Villager    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor, tid),
+            UnitType.Militia     => UnitFactory.Militia(unitsRoot, spawnPos, teamColor, tid),
+            UnitType.Archer      => UnitFactory.Archer(unitsRoot, spawnPos, teamColor, tid),
             UnitType.Cavalry     => UnitFactory.Cavalry(unitsRoot, spawnPos, teamColor),
             UnitType.Trebuchet   => UnitFactory.Trebuchet(unitsRoot, spawnPos, teamColor),
-            UnitType.Scout       => UnitFactory.Scout(unitsRoot, spawnPos, teamColor),
-            UnitType.Medic       => UnitFactory.Medic(unitsRoot, spawnPos, teamColor),
-            UnitType.Spearman    => UnitFactory.Spearman(unitsRoot, spawnPos, teamColor),
-            UnitType.Monk        => UnitFactory.Monk(unitsRoot, spawnPos, teamColor),
+            UnitType.Scout       => UnitFactory.Scout(unitsRoot, spawnPos, teamColor, tid),
+            UnitType.Medic       => UnitFactory.Medic(unitsRoot, spawnPos, teamColor, tid),
+            UnitType.Spearman    => UnitFactory.Spearman(unitsRoot, spawnPos, teamColor, tid),
+            UnitType.Monk        => UnitFactory.Monk(unitsRoot, spawnPos, teamColor, tid),
             UnitType.TradeCart   => UnitFactory.TradeCart(unitsRoot, spawnPos, teamColor),
-            UnitType.Longbowman  => UnitFactory.Longbowman(unitsRoot, spawnPos, teamColor),
-            UnitType.Skirmisher  => UnitFactory.Skirmisher(unitsRoot, spawnPos, teamColor),
+            UnitType.Longbowman  => UnitFactory.Longbowman(unitsRoot, spawnPos, teamColor, tid),
+            UnitType.Skirmisher  => UnitFactory.Skirmisher(unitsRoot, spawnPos, teamColor, tid),
             UnitType.Camel       => UnitFactory.Camel(unitsRoot, spawnPos, teamColor),
             UnitType.Ram         => UnitFactory.Ram(unitsRoot, spawnPos, teamColor),
             UnitType.Mangonel    => UnitFactory.Mangonel(unitsRoot, spawnPos, teamColor),
@@ -136,7 +144,7 @@ public class TrainingQueue : MonoBehaviour
             UnitType.Galley      => SpawnNaval(b, unitsRoot, teamColor, UnitType.Galley),
             UnitType.FireShip    => SpawnNaval(b, unitsRoot, teamColor, UnitType.FireShip),
             UnitType.DemoShip    => SpawnNaval(b, unitsRoot, teamColor, UnitType.DemoShip),
-            _                    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
+            _                    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor, tid),
         };
 
         gm.RegisterUnit(unit);

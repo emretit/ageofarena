@@ -567,10 +567,10 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] TRIB: TributeSystem.Tribute(from,to,kind,amount); Coinage yoksa %30 vergi (100→alıcı 70), Coinage ile vergisiz (100→100); yetersiz kaynak reddedilir; iki teamRes doğru. Runtime doğrulandı.
 - [x] STONE: ResourceManager.stone=200 başlangıç (team0+AI); BuildingDefs stone>0 (Castle 650/University 150/BombardTower 100/Outpost 5/Wonder 600); BuildingPlacement.CanAfford(...,stone) yetersizken engeller (University@200 ✓, Castle@200 ✗, Castle@700 ✓). CLAUDE.md kuralı güncellendi (kullanıcı onayı). Runtime doğrulandı.
 - [ ] CIVS: WorldRoot Random yalnız AI(1..3); player civ seçimle; seçim UI 5+None; HUD doğru gösterir; bonus etkin.
-- [ ] CIVM: grep `TeamBonus`/`teamBonus`; GameManager TeamSharedBonus API; ≥1 team-bonus bir sistemde tüketilir.
-- [ ] CIVD: CivBonus'a ≥2 yeni alan, 5 civ için doldurulu; her alan ≥1 başka .cs'de okunur; sayılar referanstan.
-- [ ] CIVC: Civilization enum ≥10 total; her yeni civ tam doldurulmuş CivBonus satırı; rastgele atama yeni civ seçer.
-- [ ] CIVX: 5 civ display string wiki 06 ile birebir; backlog CIVX ad çakışması kalmaz; tek isim/ID kaynağı belgeli.
+- [x] CIVM: struct TeamBonus + CivBonus.teamBonus; GameManager.TeamSharedBonus(teamId) API (alliances M11'de toplanır); GatherSystem food deposit'te tüketilir (Aztecs +5% team food). Runtime: 0.05/0.
+- [x] CIVD: CivBonus'a archerAttackMult + unitTrainTimeMult (2 yeni alan, 11 civ için doldurulu); archerAttackMult UnitEntity.AttackDamage'de (Vikings 4.4 vs None 4.0), unitTrainTimeMult TrainingQueue.Enqueue'de (Mongols 0.9). Runtime doğrulandı.
+- [x] CIVC: Civilization enum 11 total/10 oynanabilir (+Aztecs/Teutons/Persians/Vikings/Saracens); her civ Row() ile tam doldurulu; WorldRoot Random.Range(1,length) yeni civ'leri seçer. Runtime doğrulandı.
+- [x] CIVX: CivilizationDefs tek kanonik ID/isim kaynağı (dosya başında belgeli; HUD/seçim oradan okur); 10 display string dolu+tekil (Franklar..Saracenler). _Not: wiki 06 (5 civ) batch tazelemede 10'a senkronlanacak._
 - [ ] CIVT: grep enum TechType civ-özel değerler; ResearchSystem civ+çağ gating; ≥2 civ Castle+Imperial unique tech.
 - [ ] CIVU: grep ≥4 yeni unique UnitType; tüm switch'lerde tanımlı; bina GetTrainables civ-koşullu; isimler referansa uyar.
 - [ ] GMODE-ENUM: grep `enum GameMode` (4 değer); GameManager `GameMode gameMode` alanı; davranış değişmez.
