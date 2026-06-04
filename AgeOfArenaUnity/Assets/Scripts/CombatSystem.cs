@@ -15,6 +15,7 @@ public class CombatSystem : MonoBehaviour
 
     readonly Dictionary<UnitEntity, float> _repath = new();
     readonly List<UnitEntity> _queryBuf = new();   // N1: reused spatial-grid query buffer
+    readonly List<UnitEntity> _deadKeys = new();   // reused buffer for pruning dead _repath keys
     float _aggroTimer;
 
     GameManager GM => GameManager.Instance;
@@ -41,6 +42,13 @@ public class CombatSystem : MonoBehaviour
                 if (u != null && u.teamId == 0 && u.attackTarget != null) anyCombat = true;
             }
             AudioManager.SetCombatActive(anyCombat);
+
+            // Prune repath timers of units that died mid-chase. Entries are otherwise only
+            // removed when the unit reaches/loses its target, so a unit killed while chasing
+            // leaks one dictionary entry (keyed by a destroyed object) for the match.
+            _deadKeys.Clear();
+            foreach (var k in _repath.Keys) if (k == null) _deadKeys.Add(k);
+            for (int i = 0; i < _deadKeys.Count; i++) _repath.Remove(_deadKeys[i]);
         }
 
         for (int i = 0; i < units.Count; i++)
@@ -155,12 +163,16 @@ public class CombatSystem : MonoBehaviour
                 float dmg = u.AttackDamage + u.BonusDamageVs(target);
                 // N6.elev: ±25% elevation modifier — attacker higher → bonus, lower → penalty.
                 var tgtComp = target as UnityEngine.Component;
-                if (tgtComp != null)
-                    dmg *= ElevationMult(u.transform.position, tgtComp.transform.position);
+                float elevMult = tgtComp != null
+                    ? ElevationMult(u.transform.position, tgtComp.transform.position) : 1f;
+                dmg *= elevMult;
 
                 if (u.IsRanged)
                 {
-                    Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, dmg, u.DamageKind, u.SplashRadius, u);
+                    // Pass the elevation multiplier so splash victims get the same elevation
+                    // context as the main target (the splash loop recomputes its own base damage
+                    // and would otherwise drop the attacker's high-ground bonus/penalty).
+                    Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, dmg, u.DamageKind, u.SplashRadius, u, elevMult);
                     AudioManager.Play(AudioManager.SoundId.Arrow, 0.6f);
                 }
                 else

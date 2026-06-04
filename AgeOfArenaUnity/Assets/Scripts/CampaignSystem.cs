@@ -171,14 +171,24 @@ public static class CampaignSystem
                     id = 11, enabled = true, oneShot = true,
                     conditionType = ConditionType.AgeReached,
                     condInt1 = 0, condInt2 = 2, // Castle = 2
-                    effectType = EffectType.ActivateTrigger, effectInt1 = 12,
+                    effectType = EffectType.ActivateTrigger, effectInt1 = 14,
                     effect2Type = EffectType.ShowMessage, effect2Str1 = "Castle Çağı! 1500 altın tamamla.",
                 });
-                // Win only when BOTH conditions met (id=12 starts disabled; activated when first is met)
+                // Win only when BOTH conditions are met. Each "first condition met" trigger arms a
+                // win-trigger that checks the OTHER condition — otherwise reaching Castle first armed
+                // a win-trigger whose own condition was also "Castle reached", granting an instant win
+                // with 0 gold. id=12 = gold-first→still-need-Castle; id=14 = Castle-first→still-need-gold.
                 ts.Add(new TriggerData {
                     id = 12, enabled = false, oneShot = true,
                     conditionType = ConditionType.AgeReached,
                     condInt1 = 0, condInt2 = 2,
+                    effectType = EffectType.YouWin,
+                    effectStr1 = "Görev tamamlandı! Ekonomi gücü kanıtlandı.",
+                });
+                ts.Add(new TriggerData {
+                    id = 14, enabled = false, oneShot = true,
+                    conditionType = ConditionType.ResourceGathered,
+                    condInt1 = 0, condInt2 = (int)ResourceKind.Gold, condFloat1 = 1500f,
                     effectType = EffectType.YouWin,
                     effectStr1 = "Görev tamamlandı! Ekonomi gücü kanıtlandı.",
                 });

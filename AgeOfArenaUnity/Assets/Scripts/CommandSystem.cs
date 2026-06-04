@@ -315,7 +315,7 @@ public class CommandSystem : MonoBehaviour
         var gm = GameManager.Instance;
         var b = gm?.selectedBuilding;
         if (b == null || gm.garrison == null) return;
-        if (b.GarrisonCount > 0 && Input.GetKeyDown(KeyCode.U))
+        if (b.GarrisonCount > 0 && Hotkeys.Down(HotkeyAction.Ungarrison))
             gm.garrison.UngarrisonAll(b);
     }
 

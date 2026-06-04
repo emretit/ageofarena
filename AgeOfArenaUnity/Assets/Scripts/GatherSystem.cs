@@ -61,8 +61,23 @@ public class GatherSystem : MonoBehaviour
         v.MoveTo(ApproachPoint(node, v.transform.position, GatherRangeFor(node.kind) * 0.7f));
     }
 
+    float _sweep;
+    readonly List<UnitEntity> _deadKeys = new();
+
     public void Tick(List<UnitEntity> units, float dt)
     {
+        // Prune timers of villagers that died mid-gather. Their entry is otherwise only
+        // removed on the normal ReleaseNode path, so a killed gatherer leaks one dictionary
+        // entry (keyed by a destroyed object) for the rest of the match.
+        _sweep -= dt;
+        if (_sweep <= 0f)
+        {
+            _sweep = 8f;
+            _deadKeys.Clear();
+            foreach (var k in _timers.Keys) if (k == null) _deadKeys.Add(k);
+            for (int i = 0; i < _deadKeys.Count; i++) _timers.Remove(_deadKeys[i]);
+        }
+
         for (int i = 0; i < units.Count; i++)
         {
             var v = units[i];

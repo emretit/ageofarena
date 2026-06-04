@@ -868,13 +868,21 @@ public class WorldRoot : MonoBehaviour
         var bounds = new Bounds(Vector3.zero,
             new Vector3(OceanHalf * 2f + 4f, agentHeight * 2f + 4f, OceanHalf * 2f + 4f));
 
+        // NavMesh is baked from a FLAT disc, NOT the visual heightmap mesh (_landMesh). The
+        // heightmap leaves small flat pockets (base/center, see SampleTerrainNorm) ringed by
+        // terrain that rises ~1.4 over a few units — steeper than agentClimb (0.75). The
+        // voxelizer then severs those pockets from the main mesh and agentRadius erosion wipes
+        // them, so units spawned at the base sat OFF the NavMesh and ignored every move order.
+        // Gameplay is on the y≈0 plane anyway; the heightmap is purely cosmetic.
+        var flatLand = BuildDiscMesh(LandRadius, 128, 0f);
+
         // ── Land NavMesh (default agent): walkable on the disc, blocked by walls/forest.
         var landSources = new List<NavMeshBuildSource>
         {
             new NavMeshBuildSource
             {
                 shape        = NavMeshBuildSourceShape.Mesh,
-                sourceObject = _landMesh,
+                sourceObject = flatLand,
                 transform    = Matrix4x4.identity, // disc authored at the origin, y=0
                 area         = 0,
             }
@@ -904,11 +912,12 @@ public class WorldRoot : MonoBehaviour
                 transform = Matrix4x4.identity,
                 area      = 0,
             },
-            // …minus the island disc, so naval units ring the coast only.
+            // …minus the island disc (same flat disc as the land bake), so naval units ring
+            // the coast only.
             new NavMeshBuildSource
             {
                 shape        = NavMeshBuildSourceShape.Mesh,
-                sourceObject = _landMesh,
+                sourceObject = flatLand,
                 transform    = Matrix4x4.identity,
                 area         = 1,
             },
@@ -1106,27 +1115,50 @@ public class WorldRoot : MonoBehaviour
             }
         }
 
-        // Restore building HPs + rally (buildings are already placed by BuildBase).
+        // Buildings: destroy the default set and re-create EVERY building from its snapshot.
+        // The old code only position-matched saved buildings against the fixed set BuildBase
+        // spawns (TC/houses/barracks/stable/archery), copying HP/rally — so any building the
+        // player constructed during the saved game (Castle, towers, Market, Blacksmith,
+        // Wonder, extra Houses…) silently VANISHED on load, and destroyed default buildings
+        // came back at full HP. In Nomad mode (no BuildBase) it left zero buildings → the
+        // player's own TC was never recreated → instant "TC destroyed" loss on load. Mirror
+        // the unit path (wipe defaults, respawn from save) so the saved world is reproduced.
+        for (int i = gm.buildings.Count - 1; i >= 0; i--)
+        {
+            var b = gm.buildings[i];
+            if (b != null) Object.Destroy(b.gameObject);
+        }
+        gm.buildings.Clear();
+
         foreach (var bs in data.buildings)
         {
             if (bs == null) continue;
-            var pos = new Vector3(bs.x, 0, bs.z);
-            foreach (var b in gm.buildings)
+            var bpos = new Vector3(bs.x, 0, bs.z);
+            var go = BuildingFactory.Create((BuildingType)bs.type, null, bpos, TeamPalette.For(bs.teamId));
+            if (go == null) continue;
+            var be = go.GetComponent<BuildingEntity>();
+            if (be == null) continue;
+            be.teamId = bs.teamId;
+            if (bs.underConstruction)
             {
-                if (b == null || b.teamId != bs.teamId || (int)b.type != bs.type) continue;
-                float dist = Vector3.Distance(b.transform.position, pos);
-                if (dist < 3f)
-                {
-                    b.hp = bs.hp;
-                    // N12.savefull: restore rally point (set the flag too, not just the vector)
-                    if (bs.hasRally)
-                    {
-                        b.hasRally   = true;
-                        b.rallyPoint = new Vector3(bs.rallyX, 0f, bs.rallyZ);
-                    }
-                    break;
-                }
+                // maxHp must be known to size buildProgress; set it explicitly (skips the
+                // civ/tech HP-mult that Start() would apply, acceptable for the rare
+                // mid-construction case) so BuildSystem resumes from the saved fraction.
+                be.maxHp = BuildingEntity.MaxHpFor((BuildingType)bs.type);
+                be.buildTime = BuildingDefs.Get((BuildingType)bs.type).buildTime;
+                be.underConstruction = true;
+                be.buildProgress = be.maxHp > 0f ? Mathf.Clamp01(bs.hp / be.maxHp) : 0f;
+                be.transform.localScale = new Vector3(1f, Mathf.Lerp(0.05f, 1f, be.buildProgress), 1f);
             }
+            // Set hp AFTER team (so Start's civ/tech maxHp mult resolves) but it survives
+            // Start() because Start only fills hp when hp <= 0.
+            be.hp = bs.hp;
+            if (bs.hasRally)
+            {
+                be.hasRally   = true;
+                be.rallyPoint = new Vector3(bs.rallyX, 0f, bs.rallyZ);
+            }
+            gm.RegisterBuilding(be);
         }
 
         gm.RecomputePop();

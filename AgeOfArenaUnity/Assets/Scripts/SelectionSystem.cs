@@ -50,7 +50,7 @@ public class SelectionSystem : MonoBehaviour
         if (gm != null && gm.command != null && gm.command.AttackMovePending) return; // attack-move picking owns the mouse
 
         HandleControlGroups(gm);
-        if (Input.GetKeyDown(KeyCode.Period)) SelectNextIdleWorker();
+        if (Hotkeys.Down(HotkeyAction.SelectIdle)) SelectNextIdleWorker();
 
         if (Input.GetMouseButtonDown(0))
         {

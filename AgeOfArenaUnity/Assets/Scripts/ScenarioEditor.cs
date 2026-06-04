@@ -326,7 +326,8 @@ public class ScenarioEditor : MonoBehaviour
         MakeBtn(bar, "💾 Kaydet", 660, 0, 100, 36, SaveScenario);
         MakeBtn(bar, "📂 Yükle",  770, 0, 100, 36, LoadScenario);
         MakeBtn(bar, "▶ Test Et", 880, 0, 110, 36, PlaytestScenario);
-        MakeBtn(bar, "✕ Kapat",   900, 0,  90, 36, Close);
+        // Kapat was at x=900 (spanning 900..990), overlapping Test Et (880..990); move it clear.
+        MakeBtn(bar, "✕ Kapat",  1000, 0,  90, 36, Close);
 
         // ── Left palette panel ─────────────────────────────────────────────────
         var pal = MakeRect("Palette", cgo.transform);

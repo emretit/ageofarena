@@ -160,8 +160,16 @@ public class TrainingQueue : MonoBehaviour
     public void Tick(float dt)
     {
         var gm = GM;
+        List<BuildingEntity> dead = null;
         foreach (var kvp in _queues)
         {
+            // A producing building destroyed mid-train leaves its queue entry in the
+            // dictionary (only gm.buildings is pruned on death). Without this guard,
+            // completing an item would call SpawnUnit on a fake-null building and throw
+            // MissingReferenceException every frame, aborting the whole training tick.
+            // (ResearchSystem.Tick already guards this way; TrainingQueue did not.)
+            if (kvp.Key == null) { (dead ??= new()).Add(kvp.Key); continue; }
+
             var q = kvp.Value;
             if (q.Count == 0) continue;
 
@@ -173,6 +181,8 @@ public class TrainingQueue : MonoBehaviour
                 SpawnUnit(kvp.Key, item.unitType, gm);
             }
         }
+        if (dead != null)
+            for (int i = 0; i < dead.Count; i++) _queues.Remove(dead[i]);
     }
 
     void SpawnUnit(BuildingEntity b, UnitType unitType, GameManager gm)

@@ -186,6 +186,9 @@ public class FogOfWarSystem : MonoBehaviour
     /// <summary>Show/hide enemy units and buildings based on whether their
     /// map cell is currently lit (r == 255).  Runs every 0.5 s to amortize cost.
     /// Allied units are always visible regardless of fog.</summary>
+    int _sweepCounter;
+    readonly System.Collections.Generic.List<GameObject> _deadKeys = new();
+
     void TickEnemyVisibility(GameManager gm)
     {
         for (int i = 0; i < gm.units.Count; i++)
@@ -199,6 +202,21 @@ public class FogOfWarSystem : MonoBehaviour
             var b = gm.buildings[i];
             if (b == null || gm.IsAllied(0, b.teamId)) continue;
             SetRenderersEnabled(b.gameObject, IsLit(b.transform.position));
+        }
+
+        // Periodically prune cache entries for enemies that died: their GameObject is
+        // destroyed but stays as a stale key in both dicts (only Reset() cleared them),
+        // a slow unbounded leak over a long match with many kills. ~every 16 vis-ticks.
+        if (++_sweepCounter >= 16)
+        {
+            _sweepCounter = 0;
+            _deadKeys.Clear();
+            foreach (var k in _rendererCache.Keys) if (k == null) _deadKeys.Add(k);
+            for (int i = 0; i < _deadKeys.Count; i++)
+            {
+                _rendererCache.Remove(_deadKeys[i]);
+                _litState.Remove(_deadKeys[i]);
+            }
         }
     }
 

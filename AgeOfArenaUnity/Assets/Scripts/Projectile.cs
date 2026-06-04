@@ -26,6 +26,7 @@ public class Projectile : MonoBehaviour
     float       _damage;
     DamageType  _damageType = DamageType.Pierce;
     float       _splashRadius;
+    float       _elevationMult = 1f;   // attacker's elevation context, applied to splash victims
     UnitEntity  _attacker;
     Vector3     _snapPos;
     float       _age;
@@ -70,7 +71,7 @@ public class Projectile : MonoBehaviour
     /// <summary>Fire a projectile from <paramref name="from"/> at <paramref name="target"/>.</summary>
     public static void Spawn(Vector3 from, IDamageable target, float damage,
                              DamageType damageType = DamageType.Pierce, float splashRadius = 0f,
-                             UnitEntity attacker = null)
+                             UnitEntity attacker = null, float elevationMult = 1f)
     {
         if (target == null || !target.IsAlive) return;
 
@@ -89,6 +90,7 @@ public class Projectile : MonoBehaviour
         p._damage       = damage;
         p._damageType   = damageType;
         p._splashRadius = splashRadius;
+        p._elevationMult = elevationMult;
         p._attacker     = attacker;
         p._age          = 0f;
 
@@ -106,8 +108,9 @@ public class Projectile : MonoBehaviour
 
     void ReturnToPool()
     {
-        _target     = null;
-        _attacker   = null;
+        _target        = null;
+        _attacker      = null;
+        _elevationMult = 1f;
         Pool.Release(this);
     }
 
@@ -164,9 +167,11 @@ public class Projectile : MonoBehaviour
                         if (distSq > r2) continue;
                         float frac    = Mathf.Sqrt(distSq) / _splashRadius;
                         float falloff = _attacker != null ? _attacker.SplashFalloffAt(frac) : 1f;
+                        // Apply the same elevation context the main target got, so splash
+                        // damage isn't silently un-elevation-adjusted relative to the direct hit.
                         float sd      = (_attacker != null
                             ? _attacker.AttackDamage + _attacker.BonusDamageVs(o)
-                            : _damage) * falloff;
+                            : _damage) * falloff * _elevationMult;
                         o.TakeDamage(sd, _damageType);
                         DamagePopup.Show(op + Vector3.up * 1.5f, Mathf.RoundToInt(sd), true);
                     }

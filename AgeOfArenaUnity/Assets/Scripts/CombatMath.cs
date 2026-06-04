@@ -19,7 +19,9 @@ public static class CombatMath
         DamageType.Pierce => pierceArmor,
         DamageType.Melee  => meleeArmor,
         DamageType.Siege  => meleeArmor,   // N0.1
-        _                 => 0f,
+        // Fail closed: an unmapped damage class resists with melee armor instead of 0
+        // (which silently let the full hit through, bypassing all armor).
+        _                 => meleeArmor,
     };
 
     /// <summary>Returns "" if all assertions pass, otherwise the first failure. Invoked from the

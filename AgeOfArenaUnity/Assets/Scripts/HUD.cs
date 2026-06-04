@@ -306,7 +306,10 @@ public class HUD : MonoBehaviour
         rect.anchorMin = rect.anchorMax = new Vector2(1, 0.5f);
         rect.pivot = new Vector2(1, 0.5f);
         rect.sizeDelta = new Vector2(80, 32);
-        rect.anchoredPosition = new Vector2(-668, 0);
+        // Sits just left of the Civ pill (which spans -835..-665). The old -668 put this
+        // 80px pill entirely inside the Civ pill, so their labels overlapped and the right
+        // ~80px of the Civ button was unclickable.
+        rect.anchoredPosition = new Vector2(-845, 0);
         var img = rect.gameObject.AddComponent<Image>();
         img.color = new Color(0.22f, 0.22f, 0.30f, 0.92f);
         UiSkin.SkinPanel(img, UiSkin.PillNormal, Color.white);
@@ -1417,13 +1420,20 @@ public class HUD : MonoBehaviour
             txt.fontSize = 22; txt.fontStyle = FontStyle.Bold;
         }
 
-        AddBtn(Loc.Get("pause.resume"),  () => ClosePauseMenu(), 130f);
-        AddBtn("Teknoloji Ağacı", () => { ClosePauseMenu(); OpenTechTreePanel(gm); }, 70f);
-        AddBtn(Loc.Get("pause.hotkeys"), () => OpenHotkeyPanel(), 10f);   // N9.hotkeys: remap UI
+        // Auto-stacking y-cursor: every full-width button gets its own 54px slot so they can
+        // never overlap. (The old hand-numbered offsets collided — resign/-50 over Editör/-30,
+        // restart/-110 over Kampanya/-90, fog/-170 over Replay/-150 — leaving several buttons
+        // partially covered and unreliable to click.)
+        float y = 320f;
+        const float step = 54f;
+
+        AddBtn(Loc.Get("pause.resume"),  () => ClosePauseMenu(), y); y -= step;
+        AddBtn("Teknoloji Ağacı", () => { ClosePauseMenu(); OpenTechTreePanel(gm); }, y); y -= step;
+        AddBtn(Loc.Get("pause.hotkeys"), () => OpenHotkeyPanel(), y); y -= step;   // N9.hotkeys: remap UI
         // N12.edit: open scenario editor
-        AddBtn("📝 Editör", () => { ClosePauseMenu(); gm.scenarioEditor?.Open(); }, -30f);
+        AddBtn("📝 Editör", () => { ClosePauseMenu(); gm.scenarioEditor?.Open(); }, y); y -= step;
         // N13.camp: open campaign screen
-        AddBtn("⚔ Kampanya", () => { ClosePauseMenu(); gm.campaignScreen?.Show(); }, -90f);
+        AddBtn("⚔ Kampanya", () => { ClosePauseMenu(); gm.campaignScreen?.Show(); }, y); y -= step;
         // N15.checksum: save replay snapshot + trigger verify run
         AddBtn("🔁 Replay", () =>
         {
@@ -1432,24 +1442,24 @@ public class HUD : MonoBehaviour
             if (result != null) { ShowSubtitle($"Sonuç: {result}", 5f); return; }
             ClosePauseMenu();
             gm.checksum.StartReplayVerify();
-        }, -150f);
-        AddBtn(Loc.Get("pause.resign"),  () => { ClosePauseMenu(); gm.match?.Resign(); }, -50f);
-        AddBtn(Loc.Get("pause.restart"), () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -110f);
+        }, y); y -= step;
+        AddBtn(Loc.Get("pause.resign"),  () => { ClosePauseMenu(); gm.match?.Resign(); }, y); y -= step;
+        AddBtn(Loc.Get("pause.restart"), () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, y); y -= step;
         // FOWD: fog toggle in pause menu
         AddBtn(gm.fow != null && gm.fow.fogEnabled ? Loc.Get("pause.fogOff") : Loc.Get("pause.fogOn"),
-            () => { if (gm.fow != null) { gm.fow.fogEnabled = !gm.fow.fogEnabled; ClosePauseMenu(); } }, -170f);
+            () => { if (gm.fow != null) { gm.fow.fogEnabled = !gm.fow.fogEnabled; ClosePauseMenu(); } }, y); y -= step;
         // N9.a11y: colorblind palette toggle
         AddBtn(AccessibilitySettings.ColorblindMode ? "Renk Std" : "Renk KB",
-            () => { AccessibilitySettings.SetColorblindMode(!AccessibilitySettings.ColorblindMode); ClosePauseMenu(); }, -230f);
+            () => { AccessibilitySettings.SetColorblindMode(!AccessibilitySettings.ColorblindMode); ClosePauseMenu(); }, y); y -= step;
         // N9.a11y: UI scale +/-
-        AddBtn("UI +", () => { AccessibilitySettings.SetUiScale(AccessibilitySettings.UiScale + 0.1f); ApplyUiScale(); }, -290f, 60f);
-        AddBtn("UI -", () => { AccessibilitySettings.SetUiScale(AccessibilitySettings.UiScale - 0.1f); ApplyUiScale(); }, -290f, -60f);
+        AddBtn("UI +", () => { AccessibilitySettings.SetUiScale(AccessibilitySettings.UiScale + 0.1f); ApplyUiScale(); }, y, 60f);
+        AddBtn("UI -", () => { AccessibilitySettings.SetUiScale(AccessibilitySettings.UiScale - 0.1f); ApplyUiScale(); }, y, -60f); y -= step;
         // N7.spatial: volume buttons
-        AddBtn("Vol +", () => AudioManager.MasterVolume = Mathf.Clamp01(AudioManager.MasterVolume + 0.1f), -350f, 60f);
-        AddBtn("Vol -", () => AudioManager.MasterVolume = Mathf.Clamp01(AudioManager.MasterVolume - 0.1f), -350f, -60f);
+        AddBtn("Vol +", () => AudioManager.MasterVolume = Mathf.Clamp01(AudioManager.MasterVolume + 0.1f), y, 60f);
+        AddBtn("Vol -", () => AudioManager.MasterVolume = Mathf.Clamp01(AudioManager.MasterVolume - 0.1f), y, -60f); y -= step;
         // N7.music: music volume buttons
-        AddBtn("Müzik +", () => AudioManager.MusicVolume = Mathf.Clamp01(AudioManager.MusicVolume + 0.1f), -410f, 60f);
-        AddBtn("Müzik -", () => AudioManager.MusicVolume = Mathf.Clamp01(AudioManager.MusicVolume - 0.1f), -410f, -60f);
+        AddBtn("Müzik +", () => AudioManager.MusicVolume = Mathf.Clamp01(AudioManager.MusicVolume + 0.1f), y, 60f);
+        AddBtn("Müzik -", () => AudioManager.MusicVolume = Mathf.Clamp01(AudioManager.MusicVolume - 0.1f), y, -60f); y -= step;
     }
 
     void ApplyUiScale()
@@ -1564,17 +1574,18 @@ public class HUD : MonoBehaviour
     }
 
     // ── N9.hotkeys: rebindable-key settings panel ────────────────────────────
+    // Only actions with a real consumer are remappable. Garrison (no key handler — garrison
+    // is right-click), BuildMenu (no handler), and Repair (the H key is hardcoded to the Town
+    // Bell, not a repair command — repair is right-click) were listed here but rebinding them
+    // did nothing, so they're omitted rather than mislead the player.
     static readonly (HotkeyAction action, string label)[] RemapRows =
     {
         (HotkeyAction.Stop,        "Durdur"),
         (HotkeyAction.AttackMove,  "Saldır-Yürü"),
         (HotkeyAction.Stance,      "Duruş Değiştir"),
-        (HotkeyAction.Garrison,    "Garnizona Gir"),
         (HotkeyAction.Ungarrison,  "Garnizon Boşalt"),
         (HotkeyAction.Diplomacy,   "Diplomasi"),
         (HotkeyAction.SelectIdle,  "Boşta İşçi Seç"),
-        (HotkeyAction.BuildMenu,   "İnşa Menüsü"),
-        (HotkeyAction.Repair,      "Onar"),
     };
 
     void OpenHotkeyPanel()
@@ -1688,6 +1699,11 @@ public class HUD : MonoBehaviour
         // mission's triggers/economy don't leak into the next normal match.
         if (playerWon) CampaignSystem.OnCampaignWin();
         else           CampaignSystem.Abort();
+
+        // Same leak existed for Art of War: ActiveChallenge was only reset by the campaign
+        // screen, so after any AoW challenge ended, the NEXT match (auto-restart / new game)
+        // silently re-injected the challenge's win/fail triggers over the real match. Clear it.
+        ArtOfWarSystem.ActiveChallenge = ArtOfWarChallenge.None;
 
         var gm = GameManager.Instance;
 

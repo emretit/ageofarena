@@ -44,18 +44,22 @@ public class EnemyAI : MonoBehaviour
     const float GatherCheckInterval = 6f;
     const float TechInterval        = 8f;
 
-    // Unit costs (the AI runs a simplified economy, so these don't mirror the
-    // player's BuildingDefs costs exactly — they're balanced for the AI's income).
-    const int MilitiaCostFood    = 60;
-    const int ArcherCostWood     = 35;
-    const int ArcherCostGold     = 25;
-    const int CavalryCostFood    = 80;
-    const int TrebuchetCostWood  = 200;
+    // Unit costs — these MUST mirror the real UnitTrainable costs the AI enqueues
+    // (BuildingEntity), otherwise the affordability gate tests the wrong resource:
+    // the AI would "pick" a unit it can't actually pay for, Enqueue rejects it, and the
+    // spawn tick is wasted. (Old bug: Militia was gated on food=60 though Militia costs
+    // wood 60 / gold 20; Archer was gated on wood 35 / gold 25 though it costs wood 25 / gold 45.)
+    const int MilitiaCostWood    = 60;   // Militia: wood 60, gold 20
+    const int MilitiaCostGold    = 20;
+    const int ArcherCostWood     = 25;   // Archer: wood 25, gold 45
+    const int ArcherCostGold     = 45;
+    const int CavalryCostFood    = 80;   // Cavalry: food 80
+    const int TrebuchetCostWood  = 200;  // Trebuchet: wood 200, gold 100
     const int TrebuchetCostGold  = 100;
-    const int VillagerCostFood   = 50;
-    const int SpearmanCostFood   = 35;
+    const int VillagerCostFood   = 50;   // Villager: food 50
+    const int SpearmanCostFood   = 35;   // Spearman: food 35, wood 25
     const int SpearmanCostWood   = 25;
-    const int MedicCostFood      = 60;
+    const int MedicCostFood      = 60;   // Medic: food 60
 
     // ── Army coordination tuning ────────────────────────────────────────────
     const float RallyRadius        = 6f;    // arrival check radius at the rally point
@@ -347,8 +351,12 @@ public class EnemyAI : MonoBehaviour
     {
         Age age = _tech != null ? _tech.age : Age.Dark;
 
-        // Siege: aim for ~1 Trebuchet per 6 army to demolish structures.
-        if (age >= Age.Castle)
+        // Siege: aim for ~1 Trebuchet per 6 army to demolish structures. GATED on the AI
+        // actually owning a Siege Workshop — otherwise BuildingFor(Trebuchet) finds no
+        // production building, TrySpawn returns without training, and since `treb` can never
+        // grow this branch fires every tick and the AI stops reinforcing entirely (the
+        // Castle-age production deadlock). Same for the Medic/Castle pair below.
+        if (age >= Age.Castle && OwnsProduction(gm, BuildingType.SiegeWorkshop))
         {
             int treb = CountType(gm, UnitType.Trebuchet);
             if (treb < 1 + CountArmy(gm) / 6 && _res.CanAfford(0, TrebuchetCostWood, TrebuchetCostGold, 0))
@@ -362,16 +370,17 @@ public class EnemyAI : MonoBehaviour
             && _res.CanAfford(SpearmanCostFood, SpearmanCostWood, 0, 0))
             return UnitType.Spearman;
 
-        // Support: one Medic per 6 army for survivability.
+        // Support: one Medic per 6 army for survivability. Gated on owning a Castle.
         int medics = CountType(gm, UnitType.Medic);
-        if (age >= Age.Castle && medics < 1 + CountArmy(gm) / 6
+        if (age >= Age.Castle && OwnsProduction(gm, BuildingType.Castle)
+            && medics < 1 + CountArmy(gm) / 6
             && _res.CanAfford(MedicCostFood, 0, 0, 0))
             return UnitType.Medic;
 
         // AISC: profile-weighted frontline selection.
         // Build a weighted candidate list of affordable/unlocked unit types.
         var candidates = new System.Collections.Generic.List<(UnitType type, float w)>(3);
-        if (_res.CanAfford(MilitiaCostFood, 0, 0, 0))
+        if (_res.CanAfford(0, MilitiaCostWood, MilitiaCostGold, 0))
             candidates.Add((UnitType.Militia, _profile.meleeWeight));
         if (age >= Age.Feudal && _res.CanAfford(0, ArcherCostWood, ArcherCostGold, 0))
             candidates.Add((UnitType.Archer, _profile.archerWeight));
@@ -401,6 +410,21 @@ public class EnemyAI : MonoBehaviour
             if (u != null && u.teamId != _teamId && u.type == UnitType.Cavalry) n++;
         }
         return n;
+    }
+
+    /// <summary>True if this AI team owns a finished, alive production building of the
+    /// given type. Used to gate unit picks so the AI never selects a unit it has no
+    /// building to train (which would silently waste the spawn tick).</summary>
+    bool OwnsProduction(GameManager gm, BuildingType type)
+    {
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b != null && b.teamId == _teamId && b.type == type
+                && !b.underConstruction && b.hp > 0f)
+                return true;
+        }
+        return false;
     }
 
     // ── Military: coordinated army state machine ───────────────────────────────
