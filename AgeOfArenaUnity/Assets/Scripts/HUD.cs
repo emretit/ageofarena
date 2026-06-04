@@ -778,8 +778,21 @@ public class HUD : MonoBehaviour
             if (idle > 0 && _idleText != null) _idleText.text = "Boşta köylü: " + idle + " (.)";
         }
 
+        // VTIME: time limit countdown in top bar.
+        if (gm.match != null && gm.match.MatchTimeLimit > 0f && _victoryText != null)
+        {
+            float rem = gm.match.TimeRemaining;
+            if (rem < float.MaxValue)
+            {
+                int mins = (int)(rem / 60f), secs = (int)(rem % 60f);
+                string timeStr = $"Süre: {mins:00}:{secs:00}";
+                if (_victoryText.text != timeStr) _victoryText.text = timeStr;
+                if (!_victoryRect.gameObject.activeSelf) _victoryRect.gameObject.SetActive(true);
+            }
+        }
+
         // Victory countdown banner: visible only while a Wonder/relic count is running.
-        if (_victoryRect != null)
+        if (_victoryRect != null && (gm.match == null || gm.match.MatchTimeLimit <= 0f))
         {
             string vs = gm.match != null ? gm.match.VictoryStatus : "";
             bool showVictory = !string.IsNullOrEmpty(vs);
@@ -1448,6 +1461,7 @@ public class HUD : MonoBehaviour
         UnitType.Mangudai    => "Mangudai",
         UnitType.Samurai     => "Samuray",
         UnitType.Eagle       => "Kartal Savaşçı",
+        UnitType.FishingShip => "Balıkçı Gemisi",
         _                    => t.ToString(),
     };
 
@@ -1521,6 +1535,7 @@ public class HUD : MonoBehaviour
         BuildingType.SiegeWorkshop => "Kuşatma Atölyesi",
         BuildingType.Outpost      => "Gözcü Kulesi",
         BuildingType.BombardTower => "Bombard Kulesi",
+        BuildingType.FishTrap     => "Balık Tuzağı",
         _                         => t.ToString(),
     };
 
