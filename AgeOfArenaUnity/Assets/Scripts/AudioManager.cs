@@ -56,16 +56,75 @@ public class AudioManager : MonoBehaviour
     };
 
     // N7.spatial: volume controls — Master (all) × SFX (shots/UI). Music handled separately.
-    static float _masterVol = 1f;
-    static float _sfxVol    = 1f;
+    static float _masterVol  = 1f;
+    static float _sfxVol     = 1f;
+    static float _musicVol   = 0.55f;
 
-    public static float MasterVolume { get => _masterVol; set { _masterVol = Mathf.Clamp01(value); PlayerPrefs.SetFloat("Audio.Master", _masterVol); PlayerPrefs.Save(); } }
+    public static float MasterVolume { get => _masterVol; set { _masterVol = Mathf.Clamp01(value); PlayerPrefs.SetFloat("Audio.Master", _masterVol); PlayerPrefs.Save(); ApplyMusicVolume(); } }
     public static float SfxVolume    { get => _sfxVol;    set { _sfxVol    = Mathf.Clamp01(value); PlayerPrefs.SetFloat("Audio.SFX",    _sfxVol);    PlayerPrefs.Save(); } }
+    public static float MusicVolume  { get => _musicVol;  set { _musicVol  = Mathf.Clamp01(value); PlayerPrefs.SetFloat("Audio.Music",  _musicVol);  PlayerPrefs.Save(); ApplyMusicVolume(); } }
+
+    static void ApplyMusicVolume()
+    {
+        if (_instance != null && _instance._musicSrc != null)
+            _instance._musicSrc.volume = _masterVol * _musicVol * _instance._duckFactor;
+    }
 
     public static void LoadVolumes()
     {
         _masterVol = PlayerPrefs.GetFloat("Audio.Master", 1f);
         _sfxVol    = PlayerPrefs.GetFloat("Audio.SFX",    1f);
+        _musicVol  = PlayerPrefs.GetFloat("Audio.Music",  0.55f);
+    }
+
+    // N7.music: dedicated looping music source + combat duck
+    AudioSource _musicSrc;
+    AudioClip   _musicClip;
+    float       _duckFactor   = 1f;      // lowered during combat (duck)
+    const float DuckTarget    = 0.35f;   // ducked volume fraction during combat
+    const float DuckSpeed     = 2.0f;    // lerp speed for duck/unduck
+    Age         _lastAge      = (Age)(-1);
+    bool        _combatActive;
+
+    /// <summary>N7.music: play the age-appropriate background track. Called by HUD on age advance.</summary>
+    public static void PlayMusicForAge(Age age)
+    {
+        if (_instance == null) return;
+        _instance.StartMusicTrack(age);
+    }
+
+    /// <summary>N7.music: signal combat start/end so music ducks during battles.</summary>
+    public static void SetCombatActive(bool active)
+    {
+        if (_instance == null) return;
+        _instance._combatActive = active;
+    }
+
+    void StartMusicTrack(Age age)
+    {
+        if (age == _lastAge) return;
+        _lastAge = age;
+
+        // Try to load a file from Resources/Audio/music_<age>; fall back to procedural.
+        string path = "Audio/music_" + age.ToString().ToLower();
+        var clip = Resources.Load<AudioClip>(path) ?? MakeMusicClip(age);
+
+        if (_musicSrc == null)
+        {
+            _musicSrc       = gameObject.AddComponent<AudioSource>();
+            _musicSrc.loop  = true;
+        }
+        _musicSrc.clip   = clip;
+        _musicSrc.volume = _masterVol * _musicVol;
+        _musicSrc.Play();
+    }
+
+    void Update()
+    {
+        if (_musicSrc == null) return;
+        float target = _combatActive ? DuckTarget : 1f;
+        _duckFactor = Mathf.Lerp(_duckFactor, target, Time.unscaledDeltaTime * DuckSpeed);
+        _musicSrc.volume = _masterVol * _musicVol * _duckFactor;
     }
 
     public static void Play(SoundId id, float volumeScale = 1f)
@@ -92,6 +151,41 @@ public class AudioManager : MonoBehaviour
 
         for (int i = 0; i < Paths.Length; i++)
             _clips[i] = Resources.Load<AudioClip>(Paths[i]) ?? MakeClip((SoundId)i);
+
+        // N7.music: start Dark Age ambient immediately
+        StartMusicTrack(Age.Dark);
+    }
+
+    // N7.music: procedural ambient loop per age (simple harmonic drone, 4 bars × 2s).
+    static AudioClip MakeMusicClip(Age age)
+    {
+        // Base drones that evolve per age (lower = darker, higher = grander).
+        float[] freqs = age switch
+        {
+            Age.Dark     => new[] { 110f, 138f, 165f },     // A2-C#3-E3 minor
+            Age.Feudal   => new[] { 146f, 185f, 220f },     // D3-F#3-A3
+            Age.Castle   => new[] { 196f, 247f, 294f },     // G3-B3-D4
+            Age.Imperial => new[] { 220f, 277f, 330f },     // A3-C#4-E4 major
+            _            => new[] { 110f, 138f, 165f },
+        };
+
+        float dur = 8f; // 8-second loop
+        int total = Mathf.RoundToInt(SampleRate * dur);
+        float[] data = new float[total];
+
+        for (int n = 0; n < total; n++)
+        {
+            float t   = (float)n / SampleRate;
+            float env = 0.5f + 0.5f * Mathf.Sin(2f * Mathf.PI * t / dur); // slow swell
+            float s   = 0f;
+            foreach (float f in freqs)
+            {
+                s += Mathf.Sin(2f * Mathf.PI * f * t) * 0.25f;
+                s += Mathf.Sin(2f * Mathf.PI * f * 2f * t) * 0.06f; // 2nd harmonic
+            }
+            data[n] = s * env * 0.18f;
+        }
+        return FromData("music_" + age, data);
     }
 
     void PlaySound(SoundId id, float vol)

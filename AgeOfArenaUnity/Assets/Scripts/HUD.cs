@@ -120,6 +120,7 @@ public class HUD : MonoBehaviour
         _ageText.text = Loc.Get("hud.age") + ": " + AgeName(newAge);
         // AGFX: play age-up sound and show popup for player only.
         AudioManager.Play(AudioManager.SoundId.AgeUp, 1.0f);
+        AudioManager.PlayMusicForAge(newAge); // N7.music: switch to age-specific track
         if (_canvasRoot != null)
             StartCoroutine(ShowAgePopup(newAge));
     }
@@ -1417,6 +1418,9 @@ public class HUD : MonoBehaviour
         // N7.spatial: volume buttons
         AddBtn("Vol +", () => AudioManager.MasterVolume = Mathf.Clamp01(AudioManager.MasterVolume + 0.1f), -350f, 60f);
         AddBtn("Vol -", () => AudioManager.MasterVolume = Mathf.Clamp01(AudioManager.MasterVolume - 0.1f), -350f, -60f);
+        // N7.music: music volume buttons
+        AddBtn("Müzik +", () => AudioManager.MusicVolume = Mathf.Clamp01(AudioManager.MusicVolume + 0.1f), -410f, 60f);
+        AddBtn("Müzik -", () => AudioManager.MusicVolume = Mathf.Clamp01(AudioManager.MusicVolume - 0.1f), -410f, -60f);
     }
 
     void ApplyUiScale()

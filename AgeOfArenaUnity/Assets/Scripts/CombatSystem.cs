@@ -21,10 +21,27 @@ public class CombatSystem : MonoBehaviour
 
     // N1.hpbar: IMGUI bar textures removed — world-space WorldHpBar handles rendering.
 
+    // N7.music: track whether any player unit is in combat for music ducking.
+    float _combatSignalTimer;
+
     public void Tick(List<UnitEntity> units, float dt)
     {
         bool scanAggro = (_aggroTimer -= dt) <= 0f;
         if (scanAggro) _aggroTimer = AggroInterval;
+
+        // Signal combat activity every 2s to AudioManager for duck/unduck.
+        _combatSignalTimer -= dt;
+        if (_combatSignalTimer <= 0f)
+        {
+            _combatSignalTimer = 2f;
+            bool anyCombat = false;
+            for (int i = 0; i < units.Count && !anyCombat; i++)
+            {
+                var u = units[i];
+                if (u != null && u.teamId == 0 && u.attackTarget != null) anyCombat = true;
+            }
+            AudioManager.SetCombatActive(anyCombat);
+        }
 
         for (int i = 0; i < units.Count; i++)
         {
