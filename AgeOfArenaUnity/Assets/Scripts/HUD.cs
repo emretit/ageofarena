@@ -17,19 +17,28 @@ public class HUD : MonoBehaviour
     Font _font;
     ResourceManager _res;
     Transform _canvasRoot;
+    CanvasScaler _canvasScaler;   // N9.a11y: UI scale slider drives referenceResolution
     bool _gameOverShown;
+    /// <summary>N9.postgame test helper: reset game-over flag so overlay can be shown again.</summary>
+    public void ResetGameOver() { _gameOverShown = false; }
+    /// <summary>Diagnostic: returns whether the canvas root is initialised.</summary>
+    public bool HasCanvasRoot => _canvasRoot != null;
     GameObject _pauseMenu;
+    // N9.hotkeys: remap panel state
+    GameObject _hotkeyPanel;
+    HotkeyAction? _listeningAction;          // action awaiting its next key press
+    readonly System.Collections.Generic.Dictionary<HotkeyAction, Text> _hotkeyKeyLabels = new();
 
     // Top bar
     Text _foodText, _woodText, _goldText, _stoneText, _popText, _ageText, _relicText;
     Button _idleButton; Text _idleText;
     Text _victoryText; RectTransform _victoryRect;
+    Text _subtitleText; float _subtitleTimer; // N6.form: short transient notification
     Text _difficultyText;
     Text _civText;
 
     // ── Command bar ──────────────────────────────────────────────────────────
     RectTransform _cmdBar;
-    bool _barActive;
     // Left info panel
     Text _infoName, _infoSub, _hpText;
     RectTransform _hpBarBg, _hpBarFill;
@@ -65,11 +74,19 @@ public class HUD : MonoBehaviour
     int _lastTechVer = -1;
     int _lastQueueCount = -1;
 
-    const int   Cols   = 5;
-    const int   Rows   = 3;            // fixed AoE-style slot grid (Cols×Rows)
+    const int   Cols         = 5;
+    const int   Rows         = 3;            // fixed AoE-style slot grid (Cols×Rows)
+    const int   SlotsPerPage = Cols * Rows;  // CMDP: 15 slots per page
     const float BtnW   = 60f, BtnH = 60f, Gap = 6f;
-    const float BarH   = 210f;
-    const float LeftW  = 240f;
+    int         _cmdPage;                    // CMDP: current command card page (0-based)
+    const float BarH   = 220f;
+    const float LeftW  = 240f;         // info panel width
+    const float CmdZoneW = 352f;       // left command-grid zone (14 + 5×60+4×6 + 14)
+    const float MinW   = 230f;         // right minimap zone width (diamond sits here)
+
+    // Right minimap zone inside the bottom bar — MinimapSystem parents its diamond here.
+    RectTransform _minimapZone;
+    public RectTransform MinimapZone => _minimapZone;
 
     // Command-button category colors.
     static readonly Color TrainCol  = Prims.Hex(0x3a6ea5);
@@ -86,7 +103,7 @@ public class HUD : MonoBehaviour
         _font = ResolveFont();
         BuildCanvas();
         Refresh();
-        if (_ageText != null) _ageText.text = "Çağ: " + AgeName(Age.Dark);
+        if (_ageText != null) _ageText.text = Loc.Get("hud.age") + ": " + AgeName(Age.Dark);
         _res.OnChanged += Refresh;
         GameEvents.OnAgeAdvanced += OnAgeAdvanced;
     }
@@ -100,7 +117,11 @@ public class HUD : MonoBehaviour
     void OnAgeAdvanced(int team, Age newAge)
     {
         if (team != 0 || _ageText == null) return;
-        _ageText.text = "Çağ: " + AgeName(newAge);
+        _ageText.text = Loc.Get("hud.age") + ": " + AgeName(newAge);
+        // AGFX: play age-up sound and show popup for player only.
+        AudioManager.Play(AudioManager.SoundId.AgeUp, 1.0f);
+        AudioManager.PlayMusicForAge(newAge); // N7.music
+        MetaSystem.OnAgeAdvanced(team, newAge); // N13.meta
         if (_canvasRoot != null)
             StartCoroutine(ShowAgePopup(newAge));
     }
@@ -155,7 +176,8 @@ public class HUD : MonoBehaviour
         var canvas = canvasGo.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 100;
-        var scaler = canvasGo.AddComponent<CanvasScaler>();
+        _canvasScaler = canvasGo.AddComponent<CanvasScaler>();
+        var scaler = _canvasScaler;
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
         // Balance width/height matching so the bar keeps its proportions across
@@ -188,17 +210,19 @@ public class HUD : MonoBehaviour
         bar.anchorMin = new Vector2(0, 1);
         bar.anchorMax = new Vector2(1, 1);
         bar.pivot     = new Vector2(0.5f, 1);
-        bar.sizeDelta = new Vector2(0, 56);
+        bar.sizeDelta = new Vector2(0, 64);
         bar.anchoredPosition = Vector2.zero;
-        bar.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.55f);
+        var topBg = bar.gameObject.AddComponent<Image>();
+        topBg.color = new Color(0f, 0f, 0f, 0.55f);            // flat fallback
+        UiSkin.SkinPanel(topBg, UiSkin.BarBg, Color.white);    // wooden frame when kit present
 
         float x = 24f;
-        _foodText  = AddEntry(bar, ref x, Prims.Hex(0xd64545), "Food");
-        _woodText  = AddEntry(bar, ref x, Prims.Hex(0x8a5a2b), "Wood");
-        _goldText  = AddEntry(bar, ref x, Prims.Hex(0xf2c14e), "Gold");
-        _stoneText = AddEntry(bar, ref x, Prims.Hex(0xb9b9b9), "Stone");
-        _popText   = AddEntry(bar, ref x, Prims.Hex(0x6fa8dc), "Pop");
-        _relicText = AddEntry(bar, ref x, Prims.Hex(0xe0b84b), "Relic");
+        _foodText  = AddEntry(bar, ref x, Prims.Hex(0xd64545), Loc.Get("res.food"));
+        _woodText  = AddEntry(bar, ref x, Prims.Hex(0x8a5a2b), Loc.Get("res.wood"));
+        _goldText  = AddEntry(bar, ref x, Prims.Hex(0xf2c14e), Loc.Get("res.gold"));
+        _stoneText = AddEntry(bar, ref x, Prims.Hex(0xb9b9b9), Loc.Get("res.stone"));
+        _popText   = AddEntry(bar, ref x, Prims.Hex(0x6fa8dc), Loc.Get("res.pop"));
+        _relicText = AddEntry(bar, ref x, Prims.Hex(0xe0b84b), Loc.Get("res.relic"));
         _relicText.color = Prims.Hex(0xf2d59b);
 
         var ageRect = NewRect("AgeText", bar);
@@ -215,11 +239,12 @@ public class HUD : MonoBehaviour
         BuildIdleIndicator(bar);
         BuildDifficultyIndicator(bar);
         BuildCivIndicator(bar);
+        BuildSpeedIndicator(bar);
         BuildVictoryBanner(parent);
     }
 
-    /// <summary>Clickable difficulty pill (top bar). Cycles Easy→Normal→Hard→Insane and
-    /// re-applies to every live <see cref="EnemyAI"/> immediately.</summary>
+    /// <summary>Clickable difficulty pill (top bar). Cycles all 6 difficulty levels and
+    /// re-applies to every live <see cref="EnemyAI"/> immediately (AIDF).</summary>
     void BuildDifficultyIndicator(RectTransform bar)
     {
         var rect = NewRect("Difficulty", bar);
@@ -229,6 +254,7 @@ public class HUD : MonoBehaviour
         rect.anchoredPosition = new Vector2(-490, 0);
         var img = rect.gameObject.AddComponent<Image>();
         img.color = new Color(0.22f, 0.22f, 0.30f, 0.92f);
+        UiSkin.SkinPanel(img, UiSkin.PillNormal, Color.white);
         var btn = rect.gameObject.AddComponent<Button>();
         btn.targetGraphic = img;
         btn.onClick.AddListener(CycleDifficulty);
@@ -243,7 +269,8 @@ public class HUD : MonoBehaviour
     {
         var gm = GameManager.Instance;
         if (gm == null) return;
-        gm.difficulty = (Difficulty)(((int)gm.difficulty + 1) % 4);
+        // AIDF: 6 levels — modulo wraps Easy→Moderate→Normal→Hard→Insane→Extreme→Easy.
+        gm.difficulty = (Difficulty)(((int)gm.difficulty + 1) % 6);
         foreach (var ai in Object.FindObjectsByType<EnemyAI>(FindObjectsInactive.Exclude)) ai.SetDifficulty();
         UpdateDifficultyLabel();
     }
@@ -252,16 +279,62 @@ public class HUD : MonoBehaviour
     {
         if (_difficultyText == null) return;
         var gm = GameManager.Instance;
-        _difficultyText.text = "Zorluk: " + (gm != null ? DiffName(gm.difficulty) : "");
+        _difficultyText.text = Loc.Get("hud.difficulty") + ": " + (gm != null ? DiffName(gm.difficulty) : "");
     }
 
     static string DiffName(Difficulty d) => d switch
     {
-        Difficulty.Easy   => "Kolay",
-        Difficulty.Normal => "Normal",
-        Difficulty.Hard   => "Zor",
-        Difficulty.Insane => "Acımasız",
-        _                 => "",
+        Difficulty.Easy     => Loc.Get("diff.easy"),
+        Difficulty.Moderate => Loc.Get("diff.moderate"),
+        Difficulty.Normal   => Loc.Get("diff.normal"),
+        Difficulty.Hard     => Loc.Get("diff.hard"),
+        Difficulty.Insane   => Loc.Get("diff.insane"),
+        Difficulty.Extreme  => Loc.Get("diff.extreme"),
+        _                   => "",
+    };
+
+    // ── Game speed indicator ────────────────────────────────────────────────────
+
+    Text _speedText;
+    static readonly float[] SpeedLevels = { 0f, 0.5f, 1f, 2f, 3f };
+    int _speedIdx = 2; // default 1×
+
+    void BuildSpeedIndicator(RectTransform bar)
+    {
+        var rect = NewRect("Speed", bar);
+        rect.anchorMin = rect.anchorMax = new Vector2(1, 0.5f);
+        rect.pivot = new Vector2(1, 0.5f);
+        rect.sizeDelta = new Vector2(80, 32);
+        rect.anchoredPosition = new Vector2(-668, 0);
+        var img = rect.gameObject.AddComponent<Image>();
+        img.color = new Color(0.22f, 0.22f, 0.30f, 0.92f);
+        UiSkin.SkinPanel(img, UiSkin.PillNormal, Color.white);
+        var btn = rect.gameObject.AddComponent<Button>();
+        btn.targetGraphic = img;
+        btn.onClick.AddListener(CycleSpeed);
+        _speedText = AddText(rect, SpeedLabel(), TextAnchor.MiddleCenter);
+        _speedText.fontSize = 14;
+        _speedText.fontStyle = FontStyle.Bold;
+        AddOutline(_speedText, 0.6f);
+    }
+
+    void CycleSpeed()
+    {
+        if (_gameOverShown) return;
+        _speedIdx = (_speedIdx + 1) % SpeedLevels.Length;
+        Time.timeScale = SpeedLevels[_speedIdx];
+        if (_speedText != null) _speedText.text = SpeedLabel();
+        AudioManager.Play(AudioManager.SoundId.ButtonClick, 0.4f);
+    }
+
+    string SpeedLabel() => SpeedLevels[_speedIdx] switch
+    {
+        0f    => "II Dur",
+        0.5f  => "► ½×",
+        1f    => "► 1×",
+        2f    => "►► 2×",
+        3f    => "███ 3×",
+        _     => "► 1×",
     };
 
     void BuildCivIndicator(RectTransform bar)
@@ -273,6 +346,7 @@ public class HUD : MonoBehaviour
         rect.anchoredPosition = new Vector2(-665, 0);
         var img = rect.gameObject.AddComponent<Image>();
         img.color = new Color(0.18f, 0.14f, 0.30f, 0.92f);
+        UiSkin.SkinPanel(img, UiSkin.PillNormal, Color.white);
         var btn = rect.gameObject.AddComponent<Button>();
         btn.targetGraphic = img;
         btn.onClick.AddListener(CycleCiv);
@@ -297,7 +371,7 @@ public class HUD : MonoBehaviour
         if (_civText == null) return;
         var gm = GameManager.Instance;
         if (gm == null) return;
-        _civText.text = "Medeniyet: " + CivilizationDefs.Get(gm.playerCiv).display;
+        _civText.text = Loc.Get("hud.civ") + ": " + CivilizationDefs.Get(gm.playerCiv).display;
     }
 
     /// <summary>Top-centre banner that shows the active victory countdown
@@ -317,6 +391,29 @@ public class HUD : MonoBehaviour
         _victoryText.color = Prims.Hex(0xffe08a);
         AddOutline(_victoryText, 0.6f);
         _victoryRect.gameObject.SetActive(false);
+
+        // N6.form: small subtitle bar just below victory banner (formation name, etc.)
+        var subRect = NewRect("SubtitleBar", parent);
+        subRect.anchorMin = new Vector2(0.5f, 1f);
+        subRect.anchorMax = new Vector2(0.5f, 1f);
+        subRect.pivot     = new Vector2(0.5f, 1f);
+        subRect.sizeDelta = new Vector2(320, 26);
+        subRect.anchoredPosition = new Vector2(0, -102);
+        subRect.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
+        _subtitleText = AddText(subRect, "", TextAnchor.MiddleCenter);
+        _subtitleText.fontSize = 15;
+        _subtitleText.color = Color.white;
+        subRect.gameObject.SetActive(false);
+        _subtitleText.transform.parent.gameObject.SetActive(false);
+    }
+
+    /// <summary>N6.form: show a brief text notification (formation name, Town Bell, etc.).</summary>
+    public void ShowSubtitle(string msg, float duration = 1.8f)
+    {
+        if (_subtitleText == null) return;
+        _subtitleText.text = msg;
+        _subtitleText.transform.parent.gameObject.SetActive(true);
+        _subtitleTimer = duration;
     }
 
     /// <summary>Clickable "idle villager" pill, left of the age label. Hidden when none
@@ -354,7 +451,9 @@ public class HUD : MonoBehaviour
         _cmdBar.pivot     = new Vector2(0.5f, 0);
         _cmdBar.sizeDelta = new Vector2(0, BarH);
         _cmdBar.anchoredPosition = Vector2.zero;
-        _cmdBar.gameObject.AddComponent<Image>().color = new Color(0.05f, 0.06f, 0.08f, 0.9f);
+        var barBg = _cmdBar.gameObject.AddComponent<Image>();
+        barBg.color = new Color(0.05f, 0.06f, 0.08f, 0.9f);   // flat fallback
+        UiSkin.SkinPanel(barBg, UiSkin.BarBg, Color.white);   // wooden frame when kit present
 
         // Thin gold accent along the top edge gives the bar a crisp boundary.
         var topLine = NewRect("BarTopAccent", _cmdBar);
@@ -364,21 +463,28 @@ public class HUD : MonoBehaviour
         topLine.anchoredPosition = Vector2.zero;
         topLine.gameObject.AddComponent<Image>().color = new Color(0.78f, 0.64f, 0.28f, 0.9f);
 
-        // ── Left info panel ──
+        // ── Info panel (2nd zone, right of the command grid; AoE-faithful order) ──
         var left = NewRect("InfoPanel", _cmdBar);
         left.anchorMin = new Vector2(0, 0); left.anchorMax = new Vector2(0, 1);
         left.pivot = new Vector2(0, 0.5f);
-        left.sizeDelta = new Vector2(LeftW, 0);
-        left.anchoredPosition = Vector2.zero;
-        left.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.35f);
+        left.sizeDelta = new Vector2(LeftW, -16);
+        left.anchoredPosition = new Vector2(CmdZoneW, 0);
+        var infoBg = left.gameObject.AddComponent<Image>();
+        infoBg.color = new Color(0f, 0f, 0f, 0.35f);
+        UiSkin.SkinPanel(infoBg, UiSkin.PanelInset, Color.white);
 
-        // Vertical divider between the info panel and the command grid.
-        var sep = NewRect("InfoSep", _cmdBar);
-        sep.anchorMin = new Vector2(0, 0); sep.anchorMax = new Vector2(0, 1);
-        sep.pivot = new Vector2(0.5f, 0.5f);
-        sep.sizeDelta = new Vector2(2, -20);
-        sep.anchoredPosition = new Vector2(LeftW, 0);
-        sep.gameObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.08f);
+        // Vertical dividers marking the zone boundaries (grid | info | centre).
+        void Divider(float xPos)
+        {
+            var d = NewRect("Sep", _cmdBar);
+            d.anchorMin = new Vector2(0, 0); d.anchorMax = new Vector2(0, 1);
+            d.pivot = new Vector2(0.5f, 0.5f);
+            d.sizeDelta = new Vector2(2, -20);
+            d.anchoredPosition = new Vector2(xPos, 0);
+            d.gameObject.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.08f);
+        }
+        Divider(CmdZoneW);
+        Divider(CmdZoneW + LeftW);
 
         var nameRect = NewRect("InfoName", left);
         nameRect.anchorMin = new Vector2(0, 1); nameRect.anchorMax = new Vector2(1, 1);
@@ -447,14 +553,14 @@ public class HUD : MonoBehaviour
         _queueStrip.sizeDelta = new Vector2(-16, 40);
         _queueStrip.anchoredPosition = new Vector2(10, -136);
 
-        // ── Right command card: a fixed Cols×Rows slot grid (AoE-style). The grid
-        // is vertically centred; empty slots show a dark frame, commands fill the
-        // first N slots so the panel always reads as deliberate. ──
+        // ── Command card (1st zone, far left — AoE-faithful). A fixed Cols×Rows slot
+        // grid; empty slots show a dark frame, commands fill the first N so the panel
+        // always reads as deliberate. ──
         _cardRoot = NewRect("CommandCard", _cmdBar);
-        _cardRoot.anchorMin = new Vector2(0, 0); _cardRoot.anchorMax = new Vector2(1, 1);
-        _cardRoot.pivot = new Vector2(0.5f, 0.5f);
-        _cardRoot.offsetMin = new Vector2(LeftW + 14f, 8f);
-        _cardRoot.offsetMax = new Vector2(-16f, -8f);
+        _cardRoot.anchorMin = new Vector2(0, 0); _cardRoot.anchorMax = new Vector2(0, 1);
+        _cardRoot.pivot = new Vector2(0, 0.5f);
+        _cardRoot.sizeDelta = new Vector2(CmdZoneW, 0);
+        _cardRoot.anchoredPosition = Vector2.zero;
 
         float gridW = Cols * BtnW + (Cols - 1) * Gap;
         float gridH = Rows * BtnH + (Rows - 1) * Gap;
@@ -462,7 +568,7 @@ public class HUD : MonoBehaviour
         _gridRoot.anchorMin = new Vector2(0, 0.5f); _gridRoot.anchorMax = new Vector2(0, 0.5f);
         _gridRoot.pivot = new Vector2(0, 0.5f);
         _gridRoot.sizeDelta = new Vector2(gridW, gridH);
-        _gridRoot.anchoredPosition = Vector2.zero;
+        _gridRoot.anchoredPosition = new Vector2(14f, 0);
 
         for (int i = 0; i < Cols * Rows; i++)
         {
@@ -472,12 +578,36 @@ public class HUD : MonoBehaviour
             slot.pivot = new Vector2(0, 1);
             slot.sizeDelta = new Vector2(BtnW, BtnH);
             slot.anchoredPosition = new Vector2(col * (BtnW + Gap), -row * (BtnH + Gap));
-            slot.gameObject.AddComponent<Image>().color = new Color(0.11f, 0.12f, 0.14f, 0.65f);
+            var slotImg = slot.gameObject.AddComponent<Image>();
+            slotImg.color = new Color(0.11f, 0.12f, 0.14f, 0.65f);
+            UiSkin.SkinPanel(slotImg, UiSkin.SlotFrame, new Color(1f, 1f, 1f, 0.45f));
         }
 
-        BuildTooltip();
+        // ── Centre emblem zone (3rd zone, decorative; stretches with screen width). ──
+        var center = NewRect("CenterEmblem", _cmdBar);
+        center.anchorMin = new Vector2(0, 0); center.anchorMax = new Vector2(1, 1);
+        center.offsetMin = new Vector2(CmdZoneW + LeftW, 8f);
+        center.offsetMax = new Vector2(-MinW, -8f);
+        var titleRect = NewRect("GameTitle", center);
+        titleRect.anchorMin = titleRect.anchorMax = titleRect.pivot = new Vector2(0.5f, 0.5f);
+        titleRect.sizeDelta = new Vector2(360, 60);
+        titleRect.anchoredPosition = Vector2.zero;
+        var titleTxt = AddText(titleRect, "AGE OF ARENA", TextAnchor.MiddleCenter);
+        titleTxt.fontSize = 24; titleTxt.fontStyle = FontStyle.Bold;
+        titleTxt.color = Prims.Hex(0xe8d4a0);
+        AddOutline(titleTxt, 0.7f);
 
-        _cmdBar.gameObject.SetActive(false);
+        // ── Minimap zone (4th zone, far right). MinimapSystem parents its rotated
+        // diamond render here; kept empty (transparent) so the map fills it. ──
+        _minimapZone = NewRect("MinimapZone", _cmdBar);
+        _minimapZone.anchorMin = new Vector2(1, 0); _minimapZone.anchorMax = new Vector2(1, 1);
+        _minimapZone.pivot = new Vector2(1, 0.5f);
+        _minimapZone.sizeDelta = new Vector2(MinW, 0);
+        _minimapZone.anchoredPosition = Vector2.zero;
+
+        BuildTooltip();
+        // Bar is persistent (always visible) — no SetActive toggle; idle state shows
+        // empty slots + blank info, matching AoE2.
     }
 
     // ── Hover tooltip ──────────────────────────────────────────────────────────
@@ -559,6 +689,7 @@ public class HUD : MonoBehaviour
 
         var bg = rt.gameObject.AddComponent<Image>();
         bg.color = color;
+        UiSkin.Slice(bg, UiSkin.ButtonNormal);   // wooden button frame; keeps category tint
 
         var btn = rt.gameObject.AddComponent<Button>();
         btn.targetGraphic = bg;
@@ -633,11 +764,52 @@ public class HUD : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null || _cmdBar == null) return;
 
+        // N6.form: tick subtitle auto-hide timer.
+        if (_subtitleTimer > 0f)
+        {
+            _subtitleTimer -= Time.unscaledDeltaTime;
+            if (_subtitleTimer <= 0f && _subtitleText != null)
+                _subtitleText.transform.parent.gameObject.SetActive(false);
+        }
+
+        // N13.meta: achievement toast via subtitle.
+        if (MetaSystem.TryTakeAchievement(out var ach))
+            ShowSubtitle("🏆 " + MetaSystem.DisplayName(ach) + " rozeti kazanıldı!", 3.5f);
+
+        // N9.hotkeys: while a remap row is listening, capture the key here and consume
+        // all input this frame so the pressed key doesn't also fire a game action.
+        if (_listeningAction.HasValue) { PollHotkeyRebind(); return; }
+
         // Escape: toggle pause menu (resign / resume).
         if (Input.GetKeyDown(KeyCode.Escape) && !_gameOverShown)
         {
             if (_pauseMenu != null && _pauseMenu.activeSelf) ClosePauseMenu();
             else OpenPauseMenu(gm);
+        }
+
+        // Sync speed label with Time.timeScale (CommandSystem [ ] / Space may change it externally).
+        if (_speedText != null)
+        {
+            float ts = Time.timeScale;
+            for (int i = 0; i < SpeedLevels.Length; i++)
+                if (Mathf.Abs(SpeedLevels[i] - ts) < 0.1f) { _speedIdx = i; break; }
+            _speedText.text = SpeedLabel();
+        }
+
+        // DIPL: hotkey toggles diplomacy panel.
+        if (Hotkeys.Down(HotkeyAction.Diplomacy) && !_gameOverShown)
+            ToggleDiplomacyPanel();
+
+        // STIC: hotkey cycles attack stance for all selected units.
+        if (Hotkeys.Down(HotkeyAction.Stance))
+        {
+            var stanceSel = gm.selection?.Selected;
+            if (stanceSel != null && stanceSel.Count > 0 && stanceSel[0] != null)
+            {
+                var next = (AttackStance)(((int)stanceSel[0].stance + 1) % 4);
+                for (int i = 0; i < stanceSel.Count; i++)
+                    if (stanceSel[i] != null) stanceSel[i].stance = next;
+            }
         }
 
         // Relics held readout in the top bar (replaces RelicSystem's IMGUI label).
@@ -655,11 +827,24 @@ public class HUD : MonoBehaviour
             int idle = gm.selection.IdleVillagerCount();
             if (_idleButton.gameObject.activeSelf != (idle > 0))
                 _idleButton.gameObject.SetActive(idle > 0);
-            if (idle > 0 && _idleText != null) _idleText.text = "Boşta köylü: " + idle + " (.)";
+            if (idle > 0 && _idleText != null) _idleText.text = Loc.Get("hud.idleWorker") + ": " + idle + " (.)";
+        }
+
+        // VTIME: time limit countdown in top bar.
+        if (gm.match != null && gm.match.MatchTimeLimit > 0f && _victoryText != null)
+        {
+            float rem = gm.match.TimeRemaining;
+            if (rem < float.MaxValue)
+            {
+                int mins = (int)(rem / 60f), secs = (int)(rem % 60f);
+                string timeStr = $"{Loc.Get("hud.time")}: {mins:00}:{secs:00}";
+                if (_victoryText.text != timeStr) _victoryText.text = timeStr;
+                if (!_victoryRect.gameObject.activeSelf) _victoryRect.gameObject.SetActive(true);
+            }
         }
 
         // Victory countdown banner: visible only while a Wonder/relic count is running.
-        if (_victoryRect != null)
+        if (_victoryRect != null && (gm.match == null || gm.match.MatchTimeLimit <= 0f))
         {
             string vs = gm.match != null ? gm.match.VictoryStatus : "";
             bool showVictory = !string.IsNullOrEmpty(vs);
@@ -675,24 +860,14 @@ public class HUD : MonoBehaviour
             for (int i = 0; i < sel.Count; i++)
                 if (sel[i] != null && sel[i].type == UnitType.Villager) { hasVillager = true; break; }
 
-        bool show = b != null || unitCount > 0;
-        if (show != _barActive)
-        {
-            _barActive = show;
-            _cmdBar.gameObject.SetActive(show);
-        }
-        if (!show)
-        {
-            _lastBld = null; _lastUnitCount = -1; _lastHasVillager = false; _lastTechVer = -1;
-            return;
-        }
-
+        // Bar is persistent; rebuild the card only when the selection signature changes.
         int techVer = gm.teamTech != null ? gm.teamTech[0].Version : 0;
         if (b != _lastBld || unitCount != _lastUnitCount || hasVillager != _lastHasVillager
             || techVer != _lastTechVer)
         {
             _lastBld = b; _lastUnitCount = unitCount; _lastHasVillager = hasVillager;
             _lastTechVer = techVer; _lastQueueCount = -1;
+            _cmdPage = 0;  // CMDP: reset page on any selection change
             RebuildCard(gm, b, sel, unitCount, hasVillager);
         }
 
@@ -727,7 +902,7 @@ public class HUD : MonoBehaviour
 
         // Live garrison count (updates as units enter/leave without reselecting).
         if (b != null && b.GarrisonCapacity > 0)
-            _infoSub.text = $"Garnizon {b.GarrisonCount}/{b.GarrisonCapacity}";
+            _infoSub.text = string.Format(Loc.Get("misc.garrisonFmt"), b.GarrisonCount, b.GarrisonCapacity);
 
         // Training / research progress (buildings only).
         float prog = -1f; bool isResearch = false; int qCount = 0;
@@ -755,6 +930,25 @@ public class HUD : MonoBehaviour
             if (_lastQueueCount != 0) { _lastQueueCount = 0; _queueText.text = ""; }
         }
 
+        // STIC: show stance for unit selections.
+        if (b == null && _infoSub != null)
+        {
+            var sel2 = gm.selection?.Selected;
+            if (sel2 != null && sel2.Count > 0 && sel2[0] != null)
+            {
+                string stanceName = sel2[0].stance switch
+                {
+                    AttackStance.Aggressive  => Loc.Get("stance.aggressive"),
+                    AttackStance.Defensive   => Loc.Get("stance.defensive"),
+                    AttackStance.StandGround => Loc.Get("stance.standground"),
+                    AttackStance.NoAttack    => Loc.Get("stance.noattack"),
+                    _                        => "",
+                };
+                string stanceLine = stanceName.Length > 0 ? string.Format(Loc.Get("misc.stanceFmt"), stanceName) : "";
+                if (_infoSub.text != stanceLine) _infoSub.text = stanceLine;
+            }
+        }
+
         UpdateQueueStrip(gm, b);
     }
 
@@ -763,7 +957,7 @@ public class HUD : MonoBehaviour
         if (isResearch)
         {
             string techName = TechDefs.Get(gm.research.GetActiveTech(b)).display;
-            string line = "Araştırılıyor: " + techName;
+            string line = Loc.Get("hud.researching") + ": " + techName;
             if (_queueText.text != line) _queueText.text = line;
         }
         else if (qCount != _lastQueueCount)
@@ -771,7 +965,7 @@ public class HUD : MonoBehaviour
             // Training queue is shown as the clickable icon strip below; the label
             // only carries a short "Üretim" header so the strip reads clearly.
             _lastQueueCount = qCount;
-            _queueText.text = qCount > 0 ? "Üretim (iptal için tıkla):" : "";
+            _queueText.text = qCount > 0 ? Loc.Get("hud.producing") : "";
         }
     }
 
@@ -861,9 +1055,86 @@ public class HUD : MonoBehaviour
         _queueText.text = "";
         _progressFill.sizeDelta = Vector2.zero;
 
-        if (b != null)        BuildBuildingCard(gm, b);
-        else if (hasVillager) BuildVillagerCard(gm, sel, unitCount);
-        else                  BuildUnitInfo(sel, unitCount);
+        if (b != null)             BuildBuildingCard(gm, b);
+        else if (hasVillager)      BuildVillagerCard(gm, sel, unitCount);
+        else if (unitCount > 0)    BuildUnitInfo(sel, unitCount);
+        else { _infoName.text = ""; _infoSub.text = ""; ShowHpBar(false); }  // nothing selected → idle bar
+
+        // CMDP: rebuild page nav after slots are populated.
+        BuildPageNav();
+    }
+
+    // CMDP: page navigation arrows — shown only when total slots > SlotsPerPage.
+    void BuildPageNav()
+    {
+        if (_gridRoot == null) return;
+        // Remove previous nav buttons.
+        var old = _gridRoot.Find("PageNav");
+        if (old != null) Destroy(old.gameObject);
+
+        int total = _slots.Count;
+        int pages  = Mathf.CeilToInt(total / (float)SlotsPerPage);
+        if (pages <= 1) return;
+
+        var nav = new GameObject("PageNav");
+        nav.transform.SetParent(_gridRoot, false);
+        var navRt = nav.AddComponent<RectTransform>();
+        float gridH = Rows * (BtnH + Gap);
+        navRt.anchorMin = navRt.anchorMax = new Vector2(0, 1);
+        navRt.pivot = new Vector2(0, 1);
+        navRt.sizeDelta = new Vector2(Cols * (BtnW + Gap), 20f);
+        navRt.anchoredPosition = new Vector2(0, -(gridH + 4));
+
+        // "←" and "→" buttons
+        for (int side = 0; side < 2; side++)
+        {
+            int s = side;
+            var go = new GameObject(s == 0 ? "Prev" : "Next");
+            go.transform.SetParent(nav.transform, false);
+            var rt = go.AddComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(28, 18);
+            rt.anchoredPosition = new Vector2(s == 0 ? 2 : Cols * (BtnW + Gap) - 30, -1);
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0, 1);
+            var img = go.AddComponent<Image>(); img.color = new Color(0.3f, 0.3f, 0.4f, 0.9f);
+            var btn = go.AddComponent<Button>();
+            var lrt = NewRect("L", rt); lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one; lrt.offsetMin = lrt.offsetMax = Vector2.zero;
+            AddText(lrt, s == 0 ? "◄" : "►", TextAnchor.MiddleCenter).fontSize = 11;
+            btn.onClick.AddListener(() =>
+            {
+                _cmdPage = Mathf.Clamp(_cmdPage + (s == 0 ? -1 : 1), 0, pages - 1);
+                // Refresh slot visibility.
+                RefreshSlotVisibility();
+                BuildPageNav();
+            });
+        }
+        // Page counter
+        var crt = NewRect("Count", navRt);
+        crt.anchorMin = new Vector2(0.3f, 0); crt.anchorMax = new Vector2(0.7f, 1);
+        crt.offsetMin = crt.offsetMax = Vector2.zero;
+        AddText(crt, $"{_cmdPage + 1}/{pages}", TextAnchor.MiddleCenter).fontSize = 11;
+
+        RefreshSlotVisibility();
+    }
+
+    void RefreshSlotVisibility()
+    {
+        int start = _cmdPage * SlotsPerPage;
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            bool visible = i >= start && i < start + SlotsPerPage;
+            if (_slots[i].btn != null) _slots[i].btn.gameObject.SetActive(visible);
+            // Reposition within the visible grid cell.
+            if (visible && _slots[i].btn != null)
+            {
+                int pageIdx = i - start;
+                var rt = _slots[i].btn.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    int col = pageIdx % Cols, row = pageIdx / Cols;
+                    rt.anchoredPosition = new Vector2(col * (BtnW + Gap), -row * (BtnH + Gap));
+                }
+            }
+        }
     }
 
     void BuildBuildingCard(GameManager gm, BuildingEntity b)
@@ -1039,10 +1310,20 @@ public class HUD : MonoBehaviour
     {
         var s = NewRect(label + "Swatch", bar);
         s.anchorMin = s.anchorMax = s.pivot = new Vector2(0, 0.5f);
-        s.sizeDelta = new Vector2(22, 22);
+        s.sizeDelta = new Vector2(24, 24);
         s.anchoredPosition = new Vector2(x, 0);
-        s.gameObject.AddComponent<Image>().color = swatch;
-        x += 30f;
+        var swImg = s.gameObject.AddComponent<Image>();
+        swImg.color = swatch;
+        // AoE feel: when the kit is present, nest the coloured chip inside an inset frame.
+        if (UiSkin.Available)
+        {
+            UiSkin.SkinPanel(swImg, UiSkin.SlotFrame, Color.white);
+            var chip = NewRect(label + "Chip", s);
+            chip.anchorMin = new Vector2(0, 0); chip.anchorMax = new Vector2(1, 1);
+            chip.offsetMin = new Vector2(5, 5); chip.offsetMax = new Vector2(-5, -5);
+            chip.gameObject.AddComponent<Image>().color = swatch;
+        }
+        x += 32f;
 
         var v = NewRect(label + "Text", bar);
         v.anchorMin = v.anchorMax = v.pivot = new Vector2(0, 0.5f);
@@ -1111,12 +1392,12 @@ public class HUD : MonoBehaviour
         rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
         overlay.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
 
-        void AddBtn(string label, System.Action onClick, float yOffset)
+        void AddBtn(string label, System.Action onClick, float yOffset, float xOffset = 0f)
         {
             var br = NewRect(label, overlay.transform);
             br.anchorMin = br.anchorMax = new Vector2(0.5f, 0.5f);
-            br.sizeDelta = new Vector2(280, 50);
-            br.anchoredPosition = new Vector2(0, yOffset);
+            br.sizeDelta = new Vector2(xOffset != 0f ? 120 : 280, 50);
+            br.anchoredPosition = new Vector2(xOffset, yOffset);
             var img = br.gameObject.AddComponent<Image>();
             img.color = new Color(0.1f, 0.1f, 0.15f, 0.95f);
             var btn = br.gameObject.AddComponent<Button>();
@@ -1126,15 +1407,266 @@ public class HUD : MonoBehaviour
             txt.fontSize = 22; txt.fontStyle = FontStyle.Bold;
         }
 
-        AddBtn("Devam", () => ClosePauseMenu(), 40f);
-        AddBtn("Teslim Ol", () => { ClosePauseMenu(); gm.match?.Resign(); }, -20f);
-        AddBtn("Yeniden Başlat", () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -80f);
+        AddBtn(Loc.Get("pause.resume"),  () => ClosePauseMenu(), 130f);
+        AddBtn("Teknoloji Ağacı", () => { ClosePauseMenu(); OpenTechTreePanel(gm); }, 70f);
+        AddBtn(Loc.Get("pause.hotkeys"), () => OpenHotkeyPanel(), 10f);   // N9.hotkeys: remap UI
+        // N12.edit: open scenario editor
+        AddBtn("📝 Editör", () => { ClosePauseMenu(); gm.scenarioEditor?.Open(); }, -30f);
+        // N13.camp: open campaign screen
+        AddBtn("⚔ Kampanya", () => { ClosePauseMenu(); gm.campaignScreen?.Show(); }, -90f);
+        // N15.checksum: save replay snapshot + trigger verify run
+        AddBtn("🔁 Replay", () =>
+        {
+            if (gm.checksum == null) return;
+            var result = gm.checksum.ReplayVerifyResult;
+            if (result != null) { ShowSubtitle($"Sonuç: {result}", 5f); return; }
+            ClosePauseMenu();
+            gm.checksum.StartReplayVerify();
+        }, -150f);
+        AddBtn(Loc.Get("pause.resign"),  () => { ClosePauseMenu(); gm.match?.Resign(); }, -50f);
+        AddBtn(Loc.Get("pause.restart"), () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -110f);
+        // FOWD: fog toggle in pause menu
+        AddBtn(gm.fow != null && gm.fow.fogEnabled ? Loc.Get("pause.fogOff") : Loc.Get("pause.fogOn"),
+            () => { if (gm.fow != null) { gm.fow.fogEnabled = !gm.fow.fogEnabled; ClosePauseMenu(); } }, -170f);
+        // N9.a11y: colorblind palette toggle
+        AddBtn(AccessibilitySettings.ColorblindMode ? "Renk Std" : "Renk KB",
+            () => { AccessibilitySettings.SetColorblindMode(!AccessibilitySettings.ColorblindMode); ClosePauseMenu(); }, -230f);
+        // N9.a11y: UI scale +/-
+        AddBtn("UI +", () => { AccessibilitySettings.SetUiScale(AccessibilitySettings.UiScale + 0.1f); ApplyUiScale(); }, -290f, 60f);
+        AddBtn("UI -", () => { AccessibilitySettings.SetUiScale(AccessibilitySettings.UiScale - 0.1f); ApplyUiScale(); }, -290f, -60f);
+        // N7.spatial: volume buttons
+        AddBtn("Vol +", () => AudioManager.MasterVolume = Mathf.Clamp01(AudioManager.MasterVolume + 0.1f), -350f, 60f);
+        AddBtn("Vol -", () => AudioManager.MasterVolume = Mathf.Clamp01(AudioManager.MasterVolume - 0.1f), -350f, -60f);
+        // N7.music: music volume buttons
+        AddBtn("Müzik +", () => AudioManager.MusicVolume = Mathf.Clamp01(AudioManager.MusicVolume + 0.1f), -410f, 60f);
+        AddBtn("Müzik -", () => AudioManager.MusicVolume = Mathf.Clamp01(AudioManager.MusicVolume - 0.1f), -410f, -60f);
+    }
+
+    void ApplyUiScale()
+    {
+        if (_canvasScaler == null) return;
+        float s = 1f / AccessibilitySettings.UiScale;
+        _canvasScaler.referenceResolution = new Vector2(1920f * s, 1080f * s);
+    }
+
+    // N13.meta: tech-tree viewer panel
+    GameObject _techTreePanel;
+
+    void OpenTechTreePanel(GameManager gm)
+    {
+        if (_canvasRoot == null) return;
+        if (_techTreePanel != null) { _techTreePanel.SetActive(true); return; }
+
+        // Full-screen semi-transparent overlay
+        var overlay = NewRect("TechTreePanel", _canvasRoot);
+        _techTreePanel = overlay.gameObject;
+        overlay.anchorMin = Vector2.zero; overlay.anchorMax = Vector2.one;
+        overlay.offsetMin = Vector2.zero; overlay.offsetMax = Vector2.zero;
+        var ovImg = overlay.gameObject.AddComponent<UnityEngine.UI.Image>();
+        ovImg.color = new Color(0.04f, 0.05f, 0.08f, 0.96f);
+        overlay.gameObject.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+
+        // Title
+        var titleR = NewRect("Title", overlay);
+        titleR.anchorMin = new Vector2(0.5f, 1f); titleR.anchorMax = new Vector2(0.5f, 1f);
+        titleR.pivot = new Vector2(0.5f, 1f);
+        titleR.sizeDelta = new Vector2(700, 50);
+        titleR.anchoredPosition = new Vector2(0, -20);
+        var title = AddText(titleR, "TEKNOLOJİ AĞACI", TextAnchor.MiddleCenter);
+        title.fontSize = 30; title.fontStyle = FontStyle.Bold;
+        title.color = new Color(0.95f, 0.82f, 0.42f);
+
+        // Close button
+        var closeR = NewRect("CloseBtn", overlay);
+        closeR.anchorMin = new Vector2(1f, 1f); closeR.anchorMax = new Vector2(1f, 1f);
+        closeR.pivot = new Vector2(1f, 1f);
+        closeR.sizeDelta = new Vector2(100, 40);
+        closeR.anchoredPosition = new Vector2(-20, -15);
+        var closeImg = closeR.gameObject.AddComponent<UnityEngine.UI.Image>();
+        closeImg.color = new Color(0.5f, 0.1f, 0.1f);
+        var closeBtn = closeR.gameObject.AddComponent<UnityEngine.UI.Button>();
+        closeBtn.onClick.AddListener(() => _techTreePanel.SetActive(false));
+        AddText(closeR, "✕ Kapat", TextAnchor.MiddleCenter).color = Color.white;
+
+        // Achievement count
+        int achCount = MetaSystem.UnlockedCount();
+        int achTotal = System.Enum.GetValues(typeof(MetaSystem.Achievement)).Length;
+        var achR = NewRect("AchCount", overlay);
+        achR.anchorMin = new Vector2(0f, 1f); achR.anchorMax = new Vector2(0f, 1f);
+        achR.pivot = new Vector2(0f, 1f);
+        achR.sizeDelta = new Vector2(300, 36);
+        achR.anchoredPosition = new Vector2(20, -15);
+        AddText(achR, $"🏆 Başarımlar: {achCount}/{achTotal}", TextAnchor.MiddleLeft).color = new Color(0.9f, 0.82f, 0.42f);
+
+        // Daily challenge
+        var ch = MetaSystem.TodayChallenge();
+        var chalR = NewRect("DailyChallenge", overlay);
+        chalR.anchorMin = new Vector2(0f, 1f); chalR.anchorMax = new Vector2(0f, 1f);
+        chalR.pivot = new Vector2(0f, 1f);
+        chalR.sizeDelta = new Vector2(600, 32);
+        chalR.anchoredPosition = new Vector2(20, -55);
+        AddText(chalR, "📅 Günün Görevi: " + MetaSystem.ChallengeName(ch), TextAnchor.MiddleLeft).color = new Color(0.7f, 0.9f, 0.7f);
+
+        // Tech list (scrollable region)
+        var civ   = gm?.playerCiv ?? Civilization.None;
+        var tech  = gm?.teamTech?[0];
+        var techs = MetaSystem.GetTechList(civ, tech);
+
+        float rowH = 32f, startY = -90f, x = 50f;
+        int perCol = 20;
+        for (int i = 0; i < techs.Count; i++)
+        {
+            var (def, researched, locked) = techs[i];
+            int col = i / perCol;
+            int row = i % perCol;
+            float px = x + col * 450f;
+            float py = startY - row * rowH;
+
+            var rowR = NewRect("Tech_" + i, overlay);
+            rowR.anchorMin = new Vector2(0f, 1f); rowR.anchorMax = new Vector2(0f, 1f);
+            rowR.pivot = new Vector2(0f, 1f);
+            rowR.sizeDelta = new Vector2(440f, rowH - 4f);
+            rowR.anchoredPosition = new Vector2(px, py);
+
+            var rowImg = rowR.gameObject.AddComponent<UnityEngine.UI.Image>();
+            rowImg.color = researched ? new Color(0.1f, 0.25f, 0.12f, 0.8f)
+                         : locked     ? new Color(0.2f, 0.08f, 0.08f, 0.6f)
+                         :              new Color(0.12f, 0.16f, 0.22f, 0.7f);
+
+            string status = researched ? "✓" : locked ? "✕" : "○";
+            string costStr = def.gold > 0 ? $"{def.gold}A" : def.wood > 0 ? $"{def.wood}O" : $"{def.food}Y";
+            string label = $"{status}  {def.display}  ({costStr})";
+
+            var txt = AddText(rowR, label, TextAnchor.MiddleLeft);
+            txt.fontSize = 16;
+            txt.color = researched ? new Color(0.5f, 1f, 0.55f)
+                      : locked     ? new Color(0.6f, 0.35f, 0.35f)
+                      :              new Color(0.85f, 0.88f, 0.95f);
+        }
     }
 
     void ClosePauseMenu()
     {
         if (_pauseMenu != null) _pauseMenu.SetActive(false);
+        if (_hotkeyPanel != null) _hotkeyPanel.SetActive(false);
+        _listeningAction = null;
         if (Time.timeScale == 0f) Time.timeScale = 1f;
+    }
+
+    // ── N9.hotkeys: rebindable-key settings panel ────────────────────────────
+    static readonly (HotkeyAction action, string label)[] RemapRows =
+    {
+        (HotkeyAction.Stop,        "Durdur"),
+        (HotkeyAction.AttackMove,  "Saldır-Yürü"),
+        (HotkeyAction.Stance,      "Duruş Değiştir"),
+        (HotkeyAction.Garrison,    "Garnizona Gir"),
+        (HotkeyAction.Ungarrison,  "Garnizon Boşalt"),
+        (HotkeyAction.Diplomacy,   "Diplomasi"),
+        (HotkeyAction.SelectIdle,  "Boşta İşçi Seç"),
+        (HotkeyAction.BuildMenu,   "İnşa Menüsü"),
+        (HotkeyAction.Repair,      "Onar"),
+    };
+
+    void OpenHotkeyPanel()
+    {
+        if (_canvasRoot == null) return;
+        Time.timeScale = 0f;
+        if (_pauseMenu != null) _pauseMenu.SetActive(false);
+        if (_hotkeyPanel != null) { _hotkeyPanel.SetActive(true); RefreshHotkeyLabels(); return; }
+
+        var overlay = new GameObject("HotkeyPanel");
+        overlay.transform.SetParent(_canvasRoot, false);
+        _hotkeyPanel = overlay;
+        var ort = overlay.AddComponent<RectTransform>();
+        ort.anchorMin = Vector2.zero; ort.anchorMax = Vector2.one;
+        ort.offsetMin = Vector2.zero; ort.offsetMax = Vector2.zero;
+        overlay.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.78f);
+
+        var titleRect = NewRect("HotkeyTitle", overlay.transform);
+        titleRect.anchorMin = titleRect.anchorMax = new Vector2(0.5f, 0.5f);
+        titleRect.sizeDelta = new Vector2(520, 44);
+        titleRect.anchoredPosition = new Vector2(0, 250);
+        var title = AddText(titleRect, "TUŞ ATAMALARI", TextAnchor.MiddleCenter);
+        title.fontSize = 28; title.fontStyle = FontStyle.Bold; title.color = Prims.Hex(0xf2d59b);
+
+        float y = 190f;
+        foreach (var (action, label) in RemapRows)
+        {
+            HotkeyAction act = action;   // capture
+            var row = NewRect("Row_" + action, overlay.transform);
+            row.anchorMin = row.anchorMax = new Vector2(0.5f, 0.5f);
+            row.sizeDelta = new Vector2(460, 38);
+            row.anchoredPosition = new Vector2(0, y);
+
+            var nameRect = NewRect("Name", row);
+            nameRect.anchorMin = new Vector2(0, 0); nameRect.anchorMax = new Vector2(0.6f, 1);
+            nameRect.offsetMin = new Vector2(8, 0); nameRect.offsetMax = Vector2.zero;
+            var nameTxt = AddText(nameRect, label, TextAnchor.MiddleLeft);
+            nameTxt.fontSize = 20;
+
+            var keyRect = NewRect("Key", row);
+            keyRect.anchorMin = new Vector2(0.62f, 0); keyRect.anchorMax = new Vector2(1, 1);
+            keyRect.offsetMin = keyRect.offsetMax = Vector2.zero;
+            var keyImg = keyRect.gameObject.AddComponent<Image>();
+            keyImg.color = new Color(0.12f, 0.13f, 0.2f, 0.95f);
+            var keyBtn = keyRect.gameObject.AddComponent<Button>();
+            keyBtn.targetGraphic = keyImg;
+            var keyTxt = AddText(keyRect, KeyLabel(Hotkeys.Get(act)), TextAnchor.MiddleCenter);
+            keyTxt.fontSize = 20; keyTxt.fontStyle = FontStyle.Bold;
+            _hotkeyKeyLabels[act] = keyTxt;
+            keyBtn.onClick.AddListener(() => { _listeningAction = act; RefreshHotkeyLabels(); });
+
+            y -= 42f;
+        }
+
+        void Btn(string lbl, System.Action onClick, float xoff)
+        {
+            var br = NewRect("HkBtn_" + lbl, overlay.transform);
+            br.anchorMin = br.anchorMax = new Vector2(0.5f, 0.5f);
+            br.sizeDelta = new Vector2(210, 46);
+            br.anchoredPosition = new Vector2(xoff, -230);
+            var img = br.gameObject.AddComponent<Image>();
+            img.color = new Color(0.1f, 0.1f, 0.15f, 0.95f);
+            var b = br.gameObject.AddComponent<Button>();
+            b.targetGraphic = img;
+            b.onClick.AddListener(() => onClick());
+            var t = AddText(br, lbl, TextAnchor.MiddleCenter);
+            t.fontSize = 20; t.fontStyle = FontStyle.Bold;
+        }
+        Btn(Loc.Get("hk.resetAll"), () => { Hotkeys.ResetAll(); _listeningAction = null; RefreshHotkeyLabels(); }, -115f);
+        Btn(Loc.Get("hk.back"), () => { _listeningAction = null; _hotkeyPanel.SetActive(false); if (_pauseMenu != null) _pauseMenu.SetActive(true); }, 115f);
+    }
+
+    /// <summary>Display string for a key (None → "—", listening row → "...").</summary>
+    static string KeyLabel(KeyCode k) => k == KeyCode.None ? "—" : k.ToString();
+
+    void RefreshHotkeyLabels()
+    {
+        foreach (var kv in _hotkeyKeyLabels)
+        {
+            if (kv.Value == null) continue;
+            if (_listeningAction.HasValue && _listeningAction.Value == kv.Key)
+            { kv.Value.text = "<bekleniyor>"; kv.Value.color = Prims.Hex(0xffd34a); }
+            else
+            { kv.Value.text = KeyLabel(Hotkeys.Get(kv.Key)); kv.Value.color = Color.white; }
+        }
+    }
+
+    /// <summary>Called from Update: while a row is listening, capture the next key press
+    /// and rebind (evicting any conflicting action). Esc cancels the capture.</summary>
+    void PollHotkeyRebind()
+    {
+        if (!_listeningAction.HasValue) return;
+        if (Input.GetKeyDown(KeyCode.Escape)) { _listeningAction = null; RefreshHotkeyLabels(); return; }
+        foreach (KeyCode kc in System.Enum.GetValues(typeof(KeyCode)))
+        {
+            if (kc == KeyCode.None || kc == KeyCode.Escape) continue;
+            if (!Input.GetKeyDown(kc)) continue;
+            Hotkeys.Rebind(_listeningAction.Value, kc);   // evicts conflicts to None
+            _listeningAction = null;
+            RefreshHotkeyLabels();
+            return;
+        }
     }
 
     public void ShowGameOver(bool playerWon, string subtitle = "")
@@ -1142,41 +1674,101 @@ public class HUD : MonoBehaviour
         if (_gameOverShown || _canvasRoot == null) return;
         _gameOverShown = true;
 
+        // N13.camp: mark campaign mission complete on win.
+        if (playerWon) CampaignSystem.OnCampaignWin();
+
+        var gm = GameManager.Instance;
+
         var overlay = NewRect("GameOverOverlay", _canvasRoot);
         overlay.anchorMin = Vector2.zero; overlay.anchorMax = Vector2.one;
         overlay.offsetMin = Vector2.zero; overlay.offsetMax = Vector2.zero;
-        overlay.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.72f);
+        overlay.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.78f);
 
+        // ── Title ──────────────────────────────────────────────────────────
         var titleRect = NewRect("GameOverTitle", overlay);
-        titleRect.anchorMin = new Vector2(0, 0.5f); titleRect.anchorMax = new Vector2(1, 0.5f);
-        titleRect.pivot = new Vector2(0.5f, 0.5f);
-        titleRect.sizeDelta = new Vector2(0, 120);
-        titleRect.anchoredPosition = new Vector2(0, 30);
-        var title = AddText(titleRect, playerWon ? "ZAFER!" : "YENILDIN", TextAnchor.MiddleCenter);
-        title.fontSize = 80;
-        title.fontStyle = FontStyle.Bold;
+        titleRect.anchorMin = new Vector2(0, 1); titleRect.anchorMax = new Vector2(1, 1);
+        titleRect.pivot = new Vector2(0.5f, 1f);
+        titleRect.sizeDelta = new Vector2(0, 110);
+        titleRect.anchoredPosition = new Vector2(0, -20);
+        var title = AddText(titleRect, playerWon ? "ZAFER!" : "YENİLDİN", TextAnchor.MiddleCenter);
+        title.fontSize = 76; title.fontStyle = FontStyle.Bold;
         title.color = playerWon ? Prims.Hex(0x4caf50) : Prims.Hex(0xff5555);
 
         if (!string.IsNullOrEmpty(subtitle))
         {
             var subRect = NewRect("GameOverSub", overlay);
-            subRect.anchorMin = new Vector2(0, 0.5f); subRect.anchorMax = new Vector2(1, 0.5f);
-            subRect.pivot = new Vector2(0.5f, 0.5f);
-            subRect.sizeDelta = new Vector2(0, 40);
-            subRect.anchoredPosition = new Vector2(0, -50);
+            subRect.anchorMin = new Vector2(0, 1); subRect.anchorMax = new Vector2(1, 1);
+            subRect.pivot = new Vector2(0.5f, 1f);
+            subRect.sizeDelta = new Vector2(0, 36);
+            subRect.anchoredPosition = new Vector2(0, -130);
             var sub = AddText(subRect, subtitle, TextAnchor.MiddleCenter);
-            sub.fontSize = 26;
-            sub.color = Prims.Hex(0xf2d59b);
+            sub.fontSize = 22; sub.color = Prims.Hex(0xf2d59b);
         }
 
+        // ── N9.postgame: per-team stat summary ─────────────────────────────
+        if (gm != null)
+        {
+            int teamCount = gm.teamRes != null ? gm.teamRes.Length : 0;
+            string[] teamNames = { "Sen", "Kırmızı", "Yeşil", "Sarı" };
+
+            // Column header
+            var hdrRect = NewRect("PGHeader", overlay);
+            hdrRect.anchorMin = new Vector2(0.5f, 1); hdrRect.anchorMax = new Vector2(0.5f, 1);
+            hdrRect.pivot = new Vector2(0.5f, 1f);
+            hdrRect.sizeDelta = new Vector2(680, 28);
+            hdrRect.anchoredPosition = new Vector2(0, -176);
+            var hdr = AddText(hdrRect, "Takım            Skor    Ordu   Köy  Bina   Altın  Yaş", TextAnchor.MiddleLeft);
+            hdr.fontSize = 16; hdr.color = Prims.Hex(0xaab0c0);
+
+            float rowY = -206f;
+            for (int t = 0; t < Mathf.Min(teamCount, 4); t++)
+            {
+                int tt = t;
+                // Gather stats
+                int units = 0, military = 0, villagers = 0, buildings = 0;
+                for (int i = 0; i < gm.units.Count; i++)
+                {
+                    var u = gm.units[i];
+                    if (u == null || u.teamId != tt) continue;
+                    units++;
+                    if (u.type == UnitType.Villager) villagers++;
+                    else military++;
+                }
+                for (int i = 0; i < gm.buildings.Count; i++)
+                {
+                    var b = gm.buildings[i];
+                    if (b != null && b.teamId == tt && b.hp > 0f) buildings++;
+                }
+                var res = (gm.teamRes != null && tt < gm.teamRes.Length) ? gm.teamRes[tt] : null;
+                int gold = res != null ? res.gold : 0;
+                var tech = (gm.teamTech != null && tt < gm.teamTech.Length) ? gm.teamTech[tt] : null;
+                string ageLbl = tech != null ? AgeName(tech.age) : "—";
+                int score = units * 10 + military * 15 + buildings * 25 + (res != null ? (res.food + res.wood + res.gold + res.stone) / 10 : 0);
+
+                string line = $"{teamNames[Mathf.Min(tt, teamNames.Length-1)]}       {score,5}  {military,5}  {villagers,3}  {buildings,4}  {gold,5}  {ageLbl}";
+
+                var rowRect = NewRect("PGRow_" + tt, overlay);
+                rowRect.anchorMin = new Vector2(0.5f, 1); rowRect.anchorMax = new Vector2(0.5f, 1);
+                rowRect.pivot = new Vector2(0.5f, 1f);
+                rowRect.sizeDelta = new Vector2(680, 26);
+                rowRect.anchoredPosition = new Vector2(0, rowY);
+                var rowTxt = AddText(rowRect, line, TextAnchor.MiddleLeft);
+                rowTxt.fontSize = 16;
+                rowTxt.color = tt == 0
+                    ? (playerWon ? Prims.Hex(0x4cdd6a) : Prims.Hex(0xff7070))
+                    : TeamPalette.For(tt);
+                rowY -= 28f;
+            }
+        }
+
+        // ── Restart hint ───────────────────────────────────────────────────
         var hintRect = NewRect("GameOverHint", overlay);
-        hintRect.anchorMin = new Vector2(0, 0.5f); hintRect.anchorMax = new Vector2(1, 0.5f);
-        hintRect.pivot = new Vector2(0.5f, 0.5f);
-        hintRect.sizeDelta = new Vector2(0, 40);
-        hintRect.anchoredPosition = new Vector2(0, -100);
-        var hint = AddText(hintRect, "Yeniden baslatmak icin R", TextAnchor.MiddleCenter);
-        hint.fontSize = 28;
-        hint.color = new Color(0.85f, 0.85f, 0.85f, 1f);
+        hintRect.anchorMin = new Vector2(0, 0); hintRect.anchorMax = new Vector2(1, 0);
+        hintRect.pivot = new Vector2(0.5f, 0f);
+        hintRect.sizeDelta = new Vector2(0, 50);
+        hintRect.anchoredPosition = new Vector2(0, 30);
+        var hint = AddText(hintRect, "Yeniden başlatmak için R", TextAnchor.MiddleCenter);
+        hint.fontSize = 26; hint.color = new Color(0.85f, 0.85f, 0.85f, 1f);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
@@ -1197,26 +1789,14 @@ public class HUD : MonoBehaviour
 
     static string AgeName(Age a) => a switch
     {
-        Age.Dark   => "Karanlık",
-        Age.Feudal => "Derebeylik",
-        Age.Castle => "Kale",
-        Age.Imperial => "İmparatorluk",
-        _          => "",
+        Age.Dark     => Loc.Get("age.dark"),
+        Age.Feudal   => Loc.Get("age.feudal"),
+        Age.Castle   => Loc.Get("age.castle"),
+        Age.Imperial => Loc.Get("age.imperial"),
+        _            => "",
     };
 
-    static string UnitTr(UnitType t) => t switch
-    {
-        UnitType.Villager    => "Köylü",
-        UnitType.Militia     => "Asker",
-        UnitType.Archer      => "Okçu",
-        UnitType.Cavalry     => "Süvari",
-        UnitType.Trebuchet   => "Mancınık",
-        UnitType.Scout       => "Gözcü",
-        UnitType.Medic       => "Şifacı",
-        UnitType.Spearman    => "Mızrakçı",
-        UnitType.Longbowman  => "Uzun Yaylı",
-        _                    => t.ToString(),
-    };
+    static string UnitTr(UnitType t) => Loc.Get("unit." + t.ToString());
 
     /// <summary>Tech-aware unit name: a unit shows its highest researched tier's
     /// title (e.g. Militia → "Piyade" → "Uzun Kılıç"). Falls back to the base name.</summary>
@@ -1227,14 +1807,42 @@ public class HUD : MonoBehaviour
             switch (t)
             {
                 case UnitType.Militia:
+                    if (tech.Has(TechType.Champion))      return "Şampiyon";
+                    if (tech.Has(TechType.TwoHandedSwordsman)) return "İki Elli Kılıç";
                     if (tech.Has(TechType.Longswordsman)) return "Uzun Kılıç";
                     if (tech.Has(TechType.ManAtArms))     return "Piyade";
                     break;
                 case UnitType.Archer:
+                    if (tech.Has(TechType.Arbalest))      return "Arbalet";
                     if (tech.Has(TechType.Crossbowman))   return "Arbaletçi";
                     break;
+                case UnitType.Scout:
+                    if (tech.Has(TechType.Hussar))        return "Hüsar";
+                    if (tech.Has(TechType.LightCavalry))  return "Hafif Süvari";
+                    break;
+                case UnitType.CavalryArcher:
+                    if (tech.Has(TechType.HeavyCavalryArcher)) return "Ağır Atlı Okçu";
+                    break;
+                case UnitType.Galley:
+                    if (tech.Has(TechType.Galleon))       return "Kalyon";
+                    if (tech.Has(TechType.WarGalley))     return "Savaş Kadırgası";
+                    break;
                 case UnitType.Cavalry:
+                    if (tech.Has(TechType.Paladin))       return "Paladin";
                     if (tech.Has(TechType.Cavalier))      return "Ağır Süvari";
+                    break;
+                case UnitType.Spearman:
+                    if (tech.Has(TechType.Halberdier))    return "Teberli";
+                    if (tech.Has(TechType.Pikeman))       return "Kargıcı";
+                    break;
+                case UnitType.Skirmisher:
+                    if (tech.Has(TechType.EliteSkirmisher)) return "Seçkin Avcı";
+                    break;
+                case UnitType.Camel:
+                    if (tech.Has(TechType.HeavyCamel))    return "Ağır Deve";
+                    break;
+                case UnitType.Eagle:
+                    if (tech.Has(TechType.EliteEagle))    return "Seçkin Kartal Savaşçı";
                     break;
             }
         }
@@ -1256,6 +1864,11 @@ public class HUD : MonoBehaviour
         BuildingType.Castle       => "Kale",
         BuildingType.Wall         => "Duvar",
         BuildingType.Gate         => "Kapı",
+        BuildingType.Dock         => "Liman",
+        BuildingType.SiegeWorkshop => "Kuşatma Atölyesi",
+        BuildingType.Outpost      => "Gözcü Kulesi",
+        BuildingType.BombardTower => "Bombard Kulesi",
+        BuildingType.FishTrap     => "Balık Tuzağı",
         _                         => t.ToString(),
     };
 
@@ -1272,6 +1885,7 @@ public class HUD : MonoBehaviour
         UnitType.Medic       => "Yakındaki dost birimleri iyileştirir.",
         UnitType.Spearman    => "Süvariye karşı uzman. Mızraklı piyade.",
         UnitType.Longbowman  => "Britanyalılar özgün birimi. Çok uzun menzil, delik zırh.",
+        UnitType.Galley      => "Su birimi. Göldeki düşman gemilerine saldırır.",
         _                    => "",
     };
 
@@ -1290,6 +1904,10 @@ public class HUD : MonoBehaviour
         BuildingType.Castle       => "Güçlü savunma kulesi; mancınık/şifacı eğitir.",
         BuildingType.Wall         => "Geçişi engelleyen sur. Ucuz ve dayanıklı.",
         BuildingType.Gate         => "Birimlerin geçebildiği kapı.",
+        BuildingType.Dock         => "Gemi üretir. Su kenarına inşa et (150 odun).",
+        BuildingType.SiegeWorkshop => "Koçbaşı + mancınık üretir (Kale Çağı, 200 odun).",
+        BuildingType.Outpost      => "Ucuz gözcü kulesi. Ateş etmez (25 odun + 5 taş).",
+        BuildingType.BombardTower => "Top kulesi: Siege hasarı, uzun menzil (İmparatorluk, 125 odun + 100 taş).",
         _                         => "",
     };
 
@@ -1308,8 +1926,152 @@ public class HUD : MonoBehaviour
         TechType.Crossbowman   => "Okçu yükseltmesi: Arbaletçi.",
         TechType.Cavalier      => "Süvari yükseltmesi: Ağır Süvari.",
         TechType.DoubleBitAxe  => "Odun toplama hızı +.",
-        TechType.Wheelbarrow   => "Tüm toplama hızı +.",
+        TechType.Wheelbarrow   => "Köylü taşıma kapasitesi ve hızı +.",
+        // ── M6 Blacksmith ──
+        TechType.IronCasting   => "Yakın dövüş saldırısı + (asker & süvari).",
+        TechType.BlastFurnace  => "Yakın dövüş saldırısı ++ (asker & süvari).",
+        TechType.ChainMail     => "Piyade zırhı + (yakın & delici).",
+        TechType.PlateMail     => "Piyade zırhı ++ (yakın & delici).",
+        TechType.ScaleBarding  => "Süvari zırhı +.",
+        TechType.ChainBarding  => "Süvari zırhı +.",
+        TechType.PlateBarding  => "Süvari zırhı ++.",
+        TechType.PaddedArcherArmor  => "Okçu zırhı +.",
+        TechType.LeatherArcherArmor => "Okçu zırhı +.",
+        TechType.RingArcherArmor    => "Okçu zırhı ++.",
+        TechType.Bracer        => "Okçu saldırısı ve menzili +.",
+        // ── M6 Ekonomi ──
+        TechType.Loom          => "Köylü canı ve zırhı +.",
+        TechType.BowSaw        => "Odun toplama hızı +.",
+        TechType.GoldMining    => "Altın toplama hızı +.",
+        TechType.StoneMining   => "Taş toplama hızı +.",
+        TechType.CropRotation  => "Tarla yiyecek kapasitesi +.",
+        TechType.Husbandry     => "Süvari hareket hızı +.",
+        TechType.Caravan       => "Ticaret arabası geliri +.",
+        // ── M6 Üniversite ──
+        TechType.Ballistics    => "Mermiler hareketli hedefleri daha iyi vurur.",
+        TechType.Chemistry     => "Tüm menzilli saldırılar +1.",
+        TechType.Architecture  => "Bina canı ve zırhı +.",
+        // ── M7 Manastır ──
+        TechType.Sanctity      => "Keşiş canı +.",
+        TechType.BlockPrinting => "Keşiş dönüştürme menzili +.",
+        TechType.Redemption    => "Keşişler bina/kuşatma dönüştürebilir.",
+        TechType.Theocracy     => "Dönüştürmede yalnız bir keşiş inanç harcar.",
+        // ── M8 Pazar ──
+        TechType.Coinage       => "Haraç vergisiz gönderilir.",
+        TechType.Banking       => "Ticaret arabası geliri +.",
+        TechType.Guilds        => "Pazar alış-satış farkı daralır.",
+        TechType.EliteEagle    => "Kartal Savaşçı → Seçkin: can ve saldırı +.",
+        // ── M9 civ-özel unique tech ──
+        TechType.Chivalry      => "Frank: süvari canı +20.",
+        TechType.BeardedAxe    => "Frank: piyade saldırısı +2.",
+        TechType.Ironclad      => "Töton: kuşatma birimi zırhı +4.",
+        TechType.Crenellations => "Töton: kule menzili +.",
         _                      => "",
+    };
+
+    // ── DIPL: Diplomacy panel ────────────────────────────────────────────────
+
+    bool _diplPanelOpen;
+    GameObject _diplPanel;
+
+    /// <summary>Toggle the diplomacy panel (called from a HUD button or hotkey).</summary>
+    public void ToggleDiplomacyPanel()
+    {
+        _diplPanelOpen = !_diplPanelOpen;
+        if (_diplPanel != null) { Object.Destroy(_diplPanel); _diplPanel = null; }
+        if (!_diplPanelOpen) return;
+        BuildDiplomacyPanel();
+    }
+
+    void BuildDiplomacyPanel()
+    {
+        if (_canvasRoot == null) return;
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+
+        _diplPanel = new GameObject("DiplPanel");
+        var rt = _diplPanel.AddComponent<RectTransform>();
+        rt.SetParent(_canvasRoot, false);
+        rt.anchorMin = new Vector2(0f, 0.5f); rt.anchorMax = new Vector2(0f, 0.5f);
+        rt.pivot = new Vector2(0f, 0.5f);
+        rt.sizeDelta = new Vector2(220, 160);
+        rt.anchoredPosition = new Vector2(8, 0);
+        var bg = _diplPanel.AddComponent<Image>();
+        bg.color = new Color(0f, 0f, 0f, 0.78f);
+
+        string[] teamNames = { "", "Kırmızı", "Yeşil", "Sarı" };
+
+        for (int t = 1; t < 4; t++)
+        {
+            int team = t; // capture for lambda
+            var row = new GameObject($"DiplRow_{t}");
+            var rowRt = row.AddComponent<RectTransform>();
+            rowRt.SetParent(rt, false);
+            rowRt.anchorMin = new Vector2(0, 1); rowRt.anchorMax = new Vector2(1, 1);
+            rowRt.pivot = new Vector2(0, 1);
+            rowRt.sizeDelta = new Vector2(0, 36);
+            rowRt.anchoredPosition = new Vector2(0, -(8 + (t - 1) * 40f));
+
+            var nameRect = NewRect($"DiplName_{t}", rowRt);
+            nameRect.anchorMin = Vector2.zero; nameRect.anchorMax = new Vector2(0.55f, 1);
+            nameRect.offsetMin = new Vector2(8, 0); nameRect.offsetMax = Vector2.zero;
+            var nameText = AddText(nameRect, teamNames[t], TextAnchor.MiddleLeft);
+            nameText.color = TeamPalette.For(t);
+            nameText.fontSize = 14;
+
+            var btnRect = NewRect($"DiplBtn_{t}", rowRt);
+            btnRect.anchorMin = new Vector2(0.55f, 0.1f); btnRect.anchorMax = new Vector2(0.98f, 0.9f);
+            btnRect.offsetMin = Vector2.zero; btnRect.offsetMax = Vector2.zero;
+            var btnImg = btnRect.gameObject.AddComponent<Image>();
+            btnImg.color = new Color(0.25f, 0.25f, 0.35f, 1f);
+
+            var btnLabelRect = NewRect($"DiplBtnLabel_{t}", btnRect);
+            btnLabelRect.anchorMin = Vector2.zero; btnLabelRect.anchorMax = Vector2.one;
+            btnLabelRect.offsetMin = Vector2.zero; btnLabelRect.offsetMax = Vector2.zero;
+            var btnLabel = AddText(btnLabelRect, DiplStateLabel(gm.diplomacy[0, team]), TextAnchor.MiddleCenter);
+            btnLabel.fontSize = 13;
+
+            var btn = btnRect.gameObject.AddComponent<Button>();
+            btn.onClick.AddListener(() =>
+            {
+                var cur = gm.diplomacy[0, team];
+                var next = cur == DiplomacyState.Enemy ? DiplomacyState.Neutral
+                         : cur == DiplomacyState.Neutral ? DiplomacyState.Allied
+                         : DiplomacyState.Enemy;
+                gm.diplomacy[0, team] = next;
+                btnLabel.text = DiplStateLabel(next);
+                btnLabel.color = DiplStateColor(next);
+            });
+            btnLabel.color = DiplStateColor(gm.diplomacy[0, team]);
+        }
+
+        var closeRect = NewRect("DiplClose", rt);
+        closeRect.anchorMin = new Vector2(0.7f, 0); closeRect.anchorMax = new Vector2(1, 0);
+        closeRect.pivot = new Vector2(1, 0);
+        closeRect.sizeDelta = new Vector2(0, 28);
+        closeRect.anchoredPosition = new Vector2(-4, 4);
+        var closeImg = closeRect.gameObject.AddComponent<Image>();
+        closeImg.color = new Color(0.45f, 0.15f, 0.15f, 1f);
+        var closeLabelRect = NewRect("DiplCloseLabel", closeRect);
+        closeLabelRect.anchorMin = Vector2.zero; closeLabelRect.anchorMax = Vector2.one;
+        closeLabelRect.offsetMin = Vector2.zero; closeLabelRect.offsetMax = Vector2.zero;
+        var closeLabel = AddText(closeLabelRect, "Kapat", TextAnchor.MiddleCenter);
+        closeLabel.fontSize = 12;
+        var closeBtn = closeRect.gameObject.AddComponent<Button>();
+        closeBtn.onClick.AddListener(ToggleDiplomacyPanel);
+    }
+
+    static string DiplStateLabel(DiplomacyState s) => s switch
+    {
+        DiplomacyState.Allied  => "İttifak",
+        DiplomacyState.Neutral => "Tarafsız",
+        _                      => "Düşman",
+    };
+    static Color DiplStateColor(DiplomacyState s) => s switch
+    {
+        DiplomacyState.Allied  => Prims.Hex(0x4cdd70),
+        DiplomacyState.Neutral => Prims.Hex(0xf0d050),
+        _                      => Prims.Hex(0xff5555),
     };
 
     /// <summary>Compact cost string, e.g. "60O 20A" (Y=food, O=wood, A=gold, T=stone).</summary>

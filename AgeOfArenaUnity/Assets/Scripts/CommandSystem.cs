@@ -14,6 +14,11 @@ public class CommandSystem : MonoBehaviour
     static readonly Color GatherColor = Prims.Hex(0xffcc44);
     static readonly Color AttackColor = Prims.Hex(0xff3322);
 
+    // N6.form: formation type cycling (F key)
+    public enum FormationType { Grid, Line, Staggered, Wedge }
+    public static FormationType CurrentFormation = FormationType.Grid;
+    static readonly string[] FormationNames = { "Izgara", "Hat", "Sıralı", "V" };
+
     Camera _cam;
 
     /// <summary>True while waiting for the player to click an attack-move destination.</summary>
@@ -57,6 +62,15 @@ public class CommandSystem : MonoBehaviour
         HandleBuildHotkeys();
         HandleUnitHotkeys();
         HandleGarrisonHotkeys();
+
+        // N6.form: F = cycle formation type; H = Town Bell
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            CurrentFormation = (FormationType)(((int)CurrentFormation + 1) % 4);
+            gm.hud?.ShowSubtitle(FormationNames[(int)CurrentFormation]);
+        }
+        if (Input.GetKeyDown(KeyCode.H)) TownBell(gm);
+
         if (!Input.GetMouseButtonDown(1)) return;
         // A right-click over the HUD command bar shouldn't issue a world order.
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
@@ -94,7 +108,16 @@ public class CommandSystem : MonoBehaviour
                 var u = selected[i];
                 if (u != null) { u.AttackOrder(enemy); ordered = true; }
             }
-            if (ordered) SpawnMarker(enemy.Transform.position, AttackColor);
+            if (ordered)
+            {
+                SpawnMarker(enemy.Transform.position, AttackColor);
+                // N3.cmdlog: record attack command
+                int targetId = (enemy is UnitEntity ue) ? ue.unitId
+                             : (enemy is BuildingEntity be) ? be.GetInstanceID() : 0;
+                GameManager.Instance?.cmdRecorder?.Record(
+                    CommandType.Attack, UnitIds(selected), intParam1: targetId,
+                    x: enemy.Transform.position.x, z: enemy.Transform.position.z);
+            }
             return;
         }
 
@@ -135,13 +158,24 @@ public class CommandSystem : MonoBehaviour
             for (int i = 0; i < selected.Count; i++)
             {
                 var u = selected[i];
-                if (u != null && u.type == UnitType.Villager)
+                // Villagers gather any node; FISH: fishing ships gather food (fish ponds) on water.
+                bool canGather = u != null && (u.type == UnitType.Villager
+                    || (u.type == UnitType.FishingShip && node.kind == ResourceKind.Food));
+                if (canGather)
                 {
                     gm.gather.AssignGather(u, node);
                     any = true;
                 }
             }
-            if (any) SpawnMarker(node.transform.position, GatherColor);
+            if (any)
+            {
+                SpawnMarker(node.transform.position, GatherColor);
+                // N3.cmdlog: record gather command
+                GameManager.Instance?.cmdRecorder?.Record(
+                    CommandType.Gather, UnitIds(selected),
+                    intParam1: node.GetInstanceID(),
+                    x: node.transform.position.x, z: node.transform.position.z);
+            }
             return;
         }
 
@@ -149,6 +183,8 @@ public class CommandSystem : MonoBehaviour
         {
             MoveOrder(selected, hit.point);
             SpawnMarker(hit.point, MoveColor);
+            // SUBT: move-order confirm sound.
+            AudioManager.Play(AudioManager.SoundId.UnitMove, 0.5f);
         }
     }
 
@@ -240,9 +276,9 @@ public class CommandSystem : MonoBehaviour
         var sel = gm.selection != null ? gm.selection.Selected : null;
         if (sel == null || sel.Count == 0) return;
 
-        if (Input.GetKeyDown(KeyCode.S))
+        if (Hotkeys.Down(HotkeyAction.Stop))
             for (int i = 0; i < sel.Count; i++) { var u = sel[i]; if (u != null) { u.attackMove = false; u.Stop(); } }
-        else if (Input.GetKeyDown(KeyCode.A))
+        else if (Hotkeys.Down(HotkeyAction.AttackMove))
             BeginAttackMove();
         else if (Input.GetKeyDown(KeyCode.P))
             BeginPatrol(gm, sel);
@@ -345,6 +381,10 @@ public class CommandSystem : MonoBehaviour
     void MoveOrder(List<UnitEntity> selected, Vector3 point)
     {
         int n = selected.Count;
+        // N3.cmdlog: record move command
+        GameManager.Instance?.cmdRecorder?.Record(
+            CommandType.Move, UnitIds(selected), x: point.x, z: point.z);
+
         if (n == 1)
         {
             selected[0].Stop();
@@ -352,28 +392,129 @@ public class CommandSystem : MonoBehaviour
             return;
         }
 
-        // Formation grid (Selection.ts:265-277): centered cols×rows around click.
-        int cols = Mathf.CeilToInt(Mathf.Sqrt(n));
-        int rows = Mathf.CeilToInt(n / (float)cols);
+        // N6.form: apply formation-type-specific slot layout.
+        var offsets = FormationOffsets(n, CurrentFormation);
         for (int i = 0; i < n; i++)
         {
             var u = selected[i];
             if (u == null) continue;
-            int row = i / cols;
-            int col = i % cols;
-            float offX = (col - (cols - 1) / 2f) * FormationSpacing;
-            float offZ = (row - (rows - 1) / 2f) * FormationSpacing;
             u.Stop();
-            u.MoveTo(point + new Vector3(offX, 0f, offZ));
+            u.MoveTo(point + offsets[i]);
         }
     }
 
-    // ── Rally flag ────────────────────────────────────────────────────────────
+    static int[] UnitIds(List<UnitEntity> units)
+    {
+        var ids = new int[units.Count];
+        for (int i = 0; i < units.Count; i++)
+            ids[i] = units[i] != null ? units[i].unitId : -1;
+        return ids;
+    }
+
+    /// <summary>Compute n world-space XZ offsets for the chosen formation type.</summary>
+    public static Vector3[] FormationOffsets(int n, FormationType ft)
+    {
+        var offs = new Vector3[n];
+        float s = FormationSpacing;
+        switch (ft)
+        {
+            case FormationType.Line:
+                // Single long row.
+                for (int i = 0; i < n; i++)
+                    offs[i] = new Vector3((i - (n - 1) / 2f) * s, 0f, 0f);
+                break;
+            case FormationType.Staggered:
+                // Two-column stagger (AoE2 "standard" default).
+                for (int i = 0; i < n; i++)
+                {
+                    int col = i % 2;
+                    int row = i / 2;
+                    offs[i] = new Vector3((col - 0.5f) * s, 0f, -row * s);
+                }
+                break;
+            case FormationType.Wedge:
+                // V-shape: front solo, then expanding rows.
+                int front = 1;
+                int placed = 0, rowIdx = 0;
+                while (placed < n)
+                {
+                    int inRow = Mathf.Min(front, n - placed);
+                    for (int c = 0; c < inRow; c++)
+                        offs[placed++] = new Vector3((c - (inRow - 1) / 2f) * s, 0f, -rowIdx * s);
+                    front += 2; rowIdx++;
+                }
+                break;
+            default: // Grid
+                int cols = Mathf.CeilToInt(Mathf.Sqrt(n));
+                for (int i = 0; i < n; i++)
+                    offs[i] = new Vector3((i % cols - (cols - 1) / 2f) * s, 0f, -(i / cols) * s);
+                break;
+        }
+        return offs;
+    }
+
+    // ── Town Bell (N6.form) ────────────────────────────────────────────────────
+
+    static bool _townBellActive;
+
+    /// <summary>Toggle: first press = all player villagers garrison into nearest TC/tower/castle.
+    /// Second press = all garrison buildings ungarrison.</summary>
+    static void TownBell(GameManager gm)
+    {
+        if (gm == null) return;
+        _townBellActive = !_townBellActive;
+        gm.hud?.ShowSubtitle(_townBellActive ? "⚑ Kule Çanı — Köylüler garnizona!" : "⚑ Kule Çanı — Geri dön!");
+
+        if (_townBellActive)
+        {
+            // Find all team-0 garrison-capable buildings sorted by distance to base.
+            var garrisonBuildings = new System.Collections.Generic.List<BuildingEntity>();
+            for (int i = 0; i < gm.buildings.Count; i++)
+            {
+                var b = gm.buildings[i];
+                if (b != null && b.teamId == 0 && b.GarrisonCapacity > 0 && b.hp > 0f && !b.underConstruction)
+                    garrisonBuildings.Add(b);
+            }
+            if (garrisonBuildings.Count == 0) return;
+
+            // Send all player villagers to garrison the nearest eligible building.
+            for (int i = 0; i < gm.units.Count; i++)
+            {
+                var u = gm.units[i];
+                if (u == null || u.teamId != 0 || u.type != UnitType.Villager || u.isGarrisoned) continue;
+                // Find nearest garrison building.
+                BuildingEntity best = null;
+                float bestDist = float.MaxValue;
+                foreach (var b in garrisonBuildings)
+                {
+                    if (b.GarrisonCount >= b.GarrisonCapacity) continue;
+                    float d = (b.transform.position - u.transform.position).sqrMagnitude;
+                    if (d < bestDist) { bestDist = d; best = b; }
+                }
+                if (best != null) u.GarrisonOrder(best);
+            }
+        }
+        else
+        {
+            // Release all garrisoned units from all team-0 buildings.
+            for (int i = 0; i < gm.buildings.Count; i++)
+            {
+                var b = gm.buildings[i];
+                if (b != null && b.teamId == 0 && b.GarrisonCount > 0)
+                    gm.garrison?.UngarrisonAll(b);
+            }
+        }
+    }
+
+    // ── Rally flag + line ────────────────────────────────────────────────────────
 
     GameObject _rallyFlag;
+    LineRenderer _rallyLine;
+    static readonly Color RallyColor = Prims.Hex(0x39c24a);
 
-    /// <summary>Show a small flag at the selected building's rally point; hide it
-    /// when no rally-capable building is selected.</summary>
+    /// <summary>Show a small flag at the selected building's rally point (plus a line
+    /// from the building to it, N9.feedback); hide both when no rally-capable building
+    /// is selected.</summary>
     void UpdateRallyFlag(GameManager gm)
     {
         var b = gm.selectedBuilding;
@@ -381,6 +522,7 @@ public class CommandSystem : MonoBehaviour
         if (!show)
         {
             if (_rallyFlag != null && _rallyFlag.activeSelf) _rallyFlag.SetActive(false);
+            if (_rallyLine != null && _rallyLine.enabled) _rallyLine.enabled = false;
             return;
         }
         if (_rallyFlag == null)
@@ -389,10 +531,26 @@ public class CommandSystem : MonoBehaviour
             Prims.Cylinder(_rallyFlag.transform, new Vector3(0, 0.9f, 0), 0.06f, 1.8f,
                 Prims.Mat(Prims.Hex(0x4a3520)));
             Prims.Box(_rallyFlag.transform, new Vector3(0.3f, 1.5f, 0f), new Vector3(0.55f, 0.38f, 0.04f),
-                Prims.Mat(Prims.Hex(0x39c24a)));
+                Prims.Mat(RallyColor));
         }
         _rallyFlag.transform.position = b.rallyPoint;
         if (!_rallyFlag.activeSelf) _rallyFlag.SetActive(true);
+
+        // N9.feedback: a ground line connecting the building to its rally point.
+        if (_rallyLine == null)
+        {
+            var lgo = new GameObject("RallyLine");
+            _rallyLine = lgo.AddComponent<LineRenderer>();
+            _rallyLine.useWorldSpace = true;
+            _rallyLine.widthMultiplier = 0.12f;
+            _rallyLine.material = Prims.UnlitColorMat(RallyColor);
+            _rallyLine.startColor = _rallyLine.endColor = RallyColor;
+            _rallyLine.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _rallyLine.positionCount = 2;
+        }
+        _rallyLine.SetPosition(0, b.transform.position + Vector3.up * 0.1f);
+        _rallyLine.SetPosition(1, b.rallyPoint + Vector3.up * 0.1f);
+        if (!_rallyLine.enabled) _rallyLine.enabled = true;
     }
 
     void SpawnMarker(Vector3 pos, Color color)

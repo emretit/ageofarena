@@ -47,7 +47,9 @@ public class ResourceNode : MonoBehaviour
             if (rm != null && rm.CanAfford(0, reseedWoodCost, 0, 0))
             {
                 rm.Deduct(0, reseedWoodCost, 0, 0);
-                amount = maxAmount;
+                // Horse Collar / Heavy Plow raise the reseeded farm's food capacity.
+                int farmBonus = GameManager.Instance?.teamTech[ownerTeamId]?.FarmCapacityBonus ?? 0;
+                amount = maxAmount + farmBonus;
             }
         }
 
@@ -55,7 +57,11 @@ public class ResourceNode : MonoBehaviour
         // end-of-frame compaction clears the null hole from gm.nodes). Farm fields
         // opt out so the placed building isn't destroyed.
         if (decayPerSecond > 0f && amount > 0)
-            amount = Mathf.Max(0, Mathf.RoundToInt(amount - decayPerSecond * Time.deltaTime));
+        {
+            // Franks: idle farms decay at half rate (farmDecayMult 0.5); other civs ×1.0.
+            float decayMult = GameManager.Instance?.TeamCivBonus(ownerTeamId).farmDecayMult ?? 1f;
+            amount = Mathf.Max(0, Mathf.RoundToInt(amount - decayPerSecond * decayMult * Time.deltaTime));
+        }
 
         if (destroyOnDeplete && Depleted && currentGatherers == 0)
             Destroy(gameObject);

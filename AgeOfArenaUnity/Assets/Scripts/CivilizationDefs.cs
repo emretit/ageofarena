@@ -3,8 +3,28 @@
 /// (or uses Default/None). Bonuses are data-only; systems read them via
 /// <see cref="CivilizationDefs.Get"/> and apply multipliers in their own tick logic.
 /// This keeps the civ layer additive — no civ needs bespoke system code.
+///
+/// CIVX: this file is the single canonical source of every civ's ID and display
+/// string. HUD/selection/wiki all read <see cref="CivBonus.display"/> from here —
+/// never hard-code a civ name elsewhere. docs/wiki/06-civilizations.md mirrors these.
 /// </summary>
-public enum Civilization { None, Franks, Britons, Mongols, Japanese, Byzantines }
+public enum Civilization
+{
+    None,
+    Franks, Britons, Mongols, Japanese, Byzantines,   // original 5
+    Aztecs, Teutons, Persians, Vikings, Saracens,      // M9/CIVC expansion (10 playable total)
+    Celts, Chinese, Goths, Turks,                      // N4/CIVC13: AoK-13 completion (14 playable)
+}
+
+/// <summary>
+/// CIVM: a civilization's TEAM bonus — a benefit that (once alliances land in M11)
+/// is shared with every allied team. Exposed through
+/// <see cref="GameManager.TeamSharedBonus"/> and consumed by gameplay systems.
+/// </summary>
+public struct TeamBonus
+{
+    public float gatherFoodBonus;   // additive fraction to team food gather (0.05 = +5%)
+}
 
 public struct CivBonus
 {
@@ -26,45 +46,51 @@ public struct CivBonus
 
     // Economy QoL
     public float farmDecayMult;    // 1.0 = normal; Franks 0.5 = half decay
+
+    // ── M9/CIVD: new identity fields (each read by ≥1 system) ────────────────
+    public float archerAttackMult;  // Vikings/Saracens: archer-class +atk (UnitEntity.AttackDamage)
+    public float unitTrainTimeMult; // Mongols/Aztecs: faster training, <1 (TrainingQueue.Enqueue)
+
+    // ── M9/CIVM: team (shared) bonus ─────────────────────────────────────────
+    public TeamBonus teamBonus;
 }
 
 public static class CivilizationDefs
 {
+    // Helper: build a fully-populated row with sensible neutral defaults, then override.
+    static CivBonus Row(Civilization c, string name,
+        float food = 1f, float wood = 1f, float gold = 1f,
+        float cavHp = 1f, float archRange = 0f, float cavSpd = 1f,
+        float infAtk = 1f, float bldHp = 1f, float heal = 1f, float farmDecay = 1f,
+        float archAtk = 1f, float trainTime = 1f, float teamFood = 0f) => new()
+    {
+        civ = c, display = name,
+        gatherFoodMult = food, gatherWoodMult = wood, gatherGoldMult = gold,
+        cavalryHpMult = cavHp, archerRangeBonus = archRange, cavalrySpeedMult = cavSpd,
+        infantryAttackMult = infAtk, buildingHpMult = bldHp, healRateMult = heal,
+        farmDecayMult = farmDecay, archerAttackMult = archAtk, unitTrainTimeMult = trainTime,
+        teamBonus = new TeamBonus { gatherFoodBonus = teamFood },
+    };
+
     static readonly CivBonus[] Table =
     {
-        new() { civ = Civilization.None,       display = "Yok",         // balanced (no bonus)
-            gatherFoodMult=1f, gatherWoodMult=1f, gatherGoldMult=1f,
-            cavalryHpMult=1f, archerRangeBonus=0f, cavalrySpeedMult=1f,
-            infantryAttackMult=1f, buildingHpMult=1f, healRateMult=1f, farmDecayMult=1f },
-
-        new() { civ = Civilization.Franks,     display = "Franklar",
-            gatherFoodMult=1.2f, cavalryHpMult=1.2f, farmDecayMult=0.5f,
-            gatherWoodMult=1f, gatherGoldMult=1f, cavalrySpeedMult=1f,
-            infantryAttackMult=1f, buildingHpMult=1f, healRateMult=1f },
-
-        new() { civ = Civilization.Britons,    display = "Britanyalılar",
-            archerRangeBonus=1f, gatherWoodMult=1.15f,
-            gatherFoodMult=1f, gatherGoldMult=1f, cavalryHpMult=1f,
-            cavalrySpeedMult=1f, infantryAttackMult=1f, buildingHpMult=1f,
-            healRateMult=1f, farmDecayMult=1f },
-
-        new() { civ = Civilization.Mongols,    display = "Moğollar",
-            cavalrySpeedMult=1.25f, gatherGoldMult=1.1f,
-            gatherFoodMult=1f, gatherWoodMult=1f, cavalryHpMult=1f,
-            archerRangeBonus=0f, infantryAttackMult=1f, buildingHpMult=1f,
-            healRateMult=1f, farmDecayMult=1f },
-
-        new() { civ = Civilization.Japanese,   display = "Japonlar",
-            infantryAttackMult=1.1f, gatherWoodMult=1.1f,
-            gatherFoodMult=1f, gatherGoldMult=1f, cavalryHpMult=1f,
-            cavalrySpeedMult=1f, archerRangeBonus=0f, buildingHpMult=1f,
-            healRateMult=1f, farmDecayMult=1f },
-
-        new() { civ = Civilization.Byzantines, display = "Bizanslılar",
-            buildingHpMult=1.1f, healRateMult=1.5f,
-            gatherFoodMult=1f, gatherWoodMult=1f, gatherGoldMult=1f,
-            cavalryHpMult=1f, cavalrySpeedMult=1f, infantryAttackMult=1f,
-            archerRangeBonus=0f, farmDecayMult=1f },
+        Row(Civilization.None,       "Yok"),
+        Row(Civilization.Franks,     "Franklar",      food: 1.2f, cavHp: 1.2f, farmDecay: 0.5f),
+        Row(Civilization.Britons,    "Britanyalılar", wood: 1.15f, archRange: 1f),
+        Row(Civilization.Mongols,    "Moğollar",      gold: 1.1f, cavSpd: 1.25f, trainTime: 0.9f),
+        Row(Civilization.Japanese,   "Japonlar",      wood: 1.1f, infAtk: 1.1f),
+        Row(Civilization.Byzantines, "Bizanslılar",   bldHp: 1.1f, heal: 1.5f),
+        // ── M9/CIVC expansion ──
+        Row(Civilization.Aztecs,     "Aztekler",      food: 1.15f, heal: 1.2f, trainTime: 0.9f, teamFood: 0.05f),
+        Row(Civilization.Teutons,    "Tötonlar",      infAtk: 1.05f, bldHp: 1.15f),
+        Row(Civilization.Persians,   "Persler",       food: 1.1f, cavHp: 1.1f),
+        Row(Civilization.Vikings,    "Vikingler",     archAtk: 1.1f, wood: 1.1f),
+        Row(Civilization.Saracens,   "Saracenler",    gold: 1.15f, archAtk: 1.1f),
+        // ── N4/CIVC13: AoK-13 completion ──
+        Row(Civilization.Celts,      "Keltler",       wood: 1.15f, infAtk: 1.05f),
+        Row(Civilization.Chinese,    "Çinliler",      food: 1.1f, trainTime: 0.9f),
+        Row(Civilization.Goths,      "Gotlar",        food: 1.1f, infAtk: 1.05f),
+        Row(Civilization.Turks,      "Türkler",       gold: 1.15f, cavHp: 1.05f),
     };
 
     public static CivBonus Get(Civilization c)
@@ -72,5 +98,52 @@ public static class CivilizationDefs
         for (int i = 0; i < Table.Length; i++)
             if (Table[i].civ == c) return Table[i];
         return Table[0];
+    }
+
+    // ── N0.7: tech-tree subtraction (AoE2's defining civ mechanic) ───────────────────────────
+    // Units/techs a civ may NOT train/research. Interim hard-coded sets here; N4 folds these into
+    // the data-driven registry. The AI is unaffected (it spawns units & applies techs directly,
+    // bypassing the command card / queue), so denials constrain only the player's options.
+    static readonly System.Collections.Generic.Dictionary<Civilization, UnitType[]> DeniedUnitsByCiv = new()
+    {
+        { Civilization.Aztecs,   new[] { UnitType.Cavalry, UnitType.Scout, UnitType.Camel, UnitType.CavalryArcher } }, // no cavalry civ
+        { Civilization.Franks,   new[] { UnitType.Camel } },
+        { Civilization.Britons,  new[] { UnitType.Camel } },
+        { Civilization.Japanese, new[] { UnitType.Camel } },
+        { Civilization.Vikings,  new[] { UnitType.Camel } },
+        // N4/CIVC13
+        { Civilization.Celts,    new[] { UnitType.Camel, UnitType.CavalryArcher } },
+        { Civilization.Goths,    new[] { UnitType.Camel } },
+        { Civilization.Chinese,  new[] { UnitType.Camel } },
+    };
+
+    static readonly System.Collections.Generic.Dictionary<Civilization, TechType[]> DeniedTechsByCiv = new()
+    {
+        { Civilization.Franks,   new[] { TechType.Halberdier, TechType.Arbalest } },
+        { Civilization.Britons,  new[] { TechType.Paladin } },
+        { Civilization.Mongols,  new[] { TechType.Halberdier, TechType.Paladin } },
+        { Civilization.Japanese, new[] { TechType.Paladin } },
+        { Civilization.Aztecs,   new[] { TechType.Cavalier, TechType.Paladin, TechType.Bloodlines, TechType.Husbandry } },
+        { Civilization.Vikings,  new[] { TechType.Paladin } },
+        // N4/CIVC13
+        { Civilization.Celts,    new[] { TechType.Paladin, TechType.Arbalest } },
+        { Civilization.Chinese,  new[] { TechType.Halberdier } },
+        { Civilization.Goths,    new[] { TechType.Paladin, TechType.Arbalest } },
+        { Civilization.Turks,    new[] { TechType.Halberdier, TechType.EliteSkirmisher } },
+    };
+
+    /// <summary>N0.7: true if <paramref name="civ"/> is forbidden from training this unit.</summary>
+    public static bool IsUnitDenied(Civilization civ, UnitType u)
+        => DeniedUnitsByCiv.TryGetValue(civ, out var arr) && System.Array.IndexOf(arr, u) >= 0;
+
+    /// <summary>N0.7: true if <paramref name="civ"/> is forbidden from researching this tech.</summary>
+    public static bool IsTechDenied(Civilization civ, TechType t)
+        => DeniedTechsByCiv.TryGetValue(civ, out var arr) && System.Array.IndexOf(arr, t) >= 0;
+
+    /// <summary>All civilizations a player may pick (excludes <see cref="Civilization.None"/>).</summary>
+    public static System.Collections.Generic.IEnumerable<CivBonus> Playable()
+    {
+        for (int i = 0; i < Table.Length; i++)
+            if (Table[i].civ != Civilization.None) yield return Table[i];
     }
 }

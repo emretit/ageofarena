@@ -49,9 +49,16 @@ public class TradingSystem : MonoBehaviour
             if (dist < DepositRange)
             {
                 float tripDist  = Vector3.Distance(u.patrolA, u.patrolB);
-                int   earned    = Mathf.RoundToInt(Mathf.Max(MinGold, tripDist * TradeGoldPerUnit));
+                float earnedF   = Mathf.Max(MinGold, tripDist * TradeGoldPerUnit);
                 var   gm        = GameManager.Instance;
-                if (gm != null) gm.teamRes[u.teamId].Gain(ResourceKind.Gold, earned);
+                if (gm != null)
+                {
+                    // CARA: Market Caravan tech boosts trade-cart yield (×1.5). The same
+                    // distance-based route also models a Dock-based Trade Cog (water route)
+                    // — naval trade reuses this StepCart logic once a water map ships.
+                    earnedF *= gm.teamTech[u.teamId].TradeGoldMult;
+                    gm.teamRes[u.teamId].Gain(ResourceKind.Gold, Mathf.RoundToInt(earnedF));
+                }
 
                 // Swap: now go back home (patrol will flip A/B in UnitEntity.Update).
                 u.MoveTo(u.patrolA);

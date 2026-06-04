@@ -13,21 +13,39 @@ public static class ResourceFactory
     const int GoldAmount = 800;
     const int StoneAmount = 600;
 
-    static readonly string[] TreeModels = { "Nature/tree_default", "Nature/tree_cone", "Nature/tree_blocks" };
+    // Two model pools: dense conifers for the coastal forest wall (deep-forest read),
+    // broadleaf for interior clumps and the per-base starting wood line.
+    public enum TreeKind { Broadleaf, Conifer }
+    static readonly string[] BroadleafModels =
+        { "Nature/tree_default", "Nature/tree_oak", "Nature/tree_fat", "Nature/tree_detailed", "Nature/tree_tall", "Nature/tree_small" };
+    static readonly string[] ConiferModels =
+        { "Nature/tree_pineDefaultA", "Nature/tree_pineDefaultB", "Nature/tree_pineRoundA", "Nature/tree_pineRoundB",
+          "Nature/tree_pineRoundC", "Nature/tree_pineTallA", "Nature/tree_pineTallB", "Nature/tree_pineSmallA", "Nature/tree_pineGroundA" };
     static readonly string[] RockModels = { "Nature/rock_largeA", "Nature/rock_largeB", "Nature/rock_largeC", "Nature/rock_largeD" };
 
-    public static ResourceNode Tree(Transform parent, Vector3 worldPos)
+    public static ResourceNode Tree(Transform parent, Vector3 worldPos, TreeKind kind = TreeKind.Broadleaf)
     {
         var g = new GameObject("Tree");
         g.transform.SetParent(parent, false);
         g.transform.position = worldPos;
 
-        float s   = Random.Range(2.6f, 3.4f);  // Kenney trees are unit-scale, ~3 world-units looks right
+        float s   = Random.Range(2.6f, 3.6f);  // Kenney trees are unit-scale, ~3 world-units looks right
         float yaw = Random.Range(0f, 360f);
-        string model = TreeModels[Random.Range(0, TreeModels.Length)];
+        string[] pool = kind == TreeKind.Conifer ? ConiferModels : BroadleafModels;
+        string model = pool[Random.Range(0, pool.Length)];
 
         var mesh = KenneyModels.Spawn(model, g.transform, Vector3.zero, s, yaw);
-        if (mesh == null)
+        if (mesh != null)
+        {
+            // The Kenney Nature kit paints pine foliage a cool teal; recolour just the
+            // foliage parts to a warm forest green (trunks stay brown). Slight per-tree
+            // jitter keeps the canopy from looking flat.
+            Color foliage = kind == TreeKind.Conifer
+                ? Prims.Hex(0x2f6b30) : Prims.Hex(0x4a8c3a);
+            foliage = Color.Lerp(foliage, foliage * 1.15f, Random.value);
+            RecolorFoliage(mesh, foliage);
+        }
+        else
         {
             // Fallback: procedural cone-stack tree.
             var t = g.transform;
@@ -44,6 +62,33 @@ public static class ResourceFactory
         Prims.BlobShadow(g.transform, 1.2f);
         Prims.EnableShadows(g);
         return Finish(g, ResourceKind.Wood, TreeWood);
+    }
+
+    static readonly MaterialPropertyBlock _foliageMpb = new();
+
+    /// <summary>Recolour the foliage submeshes of a Kenney Nature model to a forest green.
+    /// The kit paints pine/leaf foliage a cool teal and packs trunk + foliage as separate
+    /// submeshes on one renderer, so we tint per-submesh (green-dominant material → green)
+    /// and leave the brown trunk and any coloured flower petals alone. A property block
+    /// keeps the shared asset materials untouched.</summary>
+    public static void RecolorFoliage(GameObject root, Color foliage)
+    {
+        foreach (var r in root.GetComponentsInChildren<MeshRenderer>())
+        {
+            var mats = r.sharedMaterials;
+            for (int i = 0; i < mats.Length; i++)
+            {
+                var m = mats[i];
+                if (m == null || !m.HasProperty("_Color")) continue;
+                var c = m.color;                   // foliage: green dominant; trunk: red dominant
+                if (c.g >= c.r && c.g > 0.35f)
+                {
+                    _foliageMpb.Clear();
+                    _foliageMpb.SetColor("_Color", foliage);
+                    r.SetPropertyBlock(_foliageMpb, i);
+                }
+            }
+        }
     }
 
     public static ResourceNode GoldMine(Transform parent, Vector3 worldPos)

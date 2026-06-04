@@ -2,6 +2,31 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
+/// AISC: unit-mix profile driven by personality. Weights are relative — the AI
+/// samples them probabilistically so composition varies game-to-game while staying
+/// thematically consistent (Rusher = heavy melee bias; Boomer = balanced with siege;
+/// Balanced = slight archer lean for ranged harassment).
+/// </summary>
+public struct AIProfile
+{
+    public float meleeWeight;   // Militia / Spearman
+    public float archerWeight;  // Archer
+    public float cavalryWeight; // Cavalry
+    public float siegeWeight;   // Trebuchet (Castle+)
+
+    static readonly AIProfile _rusher   = new AIProfile { meleeWeight = 0.65f, archerWeight = 0.15f, cavalryWeight = 0.15f, siegeWeight = 0.05f };
+    static readonly AIProfile _boomer   = new AIProfile { meleeWeight = 0.25f, archerWeight = 0.25f, cavalryWeight = 0.30f, siegeWeight = 0.20f };
+    static readonly AIProfile _balanced = new AIProfile { meleeWeight = 0.35f, archerWeight = 0.35f, cavalryWeight = 0.20f, siegeWeight = 0.10f };
+
+    public static AIProfile For(AIPersonality p) => p switch
+    {
+        AIPersonality.Rusher   => _rusher,
+        AIPersonality.Boomer   => _boomer,
+        _                      => _balanced,
+    };
+}
+
+/// <summary>
 /// Per-team enemy brain. Manages an economy (villagers gather resources) and a
 /// coordinated military loop: instead of trickling units at the player one by
 /// one, the army gathers at a rally point, marches on a target together, and
@@ -57,7 +82,6 @@ public class EnemyAI : MonoBehaviour
     float _assessTimer = 2f;
     float _gatherTimer = 3f;
     float _techTimer;
-    int   _trainCursor = -1;   // rotates Militia → Archer → Cavalry as ages unlock
 
     // ── Army state machine ──────────────────────────────────────────────────
     Stance _stance = Stance.Gathering;
@@ -70,6 +94,7 @@ public class EnemyAI : MonoBehaviour
     TechState _tech;
 
     AIPersonality _personality;
+    AIProfile     _profile;
 
     public void Init(int teamId, Color teamColor, Vector3 home, Transform unitsRoot, AIPersonality personality)
     {
@@ -78,8 +103,13 @@ public class EnemyAI : MonoBehaviour
         _home      = home;
         _unitsRoot = unitsRoot;
         _personality = personality;
+        _profile     = AIProfile.For(personality);  // AISC
         ApplyPersonality(personality);
         ApplyDifficulty();
+        // AICH: publish eco multiplier so GatherSystem/ResearchSystem can apply it.
+        var gm = GameManager.Instance;
+        if (gm != null && teamId >= 0 && teamId < 4)
+            gm.teamEcoMult[teamId] = _ecoMult;
     }
 
     /// <summary>Re-derive the tuning from personality + the current global difficulty.
@@ -88,33 +118,58 @@ public class EnemyAI : MonoBehaviour
     {
         ApplyPersonality(_personality);
         ApplyDifficulty();
+        var gm = GameManager.Instance;
+        if (gm != null && _teamId >= 0 && _teamId < 4)
+            gm.teamEcoMult[_teamId] = _ecoMult;
     }
 
     /// <summary>Scale the personality baseline by the global <see cref="Difficulty"/>:
     /// easier AI trains slower with a smaller army and pushes later; harder AI trains
     /// faster, fields more, booms harder and commits sooner.</summary>
+    // AICH: eco multiplier (applied to gather/research rates, not free resources).
+    float _ecoMult = 1f;
+
     void ApplyDifficulty()
     {
         var gm = GameManager.Instance;
         var diff = gm != null ? gm.difficulty : Difficulty.Normal;
+
+        // AIRD: use FloorToInt(x + 0.5f) for deterministic round-half-up (no banker's rounding).
+        static int Round(float v) => Mathf.FloorToInt(v + 0.5f);
+
         switch (diff)
         {
             case Difficulty.Easy:
-                _spawnInterval *= 1.6f; _armyCap = Mathf.Max(4, Mathf.RoundToInt(_armyCap * 0.6f));
-                _rushThreshold = Mathf.RoundToInt(_rushThreshold * 1.3f);
-                _villagerTarget = Mathf.Max(1, _villagerTarget - 1);
+                _spawnInterval *= 2.0f; _armyCap = Mathf.Max(3, Round(_armyCap * 0.50f));
+                _rushThreshold = Round(_rushThreshold * 1.5f);
+                _villagerTarget = Mathf.Max(1, _villagerTarget - 2);
+                _ecoMult = 0.65f;
                 break;
+            case Difficulty.Moderate:
+                _spawnInterval *= 1.4f; _armyCap = Mathf.Max(4, Round(_armyCap * 0.75f));
+                _rushThreshold = Round(_rushThreshold * 1.2f);
+                _villagerTarget = Mathf.Max(1, _villagerTarget - 1);
+                _ecoMult = 0.85f;
+                break;
+            // Normal: baseline (no change, _ecoMult stays 1).
             case Difficulty.Hard:
-                _spawnInterval *= 0.75f; _armyCap = Mathf.RoundToInt(_armyCap * 1.35f);
-                _rushThreshold = Mathf.Max(3, Mathf.RoundToInt(_rushThreshold * 0.85f));
+                _spawnInterval *= 0.80f; _armyCap = Round(_armyCap * 1.30f);
+                _rushThreshold = Mathf.Max(3, Round(_rushThreshold * 0.85f));
                 _villagerTarget += 2;
+                _ecoMult = 1.15f;
                 break;
             case Difficulty.Insane:
-                _spawnInterval *= 0.55f; _armyCap = Mathf.RoundToInt(_armyCap * 1.7f);
-                _rushThreshold = Mathf.Max(3, Mathf.RoundToInt(_rushThreshold * 0.7f));
+                _spawnInterval *= 0.60f; _armyCap = Round(_armyCap * 1.65f);
+                _rushThreshold = Mathf.Max(3, Round(_rushThreshold * 0.72f));
                 _villagerTarget += 4;
+                _ecoMult = 1.35f;
                 break;
-            // Normal: baseline (no change).
+            case Difficulty.Extreme:
+                _spawnInterval *= 0.42f; _armyCap = Round(_armyCap * 2.10f);
+                _rushThreshold = Mathf.Max(2, Round(_rushThreshold * 0.55f));
+                _villagerTarget += 6;
+                _ecoMult = 1.60f;
+                break;
         }
     }
 
@@ -214,52 +269,60 @@ public class EnemyAI : MonoBehaviour
 
     // ── Military: reinforcement ────────────────────────────────────────────────
 
+    // N14.aieco: route unit type to the building it trains from.
+    static BuildingType BuildingFor(UnitType t) => t switch
+    {
+        UnitType.Archer or UnitType.Skirmisher or UnitType.CavalryArcher or
+        UnitType.Longbowman or UnitType.ChuKoNu or UnitType.Janissary => BuildingType.ArcheryRange,
+
+        UnitType.Cavalry or UnitType.Camel or
+        UnitType.Cataphract or UnitType.Mameluke or UnitType.WarElephant => BuildingType.Stable,
+
+        UnitType.Trebuchet or UnitType.Mangonel or UnitType.Ram => BuildingType.SiegeWorkshop,
+
+        UnitType.Medic => BuildingType.Castle,
+
+        UnitType.Villager => BuildingType.TownCenter,
+
+        _ => BuildingType.Barracks,  // Militia, Spearman, Halberdier, WoadRaider, etc.
+    };
+
     void TrySpawn(GameManager gm)
     {
         if (CountArmy(gm) >= _armyCap) return;
 
+        // N5.pop: AI respects its own pop-cap (computed by GameManager.RecomputePop)
+        if (_res.pop >= _res.popCap) return;
+
         var pick = ChooseUnit(gm);
         if (pick == null) return;
 
-        Vector3 fwd   = _home.sqrMagnitude > 0.01f ? (-_home).normalized : Vector3.forward;
-        Vector3 right = Vector3.Cross(Vector3.up, fwd);
-        Vector3 pos   = _home + fwd * 4f + right * Random.Range(-2.5f, 2.5f);
+        // N14.aieco: find an idle team building of the right type and use TrainingQueue.
+        var tq = gm.trainingQueue;
+        if (tq == null) return;
 
-        UnitEntity u;
-        switch (pick.Value)
+        BuildingType needed = BuildingFor(pick.Value);
+        BuildingEntity prod = null;
+        for (int i = 0; i < gm.buildings.Count; i++)
         {
-            case UnitType.Archer:
-                _res.Deduct(0, ArcherCostWood, ArcherCostGold, 0);
-                u = UnitFactory.Archer(_unitsRoot, pos, _teamColor);
-                break;
-            case UnitType.Cavalry:
-                _res.Deduct(CavalryCostFood, 0, 0, 0);
-                u = UnitFactory.Cavalry(_unitsRoot, pos, _teamColor);
-                break;
-            case UnitType.Spearman:
-                _res.Deduct(SpearmanCostFood, SpearmanCostWood, 0, 0);
-                u = UnitFactory.Spearman(_unitsRoot, pos, _teamColor);
-                break;
-            case UnitType.Medic:
-                _res.Deduct(MedicCostFood, 0, 0, 0);
-                u = UnitFactory.Medic(_unitsRoot, pos, _teamColor);
-                break;
-            case UnitType.Trebuchet:
-                _res.Deduct(0, TrebuchetCostWood, TrebuchetCostGold, 0);
-                u = UnitFactory.Trebuchet(_unitsRoot, pos, _teamColor);
-                break;
-            default:
-                _res.Deduct(MilitiaCostFood, 0, 0, 0);
-                u = UnitFactory.Militia(_unitsRoot, pos, _teamColor);
-                break;
+            var b = gm.buildings[i];
+            if (b != null && b.teamId == _teamId && b.type == needed
+                && !b.underConstruction && b.hp > 0f
+                && tq.GetQueueCount(b) < 3)
+            { prod = b; break; }
         }
-        u.teamId = _teamId;
-        gm.RegisterUnit(u);
+        if (prod == null) return;   // no matching production building ready
 
-        // Fresh troops fold straight into an ongoing assault so reinforcements
-        // don't idle at home while the main force fights.
-        if (_stance == Stance.Attacking && _target != null && _target.IsAlive)
-            u.AttackOrder(_target);
+        // Find the matching UnitTrainable from the building's list and enqueue it.
+        var trainables = prod.GetTrainables();
+        for (int i = 0; i < trainables.Length; i++)
+        {
+            if (trainables[i].unitType == pick.Value)
+            {
+                tq.Enqueue(prod, trainables[i]);
+                return;
+            }
+        }
     }
 
     /// <summary>Pick the next unit to reinforce with: keep a thin siege line for
@@ -290,26 +353,28 @@ public class EnemyAI : MonoBehaviour
             && _res.CanAfford(MedicCostFood, 0, 0, 0))
             return UnitType.Medic;
 
-        // Rotate Militia → Archer → Cavalry, skipping locked/unaffordable picks.
-        for (int attempt = 0; attempt < 3; attempt++)
+        // AISC: profile-weighted frontline selection.
+        // Build a weighted candidate list of affordable/unlocked unit types.
+        var candidates = new System.Collections.Generic.List<(UnitType type, float w)>(3);
+        if (_res.CanAfford(MilitiaCostFood, 0, 0, 0))
+            candidates.Add((UnitType.Militia, _profile.meleeWeight));
+        if (age >= Age.Feudal && _res.CanAfford(0, ArcherCostWood, ArcherCostGold, 0))
+            candidates.Add((UnitType.Archer, _profile.archerWeight));
+        if (age >= Age.Castle && _res.CanAfford(CavalryCostFood, 0, 0, 0))
+            candidates.Add((UnitType.Cavalry, _profile.cavalryWeight));
+
+        if (candidates.Count == 0) return null;
+
+        float total = 0f;
+        foreach (var c in candidates) total += c.w;
+        float roll = SimRandom.Value * total; // N3: sim RNG
+        float acc  = 0f;
+        foreach (var c in candidates)
         {
-            _trainCursor = (_trainCursor + 1) % 3;
-            switch (_trainCursor)
-            {
-                case 0:
-                    if (_res.CanAfford(MilitiaCostFood, 0, 0, 0)) return UnitType.Militia;
-                    break;
-                case 1:
-                    if (age >= Age.Feudal && _res.CanAfford(0, ArcherCostWood, ArcherCostGold, 0))
-                        return UnitType.Archer;
-                    break;
-                case 2:
-                    if (age >= Age.Castle && _res.CanAfford(CavalryCostFood, 0, 0, 0))
-                        return UnitType.Cavalry;
-                    break;
-            }
+            acc += c.w;
+            if (roll <= acc) return c.type;
         }
-        return null;
+        return candidates[candidates.Count - 1].type;
     }
 
     int CountEnemyCavalry(GameManager gm)
@@ -362,6 +427,8 @@ public class EnemyAI : MonoBehaviour
         {
             var u = gm.units[i];
             if (u == null || u.teamId == _teamId) continue;
+            // AIDP: skip allies/neutrals — only enemies threaten our base.
+            if (!(GameManager.Instance?.IsEnemy(_teamId, u.teamId) ?? true)) continue;
             Vector3 d = u.transform.position - homeTc.transform.position; d.y = 0;
             if (d.sqrMagnitude <= threatSq) { threatened = true; break; }
         }
@@ -406,7 +473,9 @@ public class EnemyAI : MonoBehaviour
 
         if (_target == null || !_target.IsAlive)
         {
-            var t = FindBestTarget(gm, army);
+            // AIWN: if an enemy Wonder or Relic countdown is ticking, prioritize it.
+            var urgentTarget = FindWinConditionTarget(gm);
+            var t = urgentTarget ?? FindBestTarget(gm, army);
             if (t == null) { SetStance(Stance.Gathering); return; }
             _target = t; _rallyPoint = ComputeRally(t.Transform.position);
         }
@@ -438,7 +507,8 @@ public class EnemyAI : MonoBehaviour
 
         if (_target == null || !_target.IsAlive)
         {
-            var t = FindBestTarget(gm, army);
+            // AIWN: re-check win-condition threat on target loss.
+            var t = FindWinConditionTarget(gm) ?? FindBestTarget(gm, army);
             if (t == null) { SetStance(Stance.Gathering); return; }
             _target = t;
         }
@@ -485,7 +555,7 @@ public class EnemyAI : MonoBehaviour
             {
                 if (u.state == UnitState.Idle)
                     u.MoveTo(gm.units.Count > 0
-                        ? gm.units[UnityEngine.Random.Range(0, gm.units.Count)].transform.position
+                        ? gm.units[SimRandom.Range(0, gm.units.Count)].transform.position // N3: sim RNG
                         : Vector3.zero);
                 continue;
             }
@@ -510,6 +580,44 @@ public class EnemyAI : MonoBehaviour
     {
         AssignVillagersToGather(gm);
         TryTrainVillager(gm);
+        TryRepairBuildings(gm);     // N14.aieco: idle villagers repair damaged buildings
+        CheckTcRecovery(gm);        // N14.aieco: retreat if TC is critically damaged
+    }
+
+    // N14.aieco: send idle villagers to repair any friendly building below 60% HP.
+    void TryRepairBuildings(GameManager gm)
+    {
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b == null || b.teamId != _teamId || b.hp <= 0f) continue;
+            if (b.hp >= b.maxHp * 0.6f) continue; // only repair below 60%
+            // Find the nearest idle villager.
+            UnitEntity repairer = null;
+            float bestDist = float.MaxValue;
+            for (int j = 0; j < gm.units.Count; j++)
+            {
+                var u = gm.units[j];
+                if (u == null || u.teamId != _teamId || u.type != UnitType.Villager) continue;
+                if (u.state != UnitState.Idle) continue;
+                float d = (u.transform.position - b.transform.position).sqrMagnitude;
+                if (d < bestDist) { bestDist = d; repairer = u; }
+            }
+            if (repairer != null) repairer.constructTarget = b; // BuildSystem.Tick picks this up
+        }
+    }
+
+    // N14.aieco: if TC HP < 30%, switch to Retreating stance so the army defends home.
+    void CheckTcRecovery(GameManager gm)
+    {
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b == null || b.teamId != _teamId || b.type != BuildingType.TownCenter) continue;
+            if (b.hp < b.maxHp * 0.3f && _stance != Stance.Retreating)
+                SetStance(Stance.Retreating);
+            break;
+        }
     }
 
     void AssignVillagersToGather(GameManager gm)
@@ -535,6 +643,23 @@ public class EnemyAI : MonoBehaviour
     {
         if (!_res.CanAfford(VillagerCostFood, 0, 0, 0)) return;
 
+        // N5.pop: villager training must respect the pop-cap just like military
+        // (TrySpawn). Without this the AI could stack villagers past popCap and then
+        // permanently deadlock military production (which IS pop-gated).
+        if (_res.pop >= _res.popCap) return;
+
+        // Require a live Town Center. No TC (Nomad start, or TC destroyed) means no
+        // free villagers — the old code magically spawned them at _home regardless.
+        BuildingEntity tc = null;
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b != null && b.teamId == _teamId && b.type == BuildingType.TownCenter
+                && !b.underConstruction && b.hp > 0f)
+            { tc = b; break; }
+        }
+        if (tc == null) return;
+
         int count = 0;
         for (int i = 0; i < gm.units.Count; i++)
         {
@@ -544,8 +669,9 @@ public class EnemyAI : MonoBehaviour
         if (count >= _villagerTarget) return;
 
         _res.Deduct(VillagerCostFood, 0, 0, 0);
-        Vector3 fwd = _home.sqrMagnitude > 0.01f ? (-_home).normalized : Vector3.forward;
-        Vector3 pos = _home - fwd * 2f + Vector3.right * Random.Range(-1.5f, 1.5f);
+        Vector3 home = tc.transform.position;
+        Vector3 fwd = home.sqrMagnitude > 0.01f ? (-home).normalized : Vector3.forward;
+        Vector3 pos = home - fwd * 2f + Vector3.right * SimRandom.Range(-1.5f, 1.5f); // N3: sim RNG
         var v = UnitFactory.Villager(_unitsRoot, pos, _teamColor);
         v.teamId = _teamId;
         gm.RegisterUnit(v);
@@ -672,18 +798,40 @@ public class EnemyAI : MonoBehaviour
         for (int i = 0; i < gm.units.Count; i++)
         {
             var u = gm.units[i];
-            if (u == null || u.teamId == _teamId) continue;
+            // AIDP: skip self and non-enemies (allied/neutral).
+            if (u == null || !gm.IsEnemy(_teamId, u.teamId)) continue;
             float s = UnitValue(u) - DistPenalty(u.transform.position, origin);
             if (s > bestScore) { bestScore = s; best = u; }
         }
         for (int i = 0; i < gm.buildings.Count; i++)
         {
             var b = gm.buildings[i];
-            if (b == null || b.teamId == _teamId) continue;
+            if (b == null || !gm.IsEnemy(_teamId, b.teamId)) continue;
             float s = BuildingValue(b) - DistPenalty(b.transform.position, origin);
             if (s > bestScore) { bestScore = s; best = b; }
         }
         return best;
+    }
+
+    // AIWN: return a Wonder/Relic-carrier that is actively counting down to victory,
+    // so the AI prioritizes destroying it over general economy harassment.
+    IDamageable FindWinConditionTarget(GameManager gm)
+    {
+        var match = gm.match;
+        if (match == null || match.TimeRemaining == float.MaxValue) return null;
+
+        // If VictoryStatus mentions a countdown, find an enemy Wonder or Relic holder.
+        string status = match.VictoryStatus;
+        if (string.IsNullOrEmpty(status)) return null;
+
+        // Search for enemy Wonder buildings first (highest urgency).
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b == null || b.type != BuildingType.Wonder) continue;
+            if (gm.IsEnemy(_teamId, b.teamId)) return b;
+        }
+        return null;
     }
 
     static float UnitValue(UnitEntity u) =>
@@ -721,7 +869,14 @@ public class EnemyAI : MonoBehaviour
         return best;
     }
 
+    // Denylist: everything that is NOT a frontline combat unit. Counting via a
+    // denylist means Spearman, Skirmisher, Camel, Mangonel, Cavalry Archer, every
+    // unique/tier-promoted unit, Eagle, ships etc. all count toward the army —
+    // fixing the old allowlist that silently ignored the counter units the AI itself
+    // trains (Spearman vs cavalry) and broke army-cap / rush-threshold / retreat logic.
     static bool IsMilitary(UnitEntity u) =>
-        u.type == UnitType.Militia || u.type == UnitType.Archer ||
-        u.type == UnitType.Cavalry || u.type == UnitType.Trebuchet;
+        u.type != UnitType.Villager   && u.type != UnitType.Scout &&
+        u.type != UnitType.Medic      && u.type != UnitType.TradeCart &&
+        u.type != UnitType.King       && u.type != UnitType.FishingShip &&
+        u.type != UnitType.Monk;
 }

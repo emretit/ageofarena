@@ -14,10 +14,49 @@ public class RelicSystem : MonoBehaviour
     const float CaptureRange   = 3.5f;
     const float CaptureRangeSq = CaptureRange * CaptureRange;
 
+    const float DepositRangeSq = 4f * 4f;  // Monk must reach this close to a Monastery
+
     public void Tick(List<UnitEntity> units, List<RelicEntity> relics, float dt)
     {
         if (relics.Count == 0) return;
+        var gm = GameManager.Instance;
 
+        // 1. Carried relics follow their Monk; drop if the Monk is gone; deposit at a
+        //    friendly Monastery (→ permanent control + gold).
+        for (int j = 0; j < relics.Count; j++)
+        {
+            var r = relics[j];
+            if (r == null || r.carrier == null) continue;
+            var m = r.carrier;
+            if (m == null || !m.IsAlive || m.type != UnitType.Monk)
+            {
+                if (m != null) m.isCarryingRelic = false;
+                r.carrier = null;
+                continue;
+            }
+            r.transform.position = m.transform.position;
+
+            if (gm != null)
+            {
+                for (int b = 0; b < gm.buildings.Count; b++)
+                {
+                    var bld = gm.buildings[b];
+                    if (bld == null || bld.underConstruction
+                        || bld.type != BuildingType.Monastery || bld.teamId != m.teamId) continue;
+                    float bx = bld.transform.position.x - m.transform.position.x;
+                    float bz = bld.transform.position.z - m.transform.position.z;
+                    if (bx * bx + bz * bz > DepositRangeSq) continue;
+                    r.heldInMonastery = true;
+                    r.ForceControl(m.teamId);
+                    r.transform.position = bld.transform.position + Vector3.up * 0.5f;
+                    m.isCarryingRelic = false;
+                    r.carrier = null;
+                    break;
+                }
+            }
+        }
+
+        // 2. Proximity scan (only meaningful for available relics).
         for (int j = 0; j < relics.Count; j++)
             if (relics[j] != null) relics[j].unitsNearby.Clear();
 
@@ -29,15 +68,39 @@ public class RelicSystem : MonoBehaviour
             for (int j = 0; j < relics.Count; j++)
             {
                 var r = relics[j];
-                if (r == null) continue;
+                if (r == null || !r.Available) continue;
                 float dx = p.x - r.transform.position.x;
                 float dz = p.z - r.transform.position.z;
                 if (dx * dx + dz * dz <= CaptureRangeSq) r.unitsNearby.Add(u);
             }
         }
 
+        // 3. Capture (available) / passive gold (held in Monastery).
         for (int j = 0; j < relics.Count; j++)
-            if (relics[j] != null) relics[j].UpdateCapture(dt);
+        {
+            var r = relics[j];
+            if (r == null) continue;
+            if (r.heldInMonastery) r.GrantGold(dt);
+            else if (r.Available) r.UpdateCapture(dt);
+        }
+
+        // 4. Monk pickup: a Monk standing on an available relic (not already carrying
+        //    one) hauls it. Carrying then beats proximity — deliver it to a Monastery.
+        for (int j = 0; j < relics.Count; j++)
+        {
+            var r = relics[j];
+            if (r == null || !r.Available) continue;
+            for (int k = 0; k < r.unitsNearby.Count; k++)
+            {
+                var u = r.unitsNearby[k];
+                if (u != null && u.type == UnitType.Monk && !u.isCarryingRelic)
+                {
+                    r.carrier = u;
+                    u.isCarryingRelic = true;
+                    break;
+                }
+            }
+        }
     }
 
     /// <summary>How many relics a team currently controls.</summary>

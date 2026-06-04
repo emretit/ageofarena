@@ -5,6 +5,12 @@
       "source": "github/awesome-copilot",
       "sourceType": "github",
       "computedHash": "20057f62cf7a8b2d9f940b3de0b18e5426e8f4bb50e236d36b1033aa0d42c4d8"
+    },
+    "unity-developer": {
+      "source": "rmyndharis/antigravity-skills",
+      "sourceType": "github",
+      "skillPath": "skills/unity-developer/SKILL.md",
+      "computedHash": "bdd1a84f260a288a8c186e6b248f728f0d112db4fa287f5acba8ec5538fc8bbb"
     }
   }
 }

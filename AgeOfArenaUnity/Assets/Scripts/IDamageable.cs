@@ -17,5 +17,8 @@ public interface IDamageable
     /// <summary>Footprint radius added to the attacker's range so large buildings
     /// can be hit from their edge rather than their centre.</summary>
     float Radius { get; }
+    /// <summary>Armor classes this target belongs to (M7/ARMC); drives attackers'
+    /// additive bonus damage (e.g. Spearman vs <see cref="ArmorClass.Cavalry"/>).</summary>
+    ArmorClass ArmorClasses { get; }
     void TakeDamage(float amount, DamageType damageType = DamageType.Melee);
 }

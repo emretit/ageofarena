@@ -30,9 +30,15 @@ public class BuildingCombatSystem : MonoBehaviour
             var def = BuildingDefs.Get(b.type);
             int garr = b.GarrisonCount;
 
+            // Watch Tower line upgrades (Guard Tower / Keep) boost tower attack + range.
+            var tech = GameManager.Instance?.teamTech[b.teamId];
+            float towerAtk = b.type == BuildingType.WatchTower ? (tech?.TowerAttackBonus ?? 0f) : 0f;
+            float towerRng = b.type == BuildingType.WatchTower ? (tech?.TowerRangeBonus ?? 0f) : 0f;
+
             // A passive building fires only while garrisoned; an armed one (Castle)
             // always fires and shoots farther of the two ranges.
-            float range = def.attackRange > 0f ? def.attackRange : (garr > 0 ? GarrisonRange : 0f);
+            float baseRange = def.attackRange > 0f ? def.attackRange + towerRng : (garr > 0 ? GarrisonRange : 0f);
+            float range = baseRange;
             if (range <= 0f) continue;
 
             if (b.attackCooldown > 0f) { b.attackCooldown -= dt; continue; }
@@ -42,7 +48,7 @@ public class BuildingCombatSystem : MonoBehaviour
 
             Vector3 muzzle = b.transform.position + Vector3.up * MuzzleHeight;
             if (def.attackDamage > 0f)
-                Projectile.Spawn(muzzle, target, def.attackDamage, DamageType.Pierce);      // Castle arrow
+                Projectile.Spawn(muzzle, target, def.attackDamage + towerAtk, def.attackDamageType); // tower/Castle/Bombard fire
             int extra = Mathf.Min(garr, MaxGarrisonArrows);
             for (int a = 0; a < extra; a++)
                 Projectile.Spawn(muzzle, target, GarrisonArrowDamage, DamageType.Pierce);  // garrison arrow

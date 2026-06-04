@@ -45,10 +45,32 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     void Start()
     {
         if (maxHp <= 0f) maxHp = MaxHpFor(type);
+        // Byzantines: buildings +10% HP (buildingHpMult); University Architecture +10%.
+        float bMult = GameManager.Instance?.TeamCivBonus(teamId).buildingHpMult ?? 1f;
+        bMult *= GameManager.Instance?.teamTech[teamId].BuildingHpMult ?? 1f;
+        if (bMult != 1f) maxHp *= bMult;
         if (hp <= 0f) hp = maxHp;
         var def = BuildingDefs.Get(type);
         meleeArmor = def.meleeArmor;
         pierceArmor = def.pierceArmor;
+
+        // M14/FISH: a Fish Trap is a renewable food source — register a co-located fish
+        // node so Fishing Ships can gather from it (deposit at the Dock). The core fishing
+        // loop also works on the FishPond nodes WorldRoot seeds near each base.
+        if (type == BuildingType.FishTrap)
+            RegisterFishNode();
+    }
+
+    bool _fishNodeMade;
+    /// <summary>Spawn + register a food resource node co-located with this Fish Trap.</summary>
+    void RegisterFishNode()
+    {
+        if (_fishNodeMade) return;
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+        var parent = transform.parent != null ? transform.parent : transform;
+        var node = ResourceFactory.FishPond(parent, transform.position);
+        if (node != null) { gm.RegisterNode(node); _fishNodeMade = true; }
     }
 
     // ── IDamageable ─────────────────────────────────────────────────────────
@@ -56,17 +78,22 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     public bool IsAlive => this != null && hp > 0f;
     public Transform Transform => transform;
     public float Radius => 2.6f; // footprint so attackers stop at the wall, not the centre
+    /// <summary>All buildings carry the Building armor class (M7/ARMC) so siege units'
+    /// anti-structure bonus damage (Trebuchet/Ram) applies to them.</summary>
+    public ArmorClass ArmorClasses => ArmorClass.Building;
 
     public void TakeDamage(float amount, DamageType damageType = DamageType.Melee)
     {
         if (hp <= 0f) return;
-        float armor = damageType switch
-        {
-            DamageType.Pierce => pierceArmor,
-            DamageType.Melee  => meleeArmor,
-            _                 => 0f,  // Siege bypasses armor
-        };
-        hp -= Mathf.Max(1f, amount - armor);
+        // Masonry / Fortified Wall (University techs) add armor to all team buildings.
+        var tech = GameManager.Instance?.teamTech[teamId];
+        // N2: base armor (incl. N0.1 siege=melee) + net-damage from pure CombatMath; the live
+        // Masonry/Fortified building-armor bonus is read here. Melee & Siege use building melee armor.
+        float baseArmor = CombatMath.ArmorFor(damageType, meleeArmor, pierceArmor);
+        float techArmor = damageType == DamageType.Pierce
+            ? (tech?.BuildingPierceArmor ?? 0f)
+            : (tech?.BuildingMeleeArmor  ?? 0f);
+        hp -= CombatMath.NetDamage(amount, baseArmor + techArmor);
         // VFX: tint building darker as it takes damage (red shift at low HP).
         float frac = maxHp > 0f ? hp / maxHp : 1f;
         if (frac < 0.5f) TintDamage(frac);
@@ -111,25 +138,58 @@ public class BuildingEntity : MonoBehaviour, IDamageable
 
     static readonly UnitTrainable[] ArcheryTrainables =
     {
-        new(UnitType.Archer, 22f, 0, 25, 45, "A"),
+        new(UnitType.Archer,     22f, 0, 25, 45, "A"),
+        new(UnitType.Skirmisher, 22f, 0, 25, 35, "K"), // anti-archer; wood+gold (Feudal)
     };
 
     // Britons unique: Longbowman available at ArcheryRange (Castle Age+).
     static readonly UnitTrainable[] ArcheryTrainablesBritons =
     {
         new(UnitType.Archer,      22f, 0, 25, 45, "A"),
+        new(UnitType.Skirmisher,  22f, 0, 25, 35, "K"),
         new(UnitType.Longbowman,  26f, 0, 35, 65, "L"),
     };
 
     static readonly UnitTrainable[] StableTrainables =
     {
-        new(UnitType.Cavalry, 24f, 80, 0, 0, "C"),
+        new(UnitType.Cavalry,       24f, 80, 0,  0, "C"),
+        new(UnitType.Camel,         22f, 55, 0, 60, "D"), // anti-cavalry; food+gold (Castle)
+        new(UnitType.CavalryArcher, 26f, 0, 40, 70, "A"), // mobile archer; wood+gold (Castle)
     };
 
     static readonly UnitTrainable[] CastleTrainables =
     {
         new(UnitType.Trebuchet, 40f, 0, 200, 100, "S"),
         new(UnitType.Medic,     26f, 60, 0,   0, "H"),
+    };
+
+    // M9/CIVU: civilization unique unit trained at the Castle (null → civ has none here).
+    static UnitTrainable? CastleUniqueFor(Civilization civ) => civ switch
+    {
+        Civilization.Teutons  => new UnitTrainable(UnitType.TeutonicKnight, 30f, 0,  0,  85, "U"),
+        Civilization.Persians => new UnitTrainable(UnitType.WarElephant,    36f, 100,0,  70, "U"),
+        Civilization.Mongols  => new UnitTrainable(UnitType.Mangudai,       28f, 0,  55, 65, "U"),
+        Civilization.Japanese => new UnitTrainable(UnitType.Samurai,        26f, 60, 0,  30, "U"),
+        // N4/CIVU: second wave of unique units
+        Civilization.Franks    => new UnitTrainable(UnitType.ThrowingAxeman, 24f, 55, 0,  25, "U"),
+        Civilization.Byzantines=> new UnitTrainable(UnitType.Cataphract,     28f, 70, 0,  75, "U"),
+        Civilization.Vikings   => new UnitTrainable(UnitType.Berserk,        24f, 65, 0,  25, "U"),
+        Civilization.Saracens  => new UnitTrainable(UnitType.Mameluke,       30f, 55, 0,  85, "U"),
+        // N4/CIVC13: AoK-13 unique units
+        Civilization.Celts     => new UnitTrainable(UnitType.WoadRaider,     24f, 65, 0,  25, "U"),
+        Civilization.Chinese   => new UnitTrainable(UnitType.ChuKoNu,        26f, 0,  40, 35, "U"),
+        Civilization.Goths     => new UnitTrainable(UnitType.Huskarl,        24f, 52, 0,  26, "U"),
+        Civilization.Turks     => new UnitTrainable(UnitType.Janissary,      28f, 0,  60, 55, "U"),
+        _                     => (UnitTrainable?)null,
+    };
+
+    // Aztecs unique (EAGLE): Eagle Warrior available at the Barracks (Castle Age+).
+    static readonly UnitTrainable[] BarracksTrainablesAztec =
+    {
+        new(UnitType.Militia,   21f,  0, 60, 20, "M"),
+        new(UnitType.Spearman,  18f, 35, 25,  0, "P"),
+        new(UnitType.Scout,     14f, 30,  0,  0, "S"),
+        new(UnitType.Eagle,     20f, 20,  0, 50, "E"),
     };
 
     static readonly UnitTrainable[] MonasteryTrainables =
@@ -140,6 +200,20 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     static readonly UnitTrainable[] MarketTrainables =
     {
         new(UnitType.TradeCart, 35f, 0, 80, 50, "Q"), // wood+gold — trade route unit
+    };
+
+    static readonly UnitTrainable[] DockTrainables =
+    {
+        new(UnitType.FishingShip, 22f, 0, 75,  0, "Q"), // FISH: food gatherer (Dark)
+        new(UnitType.Galley,   35f, 0, 120, 60, "G"), // wood+gold — naval combat unit
+        new(UnitType.FireShip, 32f, 0, 100, 45, "F"), // anti-ship (Feudal)
+        new(UnitType.DemoShip, 30f, 0,  70, 50, "D"), // explosive splash (Castle)
+    };
+
+    static readonly UnitTrainable[] SiegeWorkshopTrainables =
+    {
+        new(UnitType.Ram,      40f, 0, 160,  75, "R"), // anti-structure, pierce-immune
+        new(UnitType.Mangonel, 45f, 0, 160, 135, "M"), // area-damage siege
     };
 
     static readonly UnitTrainable[] Empty = System.Array.Empty<UnitTrainable>();
@@ -165,6 +239,18 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     }
 
     bool IsBritons => TeamCiv == Civilization.Britons;
+    bool IsAztecs  => TeamCiv == Civilization.Aztecs;
+
+    /// <summary>Castle trainables for this building's team, with the civ's unique unit appended.</summary>
+    UnitTrainable[] CastleTrainablesForCiv()
+    {
+        var uniq = CastleUniqueFor(TeamCiv);
+        if (uniq == null) return CastleTrainables;
+        var arr = new UnitTrainable[CastleTrainables.Length + 1];
+        System.Array.Copy(CastleTrainables, arr, CastleTrainables.Length);
+        arr[CastleTrainables.Length] = uniq.Value;
+        return arr;
+    }
 
     /// <summary>Minimum age a unit type can be trained at.</summary>
     static Age MinAgeFor(UnitType t) => t switch
@@ -176,6 +262,31 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         UnitType.Medic       => Age.Castle,
         UnitType.Monk        => Age.Castle,
         UnitType.Longbowman  => Age.Castle,
+        UnitType.Galley      => Age.Feudal,
+        UnitType.Skirmisher  => Age.Feudal,
+        UnitType.Camel       => Age.Castle,
+        UnitType.Ram         => Age.Castle,
+        UnitType.Mangonel    => Age.Castle,
+        UnitType.CavalryArcher => Age.Castle,
+        UnitType.FireShip    => Age.Feudal,
+        UnitType.DemoShip    => Age.Castle,
+        UnitType.FishingShip => Age.Dark,   // FISH: available from the start
+        // M9 unique units (Castle-age)
+        UnitType.TeutonicKnight => Age.Castle,
+        UnitType.WarElephant => Age.Castle,
+        UnitType.Mangudai    => Age.Castle,
+        UnitType.Samurai     => Age.Castle,
+        UnitType.Eagle       => Age.Castle,
+        // N4/CIVU unique units (Castle-age)
+        UnitType.ThrowingAxeman => Age.Castle,
+        UnitType.Cataphract  => Age.Castle,
+        UnitType.Berserk     => Age.Castle,
+        UnitType.Mameluke    => Age.Castle,
+        // N4/CIVC13 unique units (Castle-age)
+        UnitType.WoadRaider  => Age.Castle,
+        UnitType.ChuKoNu     => Age.Castle,
+        UnitType.Huskarl     => Age.Castle,
+        UnitType.Janissary   => Age.Castle,
         _                    => Age.Dark,
     };
 
@@ -185,25 +296,31 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         var all = type switch
         {
             BuildingType.TownCenter   => TownCenterTrainables,
-            BuildingType.Barracks     => BarracksTrainables,
+            BuildingType.Barracks     => IsAztecs ? BarracksTrainablesAztec : BarracksTrainables,
             BuildingType.ArcheryRange => IsBritons ? ArcheryTrainablesBritons : ArcheryTrainables,
             BuildingType.Stable       => StableTrainables,
-            BuildingType.Castle       => CastleTrainables,
+            BuildingType.Castle       => CastleTrainablesForCiv(),
             BuildingType.Monastery    => MonasteryTrainables,
             BuildingType.Market       => MarketTrainables,
+            BuildingType.Dock         => DockTrainables,
+            BuildingType.SiegeWorkshop => SiegeWorkshopTrainables,
             _                         => Empty,
         };
 
-        // Filter out units the team hasn't unlocked yet (Archer→Feudal, Cavalry→Castle).
+        // Filter out units the team hasn't unlocked by age (Archer→Feudal, Cavalry→Castle)
+        // OR that this civ is denied (N0.7 tech-tree subtraction, e.g. Aztecs have no cavalry).
         Age age = TeamAge;
+        Civilization civ = TeamCiv;
+        bool Ok(UnitTrainable t) =>
+            age >= MinAgeFor(t.unitType) && !CivilizationDefs.IsUnitDenied(civ, t.unitType);
         int n = 0;
-        for (int i = 0; i < all.Length; i++) if (age >= MinAgeFor(all[i].unitType)) n++;
+        for (int i = 0; i < all.Length; i++) if (Ok(all[i])) n++;
         if (n == all.Length) return all;
         if (n == 0) return Empty;
         var filtered = new UnitTrainable[n];
         int j = 0;
         for (int i = 0; i < all.Length; i++)
-            if (age >= MinAgeFor(all[i].unitType)) filtered[j++] = all[i];
+            if (Ok(all[i])) filtered[j++] = all[i];
         return filtered;
     }
 
@@ -214,6 +331,6 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         if (underConstruction || gm == null)
             return new System.Collections.Generic.List<TechDef>();
         var tech = gm.teamTech[teamId];
-        return TechDefs.ForBuilding(type, tech.age, tech);
+        return TechDefs.ForBuilding(type, tech.age, tech, TeamCiv);
     }
 }

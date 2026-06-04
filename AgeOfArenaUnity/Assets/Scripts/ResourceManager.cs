@@ -11,7 +11,7 @@ public class ResourceManager
     public int food = 200;
     public int wood = 200;
     public int gold = 100;
-    public int stone = 0;   // Unity-port addition; original game had no stone.
+    public int stone = 200;  // M8/STONE: AoE2-parity stone economy (Castle/University/towers cost stone).
 
     public int pop = 0;
     public int popCap = 5;  // TC_BASE_POP
@@ -27,15 +27,18 @@ public class ResourceManager
         _ => 0,
     };
 
+    // Clamp at 0 so the ledger can never go negative (Gain is also used with a
+    // negative amount by Market.Sell / Tribute). A forgotten CanAfford check would
+    // otherwise leave "negative-but-affordable" nonsense behind.
     public void Gain(ResourceKind kind, int amount)
     {
         if (amount == 0) return;
         switch (kind)
         {
-            case ResourceKind.Food: food += amount; break;
-            case ResourceKind.Wood: wood += amount; break;
-            case ResourceKind.Gold: gold += amount; break;
-            case ResourceKind.Stone: stone += amount; break;
+            case ResourceKind.Food: food = Math.Max(0, food + amount); break;
+            case ResourceKind.Wood: wood = Math.Max(0, wood + amount); break;
+            case ResourceKind.Gold: gold = Math.Max(0, gold + amount); break;
+            case ResourceKind.Stone: stone = Math.Max(0, stone + amount); break;
         }
         OnChanged?.Invoke();
     }
@@ -45,10 +48,10 @@ public class ResourceManager
 
     public void Deduct(int foodCost, int woodCost, int goldCost, int stoneCost)
     {
-        food -= foodCost;
-        wood -= woodCost;
-        gold -= goldCost;
-        stone -= stoneCost;
+        food = Math.Max(0, food - foodCost);
+        wood = Math.Max(0, wood - woodCost);
+        gold = Math.Max(0, gold - goldCost);
+        stone = Math.Max(0, stone - stoneCost);
         OnChanged?.Invoke();
     }
 

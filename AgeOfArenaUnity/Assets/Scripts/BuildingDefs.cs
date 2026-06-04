@@ -21,6 +21,8 @@ public struct BuildingDef
     // Defensive fire: attackRange > 0 marks a building that auto-shoots nearby
     // enemies (BuildingCombatSystem reads these). 0 = passive (the default).
     public float attackRange, attackDamage, attackInterval;
+    // Damage class of this building's auto-fire (Bombard Tower = Siege; towers/Castle = Pierce).
+    public DamageType attackDamageType;
 
     public Age minAge;         // age the team must have reached to build this
 
@@ -37,13 +39,15 @@ public struct BuildingDef
         bool drop = false, int dropMask = 0,
         float atkRange = 0f, float atkDmg = 0f, float atkInterval = 0f,
         Age minAge = Age.Dark, int garrisonCap = 0,
-        float meleeArm = 1f, float pierceArm = 3f)
+        float meleeArm = 1f, float pierceArm = 3f,
+        DamageType atkDmgType = DamageType.Pierce)
     {
         type = t; food = f; wood = w; gold = g; stone = s;
         buildTime = time; popProvided = pop; maxHp = hp;
         display = name; hotkey = hk; buildable = canBuild;
         isDropoff = drop; dropoffMask = dropMask;
         attackRange = atkRange; attackDamage = atkDmg; attackInterval = atkInterval;
+        attackDamageType = atkDmgType;
         this.minAge = minAge;
         garrisonCapacity = garrisonCap;
         meleeArmor = meleeArm; pierceArmor = pierceArm;
@@ -74,7 +78,7 @@ public static class BuildingDefs
         new(BuildingType.Market,        0,  175,  0,  0,  25f,  0,  350f, "Market",        'K', true),
         // Castle: heavy stone cost (forces stone economy), high hp, +pop, and it
         // auto-fires arrows at nearby enemies (atkRange > 0). TC stays passive.
-        new(BuildingType.Castle,        0,    0,  0,650,  80f, 10, 2000f, "Castle",        'E', true,  false, 0, 9f, 18f, 1.5f, garrisonCap: 15, meleeArm: 8f, pierceArm: 8f),
+        new(BuildingType.Castle,        0,    0,  0,650,  80f, 10, 2000f, "Castle",        'E', true,  false, 0, 9f, 18f, 1.5f, minAge: Age.Castle, garrisonCap: 15, meleeArm: 8f, pierceArm: 8f),
         // Defensive palisade & gate. Cheap wood, fast build, available from Dark Age.
         // Wall blocks pathfinding (carving NavMeshObstacle); Gate is a passable opening.
         new(BuildingType.Wall,          0,   10,  0,  0,   4f,  0,  200f, "Wall",          'W', true,  meleeArm: 10f, pierceArm: 10f),
@@ -89,8 +93,17 @@ public static class BuildingDefs
         new(BuildingType.Monastery,     0,  175,  0,  0,  22f,  0,  350f, "Manastır",        'N', true,  minAge: Age.Castle),
         // University: Imperial techs (Masonry, Fortified Wall, etc.).
         new(BuildingType.University,    0,  200,  0,150,  28f,  0,  400f, "Üniversite",      'U', true,  minAge: Age.Castle),
-        // Dock: naval unit production (NAV — requires water map; stub for data completeness).
-        new(BuildingType.Dock,          0,  150,  0,  0,  25f,  0,  300f, "Liman",           'X', false, minAge: Age.Dark),
+        // Dock: naval unit production. Build near a lake; Galley spawns into water.
+        new(BuildingType.Dock,          0,  150,  0,  0,  25f,  0,  300f, "Liman",           'X', true,  true,  MaskFood, minAge: Age.Dark),
+        // Siege Workshop: builds rams + mangonels (Castle Age).
+        new(BuildingType.SiegeWorkshop, 0,  200,  0,  0,  28f,  0,  400f, "Kuşatma Atölyesi",'J', true,  minAge: Age.Castle),
+        // Outpost: cheap non-firing watch post (vision; no attack).
+        new(BuildingType.Outpost,       0,   25,  0,  5,  10f,  0,  200f, "Gözcü Kulesi",   'P', true,  meleeArm: 1f, pierceArm: 3f),
+        // Bombard Tower: Imperial cannon tower — Siege damage, ~4× Watch Tower.
+        new(BuildingType.BombardTower,  0,  125,  0,100,  24f,  0,  600f, "Bombard Kulesi", 'V', true,  false, 0, 8f, 30f, 2.0f, minAge: Age.Imperial, garrisonCap: 0, meleeArm: 3f, pierceArm: 6f, atkDmgType: DamageType.Siege),
+        // Fish Trap: M14/FISH — buildable renewable fish source on water; Fishing Ships
+        // gather food from a co-located node (registered in BuildingEntity.Start), deposit at Dock.
+        new(BuildingType.FishTrap,      0,   50,  0,  0,  14f,  0,  100f, "Balık Tuzağı",   'Q', true),
     };
 
     public static BuildingDef Get(BuildingType t)

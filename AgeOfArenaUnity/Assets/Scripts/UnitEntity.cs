@@ -14,7 +14,15 @@ public class UnitEntity : MonoBehaviour, IDamageable
 
     public float hp = 25f;
     public float maxHp = 25f;
+    // Factory-assigned base max HP, captured in Start() before any tech/veterancy/civ
+    // bonus is layered on. RecomputeMaxHp() always derives maxHp from this base so
+    // bonuses can never double-count or freeze (CIVV / RETR / veterancy share one model).
+    public float baseMaxHp;
     public float moveSpeed = 3.5f;
+    // Factory-assigned base move speed, captured in Start() before civ/tech multipliers.
+    // RecomputeSpeed() always derives moveSpeed from this base (Husbandry / Wheelbarrow /
+    // Mongol cavalry) so multipliers never compound or freeze.
+    public float baseMoveSpeed;
 
     public UnitState state = UnitState.Idle;
     public Vector3 targetPos;
@@ -44,13 +52,31 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public Vector3 patrolA, patrolB;
 
     // Veterancy: accumulate kills → rank (0=recruit, 1=veteran, 2=elite).
-    // Each rank grants +10% attack and +10% max HP (applied once on rank-up).
+    // Each rank grants +10% attack (via VeteranMult in AttackDamage) and +10 max HP
+    // (via RecomputeMaxHp). Recruit/Veteran/Elite = ×1.0 / ×1.1 / ×1.2 attack.
     public int killCount;
     public int veteranRank;
+    public const float VetHpPerRank = 10f;   // flat max-HP gained per veteran rank
+    /// <summary>Attack multiplier from veteran rank: +10% per rank (recruit 1.0, elite 1.2).</summary>
+    public float VeteranMult => 1f + 0.10f * veteranRank;
 
     // Monk conversion: time spent channeling on the current target.
     public float convertProgress;
-    public const float ConvertTime = 4f;  // seconds to convert an enemy unit
+    public const float ConvertTime = 4f;  // legacy fixed convert time (fallback)
+    // CONV: AoE2 conversions are probabilistic — they take a variable time. Each new
+    // conversion rolls a random threshold in [ConvertMinTime, ConvertMaxTime]; Theocracy
+    // shortens it. convertThreshold holds the rolled target for the in-progress convert.
+    public const float ConvertMinTime = 3f;
+    public const float ConvertMaxTime = 7f;
+    public float convertThreshold;
+    // Faith: a Monk must be at full faith to start a conversion; faith drops to 0
+    // after a successful convert and regenerates over time (AoE2 recharge model).
+    public float faith = FaithFull;
+    public const float FaithFull = 100f;
+    public const float FaithRegenPerSec = 12.5f;     // ~8s to fully recharge
+    public bool FaithReady => faith >= FaithFull;
+    // Relic carrying (Monk): true while this Monk is hauling a relic to a Monastery.
+    public bool isCarryingRelic;
 
     // ── Construction (villagers) ─────────────────────────────────────────────
     public BuildingEntity constructTarget;
@@ -66,8 +92,15 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public float meleeArmor;
     public float pierceArmor;
 
+    // ── Naval ─────────────────────────────────────────────────────────────────
+    public bool isNaval;
+    public int  navalAgentTypeId = -1;
+
+    // N8.siege: pre-loaded demolished wreck prefab; spawned at world position on death
+    public GameObject demolishedPrefab;
+
     /// <summary>This unit's per-team <see cref="TechState"/> (null-safe).</summary>
-    TechState TeamTech
+    public TechState TeamTech
     {
         get
         {
@@ -87,20 +120,8 @@ public class UnitEntity : MonoBehaviour, IDamageable
     }
 
     /// <summary>Per-type combat stats. Villager only self-defends weakly; Archer/Trebuchet are ranged.</summary>
-    float BaseAttackDamage => type switch
-    {
-        UnitType.Militia     => 5f,  UnitType.Archer      => 4f,  UnitType.Cavalry    => 8f,
-        UnitType.Trebuchet   => 35f, UnitType.Spearman    => 4f,  UnitType.Longbowman => 5f,
-        // Support units deal no damage: Scout is pure recon, Medic only heals.
-        UnitType.Scout       => 0f,  UnitType.Medic       => 0f,
-        _                    => 2f,
-    };
-    float BaseAttackRange => type switch
-    {
-        UnitType.Militia     => 1.3f, UnitType.Archer      => 6.5f, UnitType.Cavalry    => 1.4f,
-        UnitType.Trebuchet   => 15f,  UnitType.Spearman    => 1.5f, UnitType.Longbowman => 8.5f,
-        _                    => 1.1f,
-    };
+    float BaseAttackDamage => UnitRegistry.Get(type).baseAtk;
+    float BaseAttackRange  => UnitRegistry.Get(type).baseRange;
     /// <summary>Effective damage = base + tech bonus, scaled by civ infantry bonus for infantry types.</summary>
     public float AttackDamage
     {
@@ -108,7 +129,12 @@ public class UnitEntity : MonoBehaviour, IDamageable
         {
             float base_ = BaseAttackDamage + (TeamTech?.AttackBonus(type) ?? 0f);
             bool isInfantry = type == UnitType.Militia || type == UnitType.Spearman;
-            return isInfantry ? base_ * TeamCivBonus.infantryAttackMult : base_;
+            bool isArcher = type == UnitType.Archer || type == UnitType.Longbowman
+                         || type == UnitType.Skirmisher || type == UnitType.CavalryArcher;
+            float withCiv = base_;
+            if (isInfantry)     withCiv *= TeamCivBonus.infantryAttackMult; // Japanese/Teutons
+            else if (isArcher)  withCiv *= TeamCivBonus.archerAttackMult;   // Vikings/Saracens (CIVD)
+            return withCiv * VeteranMult;   // veteran rank: +10% per rank
         }
     }
     /// <summary>Effective range = base + tech bonus + civ archer range bonus (Britons).</summary>
@@ -121,82 +147,162 @@ public class UnitEntity : MonoBehaviour, IDamageable
             return isArcher ? range + TeamCivBonus.archerRangeBonus : range;
         }
     }
-    public float AttackInterval => type switch
+    public float AttackInterval => UnitRegistry.Get(type).attackInterval;
+    /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.
+    /// Scout is passive recon until upgraded to Light Cavalry (then it becomes combat-capable).</summary>
+    public float AggroRadius
     {
-        UnitType.Militia     => 1.0f, UnitType.Archer      => 1.4f, UnitType.Cavalry    => 1.1f,
-        UnitType.Trebuchet   => 5.5f, UnitType.Spearman    => 1.3f, UnitType.Longbowman => 1.6f,
-        _                    => 1.6f,
-    };
-    /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.</summary>
-    public float AggroRadius => type switch
+        get
+        {
+            if (type == UnitType.Scout)
+                return (TeamTech?.Has(TechType.LightCavalry) ?? false) ? 8f : 0f;
+            return UnitRegistry.Get(type).aggroRadius;
+        }
+    }
+    /// <summary>Armor classes this unit belongs to (M7/ARMC) — what incoming bonus
+    /// damage applies to it. Cavalry-class is shared by Camel/Scout/Cavalry Archer so
+    /// the Spearman line counters all of them; Camel also carries its own class.</summary>
+    public ArmorClass ArmorClasses => UnitRegistry.Get(type).armorClasses;
+
+    /// <summary>
+    /// Additive bonus damage vs a target's armor classes (M7/BNUS → N6/BONUS stacking).
+    /// Each bonus applies independently per matching armor class, so a target that carries
+    /// multiple classes (e.g. CavalryArcher = Archer|Cavalry; Mameluke = Cavalry|Camel)
+    /// receives ALL applicable bonuses from a single attacker (AoE2 stacking rule).
+    /// </summary>
+    public float BonusDamageVs(IDamageable target)
     {
-        UnitType.Militia     => 7f,  UnitType.Archer      => 9f,   UnitType.Cavalry    => 8f,
-        UnitType.Trebuchet   => 15f, UnitType.Spearman    => 7f,   UnitType.Longbowman => 11f,
-        _                    => 0f,
-    };
-    /// <summary>Trebuchet deals 3× damage vs buildings; others have no multiplier.</summary>
-    public float AntiStructureMultiplier => type == UnitType.Trebuchet ? 3f : 1f;
+        if (target == null) return 0f;
+        ArmorClass tc  = target.ArmorClasses;
+        float      sum = 0f;
+        var entries = UnitRegistry.Get(type).bonusVs;
+        if (entries != null)
+            foreach (var e in entries)
+                if ((tc & e.cls) != 0) sum += e.bonus;
+        return sum;
+    }
+    /// <summary>Minimum attack range: siege weapons can't fire at point-blank targets.</summary>
+    public float MinAttackRange => UnitRegistry.Get(type).minAttackRange;
+    /// <summary>Area-of-effect splash radius for projectiles (0 = single target).</summary>
+    public float SplashRadius => UnitRegistry.Get(type).splashRadius;
+    /// <summary>N6: blast-damage falloff for a secondary victim at fractional distance
+    /// <paramref name="t"/>∈[0,1] from the impact point. DemoShip is a full-power explosion
+    /// everywhere in the radius; Mangonel-style siege deals full damage in the inner half of
+    /// the blast and 50% in the outer half (AoE2 "blast level" rings, simplified).</summary>
+    public float SplashFalloffAt(float t)
+        => type == UnitType.DemoShip ? 1f : (t <= 0.5f ? 1f : 0.5f);
     /// <summary>First melee charge hit by a Cavalry unit deals 2.5× damage.</summary>
     public float ChargeMultiplier => type == UnitType.Cavalry ? 2.5f : 1f;
-    /// <summary>Spearman deals 3× damage vs Cavalry (anti-cavalry counter edge).</summary>
-    public float AntiCavalryMultiplier => type == UnitType.Spearman ? 3.0f : 1f;
     /// <summary>Damage class this unit deals.</summary>
-    public DamageType DamageKind => type switch
-    {
-        UnitType.Archer      => DamageType.Pierce,
-        UnitType.Longbowman  => DamageType.Pierce,
-        UnitType.Trebuchet   => DamageType.Siege,
-        _                    => DamageType.Melee,
-    };
+    public DamageType DamageKind => UnitRegistry.Get(type).damageKind;
     /// <summary>Ranged units attack via projectiles instead of melee contact.</summary>
-    public bool IsRanged => type == UnitType.Archer || type == UnitType.Trebuchet || type == UnitType.Longbowman;
+    public bool IsRanged => UnitRegistry.Get(type).isRanged;
 
     // ── Medic healing (driven by CombatSystem.StepHeal) ──────────────────────
     /// <summary>Radius within which a Medic auto-heals friendly units; 0 = not a healer.</summary>
-    public float HealRadius => type == UnitType.Medic ? 6f : 0f;
+    public float HealRadius => UnitRegistry.Get(type).healRadius;
     /// <summary>Hitpoints a Medic restores per second to the chosen ally.</summary>
-    public float HealPower  => type == UnitType.Medic ? 3f : 0f;
+    public float HealPower  => UnitRegistry.Get(type).healPower;
+
+    /// <summary>N4/CIVU: HP this unit regenerates on its own each second (Vikings'
+    /// Berserk signature trait); 0 = no self-regen. Berserkergang (N4/CIVT) doubles it.
+    /// Applied in CombatSystem's tick.</summary>
+    public float SelfRegenPerSecond
+    {
+        get
+        {
+            float base_ = UnitRegistry.Get(type).selfRegen;
+            if (base_ <= 0f) return 0f;
+            return base_ * ((TeamTech?.Has(TechType.Berserkergang) ?? false) ? 2f : 1f);
+        }
+    }
 
     NavMeshAgent _agent;
     SelectionRing _ring;
 
+    /// <summary>N6.ballistics: current world-space velocity for projectile lead computation.</summary>
+    public Vector3 AgentVelocity => _agent != null ? _agent.velocity : Vector3.zero;
+
     void Awake()
     {
         _ring = GetComponentInChildren<SelectionRing>(true);
+        _animator = GetComponentInChildren<Animator>();   // null for primitive units
 
         _agent = gameObject.AddComponent<NavMeshAgent>();
         _agent.speed = moveSpeed;
         _agent.angularSpeed = 360f;
         _agent.acceleration = 12f;
         _agent.stoppingDistance = 0.25f;
-        _agent.radius = 0.4f;
-        _agent.height = 1.8f;
         _agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
-        _agent.avoidancePriority = Random.Range(30, 70);
+        _agent.avoidancePriority = SimRandom.Range(30, 70); // N3: sim RNG (deterministic)
         _agent.autoRepath = true;
+
+        if (isNaval && navalAgentTypeId >= 0)
+        {
+            // Galley navigates on the water NavMesh only.
+            _agent.agentTypeID = navalAgentTypeId;
+            _agent.radius = 0.5f;
+            _agent.height = 0.8f;
+        }
+        else
+        {
+            _agent.radius = 0.4f;
+            _agent.height = 1.8f;
+        }
     }
 
     // Start (not Awake): the factory assigns `type`/`moveSpeed` right after
     // AddComponent, so the per-type speed must be pushed to the agent one step later.
     void Start()
     {
-        if (_agent != null) _agent.speed = moveSpeed;
+        // Capture the factory-assigned bases before layering bonuses (single source of truth).
+        baseMaxHp = maxHp;
+        baseMoveSpeed = moveSpeed;
 
-        // Newly trained/spawned units inherit their team's researched hp upgrades.
-        float hpBonus = TeamTech?.HpBonus(type) ?? 0f;
-        if (hpBonus > 0f) { maxHp += hpBonus; hp += hpBonus; }
+        // Speed: base × civ cavalry bonus (Mongols) × tech (Husbandry/Wheelbarrow), live-recomputable.
+        RecomputeSpeed();
 
-        // Civ cavalry bonuses (Franks: +HP; Mongols: +speed). Applied once on spawn.
-        if (type == UnitType.Cavalry)
-        {
-            var civ = TeamCivBonus;
-            if (civ.cavalryHpMult != 1f) { maxHp *= civ.cavalryHpMult; hp *= civ.cavalryHpMult; }
-            if (civ.cavalrySpeedMult != 1f)
-            {
-                moveSpeed *= civ.cavalrySpeedMult;
-                if (_agent != null) _agent.speed = moveSpeed;
-            }
-        }
+        // Derive maxHp from base + researched tech HP + veterancy + civ cavalry HP,
+        // and fill current hp to full on spawn.
+        RecomputeMaxHp();
+    }
+
+    /// <summary>
+    /// Recompute <see cref="moveSpeed"/> from <see cref="baseMoveSpeed"/> × civ cavalry
+    /// speed (Mongols) × tech speed (Husbandry / Wheelbarrow). Idempotent — always from
+    /// base, so research-time recompute never compounds. Pushes the result to the agent.
+    /// </summary>
+    public void RecomputeSpeed()
+    {
+        if (baseMoveSpeed <= 0f) baseMoveSpeed = moveSpeed;
+        float s = baseMoveSpeed;
+        if (type == UnitType.Cavalry) s *= TeamCivBonus.cavalrySpeedMult;
+        s *= TeamTech?.MoveSpeedMult(type) ?? 1f;
+        moveSpeed = s;
+        if (_agent != null) _agent.speed = s;
+    }
+
+    /// <summary>
+    /// Recompute <see cref="maxHp"/> from <see cref="baseMaxHp"/> plus all live bonuses
+    /// (team tech HP, veteran rank, Franks cavalry HP multiplier). Idempotent — always
+    /// derived from base, so repeated calls (spawn / research / rank-up) never double-count.
+    /// On an increase, current hp rises by the same delta; on a decrease it is clamped.
+    /// </summary>
+    public void RecomputeMaxHp(bool fillOnIncrease = true)
+    {
+        // Safety: if a research-triggered recompute fires before this unit's Start()
+        // captured the factory base, seed baseMaxHp from the current maxHp now.
+        if (baseMaxHp <= 0f) baseMaxHp = maxHp;
+
+        float computed = baseMaxHp
+            + (TeamTech?.HpBonus(type) ?? 0f)
+            + veteranRank * VetHpPerRank;
+        if (type == UnitType.Cavalry) computed *= TeamCivBonus.cavalryHpMult;
+
+        float delta = computed - maxHp;
+        maxHp = computed;
+        if (delta > 0f && fillOnIncrease) hp = Mathf.Min(hp + delta, maxHp);
+        else if (hp > maxHp) hp = maxHp;
     }
 
     /// <summary>Issue a move order; transitions to <see cref="UnitState.Moving"/>.</summary>
@@ -341,16 +447,26 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public Transform Transform => transform;
     public float Radius => 0.4f;
 
+    // N1: KayKit (skinned) models stand taller than primitive units, so the HP bar sits higher.
+    // Cache the check — otherwise the IMGUI HP-bar pass calls GetComponentInChildren over every
+    // unit every frame (a real per-frame cost at scale).
+    bool? _isKayKit;
+    public bool IsKayKitModel => _isKayKit ??= GetComponentInChildren<SkinnedMeshRenderer>() != null;
+
     public void TakeDamage(float amount, DamageType damageType = DamageType.Melee)
     {
         if (hp <= 0f) return;
-        float armor = damageType switch
-        {
-            DamageType.Pierce => pierceArmor,
-            DamageType.Melee  => meleeArmor,
-            _                 => 0f,  // Siege bypasses armor
-        };
-        hp -= Mathf.Max(1f, amount - armor);
+        // Base armor (UnitFactory) + live Blacksmith armor research (ChainMail/PlateMail,
+        // barding, archer armor, Loom) read from this team's TechState each hit.
+        var tech = TeamTech;
+        // N2: base armor (incl. the N0.1 siege=melee mapping) + net-damage formula come from the
+        // pure CombatMath; the live Blacksmith/tech armor bonus is entity-specific, read here.
+        // Melee & Siege both benefit from melee armor research (N0.1).
+        float baseArmor = CombatMath.ArmorFor(damageType, meleeArmor, pierceArmor);
+        float techArmor = damageType == DamageType.Pierce
+            ? (tech?.ArmorBonus(type, DamageType.Pierce) ?? 0f)
+            : (tech?.ArmorBonus(type, DamageType.Melee)  ?? 0f);
+        hp -= CombatMath.NetDamage(amount, baseArmor + techArmor);
         if (gameObject.activeInHierarchy) StartCoroutine(HitFlash());
         if (hp <= 0f) Die();
     }
@@ -378,6 +494,12 @@ public class UnitEntity : MonoBehaviour, IDamageable
     void Die()
     {
         hp = 0f;
+        if (demolishedPrefab != null)
+        {
+            var wreck = Object.Instantiate(demolishedPrefab, transform.position, transform.rotation);
+            Object.Destroy(wreck, 5f);
+        }
+        PlayDie(); // fire death animation before Destroy
         AudioManager.Play(AudioManager.SoundId.UnitDie, 0.8f);
         // List removal is deferred to GameManager's end-of-frame compaction so we
         // don't mutate gm.units while CombatSystem is iterating it.
@@ -403,27 +525,82 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public bool AddKill()
     {
         killCount++;
+        MetaSystem.OnKill(teamId); // N13.meta: achievement tracking
         int newRank = killCount >= 3 ? 2 : killCount >= 1 ? 1 : 0;
         if (newRank <= veteranRank) return false;
         veteranRank = newRank;
-        // Flat bonus: +2 max HP and +10% per rank achieved.
-        float hpBonus = 10f;
-        maxHp += hpBonus; hp = Mathf.Min(hp + hpBonus, maxHp);
+        RecomputeMaxHp();
+        ApplyVeteranTint();
+        MetaSystem.OnVeteranRankUp(this); // N13.meta
         return true;
     }
 
+    // Veteran tint: recruit = team color, veteran = slight gold shift, elite = gold.
+    void ApplyVeteranTint()
+    {
+        if (veteranRank == 0) return;
+        Color gold = veteranRank == 2 ? new Color(1f, 0.85f, 0.1f) : new Color(0.9f, 0.75f, 0.3f);
+        var block = new MaterialPropertyBlock();
+        block.SetColor("_Color", Color.Lerp(Color.white, gold, veteranRank == 2 ? 0.5f : 0.28f));
+        foreach (var smr in GetComponentsInChildren<SkinnedMeshRenderer>())
+            smr.SetPropertyBlock(block);
+        foreach (var mr in GetComponentsInChildren<MeshRenderer>())
+        {
+            if (mr.gameObject.name == "BlobShadow" || mr.gameObject.name.StartsWith("SelectionRing")) continue;
+            mr.material.color = Color.Lerp(mr.material.color, gold, 0.2f);
+        }
+    }
+
     float _bobPhase;
+    Animator _animator;
+    static readonly int AnimIsMoving  = Animator.StringToHash("IsMoving");
+    static readonly int AnimAttack    = Animator.StringToHash("Attack");
+    static readonly int AnimDie       = Animator.StringToHash("Die");
+    static readonly int AnimIsWorking = Animator.StringToHash("IsMoving"); // N8.anim: gather/build reuse walk blend
+
+    /// <summary>Fire the attack animation. No-op for primitive units (no Animator).</summary>
+    public void PlayAttack() { if (_animator != null) _animator.SetTrigger(AnimAttack); }
+
+    /// <summary>N8.anim: Fire a gather/build "swing" animation (reuses Attack trigger).</summary>
+    public void PlayWorkSwing() { if (_animator != null) _animator.SetTrigger(AnimAttack); }
+
+    /// <summary>Fire the death animation and freeze locomotion. No-op for primitive units.</summary>
+    public void PlayDie()
+    {
+        if (_animator == null) return;
+        _animator.SetTrigger(AnimDie);
+        _animator.SetBool(AnimIsMoving, false);
+    }
 
     void Update()
     {
-        // Procedural movement bob: unit root bobs up/down while moving.
-        bool isMoving = state == UnitState.Moving;
-        if (isMoving)
+        if (_animator != null)
         {
-            _bobPhase += Time.deltaTime * 8f;
-            float bob = Mathf.Sin(_bobPhase) * 0.04f;
-            var pos = transform.localPosition;
-            transform.localPosition = new Vector3(pos.x, bob, pos.z);
+            // Animated units: drive the idle/walk blend from actual agent motion.
+            bool moving = _agent != null && _agent.isOnNavMesh
+                          && _agent.velocity.sqrMagnitude > 0.04f;
+            _animator.SetBool(AnimIsMoving, moving);
+        }
+        else
+        {
+            // Procedural animation for primitive (non-KayKit) units.
+            bool isMoving = state == UnitState.Moving;
+            if (isMoving)
+            {
+                // Bob up/down while walking.
+                _bobPhase += Time.deltaTime * 8f;
+                float bob = Mathf.Sin(_bobPhase) * 0.04f;
+                var pos = transform.localPosition;
+                transform.localPosition = new Vector3(pos.x, bob, pos.z);
+            }
+            // N8.anim: attack swing — brief Y rotation oscillation on Attacking.
+            if (state == UnitState.Attacking)
+            {
+                _bobPhase += Time.deltaTime * 16f;
+                float swing = Mathf.Sin(_bobPhase) * 18f;
+                var euler = transform.localEulerAngles;
+                transform.localEulerAngles = new Vector3(euler.x, euler.y + swing, euler.z);
+            }
         }
 
         // Only auto-idle for plain move orders; gather/build transitions are their systems' job.

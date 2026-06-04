@@ -71,12 +71,21 @@ public class BuildSystem : MonoBehaviour
         u.HaltAgent();
         u.FaceToward(sp);
 
-        if (needsBuild) StepConstruction(site, dt);
+        if (needsBuild) StepConstruction(site, u, dt);
         else            StepRepair(site, dt);
     }
 
-    void StepConstruction(BuildingEntity site, float dt)
+    // N8.anim: per-unit swing timer for build animation
+    readonly System.Collections.Generic.Dictionary<UnitEntity, float> _swingTimers = new();
+
+    void StepConstruction(BuildingEntity site, UnitEntity builder, float dt)
     {
+        // N8.anim: trigger hammer swing every ~0.8s during construction
+        _swingTimers.TryGetValue(builder, out float st);
+        st -= dt;
+        if (st <= 0f) { st = 0.8f; builder.PlayWorkSwing(); }
+        _swingTimers[builder] = st;
+
         float time = Mathf.Max(0.1f, site.buildTime);
         site.buildProgress = Mathf.Clamp01(site.buildProgress + dt / time);
         site.hp = Mathf.Max(1f, site.maxHp * site.buildProgress);
@@ -98,7 +107,10 @@ public class BuildSystem : MonoBehaviour
 
             GM?.RecomputePop();   // a finished House raises popCap; any building now functional
             if (site.teamId == 0)
+            {
                 AudioManager.Play(AudioManager.SoundId.BuildComplete, 0.9f);
+                MetaSystem.OnBuildingComplete(site.type, site.teamId); // N13.meta
+            }
         }
     }
 
@@ -133,7 +145,11 @@ public class BuildSystem : MonoBehaviour
         }
 
         site.hp = Mathf.Min(site.maxHp, site.hp + heal);
-        if (site.hp >= site.maxHp) _repairOwed.Remove(site);
+        if (site.hp >= site.maxHp)
+        {
+            _repairOwed.Remove(site);
+            if (site.teamId == 0) AudioManager.Play(AudioManager.SoundId.Repair, 0.7f); // N7.sfx
+        }
     }
 
     static Vector3 ApproachPoint(Vector3 center, Vector3 from, float dist)

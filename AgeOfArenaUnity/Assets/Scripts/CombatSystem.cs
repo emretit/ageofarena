@@ -14,16 +14,34 @@ public class CombatSystem : MonoBehaviour
     const float AggroInterval  = 0.5f;  // throttle idle enemy scans
 
     readonly Dictionary<UnitEntity, float> _repath = new();
+    readonly List<UnitEntity> _queryBuf = new();   // N1: reused spatial-grid query buffer
     float _aggroTimer;
 
     GameManager GM => GameManager.Instance;
 
-    Texture2D _barBg, _barHp, _barEnemy;
+    // N1.hpbar: IMGUI bar textures removed — world-space WorldHpBar handles rendering.
+
+    // N7.music: track whether any player unit is in combat for music ducking.
+    float _combatSignalTimer;
 
     public void Tick(List<UnitEntity> units, float dt)
     {
         bool scanAggro = (_aggroTimer -= dt) <= 0f;
         if (scanAggro) _aggroTimer = AggroInterval;
+
+        // Signal combat activity every 2s to AudioManager for duck/unduck.
+        _combatSignalTimer -= dt;
+        if (_combatSignalTimer <= 0f)
+        {
+            _combatSignalTimer = 2f;
+            bool anyCombat = false;
+            for (int i = 0; i < units.Count && !anyCombat; i++)
+            {
+                var u = units[i];
+                if (u != null && u.teamId == 0 && u.attackTarget != null) anyCombat = true;
+            }
+            AudioManager.SetCombatActive(anyCombat);
+        }
 
         for (int i = 0; i < units.Count; i++)
         {
@@ -35,6 +53,10 @@ public class CombatSystem : MonoBehaviour
             // Cavalry charge timer builds while not actively swinging.
             if (u.type == UnitType.Cavalry && u.state != UnitState.Attacking)
                 u.chargeTimer += dt;
+
+            // N4/CIVU: Vikings' Berserk slowly regenerates its own HP.
+            if (u.SelfRegenPerSecond > 0f && u.hp < u.maxHp)
+                u.Heal(u.SelfRegenPerSecond * dt);
 
             // Medic continuously heals the most-wounded ally in range while idle.
             if (u.type == UnitType.Medic) StepHeal(u, units, dt);
@@ -71,6 +93,10 @@ public class CombatSystem : MonoBehaviour
 
     void StepCombat(UnitEntity u)
     {
+        // N14/MODES Treaty: attacks are blocked during the peace period.
+        if (GM != null && GM.treatyEndTime > 0f && Time.time < GM.treatyEndTime)
+        { u.attackTarget = null; return; }
+
         // Support units (Scout/Medic) never fight: drop any attack order and idle.
         if (u.type == UnitType.Scout || u.type == UnitType.Medic)
         {
@@ -118,22 +144,23 @@ public class CombatSystem : MonoBehaviour
             u.state = UnitState.Attacking;
             u.HaltAgent();
             u.FaceToward(tpos);
-            if (u.attackCooldown <= 0f)
+            // Siege weapons (min range) can't fire at point-blank targets.
+            if (u.attackCooldown <= 0f && FlatDist(pos, tpos) >= u.MinAttackRange)
             {
-                float dmg = u.AttackDamage;
-
-                // Spearman anti-cavalry bonus (only vs Cavalry UnitEntity targets).
-                if (u.type == UnitType.Spearman &&
-                    u.attackTarget is UnitEntity tu && tu.type == UnitType.Cavalry)
-                    dmg *= u.AntiCavalryMultiplier;
-
-                // Anti-structure bonus (Trebuchet) when hitting a building.
-                if (u.attackTarget is BuildingEntity)
-                    dmg *= u.AntiStructureMultiplier;
+                u.PlayAttack();   // fire the attack animation (no-op for primitive units)
+                // BNUS: AoE2 additive bonus-damage model. dmg = base + class bonus, then the
+                // target's armor is subtracted once inside TakeDamage (max 1). Replaces the old
+                // multiplicative anti-cavalry/anti-archer/anti-structure factors. Bonus is keyed
+                // off the target's ArmorClass flags (ARMC), so it works for units and buildings.
+                float dmg = u.AttackDamage + u.BonusDamageVs(target);
+                // N6.elev: ±25% elevation modifier — attacker higher → bonus, lower → penalty.
+                var tgtComp = target as UnityEngine.Component;
+                if (tgtComp != null)
+                    dmg *= ElevationMult(u.transform.position, tgtComp.transform.position);
 
                 if (u.IsRanged)
                 {
-                    Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, dmg, u.DamageKind);
+                    Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, dmg, u.DamageKind, u.SplashRadius, u);
                     AudioManager.Play(AudioManager.SoundId.Arrow, 0.6f);
                 }
                 else
@@ -141,14 +168,10 @@ public class CombatSystem : MonoBehaviour
                     // Cavalry charge: first swing after 4s of non-combat deals 2.5× damage.
                     bool isCharge = u.ChargeReady;
                     if (isCharge) { dmg *= u.ChargeMultiplier; u.chargeTimer = 0f; }
-                    // Flanking bonus: +25% damage when attacking from behind the target.
-                    var tgtComp = target as Component;
-                    if (tgtComp != null)
-                    {
-                        Vector3 toAttacker = (u.transform.position - tgtComp.transform.position).normalized;
-                        toAttacker.y = 0;
-                        if (Vector3.Dot(tgtComp.transform.forward, toAttacker) > 0.5f) dmg *= 1.25f;
-                    }
+                    // N0.5: the old CBX +25% positional "flank" bonus was removed — AoE2 has no
+                    // facing-based damage, and it stacked multiplicatively with the charge bonus,
+                    // distorting counter math. (A morale/flank system could return later as an
+                    // explicit, documented opt-in, not a silent always-on melee multiplier.)
                     bool wasAlive = target.IsAlive;
                     target.TakeDamage(dmg, u.DamageKind);
                     if (wasAlive && !target.IsAlive) u.AddKill(); // veterancy
@@ -176,20 +199,24 @@ public class CombatSystem : MonoBehaviour
         float bestSq = radius * radius;
         Vector3 pos = u.transform.position;
 
-        var units = GM.units;
-        for (int i = 0; i < units.Count; i++)
+        // N1: query the spatial grid's cell neighbourhood instead of all units.
+        _queryBuf.Clear();
+        GM.unitGrid.Query(pos, radius, _queryBuf);
+        for (int i = 0; i < _queryBuf.Count; i++)
         {
-            var o = units[i];
-            if (o == null || o.teamId == u.teamId || o.isGarrisoned) continue;
+            var o = _queryBuf[i];
+            if (o == null || o.isGarrisoned) continue;
+            if (!GM.IsEnemy(u.teamId, o.teamId)) continue;
             float sq = FlatSq(pos, o.transform.position);
             if (sq < bestSq) { bestSq = sq; best = o; }
         }
 
+        // Buildings stay a linear scan — only a few dozen exist, so a second grid isn't worth it.
         var buildings = GM.buildings;
         for (int i = 0; i < buildings.Count; i++)
         {
             var b = buildings[i];
-            if (b == null || b.teamId == u.teamId) continue;
+            if (b == null || !GM.IsEnemy(u.teamId, b.teamId)) continue;
             float sq = FlatSq(pos, b.transform.position);
             if (sq < bestSq) { bestSq = sq; best = b; }
         }
@@ -210,9 +237,12 @@ public class CombatSystem : MonoBehaviour
         float radiusSq = medic.HealRadius * medic.HealRadius;
         UnitEntity best = null;
         float bestRatio = 1f;
-        for (int i = 0; i < units.Count; i++)
+        // N1: only consider units in the heal-radius cell neighbourhood.
+        _queryBuf.Clear();
+        GM.unitGrid.Query(pos, medic.HealRadius, _queryBuf);
+        for (int i = 0; i < _queryBuf.Count; i++)
         {
-            var o = units[i];
+            var o = _queryBuf[i];
             if (o == null || o == medic || o.teamId != medic.teamId) continue;
             if (o.hp <= 0f || o.hp >= o.maxHp) continue;       // dead or already full
             if (FlatSq(pos, o.transform.position) > radiusSq) continue;
@@ -223,7 +253,9 @@ public class CombatSystem : MonoBehaviour
         if (best != null)
         {
             medic.FaceToward(best.transform.position);
-            best.Heal(medic.HealPower * dt);
+            // Byzantines heal +50% (healRateMult); other civs ×1.0.
+            float healMult = GameManager.Instance?.TeamCivBonus(medic.teamId).healRateMult ?? 1f;
+            best.Heal(medic.HealPower * healMult * dt);
         }
     }
 
@@ -234,6 +266,10 @@ public class CombatSystem : MonoBehaviour
     /// </summary>
     void StepConvert(UnitEntity monk, List<UnitEntity> units, float dt)
     {
+        // Recharge faith over time whenever not at full (so a monk can convert again).
+        if (monk.faith < UnitEntity.FaithFull)
+            monk.faith = Mathf.Min(UnitEntity.FaithFull, monk.faith + UnitEntity.FaithRegenPerSec * dt);
+
         if (monk.attackTarget == null) return;
         var tgt = monk.attackTarget as UnitEntity;
         if (tgt == null || !tgt.IsAlive || tgt.teamId == monk.teamId)
@@ -243,18 +279,23 @@ public class CombatSystem : MonoBehaviour
             return;
         }
 
-        const float ConvertRange = 2.5f;
-        float dist = FlatDist(monk.transform.position, tgt.transform.position);
-        if (dist > ConvertRange * 2f) { monk.convertProgress = 0f; return; } // too far
+        // Can't begin/continue a conversion without full faith (must recharge first).
+        if (!monk.FaithReady) { monk.convertProgress = 0f; return; }
 
-        if (dist > ConvertRange)
+        // MONK: conversion range grows with Block Printing (Monastery tech).
+        var mtech = GM != null ? GM.teamTech[monk.teamId] : null;
+        float convertRange = mtech?.MonkConvertRange ?? 2.5f;
+        float dist = FlatDist(monk.transform.position, tgt.transform.position);
+        if (dist > convertRange * 2f) { monk.convertProgress = 0f; return; } // too far
+
+        if (dist > convertRange)
         {
             monk.state = UnitState.MovingToAttack;
             _repath.TryGetValue(monk, out float rt);
             rt -= dt;
             if (rt <= 0f)
             {
-                monk.NavigateTo(ApproachPoint(tgt.transform.position, monk.transform.position, ConvertRange * 0.7f));
+                monk.NavigateTo(ApproachPoint(tgt.transform.position, monk.transform.position, convertRange * 0.7f));
                 rt = RepathInterval;
             }
             _repath[monk] = rt;
@@ -264,26 +305,39 @@ public class CombatSystem : MonoBehaviour
         monk.HaltAgent();
         monk.FaceToward(tgt.transform.position);
         monk.state = UnitState.Attacking;
+
+        // CONV: roll a probabilistic (variable) conversion time when the channel begins;
+        // Theocracy shortens it. The convert completes when progress passes the rolled threshold.
+        bool theocracy = mtech?.MonkHasTheocracy ?? false;
+        if (monk.convertProgress <= 0f)
+            monk.convertThreshold = SimRandom.Range(UnitEntity.ConvertMinTime, UnitEntity.ConvertMaxTime) // N3: sim RNG
+                                  * (theocracy ? 0.6f : 1f);
         monk.convertProgress += dt;
 
-        if (monk.convertProgress >= UnitEntity.ConvertTime)
+        if (monk.convertProgress >= monk.convertThreshold)
         {
             monk.convertProgress = 0f;
+            // Theocracy: only partial faith is spent (group convert efficiency) → recharges faster.
+            monk.faith = theocracy ? UnitEntity.FaithFull * 0.5f : 0f;
             monk.attackTarget = null;
             // Switch team: update teamId and tint renderers with new team colour.
             var gm = GM;
             int newTeam = monk.teamId;
-            Color newColor = gm != null && newTeam < 4
-                ? new Color[] { Prims.Hex(0x1e5fcc), Prims.Hex(0xd42020), Prims.Hex(0x1e9e40), Prims.Hex(0xf0a010) }[newTeam]
+            Color newColor = gm != null && newTeam >= 0
+                ? TeamPalette.For(newTeam)
                 : Color.white;
             tgt.teamId = newTeam;
+            // Tint primitive units (MeshRenderer)
             foreach (var r in tgt.GetComponentsInChildren<MeshRenderer>())
             {
                 if (r.gameObject.name == "BlobShadow" || r.gameObject.name.StartsWith("SelectionRing")) continue;
-                // tint the primary (first) material with the new team colour
-                var mat = r.material;
-                mat.color = Color.Lerp(mat.color, newColor, 0.5f);
+                r.material.color = Color.Lerp(r.material.color, newColor, 0.5f);
             }
+            // Tint KayKit models (SkinnedMeshRenderer) via MaterialPropertyBlock
+            var block = new MaterialPropertyBlock();
+            block.SetColor("_Color", Color.Lerp(Color.white, newColor, 0.28f));
+            foreach (var r in tgt.GetComponentsInChildren<SkinnedMeshRenderer>())
+                r.SetPropertyBlock(block);
             monk.Stop();
         }
     }
@@ -296,61 +350,34 @@ public class CombatSystem : MonoBehaviour
         return center + dir.normalized * dist;
     }
 
-    // ── HP bars ──────────────────────────────────────────────────────────────
+    // ── HP bars (N1.hpbar: now world-space billboards via WorldHpBar, not IMGUI) ──────
 
-    void OnGUI()
+    void LateUpdate()
     {
         if (GM == null) return;
-        var cam = Camera.main;
-        if (cam == null) return;
-
-        EnsureBarTextures();
+        var sel = GM.selection;
 
         var units = GM.units;
         for (int i = 0; i < units.Count; i++)
         {
             var u = units[i];
-            if (u == null || u.hp >= u.maxHp) continue;
-            DrawBar(cam, u.transform.position + Vector3.up * 1.4f,
-                u.hp / u.maxHp, u.teamId == 0, 26f);
+            if (u == null) continue;
+            var bar = u.GetComponent<WorldHpBar>();
+            if (bar == null) continue;
+            bool selected = sel != null && sel.Selected.Contains(u);
+            bool show = u.hp < u.maxHp || selected;
+            bar.Refresh(u.hp / u.maxHp, show);
         }
 
         var buildings = GM.buildings;
         for (int i = 0; i < buildings.Count; i++)
         {
             var b = buildings[i];
-            if (b == null || b.maxHp <= 0f || b.hp >= b.maxHp) continue;
-            DrawBar(cam, b.transform.position + Vector3.up * 3.4f,
-                b.hp / b.maxHp, b.teamId == 0, 46f);
+            if (b == null) continue;
+            var bar = b.GetComponent<WorldHpBar>();
+            if (bar == null) continue;
+            bar.Refresh(b.hp / b.maxHp, b.hp < b.maxHp);
         }
-    }
-
-    void DrawBar(Camera cam, Vector3 worldPos, float frac, bool friendly, float width)
-    {
-        Vector3 sp = cam.WorldToScreenPoint(worldPos);
-        if (sp.z <= 0f) return;
-        float x = sp.x - width * 0.5f;
-        float y = Screen.height - sp.y;
-        const float h = 4f;
-        GUI.DrawTexture(new Rect(x - 1, y - 1, width + 2, h + 2), _barBg);
-        GUI.DrawTexture(new Rect(x, y, width * Mathf.Clamp01(frac), h),
-            friendly ? _barHp : _barEnemy);
-    }
-
-    void EnsureBarTextures()
-    {
-        if (_barBg != null) return;
-        _barBg    = Solid(new Color(0f, 0f, 0f, 0.7f));
-        _barHp    = Solid(new Color(0.3f, 0.85f, 0.35f, 1f));
-        _barEnemy = Solid(new Color(0.85f, 0.25f, 0.2f, 1f));
-    }
-
-    static Texture2D Solid(Color c)
-    {
-        var t = new Texture2D(1, 1);
-        t.SetPixel(0, 0, c);
-        t.Apply();
-        return t;
     }
 
     static float FlatDist(Vector3 a, Vector3 b) => Mathf.Sqrt(FlatSq(a, b));
@@ -359,5 +386,15 @@ public class CombatSystem : MonoBehaviour
     {
         float dx = a.x - b.x, dz = a.z - b.z;
         return dx * dx + dz * dz;
+    }
+
+    // N6.elev: ±25% elevation modifier. Scales ±0.7 world-unit height delta to ±1 fraction.
+    // 0.7 = half the max terrain elevation (1.4), so full ±25% at maximum hill height.
+    static float ElevationMult(Vector3 atkPos, Vector3 tgtPos)
+    {
+        float dh   = WorldRoot.GetHeight(atkPos.x, atkPos.z)
+                   - WorldRoot.GetHeight(tgtPos.x, tgtPos.z);
+        float frac = Mathf.Clamp(dh / 0.7f, -1f, 1f);
+        return 1f + frac * 0.25f;
     }
 }

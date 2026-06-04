@@ -21,19 +21,19 @@ public class RelicEntity : MonoBehaviour
 
     public readonly List<UnitEntity> unitsNearby = new();
 
+    // Monk relic carry (AoE2 model): a Monk can pick the relic up and haul it to a
+    // friendly Monastery, where it locks in (heldInMonastery) and trickles gold.
+    public UnitEntity carrier;          // Monk currently hauling this relic (null = not carried)
+    public bool heldInMonastery;        // deposited in a Monastery → permanent control + gold
+    /// <summary>Relic is free to be captured-by-proximity or picked up by a Monk.</summary>
+    public bool Available => carrier == null && !heldInMonastery;
+
     const float CaptureSeconds = 5f;   // uncontested presence needed to flip
     const float DecayRate      = 1.5f; // progress lost per second when uncontested
     const float GoldPerSecond  = 0.5f; // passive gold per second while controlled
 
     // Neutral gold + per-team tints (match WorldRoot.TeamColors / minimap dots).
     static readonly Color Neutral = new Color(1f, 0.82f, 0.2f);
-    static readonly Color[] TeamTint =
-    {
-        new Color(0.16f, 0.36f, 0.69f), // blue
-        new Color(0.75f, 0.22f, 0.17f), // red
-        new Color(0.15f, 0.68f, 0.38f), // green
-        new Color(0.95f, 0.61f, 0.07f), // yellow
-    };
 
     float _goldAccum;
     Material _orbMat;
@@ -45,16 +45,17 @@ public class RelicEntity : MonoBehaviour
     public void UpdateCapture(float dt)
     {
         // Tally nearby units per team.
-        var counts = new int[4];
+        int nTeams = GameManager.MaxTeams;
+        var counts = new int[nTeams];
         for (int i = 0; i < unitsNearby.Count; i++)
         {
             var u = unitsNearby[i];
-            if (u != null && u.teamId >= 0 && u.teamId < 4) counts[u.teamId]++;
+            if (u != null && u.teamId >= 0 && u.teamId < nTeams) counts[u.teamId]++;
         }
 
         // Dominant single team (a tie for the lead = contested → no capture).
         int top = -1, topCount = 0; bool tie = false;
-        for (int t = 0; t < 4; t++)
+        for (int t = 0; t < nTeams; t++)
         {
             if (counts[t] > topCount) { topCount = counts[t]; top = t; tie = false; }
             else if (counts[t] == topCount && counts[t] > 0) tie = true;
@@ -79,25 +80,37 @@ public class RelicEntity : MonoBehaviour
             if (captureProgress <= 0f) capturingTeam = -1;
         }
 
-        // Passive gold trickle for the owner (accumulate fractional, grant whole gold).
-        if (controllingTeam >= 0)
+        GrantGold(dt);
+    }
+
+    /// <summary>Passive gold trickle for the controlling team (held or proximity-controlled).</summary>
+    public void GrantGold(float dt)
+    {
+        if (controllingTeam < 0) return;
+        _goldAccum += GoldPerSecond * dt;
+        if (_goldAccum >= 1f)
         {
-            _goldAccum += GoldPerSecond * dt;
-            if (_goldAccum >= 1f)
-            {
-                int g = Mathf.FloorToInt(_goldAccum);
-                _goldAccum -= g;
-                var gm = GameManager.Instance;
-                if (gm != null) gm.teamRes[controllingTeam].Gain(ResourceKind.Gold, g);
-            }
+            int g = Mathf.FloorToInt(_goldAccum);
+            _goldAccum -= g;
+            var gm = GameManager.Instance;
+            if (gm != null) gm.teamRes[controllingTeam].Gain(ResourceKind.Gold, g);
         }
+    }
+
+    /// <summary>Lock the relic to a team (used on Monastery deposit) and re-tint the orb.</summary>
+    public void ForceControl(int team)
+    {
+        controllingTeam = team;
+        capturingTeam = -1;
+        captureProgress = 0f;
+        ApplyColor();
     }
 
     void ApplyColor()
     {
         if (_orbMat == null) return;
-        _orbMat.color = controllingTeam >= 0 && controllingTeam < TeamTint.Length
-            ? TeamTint[controllingTeam]
+        _orbMat.color = controllingTeam >= 0
+            ? TeamPalette.For(controllingTeam)
             : Neutral;
     }
 }

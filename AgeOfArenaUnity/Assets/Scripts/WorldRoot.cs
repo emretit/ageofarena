@@ -6,7 +6,7 @@ using UnityEngine.Rendering.PostProcessing;
 /// <summary>
 /// Builds the full 4-player arena at runtime: 4 walled bases in a diamond layout,
 /// shared forest ring, central mines, NavMesh, and gameplay systems.
-/// Only team 0 (south) is player-controlled; teams 1-3 are static enemy placeholders.
+/// Team 0 (south) is player-controlled; teams 1-3 are AI-controlled.
 /// </summary>
 public class WorldRoot : MonoBehaviour
 {
@@ -21,29 +21,54 @@ public class WorldRoot : MonoBehaviour
     const float WallScale   = 2f;    // uniform scale for wall Kenney models
     const float TowerScale  = 2.2f;  // corner towers a touch larger than the wall
     const float GateScale   = 3f;    // gate ≈2 units wide ×2.7 tall → fills one cell
-    const float GateWidth   = 2f;    // one-cell opening on the front edge for the gate
+    const float GateWidth   = 2f;    // visual gate piece footprint on the front edge
+    const float GateOpening = 4.5f;  // NavMesh gap left in the wall — wide enough that a
+                                     // 0.5-radius agent paths cleanly through the gate
     const float WallModelYaw = 0f;   // extra yaw if the FBX's length axis isn't +X
 
-    // Base centers further apart → more open mid-map feel.
-    static readonly Vector3[] BasePositions =
-    {
-        new( 0, 0, -58), // team 0 – player (south)
-        new( 0, 0,  58), // team 1 – red
-        new(-58, 0,  0), // team 2 – green
-        new( 58, 0,  0), // team 3 – yellow
-    };
+    // N10.rms: active archetype; set from mapType in Build(). Default = Arena.
+    MapGenerator.Archetype _arch = MapGenerator.Arena;
 
-    static readonly Color[] TeamColors =
-    {
-        Prims.Hex(0x1e5fcc), // blue  — more saturated AoE2 blue
-        Prims.Hex(0xd42020), // red   — deeper red
-        Prims.Hex(0x1e9e40), // green — vivid
-        Prims.Hex(0xf0a010), // yellow— warm gold
-    };
+    // Convenience alias for instance methods — keeps all call sites unchanged.
+    Vector3[] BasePositions => _arch.basePositions;
+
+    // Static cache so SampleTerrainNorm (static) can read base positions for terrain flattening.
+    static Vector3[] _basePositions = MapGenerator.Arena.basePositions;
+
+    // Team tints now come from the single-source TeamPalette (N4.palette); this
+    // indexer keeps the existing TeamColors[i] call sites working unchanged.
+    sealed class TeamColorsProxy { public Color this[int i] => TeamPalette.For(i); }
+    static readonly TeamColorsProxy TeamColors = new TeamColorsProxy();
 
     static readonly Color RoofColor = Prims.Hex(0xa6402f);
 
     MeshRenderer _groundRenderer;  // saved for FogOfWarSystem.Init
+
+    // N8.terrain: seed used by the heightmap (set in Build() before SetupGround).
+    static int _mapSeed;
+
+    // ── Island geometry (AoE2 "Arena island": round land ringed by ocean) ──────
+    const float LandRadius  = 92f;   // grass disc radius (coastline)
+    const float BeachRadius = 94f;   // thin sand rim just past the grass
+    const float OceanHalf   = 116f;  // ocean plane half-extent (square sea frame)
+    const float OceanDepth  = 0.25f; // ocean sits just below the flat (y=0) terrain so the
+                                     // sea never z-fights up through flattened base/lane zones
+                                     // (otherwise the blue plane bleeds through as fake "lakes")
+    const float CoastInner  = 76f;   // coastal forest belt starts beyond the base back walls
+    const float CoastOuter  = 91f;   // …and packs a thick belt up to the shoreline
+
+    // Land disc mesh, reused as an exact NavMesh build source so the walkable area is a
+    // true circle (no box approximation) and the sea is simply its inverse.
+    Mesh _landMesh;
+
+    // Not-walkable NavMesh sources collected while building (base walls minus their
+    // gate, corner towers, coastal forest) — fed into the land bake so walls and the
+    // forest ring actually block units. This is what makes it a real Arena.
+    readonly List<NavMeshBuildSource> _navObstacles = new();
+
+    int _navalAgentTypeId = -1;
+    /// <summary>NavMesh agent type ID for Galley units (baked in BakeNavMesh).</summary>
+    public int NavalAgentTypeId => _navalAgentTypeId;
 
     // Enemy brain flavours (index = teamId; slot 0 is the player and unused).
     static readonly AIPersonality[] Personalities =
@@ -58,15 +83,24 @@ public class WorldRoot : MonoBehaviour
     /// Change via the HUD or pass explicitly for reproducible maps.</summary>
     public int mapSeed;
 
+    /// <summary>N10.rms: which map archetype to build. Set by GameBootstrap from CivSelectScreen.</summary>
+    public MapType mapType = MapType.Arena;
+
     public void Build()
     {
         // Keep simulating when the window is unfocused (alt-tab) so the AI/economy
         // don't freeze — also makes headless/automated runs behave.
         Application.runInBackground = true;
 
+        // N10.rms: resolve archetype before anything uses BasePositions.
+        _arch = MapGenerator.Get(mapType);
+        _basePositions = _arch.basePositions; // static cache for SampleTerrainNorm
+
         // Seed Unity's legacy RNG so trees/mines/relics produce a reproducible layout.
         if (mapSeed == 0) mapSeed = UnityEngine.Random.Range(1, int.MaxValue);
         UnityEngine.Random.InitState(mapSeed);
+        SimRandom.Seed(mapSeed); // N3: seed the deterministic simulation RNG from the same seed
+        _mapSeed = mapSeed;      // N8.terrain: heightmap uses same seed for determinism
 
         AudioManager.Init();
         SetupEnvironment();
@@ -75,14 +109,23 @@ public class WorldRoot : MonoBehaviour
         cam.bounds  = new Vector2(95f, 95f); // match bigger 200×200 map
         cam.maxSize = 42f;                   // allow wider zoom-out
         var gm  = SetupGameManager();
+        gm.gameMode  = _arch.forceNomad ? GameMode.Nomad : GameBootstrap.NextGameMode;
+        gm.difficulty = GameBootstrap.NextDifficulty;
 
-        for (int i = 0; i < 4; i++)
-            BuildBase(BasePositions[i], TeamColors[i], i);
+        // VNOMAD: skip static base construction; villagers scatter mid-map.
+        if (gm.gameMode != GameMode.Nomad)
+            for (int i = 0; i < gm.TeamCount; i++)
+                BuildBase(BasePositions[i], TeamColors[i], i);
 
-        BuildForestRing();
-        BuildMines();
+        BuildCoastalForest();   // dense conifer wall hugging the shoreline (blocks units)
+        BuildInteriorClumps();  // a few broadleaf groves in the open battlefield
+        for (int i = 0; i < gm.TeamCount; i++)
+            BuildBaseResources(BasePositions[i]); // gold/stone/berry/wood/fish inside each pocket
+        BuildContestedResources(); // extra mines fought over in the centre
         BuildRelics();
         BakeNavMesh();
+        // N16.path: build deterministic grid pathfinder after NavMesh is baked.
+        GridPathfinder.Build(LandRadius);
         gm.cameraRig = cam;
         SetupGameplay(gm);
         cam.Init(BasePositions[0]);
@@ -93,6 +136,18 @@ public class WorldRoot : MonoBehaviour
 
         // Post-processing: must run after camera is ready.
         SetupPostProcessing(cam.gameObject);
+
+        // N15.checksum: load replay baseline if this is a verify run.
+        var gm2 = GameManager.Instance;
+        if (gm2?.checksum != null && !string.IsNullOrEmpty(GameBootstrap.ReplayBaseline))
+            ChecksumSystem.LoadBaseline(gm2.checksum);
+        // N17.replay: auto-open viewer if a replay is ready.
+        ReplayViewer.TryAutoStart();
+
+        // CIVS: prompt the player to pick a civilization over the freshly-built arena.
+        // STRT: show setup screen on first run; ARES: skip on restart (PlayerCiv persists).
+        if (GameBootstrap.PlayerCiv == Civilization.None)
+            new GameObject("CivSelect").AddComponent<CivSelectScreen>();
     }
 
     // ── Environment ──────────────────────────────────────────────────────────
@@ -139,20 +194,94 @@ public class WorldRoot : MonoBehaviour
         Camera.main?.gameObject.SetActive(false);
     }
 
+    // Island ground: a glossy ocean plane (also the single raycast collider for the
+    // whole frame) with a sand disc and a grass disc stacked on top. The grass disc is
+    // the playable land; the ocean shows in the ring/corners around it.
     void SetupGround()
     {
-        var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
-        ground.name = "Ground";
-        ground.transform.SetParent(transform, false);
-        ground.transform.localScale = new Vector3(20f, 1f, 20f); // 200×200
+        // ── Ocean (bottom layer, y=-OceanDepth) — large flat plane with animated water
+        // shader. Sits just under the terrain's y=0 floor so flattened base/lane zones
+        // don't z-fight the sea up through the land. Keeps its MeshCollider so naval
+        // click-to-move raycasts resolve on the sea.
+        var ocean = GameObject.CreatePrimitive(PrimitiveType.Plane);
+        ocean.name = "Ocean";
+        ocean.transform.SetParent(transform, false);
+        ocean.transform.localPosition = new Vector3(0f, -OceanDepth, 0f);
+        ocean.transform.localScale = new Vector3(OceanHalf * 2f / 10f, 1f, OceanHalf * 2f / 10f);
+        var oceanRend = ocean.GetComponent<MeshRenderer>();
+        // N8.terrain: water shader with animated waves; fallback to flat material.
+        var waterShader = Shader.Find("Custom/Water");
+        if (waterShader != null)
+        {
+            var waterMat = new Material(waterShader);
+            waterMat.SetColor("_Color",     Prims.Hex(0x2a70bc));
+            waterMat.SetColor("_DeepColor", Prims.Hex(0x102a4a));
+            oceanRend.sharedMaterial = waterMat;
+        }
+        else
+        {
+            oceanRend.sharedMaterial = Prims.Mat(Prims.Hex(0x2766a8), 0.1f, 0.82f);
+        }
+        oceanRend.receiveShadows = false;
+
+        // ── Beach (sand rim, y=0.03) — flat-coloured disc poking out past the terrain.
+        var sand = NewMeshObject("Beach", BuildDiscMesh(BeachRadius, 72, 0f),
+            Prims.Mat(Prims.Hex(0x9c8350), 0f, 0.05f), 0.03f);
+        sand.GetComponent<MeshRenderer>().receiveShadows = true;
+
+        // ── N8.terrain: heightmap terrain mesh with biome texture (replaces flat disc).
+        // Heights embedded in mesh vertices; base zones (near each base + center) stay at
+        // y≈0 so existing buildings/units remain flush with the ground there.
+        var biomeTex   = BuildBiomeTexture(512, LandRadius);
+        var terrainMat = Prims.Mat(Color.white, 0f, 0.04f);
+        terrainMat.mainTexture = biomeTex;
+        _landMesh = BuildTerrainMesh(LandRadius, 28, 128); // 28 rings × 128 segs
+        var ground = NewMeshObject("Ground", _landMesh, terrainMat, 0f);
         _groundRenderer = ground.GetComponent<MeshRenderer>();
-        // Textured grass instead of a flat green plane. FogOfWarSystem.Init replaces
-        // this material with the fog shader only when fog of war is enabled (it isn't).
-        var groundMat = Prims.Mat(Color.white, 0f, 0.05f);
-        groundMat.mainTexture      = BuildGroundTexture();
-        groundMat.mainTextureScale = new Vector2(12f, 12f);       // ~16 world units / tile on 200×200
-        _groundRenderer.sharedMaterial = groundMat;
         _groundRenderer.receiveShadows = true;
+        // MeshCollider so terrain raycasts return actual terrain surface height.
+        var mc = ground.AddComponent<MeshCollider>();
+        mc.sharedMesh = _landMesh;
+    }
+
+    // Flat horizontal disc (triangle fan) facing +Y, parented at the origin. uvWorldScale
+    // bakes tiling UVs from world XZ (0 = single flat colour, 1/16 = a tile every 16 units).
+    static Mesh BuildDiscMesh(float radius, int segments, float uvWorldScale)
+    {
+        var verts = new Vector3[segments + 1];
+        var uvs   = new Vector2[segments + 1];
+        var tris  = new int[segments * 3];
+        verts[0] = Vector3.zero;
+        uvs[0]   = new Vector2(0.5f, 0.5f);
+        for (int i = 0; i < segments; i++)
+        {
+            float a = i / (float)segments * Mathf.PI * 2f;
+            var p = new Vector3(Mathf.Cos(a) * radius, 0f, Mathf.Sin(a) * radius);
+            verts[i + 1] = p;
+            uvs[i + 1]   = uvWorldScale > 0f ? new Vector2(p.x * uvWorldScale, p.z * uvWorldScale)
+                                             : new Vector2(0.5f, 0.5f);
+            int t = i * 3;
+            tris[t]     = 0;
+            tris[t + 1] = (i + 1) % segments + 1; // winding chosen so the normal faces +Y
+            tris[t + 2] = i + 1;
+        }
+        var m = new Mesh { name = $"Disc_{radius:0}" };
+        m.vertices  = verts;
+        m.uv        = uvs;
+        m.triangles = tris;
+        m.RecalculateNormals();
+        m.RecalculateBounds();
+        return m;
+    }
+
+    GameObject NewMeshObject(string name, Mesh mesh, Material mat, float y)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(transform, false);
+        go.transform.localPosition = new Vector3(0f, y, 0f);
+        go.AddComponent<MeshFilter>().sharedMesh = mesh;
+        go.AddComponent<MeshRenderer>().sharedMaterial = mat;
+        return go;
     }
 
     /// <summary>
@@ -197,6 +326,141 @@ public class WorldRoot : MonoBehaviour
         float c = Mathf.PerlinNoise(u * freq,        (v - 1f) * freq);
         float d = Mathf.PerlinNoise((u - 1f) * freq, (v - 1f) * freq);
         return Mathf.Lerp(Mathf.Lerp(a, b, u), Mathf.Lerp(c, d, u), v);
+    }
+
+    // ── N8.terrain: heightmap helpers ────────────────────────────────────────
+
+    /// <summary>
+    /// World-space terrain height at (x, z). Returns 0 in flattened zones (bases, center)
+    /// and up to 1.4 units in the elevated mid-ring between bases.
+    /// Deterministic: same mapSeed → same terrain each restart.
+    /// </summary>
+    public static float GetHeight(float x, float z) => SampleTerrainNorm(x, z) * 1.4f;
+
+    static float SampleTerrainNorm(float x, float z)
+    {
+        float n = VNoise(x * 0.026f, z * 0.026f, _mapSeed)       * 1.000f
+                + VNoise(x * 0.065f, z * 0.065f, _mapSeed +  7)  * 0.500f
+                + VNoise(x * 0.130f, z * 0.130f, _mapSeed + 13)  * 0.250f;
+        n = n / 1.75f;
+        n = n * n * (3f - 2f*n); // smoothstep: fewer but smoother hills
+
+        float r = Mathf.Sqrt(x * x + z * z);
+        n *= Mathf.Clamp01((LandRadius - r - 7f) / 11f);  // flatten near coast
+        n *= Mathf.Clamp01((r - 10f) / 8f);               // flatten center pocket
+        foreach (var bp in _basePositions)
+        {
+            float dx = x - bp.x, dz = z - bp.z;
+            float d  = Mathf.Sqrt(dx * dx + dz * dz);
+            n *= Mathf.Clamp01((d - 16f) / 10f);          // flatten near each base
+        }
+        return Mathf.Clamp01(n);
+    }
+
+    static float VNoise(float x, float z, int seed)
+    {
+        int   ix = Mathf.FloorToInt(x), iz = Mathf.FloorToInt(z);
+        float fx = x - ix,             fz = z - iz;
+        float ux = fx * fx * (3f - 2f * fx);
+        float uz = fz * fz * (3f - 2f * fz);
+        return Mathf.Lerp(
+            Mathf.Lerp(NHash(ix,   iz,   seed), NHash(ix+1, iz,   seed), ux),
+            Mathf.Lerp(NHash(ix,   iz+1, seed), NHash(ix+1, iz+1, seed), ux), uz);
+    }
+
+    static float NHash(int x, int z, int s)
+    {
+        unchecked
+        {
+            int h = x * 374761393 + z * 668265263 + s * 1234567891;
+            h = (h ^ (h >> 13)) * 1274126177;
+            return ((h ^ (h >> 16)) & 0xffff) / 65535f;
+        }
+    }
+
+    Mesh BuildTerrainMesh(float radius, int rings, int segs)
+    {
+        var verts = new System.Collections.Generic.List<Vector3>(rings * segs + 1);
+        var uvs   = new System.Collections.Generic.List<Vector2>(rings * segs + 1);
+        var tris  = new System.Collections.Generic.List<int>(rings * segs * 6);
+
+        verts.Add(new Vector3(0f, GetHeight(0f, 0f), 0f));
+        uvs.Add(new Vector2(0.5f, 0.5f));
+
+        for (int r = 1; r <= rings; r++)
+        {
+            float rad = radius * r / rings;
+            for (int s = 0; s < segs; s++)
+            {
+                float a  = s / (float)segs * Mathf.PI * 2f;
+                float wx = Mathf.Cos(a) * rad;
+                float wz = Mathf.Sin(a) * rad;
+                verts.Add(new Vector3(wx, GetHeight(wx, wz), wz));
+                uvs.Add(new Vector2(wx / (radius * 2f) + 0.5f, wz / (radius * 2f) + 0.5f));
+            }
+        }
+
+        for (int s = 0; s < segs; s++)
+        {
+            int n = (s + 1) % segs;
+            tris.Add(0); tris.Add(1 + s); tris.Add(1 + n);
+        }
+        for (int r = 1; r < rings; r++)
+        {
+            int ib = 1 + (r-1) * segs;
+            int ob = 1 + r     * segs;
+            for (int s = 0; s < segs; s++)
+            {
+                int n = (s + 1) % segs;
+                tris.Add(ib+s); tris.Add(ob+s); tris.Add(ib+n);
+                tris.Add(ib+n); tris.Add(ob+s); tris.Add(ob+n);
+            }
+        }
+
+        var m = new Mesh
+        {
+            name        = "Terrain",
+            indexFormat = UnityEngine.Rendering.IndexFormat.UInt32,
+        };
+        m.SetVertices(verts);
+        m.SetUVs(0, uvs);
+        m.SetTriangles(tris, 0);
+        m.RecalculateNormals();
+        m.RecalculateBounds();
+        return m;
+    }
+
+    static Texture2D BuildBiomeTexture(int N, float radius)
+    {
+        var tex = new Texture2D(N, N, TextureFormat.RGB24, false)
+        {
+            wrapMode   = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+        };
+        var pixels = new Color[N * N];
+        float invN = 1f / N;
+        for (int py = 0; py < N; py++)
+        for (int px = 0; px < N; px++)
+        {
+            float wx = (px * invN - 0.5f) * radius * 2f;
+            float wz = (py * invN - 0.5f) * radius * 2f;
+            float r  = Mathf.Sqrt(wx * wx + wz * wz);
+            Color c  = r > radius - 0.5f
+                ? new Color(0.13f, 0.32f, 0.11f)
+                : TerrainBiomeColor(SampleTerrainNorm(wx, wz));
+            pixels[py * N + px] = c;
+        }
+        tex.SetPixels(pixels);
+        tex.Apply(false);
+        return tex;
+    }
+
+    static Color TerrainBiomeColor(float h)
+    {
+        if (h < 0.12f) return new Color(0.42f, 0.60f, 0.25f); // lush grass
+        if (h < 0.38f) return new Color(0.50f, 0.56f, 0.31f); // dry grass
+        if (h < 0.62f) return new Color(0.46f, 0.44f, 0.30f); // rocky grass
+        return                 new Color(0.52f, 0.48f, 0.43f); // bare rock
     }
 
     IsometricCameraRig SetupCamera()
@@ -262,7 +526,7 @@ public class WorldRoot : MonoBehaviour
     // ── Base builder ─────────────────────────────────────────────────────────
 
     /// <param name="center">World position of this base's Town Center.</param>
-    /// <param name="teamId">0 = player; 1-3 = enemy placeholders.</param>
+    /// <param name="teamId">0 = player; 1-3 = AI-controlled teams.</param>
     void BuildBase(Vector3 center, Color teamColor, int teamId)
     {
         // Direction from this base toward the arena center — that's where the gate opens.
@@ -305,6 +569,15 @@ public class WorldRoot : MonoBehaviour
         var barracks = BuildingFactory.Barracks(baseGo.transform, center + backward * 8.5f, RoofColor);
         SetBuildingTeam(barracks, teamId);
         gm.RegisterBuilding(barracks.GetComponent<BuildingEntity>());
+
+        // N14.aieco: Stable + ArcheryRange so AI has production buildings for cavalry/archers.
+        var stable = BuildingFactory.Stable(baseGo.transform, center + right * 8f + backward * 6f, RoofColor);
+        SetBuildingTeam(stable, teamId);
+        gm.RegisterBuilding(stable.GetComponent<BuildingEntity>());
+
+        var archRange = BuildingFactory.ArcheryRange(baseGo.transform, center - right * 8f + backward * 6f, RoofColor);
+        SetBuildingTeam(archRange, teamId);
+        gm.RegisterBuilding(archRange.GetComponent<BuildingEntity>());
     }
 
     static void SetBuildingTeam(GameObject go, int teamId)
@@ -315,8 +588,9 @@ public class WorldRoot : MonoBehaviour
 
     // Rectangular castle perimeter built from Kenney "Castle" modular pieces
     // (wall + gate + square towers), with a procedural fallback per piece so the
-    // base still renders if the asset pack is missing. Decorative only — like the
-    // old ring it carries no NavMeshObstacle, so it doesn't change unit pathing.
+    // base still renders if the asset pack is missing. Each wall cell and corner
+    // tower also registers a not-walkable NavMesh source (BuildWallEdge / below), so
+    // the pocket is sealed except for the single gate facing the arena centre.
     void BuildWalls(Transform parent, Vector3 center, float gateAngleDeg)
     {
         var wallsGo = new GameObject("Walls");
@@ -338,7 +612,10 @@ public class WorldRoot : MonoBehaviour
         BuildWallEdge(wallsGo.transform, nw, sw, 180f, gateAngleDeg, wallMat); // west
 
         foreach (var corner in new[] { sw, se, ne, nw })
+        {
             BuildCornerTower(wallsGo.transform, corner, wallMat, roofMat);
+            AddObstacle(corner, 2.2f, 2.2f, 0f); // towers seal the wall corners
+        }
 
         Prims.EnableShadows(wallsGo);
     }
@@ -356,7 +633,7 @@ public class WorldRoot : MonoBehaviour
 
         int n    = Mathf.Max(1, Mathf.RoundToInt(len / WallSegW));
         float step = len / n;
-        int gateCells = isGateEdge ? Mathf.Clamp(Mathf.RoundToInt(GateWidth / step), 1, n) : 0;
+        int gateCells = isGateEdge ? Mathf.Clamp(Mathf.RoundToInt(GateOpening / step), 2, Mathf.Max(2, n - 2)) : 0;
         int gateStart = (n - gateCells) / 2;
         int gateEnd   = gateStart + gateCells; // exclusive
 
@@ -368,7 +645,8 @@ public class WorldRoot : MonoBehaviour
                 {
                     Vector3 gpos = a + dir * (step * (gateStart + gateCells * 0.5f));
                     // The gate model's span axis is perpendicular to the wall pieces',
-                    // so rotate it an extra 90° to bridge the opening.
+                    // so rotate it an extra 90° to bridge the opening. No obstacle here →
+                    // this is the one walkable opening into the pocket.
                     if (KenneyModels.Spawn("Castle/gate", parent, gpos, GateScale, yaw + 90f) == null)
                         FallbackGate(parent, gpos, yaw, wallMat);
                 }
@@ -378,6 +656,8 @@ public class WorldRoot : MonoBehaviour
             Vector3 pos = a + dir * (step * (i + 0.5f));
             if (KenneyModels.Spawn("Castle/wall", parent, pos, WallScale, yaw) == null)
                 FallbackWallSeg(parent, pos, yaw, step, wallMat);
+            // Block this wall cell in the land NavMesh (everything but the gate opening).
+            AddObstacle(pos, step + 0.3f, 1.6f, yaw);
         }
     }
 
@@ -426,54 +706,144 @@ public class WorldRoot : MonoBehaviour
 
     // ── Resources ────────────────────────────────────────────────────────────
 
-    void BuildForestRing()
+    // Per-base local frame: forward points at the arena centre (toward the gate),
+    // backward at the coast, right is the lateral axis. For the cardinal base
+    // positions these align with the world (and the axis-aligned castle walls).
+    static void BaseFrame(Vector3 center, out Vector3 forward, out Vector3 backward, out Vector3 right)
     {
-        var forest = new GameObject("Forest");
+        forward  = center.sqrMagnitude > 0.001f ? (-center).normalized : Vector3.forward;
+        backward = -forward;
+        right    = Vector3.Cross(Vector3.up, forward).normalized;
+    }
+
+    // Thick conifer belt filling the whole shoreline (CoastInner..CoastOuter) — a
+    // continuous natural wall, deliberately dense behind every base. Each tree is also a
+    // NavMesh obstacle, so the belt blocks movement just like the castle walls do.
+    void BuildCoastalForest()
+    {
+        var forest = new GameObject("CoastalForest");
         forest.transform.SetParent(transform, false);
         var gm = GameManager.Instance;
-        for (int i = 0; i < 140; i++)
+
+        float inner    = _arch.coastInner;
+        float outer    = _arch.coastOuter;
+        int   clusters = _arch.coastClusters;
+
+        // Angular clusters around the full ring; each spans the belt's depth for a wall
+        // that's several trees thick. No gaps — the forest hugs the coast all the way round.
+        for (int c = 0; c < clusters; c++)
         {
-            float a = Random.Range(0f, Mathf.PI * 2f);
-            float r = Random.Range(20f, 45f);
-            var pos = new Vector3(Mathf.Cos(a) * r, 0, Mathf.Sin(a) * r);
-            gm.RegisterNode(ResourceFactory.Tree(forest.transform, pos));
+            float clusterA = c / (float)clusters * Mathf.PI * 2f;
+            int n = Random.Range(5, 9);
+            for (int k = 0; k < n; k++)
+            {
+                float a = clusterA + Random.Range(-0.045f, 0.045f);
+                float r = Random.Range(inner, outer);
+                var pos = new Vector3(Mathf.Cos(a) * r, 0f, Mathf.Sin(a) * r);
+                gm.RegisterNode(ResourceFactory.Tree(forest.transform, pos, ResourceFactory.TreeKind.Conifer));
+                AddObstacle(pos, 1.5f, 1.5f, 0f);
+            }
         }
 
-        // Scatter berry bushes and fish ponds for food variety.
-        for (int i = 0; i < 8; i++)
-        {
-            float a = Random.Range(0f, Mathf.PI * 2f);
-            float r = Random.Range(18f, 38f);
-            gm.RegisterNode(ResourceFactory.BerryBush(forest.transform,
-                new Vector3(Mathf.Cos(a) * r, 0, Mathf.Sin(a) * r)));
-        }
-        for (int i = 0; i < 4; i++)
-        {
-            float a = Random.Range(0f, Mathf.PI * 2f);
-            float r = Random.Range(22f, 42f);
-            gm.RegisterNode(ResourceFactory.FishPond(forest.transform,
-                new Vector3(Mathf.Cos(a) * r, 0, Mathf.Sin(a) * r)));
-        }
+        // Floating lilies in the surrounding shallows + ground foliage on the interior grass.
+        Decor.ScatterLilies(forest.transform, BeachRadius + 2f, OceanHalf - 6f, 60);
+        Decor.Scatter(forest.transform, Vector3.zero, 6f, inner - 4f, 160);
     }
 
-    void BuildMines()
+    // Broadleaf groves dotting the open battlefield. Harvestable, NOT obstacles.
+    void BuildInteriorClumps()
     {
-        var mines = new GameObject("Mines");
-        mines.transform.SetParent(transform, false);
+        var grove = new GameObject("Groves");
+        grove.transform.SetParent(transform, false);
         var gm = GameManager.Instance;
-        gm.RegisterNode(ResourceFactory.GoldMine(mines.transform, new Vector3(-14, 0,   0)));
-        gm.RegisterNode(ResourceFactory.GoldMine(mines.transform, new Vector3( 14, 0,   0)));
-        gm.RegisterNode(ResourceFactory.StoneMine(mines.transform, new Vector3(  0, 0,  14)));
-        gm.RegisterNode(ResourceFactory.StoneMine(mines.transform, new Vector3(  0, 0, -14)));
-        // Extra deposits scattered mid-map on the bigger arena
-        gm.RegisterNode(ResourceFactory.GoldMine(mines.transform,  new Vector3(-30, 0, -30)));
-        gm.RegisterNode(ResourceFactory.GoldMine(mines.transform,  new Vector3( 30, 0,  30)));
-        gm.RegisterNode(ResourceFactory.StoneMine(mines.transform, new Vector3(-30, 0,  30)));
-        gm.RegisterNode(ResourceFactory.StoneMine(mines.transform, new Vector3( 30, 0, -30)));
+        foreach (var ctr in _arch.groveCenters)
+        {
+            int n = Random.Range(4, 7);
+            for (int k = 0; k < n; k++)
+            {
+                float a = Random.Range(0f, Mathf.PI * 2f);
+                float r = Random.Range(0f, _arch.groveRadius);
+                gm.RegisterNode(ResourceFactory.Tree(grove.transform,
+                    ctr + new Vector3(Mathf.Cos(a) * r, 0f, Mathf.Sin(a) * r),
+                    ResourceFactory.TreeKind.Broadleaf));
+            }
+        }
     }
 
-    // Three contested relics near the map centre (clear of the ±8 mines): one dead
-    // centre, two on a diagonal. Whoever holds them earns a passive gold trickle.
+    // Base economy: self-sufficient pocket with standard + optional bonus resources.
+    void BuildBaseResources(Vector3 center)
+    {
+        var root = new GameObject("BaseEco");
+        root.transform.SetParent(transform, false);
+        var gm = GameManager.Instance;
+        BaseFrame(center, out var forward, out var backward, out var right);
+
+        // Standard 2 gold at the front corners.
+        gm.RegisterNode(ResourceFactory.GoldMine(root.transform, center + forward * 2f + right *  10f));
+        gm.RegisterNode(ResourceFactory.GoldMine(root.transform, center + forward * 2f + right * -10f));
+        // Archetype bonus gold (BlackForest: one extra mine behind TC).
+        if (_arch.extraGoldPerBase)
+            gm.RegisterNode(ResourceFactory.GoldMine(root.transform, center + backward * 5f + right * 8f));
+        // Standard stone + berries.
+        gm.RegisterNode(ResourceFactory.StoneMine(root.transform, center + right * 11f));
+        if (_arch.extraStonePerBase)
+            gm.RegisterNode(ResourceFactory.StoneMine(root.transform, center + right * -11.5f + forward * 0.5f));
+        else
+        {
+            gm.RegisterNode(ResourceFactory.BerryBush(root.transform, center + right * -11f + forward * 1.5f));
+            gm.RegisterNode(ResourceFactory.BerryBush(root.transform, center + right * -11f + backward * 2.5f));
+        }
+        // Starting wood line inside the back wall.
+        for (int k = -2; k <= 2; k++)
+            gm.RegisterNode(ResourceFactory.Tree(root.transform,
+                center + backward * 10.5f + right * (k * 3.5f), ResourceFactory.TreeKind.Broadleaf));
+
+        // Fish pond outside the side wall.
+        gm.RegisterNode(ResourceFactory.FishPond(root.transform, center + right * -16f));
+    }
+
+    // Contested deposits in the open centre — prize that pulls armies out of the walls.
+    void BuildContestedResources()
+    {
+        var root = new GameObject("ContestedMines");
+        root.transform.SetParent(transform, false);
+        var gm = GameManager.Instance;
+
+        // Gold mines on one diagonal, stone on the other; extra mines spread outward.
+        float[] offsets = { 17f, 26f, 35f };
+        int gold  = _arch.contestedGoldMines;
+        int stone = _arch.contestedStoneMines;
+        for (int i = 0; i < gold && i < offsets.Length; i++)
+        {
+            float o = offsets[i];
+            gm.RegisterNode(ResourceFactory.GoldMine(root.transform, new Vector3( o, 0,  o)));
+            gm.RegisterNode(ResourceFactory.GoldMine(root.transform, new Vector3(-o, 0, -o)));
+        }
+        for (int i = 0; i < stone && i < offsets.Length; i++)
+        {
+            float o = offsets[i];
+            gm.RegisterNode(ResourceFactory.StoneMine(root.transform, new Vector3( o, 0, -o)));
+            gm.RegisterNode(ResourceFactory.StoneMine(root.transform, new Vector3(-o, 0,  o)));
+        }
+    }
+
+    // Append a not-walkable box NavMesh source (area 1) at a world XZ. yawDeg lets wall
+    // segments align with their edge; trees/towers pass 0 (square).
+    void AddObstacle(Vector3 pos, float width, float depth, float yawDeg)
+    {
+        _navObstacles.Add(new NavMeshBuildSource
+        {
+            shape     = NavMeshBuildSourceShape.Box,
+            size      = new Vector3(width, WallHeight + 1f, depth),
+            transform = Matrix4x4.TRS(new Vector3(pos.x, 0f, pos.z),
+                                      Quaternion.Euler(0f, yawDeg, 0f), Vector3.one),
+            area      = 1,
+        });
+    }
+
+    // Five contested relics near the map centre (clear of the ±8 mines), AoE2 parity:
+    // one dead centre and four spread around it on the diagonals. Whoever holds them
+    // earns a passive gold trickle.
     void BuildRelics()
     {
         var relics = new GameObject("Relics");
@@ -482,30 +852,69 @@ public class WorldRoot : MonoBehaviour
         gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3(  0, 0,   0)));
         gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3(-22, 0,  22)));
         gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3( 22, 0, -22)));
+        gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3(-22, 0, -22)));
+        gm.RegisterRelic(RelicFactory.Relic(relics.transform, new Vector3( 22, 0,  22)));
     }
 
     // ── NavMesh ───────────────────────────────────────────────────────────────
 
+    // Two NavMeshes baked from the ground meshes themselves:
+    //  • Land  = the grass disc (an exact circle) minus wall + coastal-forest obstacles.
+    //  • Naval = the ocean plane minus the island disc → Galleys ring the whole coast.
     void BakeNavMesh()
     {
-        const float groundHalf  = 100f; // 200×200 map half-extent
         const float agentHeight = 2f;
+        var bounds = new Bounds(Vector3.zero,
+            new Vector3(OceanHalf * 2f + 4f, agentHeight * 2f + 4f, OceanHalf * 2f + 4f));
 
-        var sources = new List<NavMeshBuildSource>
+        // ── Land NavMesh (default agent): walkable on the disc, blocked by walls/forest.
+        var landSources = new List<NavMeshBuildSource>
         {
             new NavMeshBuildSource
             {
-                shape     = NavMeshBuildSourceShape.Box,
-                size      = new Vector3(groundHalf * 2f, 0.1f, groundHalf * 2f),
-                transform = Matrix4x4.identity,
-                area      = 0,
+                shape        = NavMeshBuildSourceShape.Mesh,
+                sourceObject = _landMesh,
+                transform    = Matrix4x4.identity, // disc authored at the origin, y=0
+                area         = 0,
             }
         };
+        landSources.AddRange(_navObstacles); // base walls (minus gates) + coastal forest ring
+        var landSettings = NavMesh.GetSettingsByIndex(0);
+        var landData = NavMeshBuilder.BuildNavMeshData(
+            landSettings, landSources, bounds, Vector3.zero, Quaternion.identity);
+        if (landData != null) NavMesh.AddNavMeshData(landData);
 
-        var settings = NavMesh.GetSettingsByIndex(0);
-        var bounds   = new Bounds(Vector3.zero, new Vector3(groundHalf * 2f + 4f, agentHeight * 2f, groundHalf * 2f + 4f));
-        var data     = NavMeshBuilder.BuildNavMeshData(settings, sources, bounds, Vector3.zero, Quaternion.identity);
-        if (data != null) NavMesh.AddNavMeshData(data);
+        // ── Naval NavMesh (custom agent type): the sea ring around the island.
+        var navalSettings = NavMesh.CreateSettings();
+        navalSettings.agentRadius  = 0.5f;
+        navalSettings.agentHeight  = 1.0f;
+        navalSettings.agentClimb   = 0f;
+        navalSettings.agentSlope   = 0f;
+        _navalAgentTypeId = navalSettings.agentTypeID;
+
+        var waterSources = new List<NavMeshBuildSource>
+        {
+            // Whole sea as a flat box (avoids relying on the built-in plane mesh being
+            // CPU-readable in player builds)…
+            new NavMeshBuildSource
+            {
+                shape     = NavMeshBuildSourceShape.Box,
+                size      = new Vector3(OceanHalf * 2f, 0.2f, OceanHalf * 2f),
+                transform = Matrix4x4.identity,
+                area      = 0,
+            },
+            // …minus the island disc, so naval units ring the coast only.
+            new NavMeshBuildSource
+            {
+                shape        = NavMeshBuildSourceShape.Mesh,
+                sourceObject = _landMesh,
+                transform    = Matrix4x4.identity,
+                area         = 1,
+            },
+        };
+        var waterData = NavMeshBuilder.BuildNavMeshData(
+            navalSettings, waterSources, bounds, Vector3.zero, Quaternion.identity);
+        if (waterData != null) NavMesh.AddNavMeshData(waterData);
     }
 
     // ── Systems & Gameplay ────────────────────────────────────────────────────
@@ -532,14 +941,24 @@ public class WorldRoot : MonoBehaviour
         gm.minimap       = go.AddComponent<MinimapSystem>();
         gm.match         = go.AddComponent<MatchSystem>();
         gm.vfx           = go.AddComponent<VisualEffectSystem>();
+        gm.triggers       = go.AddComponent<TriggerSystem>();   // N11.trig
+        gm.scenarioEditor = go.AddComponent<ScenarioEditor>(); // N12.edit
+        gm.campaignScreen = go.AddComponent<CampaignScreen>(); // N13.camp
+        gm.cmdRecorder    = go.AddComponent<CommandRecorder>(); // N3.cmdlog
+        gm.checksum       = go.AddComponent<ChecksumSystem>(); // N15.checksum
+        gm.lockstep       = go.AddComponent<LockstepSystem>(); // N16.lockstep
+        gm.desync         = go.AddComponent<DesyncHandler>();  // N17.desync
+        gm.transport      = go.AddComponent<TransportLayer>(); // N17.transport
         return gm;
     }
 
     void SetupGameplay(GameManager gm)
     {
-        // Assign a random civilization to every team (skip Civilization.None at index 0).
+        // CIVS: the player (team 0) keeps their chosen civ; only AI teams (1-3) are randomized.
+        // GameBootstrap.PlayerCiv is None until the player picks via CivSelectScreen.
         var civValues = (Civilization[])System.Enum.GetValues(typeof(Civilization));
-        for (int i = 0; i < 4; i++)
+        gm.teamCivs[0] = GameBootstrap.PlayerCiv;
+        for (int i = 1; i < gm.TeamCount; i++)
             gm.teamCivs[i] = civValues[Random.Range(1, civValues.Length)];
 
         var tcPos     = BasePositions[0];
@@ -571,19 +990,206 @@ public class WorldRoot : MonoBehaviour
         foreach (var p in mPos)
             gm.RegisterUnit(UnitFactory.Militia(unitsRoot.transform, p, teamColor));
 
-        // Enemy garrisons (teams 1-3): a starting army per base, plus an EnemyAI
-        // brain that reinforces and rushes. They self-defend via CombatSystem aggro.
-        for (int t = 1; t < 4; t++)
+        // Enemy garrisons (teams 1+): a starting army per base, plus an EnemyAI brain.
+        for (int t = 1; t < gm.TeamCount; t++)
         {
             SpawnGarrison(gm, unitsRoot.transform, BasePositions[t], TeamColors[t], t);
 
-            var aiGo = new GameObject($"EnemyAI_T{t}_{Personalities[t]}");
+            var personality = t < Personalities.Length ? Personalities[t] : Personalities[1];
+            var aiGo = new GameObject($"EnemyAI_T{t}_{personality}");
             aiGo.transform.SetParent(transform, false);
-            aiGo.AddComponent<EnemyAI>().Init(t, TeamColors[t], BasePositions[t], unitsRoot.transform, Personalities[t]);
+            aiGo.AddComponent<EnemyAI>().Init(t, TeamColors[t], BasePositions[t], unitsRoot.transform, personality);
         }
 
         // popCap now derives from team-0 buildings (TC + Houses) via RecomputePop.
         gm.RecomputePop();
+
+        // SAVF: if a save snapshot is pending, apply it (overrides default spawn).
+        var pending = GameBootstrap.PendingLoad;
+        if (pending != null)
+        {
+            GameBootstrap.PendingLoad = null; // consume
+            ApplyPendingLoad(gm, unitsRoot.transform, pending);
+            return; // skip game-mode post-setup (already captured in snapshot)
+        }
+
+        // ── Game-mode post-setup ─────────────────────────────────────────────────
+        switch (gm.gameMode)
+        {
+            case GameMode.Deathmatch:
+                ApplyDeathmatch(gm);
+                break;
+            case GameMode.Regicide:
+                SpawnKings(gm, unitsRoot.transform);
+                break;
+            case GameMode.Nomad:
+                SpawnNomad(gm, unitsRoot.transform);
+                break;
+            // ── N14/MODES: new rule-toggle modes ──
+            case GameMode.EmpireWars:
+                ApplyEmpireWars(gm);
+                break;
+            case GameMode.KingOfTheHill:
+                gm.kothActive = true;
+                break;
+            case GameMode.SuddenDeath:
+                gm.suddenDeath = true;
+                break;
+            case GameMode.Treaty:
+                gm.treatyEndTime = 15f * 60f;   // 15 minutes of peace
+                break;
+            case GameMode.Turbo:
+                gm.turboGatherMult = 3f;
+                break;
+        }
+
+        // N17: wire TransportLayer.OnChecksumReceived → DesyncHandler.
+        if (gm.transport != null && gm.desync != null)
+        {
+            int tickCapture = 0; // will be updated via lambda capture
+            gm.transport.OnChecksumReceived += remoteHash =>
+            {
+                uint local = gm.checksum?.LatestChecksum ?? 0u;
+                gm.desync.CheckTick(gm.cmdRecorder?.Tick ?? 0, local, remoteHash);
+            };
+        }
+
+        // N13.aow: inject challenge triggers after all systems are ready.
+        ArtOfWarSystem.Setup(gm);
+        // N13.camp: inject campaign mission triggers (overrides AoW if both set).
+        CampaignSystem.Setup(gm);
+    }
+
+    // SAVF: restore a full game snapshot after arena rebuild (NavMesh already fresh).
+    static void ApplyPendingLoad(GameManager gm, Transform unitsRoot, SaveSystem.SaveData data)
+    {
+        // Restore team resources, tech, civs.
+        for (int t = 0; t < gm.TeamCount && t < data.teams.Length; t++)
+        {
+            var ts = data.teams[t];
+            if (ts == null) continue;
+            var r = gm.teamRes[t];
+            r.food = ts.food; r.wood = ts.wood; r.gold = ts.gold; r.stone = ts.stone;
+            gm.teamCivs[t] = (Civilization)ts.civ;
+            foreach (int id in ts.techs)
+                ResearchSystem.Apply((TechType)id, t);
+        }
+
+        // Remove default-spawned units (from SetupGameplay).
+        for (int i = gm.units.Count - 1; i >= 0; i--)
+        {
+            var u = gm.units[i];
+            if (u != null) Object.Destroy(u.gameObject);
+        }
+        gm.units.Clear();
+
+        // Respawn saved units via the central dispatch — handles ALL unit types. The
+        // old switch only knew ~10 types and turned everything else (Trebuchet, Monk,
+        // uniques, and the King!) into a Villager, which silently broke Regicide saves.
+        int navalId = Object.FindAnyObjectByType<WorldRoot>()?.NavalAgentTypeId ?? -1;
+        foreach (var us in data.units)
+        {
+            if (us == null) continue;
+            var pos = new Vector3(us.x, 0, us.z);
+            UnitEntity e = UnitFactory.Spawn((UnitType)us.type, unitsRoot, pos, us.teamId, navalId);
+            if (e != null)
+            {
+                // Restore veterancy/stance first, recompute maxHp WITHOUT refilling,
+                // then restore the saved (possibly damaged) hp. Order matters: doing it
+                // the other way heals a wounded veteran by its own veteran HP bonus.
+                e.veteranRank = us.veteranRank;
+                e.stance      = (AttackStance)us.stance;
+                e.RecomputeMaxHp(fillOnIncrease: false);
+                e.hp = Mathf.Min(us.hp, e.maxHp);
+                if (us.isGarrisoned) e.isGarrisoned = true; // garrisoned state (hidden)
+                gm.RegisterUnit(e);
+            }
+        }
+
+        // Restore building HPs + rally (buildings are already placed by BuildBase).
+        foreach (var bs in data.buildings)
+        {
+            if (bs == null) continue;
+            var pos = new Vector3(bs.x, 0, bs.z);
+            foreach (var b in gm.buildings)
+            {
+                if (b == null || b.teamId != bs.teamId || (int)b.type != bs.type) continue;
+                float dist = Vector3.Distance(b.transform.position, pos);
+                if (dist < 3f)
+                {
+                    b.hp = bs.hp;
+                    // N12.savefull: restore rally point (set the flag too, not just the vector)
+                    if (bs.hasRally)
+                    {
+                        b.hasRally   = true;
+                        b.rallyPoint = new Vector3(bs.rallyX, 0f, bs.rallyZ);
+                    }
+                    break;
+                }
+            }
+        }
+
+        gm.RecomputePop();
+
+        // N11.trig: restore trigger state
+        if (gm.triggers != null && data.triggers != null)
+            gm.triggers.LoadSnapshot(data.triggers);
+    }
+
+    // VDEATH: all teams start with abundant resources.
+    static void ApplyDeathmatch(GameManager gm)
+    {
+        for (int t = 0; t < gm.TeamCount; t++)
+        {
+            var r = gm.teamRes[t];
+            r.food  = Mathf.Max(r.food,  20000);
+            r.wood  = Mathf.Max(r.wood,  20000);
+            r.gold  = Mathf.Max(r.gold,  10000);
+            r.stone = Mathf.Max(r.stone,  5000);
+        }
+    }
+
+    // N14/MODES: Empire Wars — all teams start at Castle Age with a solid eco base.
+    static void ApplyEmpireWars(GameManager gm)
+    {
+        for (int t = 0; t < gm.TeamCount; t++)
+        {
+            ResearchSystem.Apply(TechType.FeudalAge, t);
+            ResearchSystem.Apply(TechType.CastleAge, t);
+            var r = gm.teamRes[t];
+            r.food  = Mathf.Max(r.food,  2000);
+            r.wood  = Mathf.Max(r.wood,  2000);
+            r.gold  = Mathf.Max(r.gold,  1000);
+            r.stone = Mathf.Max(r.stone,  500);
+        }
+    }
+
+    // VREGI: one King unit per team; MatchSystem handles elimination on King death.
+    void SpawnKings(GameManager gm, Transform unitsRoot)
+    {
+        for (int t = 0; t < gm.TeamCount; t++)
+        {
+            var pos = BasePositions[t] + new Vector3(0, 0, 1.5f);
+            var king = UnitFactory.King(unitsRoot, pos, TeamColors[t], t);
+            gm.RegisterUnit(king);
+        }
+    }
+
+    // VNOMAD: no TC — scatter 6 villagers per team around the map centre.
+    void SpawnNomad(GameManager gm, Transform unitsRoot)
+    {
+        for (int t = 0; t < gm.TeamCount; t++)
+        {
+            var dir   = (BasePositions[t] - Vector3.zero).normalized;
+            var right = Vector3.Cross(Vector3.up, dir).normalized;
+            for (int i = 0; i < 6; i++)
+            {
+                float off = (i - 2.5f) * 3f;
+                var pos = dir * 25f + right * off;
+                var v = UnitFactory.Villager(unitsRoot, pos, TeamColors[t], t);
+                gm.RegisterUnit(v);
+            }
+        }
     }
 
     void SpawnGarrison(GameManager gm, Transform parent, Vector3 center, Color color, int teamId)
@@ -600,11 +1206,7 @@ public class WorldRoot : MonoBehaviour
             center + forward * 4f + right *  2f,
         };
         foreach (var p in milPos)
-        {
-            var m = UnitFactory.Militia(parent, p, color);
-            m.teamId = teamId;
-            gm.RegisterUnit(m);
-        }
+            gm.RegisterUnit(UnitFactory.Militia(parent, p, color, teamId));
 
         // Starting villagers (behind TC, ready to gather)
         Vector3[] vilPos =
@@ -614,10 +1216,6 @@ public class WorldRoot : MonoBehaviour
             center + backward * 2f + right *  1.5f,
         };
         foreach (var p in vilPos)
-        {
-            var v = UnitFactory.Villager(parent, p, color);
-            v.teamId = teamId;
-            gm.RegisterUnit(v);
-        }
+            gm.RegisterUnit(UnitFactory.Villager(parent, p, color, teamId));
     }
 }

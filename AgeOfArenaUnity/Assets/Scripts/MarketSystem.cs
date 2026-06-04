@@ -23,8 +23,14 @@ public static class MarketSystem
     static readonly float[] _sellRate = { BaseSell, BaseSell, BaseSell }; // Food/Wood/Stone
     static readonly float[] _buyRate  = { BaseBuy,  BaseBuy,  BaseBuy  };
 
-    public static int SellGold(ResourceKind k)  => Mathf.RoundToInt(Batch * _sellRate[Idx(k)]);
-    public static int BuyCost(ResourceKind k)   => Mathf.RoundToInt(Batch * _buyRate[Idx(k)]);
+    const float GuildsAdjust = 0.10f;  // MKTT: Guilds narrows the spread by this much each side
+
+    /// <summary>Guilds (player Market tech) raises sell and lowers buy → narrower spread.</summary>
+    static float GuildsAdj()
+        => (GameManager.Instance?.tech?.HasGuilds ?? false) ? GuildsAdjust : 0f;
+
+    public static int SellGold(ResourceKind k)  => Mathf.RoundToInt(Batch * (_sellRate[Idx(k)] + GuildsAdj()));
+    public static int BuyCost(ResourceKind k)   => Mathf.RoundToInt(Batch * (_buyRate[Idx(k)] - GuildsAdj()));
 
     /// <summary>Drift prices back to base over time. Call once per frame from GameManager.</summary>
     public static void Tick(float dt)

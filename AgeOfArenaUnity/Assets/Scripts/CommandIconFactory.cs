@@ -89,6 +89,130 @@ public static class CommandIconFactory
                 Add(icon, Square,   Wood,  -9, 4, 4, 30);          // spear shaft
                 Add(icon, Triangle, Steel, -9, 19, 9, 9, 0);       // spear tip
                 break;
+            case UnitType.Skirmisher:
+                Add(icon, Square,   Wood,  -6, 0, 3, 28, 20);      // javelin 1
+                Add(icon, Triangle, Steel,  2, 12, 8, 8, 20);      // javelin tip
+                Add(icon, Square,   Wood,   6, 0, 3, 28, -20);     // javelin 2
+                Add(icon, Triangle, Steel, -2, -12, 8, 8, 200);    // tip 2
+                break;
+            case UnitType.Camel:
+                Add(icon, Square, Prims.Hex(0xc8a86a), 0, -2, 26, 12); // camel body
+                Add(icon, Square, Prims.Hex(0xc8a86a), -2, 6, 12, 6);  // hump
+                Add(icon, Square, Prims.Hex(0xc8a86a), 11, 7, 6, 13, 20); // neck/head
+                Add(icon, Square, Dark, -7, -12, 3, 11);           // legs
+                Add(icon, Square, Dark, 8, -12, 3, 11);
+                Add(icon, Square, Blue, -1, 10, 7, 7);             // rider
+                break;
+            case UnitType.Ram:
+                Add(icon, Square, Wood,  0, 2, 30, 14);            // shed
+                Add(icon, Triangle, Dark, 0, 12, 30, 8);           // peaked roof
+                Add(icon, Square, Wood, 0, -8, 22, 5);             // ram log
+                Add(icon, Square, Steel, 13, -8, 6, 7);            // iron head
+                break;
+            case UnitType.Mangonel:
+                Add(icon, Square, Wood, 0, -8, 24, 5);             // base
+                Add(icon, Square, Dark, -8, -14, 5, 5);            // wheels
+                Add(icon, Square, Dark, 8, -14, 5, 5);
+                Add(icon, Square, Wood, 0, 2, 4, 22, 35);          // throwing arm
+                Add(icon, Circle, Stone, 7, 11, 9, 9);             // boulder
+                break;
+            case UnitType.CavalryArcher:
+                Add(icon, Square, Wood, 0, -2, 26, 11);            // horse body
+                Add(icon, Square, Wood, 11, 7, 7, 13, 20);         // neck/head
+                Add(icon, Square, Dark, -7, -12, 3, 10);           // legs
+                Add(icon, Square, Dark, 8, -12, 3, 10);
+                Add(icon, Ring,   Wood, -3, 9, 13, 13);            // rider's bow
+                break;
+            case UnitType.FireShip:
+                Add(icon, Square,   Wood,  0, -6, 28, 10);         // hull
+                Add(icon, Triangle, Dark, -13, -4, 8, 12);         // bow
+                Add(icon, Triangle, Prims.Hex(0xf06010), 6, 7, 12, 16); // flame
+                break;
+            case UnitType.DemoShip:
+                Add(icon, Square,   Wood,  0, -6, 26, 10);         // hull
+                Add(icon, Triangle, Dark, -12, -4, 8, 12);         // bow
+                Add(icon, Circle,   Prims.Hex(0x8a3018), 3, 5, 12, 12); // barrel
+                Add(icon, Circle,   Prims.Hex(0xf0c020), 3, 5, 4, 4);   // fuse spark
+                break;
+            case UnitType.Galley:
+                Add(icon, Square,   Wood,  0, -6, 28, 10);         // hull
+                Add(icon, Triangle, Dark, -13, -4, 8, 12);         // bow
+                Add(icon, Square,   Dark,  0, 6, 3, 22);           // mast
+                Add(icon, Square,   Blue,  5, 8, 12, 8, -15);      // sail
+                break;
+            case UnitType.TeutonicKnight:
+                Add(icon, Square, Steel, 0, -3, 22, 24);           // bulky armor
+                Add(icon, Square, Dark,  0, 11, 16, 8);            // great helm
+                Add(icon, Square, Steel, 11, 2, 4, 26, -25);       // sword
+                break;
+            case UnitType.WarElephant:
+                Add(icon, Square, Stone, 0, -2, 28, 16);           // body
+                Add(icon, Square, Stone, 11, 0, 8, 8);             // head
+                Add(icon, Square, Stone, 17, -4, 4, 12, 60);       // trunk
+                Add(icon, Square, Blue,  -2, 10, 16, 8);           // howdah
+                break;
+            case UnitType.Mangudai:
+                Add(icon, Square, Wood, 0, -2, 26, 11);            // horse
+                Add(icon, Square, Wood, 11, 7, 7, 13, 20);
+                Add(icon, Ring,   Steel, -3, 9, 13, 13);           // bow
+                break;
+            case UnitType.Samurai:
+                Add(icon, Circle, Red,   0, 11, 16, 12);           // kabuto crest
+                Add(icon, Square, Steel, -4, -3, 18, 22);          // armor
+                Add(icon, Square, Steel, 10, 2, 3, 26, -20);       // katana
+                break;
+            case UnitType.Eagle:
+                Add(icon, Triangle, Gold, 0, 8, 22, 16);           // feathered headdress
+                Add(icon, Circle,   Skin, 0, -2, 14, 14);          // body
+                Add(icon, Triangle, Prims.Hex(0xeac24a), 8, 2, 8, 8, -90); // beak
+                break;
+            case UnitType.ThrowingAxeman:                          // N4/CIVU
+                Add(icon, Square,   Dark,  -3, -3, 16, 22);        // body
+                Add(icon, Circle,   Skin,  -3, 10, 12, 12);        // head
+                Add(icon, Square,   Steel,  10, 4, 9, 6);          // axe head (thrown)
+                Add(icon, Square,   Wood,   7, 4, 3, 12, -20);     // haft
+                break;
+            case UnitType.Cataphract:                              // N4/CIVU
+                Add(icon, Square,   Stone, 0, -2, 26, 12);         // armoured horse
+                Add(icon, Square,   Steel, 11, 6, 8, 12);          // mailed rider
+                Add(icon, Circle,   Steel, 11, 13, 7, 7);          // helmet
+                break;
+            case UnitType.Berserk:                                 // N4/CIVU
+                Add(icon, Square,   Blue,  -3, -3, 17, 22);        // body
+                Add(icon, Circle,   Skin,  -3, 10, 12, 12);        // wild head
+                Add(icon, Square,   Steel,  10, 2, 3, 26, -20);    // great axe
+                break;
+            case UnitType.Mameluke:                                // N4/CIVU
+                Add(icon, Square,   Gold,  0, -2, 26, 12);         // camel
+                Add(icon, Square,   Gold,  9, 6, 7, 10);           // hump/neck
+                Add(icon, Square,   Steel, 11, 5, 3, 22, -35);     // scimitar
+                break;
+            case UnitType.WoadRaider:                              // N4/CIVC13
+                Add(icon, Square,   Prims.Hex(0x6fa3c8), -3, -3, 16, 22); // woad body
+                Add(icon, Circle,   Prims.Hex(0x6fa3c8), -3, 10, 12, 12); // painted head
+                Add(icon, Square,   Steel, 10, 2, 3, 26, -18);     // sword
+                break;
+            case UnitType.ChuKoNu:                                 // N4/CIVC13
+                Add(icon, Triangle, Wood,  0, 9, 20, 12);          // conical hat
+                Add(icon, Square,   Red,   -3, -3, 16, 20);        // robe
+                Add(icon, Square,   Wood,  10, 0, 4, 14);          // crossbow
+                break;
+            case UnitType.Huskarl:                                 // N4/CIVC13
+                Add(icon, Circle,   Blue,  -4, -2, 16, 16);        // round shield
+                Add(icon, Square,   Prims.Hex(0x7a5230), 4, -2, 14, 22); // armoured body
+                Add(icon, Square,   Steel, 12, 2, 3, 24, -18);     // axe
+                break;
+            case UnitType.Janissary:                               // N4/CIVC13
+                Add(icon, Square,   Prims.Hex(0xe8e4dc), 0, 11, 12, 14); // tall cap
+                Add(icon, Square,   Red,   -3, -3, 16, 20);        // robe
+                Add(icon, Square,   Dark,  9, 0, 4, 22, -75);      // hand cannon
+                break;
+            case UnitType.FishingShip:
+                Add(icon, Square,   Wood,  0, -6, 26, 9);          // hull
+                Add(icon, Triangle, Dark, -12, -4, 8, 11);         // bow
+                Add(icon, Square,   Dark,  0, 5, 3, 18);           // mast
+                Add(icon, Square,   Prims.Hex(0xc8c0a0), 6, -2, 10, 9); // net
+                break;
         }
     }
 
@@ -169,6 +293,34 @@ public static class CommandIconFactory
                 Add(icon, Square, Stone, 0, 12, 30, 6);            // lintel
                 Add(icon, Square, Prims.Hex(0x33291c), 0, -4, 11, 18); // opening
                 break;
+            case BuildingType.Dock:
+                Add(icon, Square, Wood,  0, -5, 28, 12);           // platform
+                Add(icon, Square, Dark, -8, -12, 4, 10);           // pile left
+                Add(icon, Square, Dark,  8, -12, 4, 10);           // pile right
+                Add(icon, Square, Prims.Hex(0x2a5db0), 0, -16, 28, 5); // water line
+                break;
+            case BuildingType.SiegeWorkshop:
+                Add(icon, Square,   Wood,  0, -2, 28, 16);         // shed
+                Add(icon, Square,   Dark,  0, 9, 30, 5);           // roof beam
+                Add(icon, Square,   Wood,  2, -2, 22, 4, 30);      // ram log
+                Add(icon, Square,   Steel, 13, 4, 6, 6, 30);       // ram head
+                break;
+            case BuildingType.Outpost:
+                Add(icon, Square,   Wood, 0, -4, 7, 28);           // post
+                Add(icon, Square,   Wood, 0, 10, 18, 7);           // platform
+                Add(icon, Triangle, Dark, 0, 17, 18, 8);           // roof
+                break;
+            case BuildingType.BombardTower:
+                Add(icon, Square,   Stone, 0, -2, 18, 30);         // tower
+                Add(icon, Square,   Dark, 9, 9, 16, 6, -20);       // cannon barrel
+                Add(icon, Circle,   Dark, 15, 6, 7, 7);            // muzzle
+                break;
+            case BuildingType.FishTrap:
+                Add(icon, Square,   Prims.Hex(0x2a5db0), 0, -6, 30, 12); // water
+                Add(icon, Ring,     Wood, 0, 2, 18, 18);           // trap basket
+                Add(icon, Square,   Wood, 0, 2, 14, 3);            // weave
+                Add(icon, Square,   Wood, 0, 2, 3, 14);
+                break;
         }
     }
 
@@ -186,30 +338,113 @@ public static class CommandIconFactory
                 Add(icon, Square,   Gold, 0, -8, 6, 10);
                 break;
             case TechType.Forging:
+            case TechType.IronCasting:
+            case TechType.BlastFurnace:
             case TechType.ManAtArms:
             case TechType.Longswordsman:
+            case TechType.TwoHandedSwordsman:
+            case TechType.Champion:
                 Add(icon, Square, Steel, 0, 4, 5, 24);             // sword
                 Add(icon, Square, Dark,  0, -8, 14, 4);
                 break;
+            case TechType.Pikeman:
+            case TechType.Halberdier:
+                Add(icon, Square,   Wood,  0, -2, 4, 30);          // pike shaft
+                Add(icon, Triangle, Steel, 0, 16, 11, 11, 0);      // pike head
+                break;
             case TechType.Fletching:
             case TechType.Bodkin:
+            case TechType.Bracer:
             case TechType.Crossbowman:
+            case TechType.EliteSkirmisher:
+            case TechType.HeavyCavalryArcher:
+            case TechType.EliteEagle:
+            case TechType.Ballistics:
+            case TechType.Chemistry:
                 Add(icon, Square,   Wood,  -2, 0, 24, 3);          // arrow
                 Add(icon, Triangle, Steel, 11, 0, 9, 9, -90);
                 break;
+            case TechType.WarGalley:
+            case TechType.Galleon:
+                Add(icon, Square,   Wood, 0, -6, 26, 9);           // hull
+                Add(icon, Square,   Dark, 0, 4, 3, 18);            // mast
+                Add(icon, Triangle, Steel, 7, 6, 10, 12);          // sail
+                break;
             case TechType.ScaleMail:
+            case TechType.ChainMail:
+            case TechType.PlateMail:
+            case TechType.ScaleBarding:
+            case TechType.ChainBarding:
+            case TechType.PlateBarding:
+            case TechType.PaddedArcherArmor:
+            case TechType.LeatherArcherArmor:
+            case TechType.RingArcherArmor:
             case TechType.Bloodlines:
             case TechType.Cavalier:
+            case TechType.HeavyCamel:
+            case TechType.LightCavalry:
+            case TechType.Hussar:
+            case TechType.Husbandry:
                 Add(icon, Circle, Shield, 0, 2, 22, 22);           // shield
                 Add(icon, Ring,   Steel, 0, 2, 22, 22);
                 break;
             case TechType.DoubleBitAxe:
+            case TechType.BowSaw:
                 Add(icon, Square,   Dark,  0, -4, 4, 22);          // axe handle
                 Add(icon, Triangle, Steel, 6, 6, 14, 12, 90);      // axe head
+                break;
+            case TechType.HorseCollar:
+            case TechType.HeavyPlow:
+            case TechType.CropRotation:
+                Add(icon, Square, Prims.Hex(0x6a9a3a), 0, -6, 26, 10); // green field
+                Add(icon, Square, Wood, 0, 6, 4, 16);              // plow handle
+                Add(icon, Triangle, Steel, 6, 12, 10, 8);          // blade
+                break;
+            case TechType.GoldMining:
+                Add(icon, Circle, Gold, -5, 4, 14, 14);            // gold nugget
+                Add(icon, Square, Steel, 6, -3, 4, 16, 45);        // pick
+                break;
+            case TechType.StoneMining:
+                Add(icon, Circle, Stone, -5, 4, 14, 14);           // stone
+                Add(icon, Square, Steel, 6, -3, 4, 16, 45);        // pick
+                break;
+            case TechType.Caravan:
+                Add(icon, Circle, Gold, 0, -4, 14, 14);            // coin
+                Add(icon, Ring,   Steel, 0, -4, 14, 14);
+                Add(icon, Triangle, Steel, 9, 6, 10, 8, -90);      // route arrow
+                break;
+            case TechType.Coinage:
+            case TechType.Banking:
+            case TechType.Guilds:
+                Add(icon, Circle, Gold, -5, 3, 14, 14);            // coin stack
+                Add(icon, Circle, Gold, 4, -3, 14, 14);
+                Add(icon, Ring,   Dark, -5, 3, 14, 14);
+                break;
+            case TechType.GuardTower:
+            case TechType.Keep:
+            case TechType.Architecture:
+            case TechType.Crenellations:
+            case TechType.Ironclad:
+                Add(icon, Square, Stone, 0, -2, 16, 28);           // tower
+                Add(icon, Square, Stone, -7, 13, 5, 6);            // battlement
+                Add(icon, Square, Stone, 7, 13, 5, 6);
+                break;
+            case TechType.Chivalry:
+            case TechType.BeardedAxe:
+                Add(icon, Triangle, Gold, 0, 6, 18, 16);           // crest
+                Add(icon, Square,   Steel, 0, -6, 6, 20);          // sword/lance
                 break;
             case TechType.Wheelbarrow:
                 Add(icon, Ring,   Dark, 0, -2, 20, 20);            // wheel
                 Add(icon, Circle, Dark, 0, -2, 6, 6);
+                break;
+            case TechType.Sanctity:
+            case TechType.BlockPrinting:
+            case TechType.Redemption:
+            case TechType.Theocracy:
+                Add(icon, Square, Color.white, 0, 2, 6, 22);       // holy cross (vertical)
+                Add(icon, Square, Color.white, 0, 7, 16, 6);       // cross arms
+                Add(icon, Circle, Gold, 0, 7, 8, 8);               // halo
                 break;
         }
     }

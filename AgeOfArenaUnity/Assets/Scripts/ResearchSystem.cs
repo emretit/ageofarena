@@ -24,17 +24,26 @@ public class ResearchSystem : MonoBehaviour
     public bool IsResearching(BuildingEntity b) => b != null && _active.ContainsKey(b);
 
     /// <summary>Start researching a tech at a building. Returns false if busy,
-    /// already researched, or unaffordable.</summary>
+    /// already researched, unaffordable, or building prerequisites not met.</summary>
     public bool Enqueue(BuildingEntity b, TechDef def)
     {
         if (b == null || _active.ContainsKey(b)) return false;
         var tech = GM.tech;                 // player = team 0
         if (tech.Has(def.type)) return false;
+        // N0.7: this civ may be denied the tech (tech-tree subtraction).
+        if (CivilizationDefs.IsTechDenied(GM.teamCivs[b.teamId], def.type)) return false;
         var rm = GM.resources;
         if (!rm.CanAfford(def.food, def.wood, def.gold, def.stone)) return false;
+        // AGEB/N0.3: every age advance (Feudal/Castle/Imperial) requires ≥2 substantial
+        // buildings first — not just Dark→Feudal, and Houses/Farms/Walls don't count.
+        if (IsAgeTech(def.type) && !MeetsBuildingPrereq(b.teamId, 2)) return false;
 
         rm.Deduct(def.food, def.wood, def.gold, def.stone);
         _active[b] = new ResearchItem { type = def.type, totalTime = def.researchTime };
+        // N3.cmdlog: record research command (player team only)
+        if (b.teamId == 0)
+            GM.cmdRecorder?.Record(CommandType.Research, null,
+                intParam1: (int)def.type, intParam2: b.GetInstanceID());
         return true;
     }
 
@@ -90,12 +99,6 @@ public class ResearchSystem : MonoBehaviour
         var tech = gm.teamTech[teamId];
         if (tech.Has(type)) return;
 
-        // Capture each unit type's hp bonus before the tech lands so we can bump the
-        // max-hp (and current hp) of already-spawned units by exactly the delta.
-        var types = (UnitType[])System.Enum.GetValues(typeof(UnitType));
-        var before = new float[types.Length];
-        for (int i = 0; i < types.Length; i++) before[i] = tech.HpBonus(types[i]);
-
         tech.Mark(type);
         if (type == TechType.FeudalAge)
         {
@@ -115,24 +118,59 @@ public class ResearchSystem : MonoBehaviour
         else
         {
             GameEvents.FireResearchCompleted(teamId, type);
+            // N7.sfx: research complete sound (player team only).
+            if (teamId == 0) AudioManager.Play(AudioManager.SoundId.Research, 0.9f);
         }
 
-        // Per-type hp delta (indexable since UnitType values are contiguous 0..N).
-        var delta = new float[types.Length];
-        bool any = false;
-        for (int i = 0; i < types.Length; i++)
-        {
-            delta[i] = tech.HpBonus(types[i]) - before[i];
-            if (delta[i] > 0f) any = true;
-        }
-        if (!any) return;
-
+        // Retroactively apply the new tech's HP bonus to already-spawned units.
+        // RecomputeMaxHp derives maxHp from base + current tech + veterancy + civ, so it
+        // picks up the just-marked tech with no double-count (idempotent).
         for (int i = 0; i < gm.units.Count; i++)
         {
             var u = gm.units[i];
             if (u == null || u.teamId != teamId) continue;
-            float d = delta[(int)u.type];
-            if (d > 0f) { u.maxHp += d; u.hp += d; }
+            u.RecomputeMaxHp();
+            u.RecomputeSpeed();   // CAVT: Husbandry / Wheelbarrow apply to live units immediately
         }
+    }
+
+    // N0.3: the three age-advance techs share the building prerequisite.
+    static bool IsAgeTech(TechType t) =>
+        t == TechType.FeudalAge || t == TechType.CastleAge || t == TechType.ImperialAge;
+
+    // N0.3: trivial structures (TC, House, Farm, Wall/Gate, Outpost, FishTrap) don't satisfy the
+    // age requirement — only real economic/military buildings count (AoE2 "2 buildings of your age").
+    static bool CountsTowardAge(BuildingType t) => t switch
+    {
+        BuildingType.TownCenter or BuildingType.House or BuildingType.Farm
+            or BuildingType.Wall or BuildingType.Gate or BuildingType.Outpost
+            or BuildingType.FishTrap => false,
+        _ => true,
+    };
+
+    // AGEB/N0.3: count substantial completed buildings owned by the team; true if ≥ required.
+    bool MeetsBuildingPrereq(int teamId, int required)
+    {
+        var gm = GM;
+        if (gm == null) return true;
+        int count = 0;
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b == null || b.teamId != teamId || b.underConstruction) continue;
+            if (!CountsTowardAge(b.type)) continue;
+            if (++count >= required) return true;
+        }
+        return false;
+    }
+
+    /// <summary>AGEB: true if the player (team 0) meets the building prerequisite for
+    /// advancing to the next age. Used by HUD to enable/disable the age button.</summary>
+    public bool CanAdvanceAge()
+    {
+        var tech = GM?.tech;
+        if (tech == null) return false;
+        // N0.3: prereq now applies at every age transition, not only Dark→Feudal.
+        return MeetsBuildingPrereq(0, 2);
     }
 }

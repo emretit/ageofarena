@@ -26,8 +26,15 @@ public class GameManager : MonoBehaviour
     public readonly List<BuildingEntity> buildings = new();
     public readonly List<RelicEntity> relics = new();
 
+    /// <summary>N5: maximum simultaneous teams. All team-indexed arrays are sized to this.
+    /// Raising it to 8 enables 8-player skirmish without touching any < 4 guard — just
+    /// rebuild the world with more teams and resize these arrays accordingly.</summary>
+    public const int MaxTeams = 4;
+
     public ResourceManager[] teamRes = { new(), new(), new(), new() };
     public ResourceManager resources => teamRes[0];
+    /// <summary>Number of active teams (≤ MaxTeams). Currently fixed at MaxTeams; N5 raises this.</summary>
+    public int TeamCount => teamRes.Length;
 
     public TechState[] teamTech = { new(), new(), new(), new() };
     public TechState tech => teamTech[0];
@@ -50,11 +57,65 @@ public class GameManager : MonoBehaviour
     public FogOfWarSystem fow;
     public RelicSystem relicSystem;
     public TradingSystem trading;
+    public TutorialSystem tutorial;
+    public TriggerSystem   triggers;       // N11.trig
+    public ScenarioEditor  scenarioEditor; // N12.edit
+    public CampaignScreen  campaignScreen; // N13.camp
+    public CommandRecorder cmdRecorder;    // N3.cmdlog
+    public ChecksumSystem  checksum;       // N15.checksum
+    public LockstepSystem  lockstep;       // N16.lockstep
+    public DesyncHandler   desync;         // N17.desync
+    public TransportLayer  transport;      // N17.transport
+
+    /// <summary>N1: per-frame spatial index of all units for O(n) proximity queries
+    /// (combat aggro / heal / convert / projectile splash). Rebuilt at the top of Update.</summary>
+    public readonly SpatialGrid unitGrid = new SpatialGrid(8f);
 
     public BuildingEntity selectedBuilding;
 
     /// <summary>Global AI difficulty (applied by every <see cref="EnemyAI"/>).</summary>
     public Difficulty difficulty = Difficulty.Normal;
+
+    /// <summary>Active game mode — set by WorldRoot before gameplay begins.</summary>
+    public GameMode gameMode = GameMode.Random;
+
+    // ── N14/MODES: rule-toggle flags (set by WorldRoot.SetupGameplay) ─────────
+    /// <summary>KingOfTheHill: control the centre TC to accumulate victory points.</summary>
+    public bool kothActive;
+    /// <summary>SuddenDeath: losing your TC causes immediate elimination.</summary>
+    public bool suddenDeath;
+    /// <summary>Treaty: attacks are blocked until this simulation-time (seconds) elapses.</summary>
+    public float treatyEndTime;
+    /// <summary>Turbo: multiplier on all villager gather yields (default 1 = no boost).</summary>
+    public float turboGatherMult = 1f;
+
+    /// <summary>
+    /// VDIPL: 4×4 diplomacy matrix. diplomacy[a,b] = team a's stance toward team b.
+    /// Default: all teams are enemies; self-to-self is Allied.
+    /// </summary>
+    public DiplomacyState[,] diplomacy = InitDiplomacy();
+
+    static DiplomacyState[,] InitDiplomacy()
+    {
+        var d = new DiplomacyState[MaxTeams, MaxTeams];
+        for (int a = 0; a < MaxTeams; a++)
+            for (int b = 0; b < MaxTeams; b++)
+                d[a, b] = (a == b) ? DiplomacyState.Allied : DiplomacyState.Enemy;
+        return d;
+    }
+
+    /// <summary>True if team a considers team b an enemy (i.e. will attack on sight).</summary>
+    public bool IsEnemy(int a, int b) =>
+        a != b && a >= 0 && a < MaxTeams && b >= 0 && b < MaxTeams && diplomacy[a, b] == DiplomacyState.Enemy;
+
+    /// <summary>N0.2: true if team b is team a itself or an ally — used for shared victory
+    /// (a wonder/relic/score win by an ally is a win for the whole alliance, not a loss).</summary>
+    public bool IsAllied(int a, int b) =>
+        a >= 0 && a < MaxTeams && b >= 0 && b < MaxTeams && (a == b || diplomacy[a, b] == DiplomacyState.Allied);
+
+    /// <summary>AICH: per-team economy speed multiplier set by EnemyAI per difficulty.
+    /// Applied to gather deposits and research time. Player (team 0) stays at 1×.</summary>
+    public float[] teamEcoMult = { 1f, 1f, 1f, 1f };
 
     /// <summary>Per-team civilization. Index 0 = player; 1-3 = AI teams.</summary>
     public Civilization[] teamCivs = { Civilization.None, Civilization.None, Civilization.None, Civilization.None };
@@ -68,6 +129,22 @@ public class GameManager : MonoBehaviour
     /// <summary>Civ bonus for any team.</summary>
     public CivBonus TeamCivBonus(int teamId) => CivilizationDefs.Get(teamCivs[teamId]);
 
+    /// <summary>CIVM/N0.6: aggregated team (shared) bonus for a team — the team's own civ
+    /// team bonus PLUS every allied team's team bonus (AoE2 shared team bonuses). Was a stub
+    /// that returned only the team's own bonus. Consumed by gameplay systems (e.g. GatherSystem
+    /// food deposit). When <see cref="TeamBonus"/> gains fields, sum each one here.</summary>
+    public TeamBonus TeamSharedBonus(int teamId)
+    {
+        if (teamId < 0 || teamId >= teamCivs.Length) return default;
+        var sum = new TeamBonus();
+        for (int t = 0; t < teamCivs.Length; t++)
+        {
+            if (!IsAllied(teamId, t)) continue;   // IsAllied is true for self and allies
+            sum.gatherFoodBonus += CivilizationDefs.Get(teamCivs[t]).teamBonus.gatherFoodBonus;
+        }
+        return sum;
+    }
+
     void Awake()
     {
         _instance = this;
@@ -80,7 +157,14 @@ public class GameManager : MonoBehaviour
 
     public void RegisterUnit(UnitEntity u)
     {
-        if (u != null && !units.Contains(u)) units.Add(u);
+        if (u != null && !units.Contains(u))
+        {
+            units.Add(u);
+            // N1.hpbar: attach world-space billboard HP bar (replaces IMGUI).
+            var bar = u.gameObject.AddComponent<WorldHpBar>();
+            float yOff = u.IsKayKitModel ? 2.0f : 1.6f;
+            bar.Init(yOff, u.teamId == 0);
+        }
     }
 
     public void RegisterNode(ResourceNode n)
@@ -90,7 +174,13 @@ public class GameManager : MonoBehaviour
 
     public void RegisterBuilding(BuildingEntity b)
     {
-        if (b != null && !buildings.Contains(b)) buildings.Add(b);
+        if (b != null && !buildings.Contains(b))
+        {
+            buildings.Add(b);
+            // N1.hpbar: world-space HP bar for buildings.
+            var bar = b.gameObject.AddComponent<WorldHpBar>();
+            bar.Init(3.4f, b.teamId == 0);
+        }
     }
 
     public void RegisterRelic(RelicEntity r)
@@ -98,9 +188,37 @@ public class GameManager : MonoBehaviour
         if (r != null && !relics.Contains(r)) relics.Add(r);
     }
 
+    // N3.fixedstep: fixed-step sim tick (~30 Hz). When enabled, sim systems receive a
+    // constant dt (FIXED_DT) regardless of render frame rate. Time.deltaTime is
+    // accumulated and drained in whole steps so the simulation remains deterministic.
+    public  bool  FixedStepEnabled = false;
+    const   float FIXED_DT         = 1f / 30f;
+    float         _stepAccumulator;
+
     void Update()
     {
-        float dt = Time.deltaTime;
+        if (FixedStepEnabled)
+        {
+            // N3.fixedstep: drain accumulator in constant-dt increments (max 3 steps/frame
+            // to prevent spiral-of-death on lag spikes).
+            _stepAccumulator += Time.deltaTime;
+            int steps = 0;
+            while (_stepAccumulator >= FIXED_DT && steps < 3)
+            {
+                SimTick(FIXED_DT);
+                _stepAccumulator -= FIXED_DT;
+                steps++;
+            }
+        }
+        else
+        {
+            SimTick(Time.deltaTime);
+        }
+    }
+
+    void SimTick(float dt)
+    {
+        unitGrid.Rebuild(units);   // N1: refresh spatial index before any proximity query
         if (gather != null)        gather.Tick(units, dt);
         if (combat != null)        combat.Tick(units, dt);
         if (buildingCombat != null) buildingCombat.Tick(buildings, units, dt);
@@ -120,31 +238,37 @@ public class GameManager : MonoBehaviour
         relics.RemoveAll(r => r == null);
 
         RecomputePop();
+        lockstep?.OnSimTick(); // N16.lockstep: advance tick after all systems
     }
 
     /// <summary>
-    /// Player (team 0) population = live team-0 unit count; population cap = sum of
-    /// <see cref="BuildingDefs"/> popProvided over completed team-0 buildings
-    /// (Town Center + Houses), clamped to 200. Only pushes to the
-    /// <see cref="ResourceManager"/> when a value actually changed, to avoid
-    /// firing <see cref="ResourceManager.OnChanged"/> (HUD refresh) every frame.
+    /// Per-team population: unit count + building popProvided for each team,
+    /// clamped to 200. Only pushes to <see cref="ResourceManager"/> when changed.
+    /// Called after unit/building add/remove; AI uses the resulting popCap before training.
     /// </summary>
     public void RecomputePop()
     {
-        int pop = 0;
-        for (int i = 0; i < units.Count; i++)
-            if (units[i] != null && units[i].teamId == 0) pop++;
+        int n = TeamCount;
+        var pop = new int[n];
+        var cap = new int[n];
 
-        int cap = 0;
+        for (int i = 0; i < units.Count; i++)
+        {
+            var u = units[i];
+            if (u != null && u.teamId >= 0 && u.teamId < n) pop[u.teamId]++;
+        }
         for (int i = 0; i < buildings.Count; i++)
         {
             var b = buildings[i];
-            if (b == null || b.teamId != 0 || b.underConstruction) continue;
-            cap += BuildingDefs.Get(b.type).popProvided;
+            if (b == null || b.underConstruction || b.teamId < 0 || b.teamId >= n) continue;
+            cap[b.teamId] += BuildingDefs.Get(b.type).popProvided;
         }
-        cap = Mathf.Clamp(cap, 0, 200);
-
-        if (pop != resources.pop || cap != resources.popCap)
-            resources.SetPop(pop, cap);
+        for (int t = 0; t < n; t++)
+        {
+            cap[t] = Mathf.Clamp(cap[t], 0, 200);
+            var res = teamRes[t];
+            if (pop[t] != res.pop || cap[t] != res.popCap)
+                res.SetPop(pop[t], cap[t]);
+        }
     }
 }

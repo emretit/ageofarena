@@ -25,10 +25,9 @@ public class FogOfWarSystem : MonoBehaviour
 
     const float VisCheckInterval = 0.5f;
 
-    /// <summary>Master switch. When false the whole map stays visible (no fog, enemies
-    /// always shown): Init keeps the plain ground material and Update no-ops. Flip to
-    /// true to bring classic Fog of War back.</summary>
-    public bool fogEnabled = false;
+    /// <summary>FOWD: Master switch — defaults to true (classic AoE2 fog). Set false to
+    /// reveal the whole map (no fog); Init stays inert and Update no-ops.</summary>
+    public bool fogEnabled = true;
 
     static readonly Color32 Black  = new Color32(0,   0,   0,   255);
     static readonly Color32 Shroud = new Color32(70,  70,  70,  255);
@@ -36,6 +35,10 @@ public class FogOfWarSystem : MonoBehaviour
 
     // ── State ─────────────────────────────────────────────────────────────────
     Texture2D _fogTex;
+
+    /// <summary>MMTR: the fog texture (null if fog disabled). MinimapSystem reads this
+    /// to overlay explored/unexplored areas on the minimap.</summary>
+    public Texture2D FogTexture => fogEnabled ? _fogTex : null;
     Color32[] _pixels;
     byte[]    _explored;   // 0 = never seen, 1 = previously seen (shroud)
 
@@ -108,19 +111,22 @@ public class FogOfWarSystem : MonoBehaviour
         for (int i = 0; i < _pixels.Length; i++)
             _pixels[i] = _explored[i] > 0 ? Shroud : Black;
 
-        // 2. Paint sight circles for every team-0 unit
+        // 2. Paint sight circles for player (team 0) + allied teams
         for (int i = 0; i < gm.units.Count; i++)
         {
             var u = gm.units[i];
-            if (u == null || u.teamId != 0) continue;
-            PaintCircle(u.transform.position, UnitSight(u.type));
+            if (u == null || !gm.IsAllied(0, u.teamId)) continue;
+            // N10.minimap: elevation-aware sight — units on higher terrain see up to +20% farther.
+            float elevBonus = 1f + Mathf.Clamp01(WorldRoot.GetHeight(
+                u.transform.position.x, u.transform.position.z) / 1.4f) * 0.20f;
+            PaintCircle(u.transform.position, UnitSight(u.type) * elevBonus);
         }
 
-        // 3. Paint sight circles for every team-0 building
+        // 3. Paint sight circles for player (team 0) + allied buildings
         for (int i = 0; i < gm.buildings.Count; i++)
         {
             var b = gm.buildings[i];
-            if (b == null || b.teamId != 0) continue;
+            if (b == null || !gm.IsAllied(0, b.teamId)) continue;
             PaintCircle(b.transform.position, BuildingSight(b.type));
         }
 
@@ -160,20 +166,21 @@ public class FogOfWarSystem : MonoBehaviour
 
     // ── Enemy visibility ──────────────────────────────────────────────────────
 
-    /// <summary>Show/hide non-team-0 units and buildings based on whether their
-    /// map cell is currently lit (r == 255).  Runs every 0.5 s to amortize cost.</summary>
+    /// <summary>Show/hide enemy units and buildings based on whether their
+    /// map cell is currently lit (r == 255).  Runs every 0.5 s to amortize cost.
+    /// Allied units are always visible regardless of fog.</summary>
     void TickEnemyVisibility(GameManager gm)
     {
         for (int i = 0; i < gm.units.Count; i++)
         {
             var u = gm.units[i];
-            if (u == null || u.teamId == 0) continue;
+            if (u == null || gm.IsAllied(0, u.teamId)) continue;
             SetRenderersEnabled(u.gameObject, IsLit(u.transform.position));
         }
         for (int i = 0; i < gm.buildings.Count; i++)
         {
             var b = gm.buildings[i];
-            if (b == null || b.teamId == 0) continue;
+            if (b == null || gm.IsAllied(0, b.teamId)) continue;
             SetRenderersEnabled(b.gameObject, IsLit(b.transform.position));
         }
     }

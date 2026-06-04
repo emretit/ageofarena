@@ -22,23 +22,40 @@ public class TrainingQueue : MonoBehaviour
 
     GameManager GM => GameManager.Instance;
 
+    // N0.9: the resource/pop ledger of the building's OWNER, not always team 0. Previously the
+    // queue spent/refunded team 0's resources regardless of who owned the building — a latent
+    // multi-team bug (masked only because the AI bypasses the queue). N5 adds per-team pop cap.
+    ResourceManager Res(BuildingEntity b)
+        => GM.teamRes != null && b != null && b.teamId >= 0 && b.teamId < GM.teamRes.Length
+            ? GM.teamRes[b.teamId] : GM.resources;
+
     /// <summary>
     /// Attempt to enqueue a unit. Returns false if resources are insufficient or
     /// the queue is full.
     /// </summary>
     public bool Enqueue(BuildingEntity b, UnitTrainable def)
     {
-        var rm = GM.resources;
-        if (rm.pop >= rm.popCap) return false;             // population cap reached
+        var rm = Res(b);                                   // N0.9: owner's ledger
+        // N0.7: this civ may be denied the unit (tech-tree subtraction, e.g. Aztecs no cavalry).
+        if (CivilizationDefs.IsUnitDenied(GM.teamCivs[b.teamId], def.unitType)) return false;
+        // Population cap: count already-queued (reserved) units too, so a full queue
+        // can't overshoot popCap (e.g. queueing 5 at pop 4/5 → 9/5). Each queued unit
+        // reserves 1 pop. ReservedPop() skips destroyed buildings, so it never leaks.
+        if (rm.pop + ReservedPop(b.teamId) >= rm.popCap) return false;
         if (!rm.CanAfford(def.food, def.wood, def.gold, 0)) return false;
 
         if (!_queues.TryGetValue(b, out var q)) _queues[b] = q = new List<TrainingItem>();
         if (q.Count >= MaxQueueSize) return false;
 
         rm.Deduct(def.food, def.wood, def.gold, 0);
+        // N3.cmdlog: record train command (player team only)
+        if (b.teamId == 0)
+            GM.cmdRecorder?.Record(CommandType.Train, null,
+                intParam1: (int)def.unitType, intParam2: b.GetInstanceID());
         // Blacksmith aura: 20% faster training for military buildings within 14u.
         float time = def.trainTime;
         if (BlacksmithNearby(b, 14f)) time *= 0.80f;
+        time *= GM.TeamCivBonus(b.teamId).unitTrainTimeMult;   // CIVD: Mongols/Aztecs train faster
         q.Add(new TrainingItem
         {
             unitType  = def.unitType,
@@ -58,6 +75,21 @@ public class TrainingQueue : MonoBehaviour
 
     public int GetQueueCount(BuildingEntity b)
         => _queues.TryGetValue(b, out var q) ? q.Count : 0;
+
+    /// <summary>Total queued (reserved) population across a team's buildings. Each
+    /// queued unit reserves 1 pop. Destroyed buildings (null key) are skipped, so the
+    /// reservation self-corrects and never leaks.</summary>
+    int ReservedPop(int teamId)
+    {
+        int n = 0;
+        foreach (var kvp in _queues)
+        {
+            var b = kvp.Key;
+            if (b == null || b.teamId != teamId) continue;
+            n += kvp.Value.Count;
+        }
+        return n;
+    }
 
     /// <summary>
     /// Read-only snapshot of a building's queue for the HUD queue strip: the
@@ -83,7 +115,7 @@ public class TrainingQueue : MonoBehaviour
     {
         if (!_queues.TryGetValue(b, out var q) || index < 0 || index >= q.Count) return;
         var it = q[index];
-        var rm = GM.resources;
+        var rm = Res(b);                                   // N0.9: refund to the owner
         rm.Gain(ResourceKind.Food, it.food);
         rm.Gain(ResourceKind.Wood, it.wood);
         rm.Gain(ResourceKind.Gold, it.gold);
@@ -111,25 +143,31 @@ public class TrainingQueue : MonoBehaviour
     void SpawnUnit(BuildingEntity b, UnitType unitType, GameManager gm)
     {
         var unitsRoot = GameObject.Find("Units")?.transform ?? b.transform.parent;
-        // Spawn slightly in front of the building (toward the arena's south gate).
-        Vector3 spawnPos = b.transform.position + new Vector3(0, 0, -3.5f);
+        int tid = b.teamId;
 
-        var teamColor = Prims.Hex(0x2a5db0);
-        UnitEntity unit = unitType switch
+        // Ships spawn outward toward the open sea (the map is an island ringed by ocean)
+        // so they land on the naval NavMesh; everyone else spawns at the building's gate.
+        bool naval = unitType is UnitType.Galley or UnitType.FireShip
+                              or UnitType.DemoShip or UnitType.FishingShip;
+        int navalId = -1;
+        Vector3 spawnPos;
+        if (naval)
         {
-            UnitType.Villager    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
-            UnitType.Militia     => UnitFactory.Militia(unitsRoot, spawnPos, teamColor),
-            UnitType.Archer      => UnitFactory.Archer(unitsRoot, spawnPos, teamColor),
-            UnitType.Cavalry     => UnitFactory.Cavalry(unitsRoot, spawnPos, teamColor),
-            UnitType.Trebuchet   => UnitFactory.Trebuchet(unitsRoot, spawnPos, teamColor),
-            UnitType.Scout       => UnitFactory.Scout(unitsRoot, spawnPos, teamColor),
-            UnitType.Medic       => UnitFactory.Medic(unitsRoot, spawnPos, teamColor),
-            UnitType.Spearman    => UnitFactory.Spearman(unitsRoot, spawnPos, teamColor),
-            UnitType.Monk        => UnitFactory.Monk(unitsRoot, spawnPos, teamColor),
-            UnitType.TradeCart   => UnitFactory.TradeCart(unitsRoot, spawnPos, teamColor),
-            UnitType.Longbowman  => UnitFactory.Longbowman(unitsRoot, spawnPos, teamColor),
-            _                    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor),
-        };
+            var wr = Object.FindAnyObjectByType<WorldRoot>();
+            navalId = wr != null ? wr.NavalAgentTypeId : -1;
+            Vector3 dockPos = b.transform.position;
+            Vector3 dir = dockPos; dir.y = 0f;
+            dir = dir.sqrMagnitude > 0.01f ? dir.normalized : Vector3.forward;
+            spawnPos = dockPos + dir * 6f;
+        }
+        else
+        {
+            spawnPos = b.transform.position + new Vector3(0, 0, -3.5f);
+        }
+
+        // Central dispatch — sets teamId correctly for every type (fixes AI Cavalry
+        // joining team 0 via the no-teamId factory methods).
+        UnitEntity unit = UnitFactory.Spawn(unitType, unitsRoot, spawnPos, tid, navalId);
 
         gm.RegisterUnit(unit);
         gm.RecomputePop();

@@ -27,7 +27,9 @@ Bir istek "oyuna X ekle" derse hedef **her zaman Unity tarafıdır** (`AgeOfAren
 - **`Prims.Spawn()` collider'ları siler** — unit root'larına `CapsuleCollider`, bina root'larına
   `BoxCollider` ayrıca eklenir.
 - `HUD.cs` → `text.font = null` (Unity 6 default; LegacyRuntime.ttf çalışmaz).
-- `ResourceManager.stone = 0` başlar (oyuncu kararı; Three.js orijinalinde stone yoktu).
+- `ResourceManager.stone = 200` başlar (M8/STONE — AoE2-parite taş ekonomisi; Castle/University/
+  kuleler taş harcar, yetersizken inşa engellenir). _Eski: stone=0 (Three.js'te stone yoktu);
+  kullanıcı onayıyla 2026-06 parite için aktive edildi._
 
 ## Detaylı durum
 
