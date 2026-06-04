@@ -26,14 +26,11 @@ public class WorldRoot : MonoBehaviour
                                      // 0.5-radius agent paths cleanly through the gate
     const float WallModelYaw = 0f;   // extra yaw if the FBX's length axis isn't +X
 
-    // Base centers further apart → more open mid-map feel.
-    static readonly Vector3[] BasePositions =
-    {
-        new( 0, 0, -58), // team 0 – player (south)
-        new( 0, 0,  58), // team 1 – red
-        new(-58, 0,  0), // team 2 – green
-        new( 58, 0,  0), // team 3 – yellow
-    };
+    // N10.rms: active archetype; set from mapType in Build(). Default = Arena.
+    MapGenerator.Archetype _arch = MapGenerator.Arena;
+
+    // Convenience alias — keeps all call sites unchanged; updated from _arch in Build().
+    Vector3[] BasePositions => _arch.basePositions;
 
     // Team tints now come from the single-source TeamPalette (N4.palette); this
     // indexer keeps the existing TeamColors[i] call sites working unchanged.
@@ -80,11 +77,17 @@ public class WorldRoot : MonoBehaviour
     /// Change via the HUD or pass explicitly for reproducible maps.</summary>
     public int mapSeed;
 
+    /// <summary>N10.rms: which map archetype to build. Set by GameBootstrap from CivSelectScreen.</summary>
+    public MapType mapType = MapType.Arena;
+
     public void Build()
     {
         // Keep simulating when the window is unfocused (alt-tab) so the AI/economy
         // don't freeze — also makes headless/automated runs behave.
         Application.runInBackground = true;
+
+        // N10.rms: resolve archetype before anything uses BasePositions.
+        _arch = MapGenerator.Get(mapType);
 
         // Seed Unity's legacy RNG so trees/mines/relics produce a reproducible layout.
         if (mapSeed == 0) mapSeed = UnityEngine.Random.Range(1, int.MaxValue);
@@ -99,7 +102,7 @@ public class WorldRoot : MonoBehaviour
         cam.bounds  = new Vector2(95f, 95f); // match bigger 200×200 map
         cam.maxSize = 42f;                   // allow wider zoom-out
         var gm  = SetupGameManager();
-        gm.gameMode  = GameBootstrap.NextGameMode;
+        gm.gameMode  = _arch.forceNomad ? GameMode.Nomad : GameBootstrap.NextGameMode;
         gm.difficulty = GameBootstrap.NextDifficulty;
 
         // VNOMAD: skip static base construction; villagers scatter mid-map.
@@ -703,9 +706,12 @@ public class WorldRoot : MonoBehaviour
         forest.transform.SetParent(transform, false);
         var gm = GameManager.Instance;
 
+        float inner    = _arch.coastInner;
+        float outer    = _arch.coastOuter;
+        int   clusters = _arch.coastClusters;
+
         // Angular clusters around the full ring; each spans the belt's depth for a wall
         // that's several trees thick. No gaps — the forest hugs the coast all the way round.
-        const int clusters = 104;
         for (int c = 0; c < clusters; c++)
         {
             float clusterA = c / (float)clusters * Mathf.PI * 2f;
@@ -713,7 +719,7 @@ public class WorldRoot : MonoBehaviour
             for (int k = 0; k < n; k++)
             {
                 float a = clusterA + Random.Range(-0.045f, 0.045f);
-                float r = Random.Range(CoastInner, CoastOuter);
+                float r = Random.Range(inner, outer);
                 var pos = new Vector3(Mathf.Cos(a) * r, 0f, Mathf.Sin(a) * r);
                 gm.RegisterNode(ResourceFactory.Tree(forest.transform, pos, ResourceFactory.TreeKind.Conifer));
                 AddObstacle(pos, 1.5f, 1.5f, 0f);
@@ -722,24 +728,22 @@ public class WorldRoot : MonoBehaviour
 
         // Floating lilies in the surrounding shallows + ground foliage on the interior grass.
         Decor.ScatterLilies(forest.transform, BeachRadius + 2f, OceanHalf - 6f, 60);
-        Decor.Scatter(forest.transform, Vector3.zero, 6f, CoastInner - 4f, 160);
+        Decor.Scatter(forest.transform, Vector3.zero, 6f, inner - 4f, 160);
     }
 
-    // A few broadleaf groves dotting the open battlefield (the central forest blobs in
-    // the reference). Harvestable, but NOT obstacles — the centre stays passable.
+    // Broadleaf groves dotting the open battlefield. Harvestable, NOT obstacles.
     void BuildInteriorClumps()
     {
         var grove = new GameObject("Groves");
         grove.transform.SetParent(transform, false);
         var gm = GameManager.Instance;
-        Vector3[] centers = { new(0, 0, 34), new(0, 0, -34), new(34, 0, 0), new(-34, 0, 0) };
-        foreach (var ctr in centers)
+        foreach (var ctr in _arch.groveCenters)
         {
             int n = Random.Range(4, 7);
             for (int k = 0; k < n; k++)
             {
                 float a = Random.Range(0f, Mathf.PI * 2f);
-                float r = Random.Range(0f, 4f);
+                float r = Random.Range(0f, _arch.groveRadius);
                 gm.RegisterNode(ResourceFactory.Tree(grove.transform,
                     ctr + new Vector3(Mathf.Cos(a) * r, 0f, Mathf.Sin(a) * r),
                     ResourceFactory.TreeKind.Broadleaf));
@@ -747,9 +751,7 @@ public class WorldRoot : MonoBehaviour
         }
     }
 
-    // Arena economy: each walled pocket carries its own starting resources so the base
-    // is self-sufficient (boom map). Positions are in the base's local frame, kept
-    // inside the WallHalf box and dodging the houses/barracks placed in BuildBase.
+    // Base economy: self-sufficient pocket with standard + optional bonus resources.
     void BuildBaseResources(Vector3 center)
     {
         var root = new GameObject("BaseEco");
@@ -757,32 +759,53 @@ public class WorldRoot : MonoBehaviour
         var gm = GameManager.Instance;
         BaseFrame(center, out var forward, out var backward, out var right);
 
-        // 2 gold at the front corners (toward the gate, off the centre corridor).
+        // Standard 2 gold at the front corners.
         gm.RegisterNode(ResourceFactory.GoldMine(root.transform, center + forward * 2f + right *  10f));
         gm.RegisterNode(ResourceFactory.GoldMine(root.transform, center + forward * 2f + right * -10f));
-        // 1 stone on a mid side, a berry patch on the other.
+        // Archetype bonus gold (BlackForest: one extra mine behind TC).
+        if (_arch.extraGoldPerBase)
+            gm.RegisterNode(ResourceFactory.GoldMine(root.transform, center + backward * 5f + right * 8f));
+        // Standard stone + berries.
         gm.RegisterNode(ResourceFactory.StoneMine(root.transform, center + right * 11f));
-        gm.RegisterNode(ResourceFactory.BerryBush(root.transform, center + right * -11f + forward * 1.5f));
-        gm.RegisterNode(ResourceFactory.BerryBush(root.transform, center + right * -11f + backward * 2.5f));
-        // Starting wood line just inside the back wall (behind the barracks).
+        if (_arch.extraStonePerBase)
+            gm.RegisterNode(ResourceFactory.StoneMine(root.transform, center + right * -11.5f + forward * 0.5f));
+        else
+        {
+            gm.RegisterNode(ResourceFactory.BerryBush(root.transform, center + right * -11f + forward * 1.5f));
+            gm.RegisterNode(ResourceFactory.BerryBush(root.transform, center + right * -11f + backward * 2.5f));
+        }
+        // Starting wood line inside the back wall.
         for (int k = -2; k <= 2; k++)
             gm.RegisterNode(ResourceFactory.Tree(root.transform,
                 center + backward * 10.5f + right * (k * 3.5f), ResourceFactory.TreeKind.Broadleaf));
 
-        // 1 fish pond on open grass just outside the side wall (reachable extra food).
+        // Fish pond outside the side wall.
         gm.RegisterNode(ResourceFactory.FishPond(root.transform, center + right * -16f));
     }
 
-    // Extra deposits in the open centre — the prize that pulls armies out of the walls.
+    // Contested deposits in the open centre — prize that pulls armies out of the walls.
     void BuildContestedResources()
     {
         var root = new GameObject("ContestedMines");
         root.transform.SetParent(transform, false);
         var gm = GameManager.Instance;
-        gm.RegisterNode(ResourceFactory.GoldMine(root.transform,  new Vector3( 17, 0,  17)));
-        gm.RegisterNode(ResourceFactory.GoldMine(root.transform,  new Vector3(-17, 0, -17)));
-        gm.RegisterNode(ResourceFactory.StoneMine(root.transform, new Vector3( 17, 0, -17)));
-        gm.RegisterNode(ResourceFactory.StoneMine(root.transform, new Vector3(-17, 0,  17)));
+
+        // Gold mines on one diagonal, stone on the other; extra mines spread outward.
+        float[] offsets = { 17f, 26f, 35f };
+        int gold  = _arch.contestedGoldMines;
+        int stone = _arch.contestedStoneMines;
+        for (int i = 0; i < gold && i < offsets.Length; i++)
+        {
+            float o = offsets[i];
+            gm.RegisterNode(ResourceFactory.GoldMine(root.transform, new Vector3( o, 0,  o)));
+            gm.RegisterNode(ResourceFactory.GoldMine(root.transform, new Vector3(-o, 0, -o)));
+        }
+        for (int i = 0; i < stone && i < offsets.Length; i++)
+        {
+            float o = offsets[i];
+            gm.RegisterNode(ResourceFactory.StoneMine(root.transform, new Vector3( o, 0, -o)));
+            gm.RegisterNode(ResourceFactory.StoneMine(root.transform, new Vector3(-o, 0,  o)));
+        }
     }
 
     // Append a not-walkable box NavMesh source (area 1) at a world XZ. yawDeg lets wall

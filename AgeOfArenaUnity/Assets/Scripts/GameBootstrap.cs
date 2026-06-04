@@ -23,6 +23,7 @@ public static class GameBootstrap
         var root = new GameObject("AgeOfArena").AddComponent<WorldRoot>();
         root.gameObject.AddComponent<FocusPause>(); // N9: pause the sim when the window loses focus
         root.mapSeed = _nextSeed;
+        root.mapType = NextMapType;
         root.Build();
     }
 
@@ -46,6 +47,9 @@ public static class GameBootstrap
 
     /// <summary>ARES: difficulty for the next match. Persists across restarts.</summary>
     public static Difficulty NextDifficulty = Difficulty.Normal;
+
+    /// <summary>N10.rms: map archetype for the next match.</summary>
+    public static MapType NextMapType = MapType.Arena;
 
     /// <summary>Restart with a fresh random seed so the next map looks different.</summary>
     public static void Restart(int seed = 0)

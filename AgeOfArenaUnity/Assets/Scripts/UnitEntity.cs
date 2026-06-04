@@ -96,6 +96,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public bool isNaval;
     public int  navalAgentTypeId = -1;
 
+    // N8.siege: pre-loaded demolished wreck prefab; spawned at world position on death
+    public GameObject demolishedPrefab;
+
     /// <summary>This unit's per-team <see cref="TechState"/> (null-safe).</summary>
     public TechState TeamTech
     {
@@ -491,6 +494,11 @@ public class UnitEntity : MonoBehaviour, IDamageable
     void Die()
     {
         hp = 0f;
+        if (demolishedPrefab != null)
+        {
+            var wreck = Object.Instantiate(demolishedPrefab, transform.position, transform.rotation);
+            Object.Destroy(wreck, 5f);
+        }
         PlayDie(); // fire death animation before Destroy
         AudioManager.Play(AudioManager.SoundId.UnitDie, 0.8f);
         // List removal is deferred to GameManager's end-of-frame compaction so we

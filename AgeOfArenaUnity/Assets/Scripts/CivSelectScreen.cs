@@ -85,11 +85,12 @@ public class CivSelectScreen : MonoBehaviour
         float sepY    = lastRowY - bh / 2f - 22f;
         Line(bg.transform, 0, sepY, 900, 1);
 
-        // ── Bottom controls: Difficulty | Mode | Start ──────────────────────
+        // ── Bottom controls: Map | Difficulty | Mode | Start ───────────────
         float ctrlY = sepY - 44f;
-        BuildDifficultyRow(bg.transform, -420f, ctrlY);
-        BuildGameModeRow(bg.transform,    20f,  ctrlY);
-        BuildStartButton(bg.transform,   440f,  ctrlY);
+        BuildMapTypeRow(bg.transform,    -420f, ctrlY);
+        BuildDifficultyRow(bg.transform,  -90f, ctrlY);
+        BuildGameModeRow(bg.transform,    250f, ctrlY);
+        BuildStartButton(bg.transform,   620f,  ctrlY);
     }
 
     // ── Civ button ──────────────────────────────────────────────────────────
@@ -158,6 +159,22 @@ public class CivSelectScreen : MonoBehaviour
         var gm2 = GameManager.Instance;
         if (gm2 != null) GameBootstrap.NextDifficulty = gm2.difficulty;
         Destroy(gameObject);
+    }
+
+    // ── Map type row ─────────────────────────────────────────────────────────
+
+    void BuildMapTypeRow(Transform parent, float x, float y)
+    {
+        Label(parent, "Harita", x - 80f, y, 20, TextLabel, FontStyle.Normal);
+        var btn = CtrlButton(parent, MapGenerator.DisplayName(GameBootstrap.NextMapType), x + 70f, y, 220, 46);
+        var lbl = btn.GetComponentInChildren<Text>();
+        btn.GetComponent<Button>().onClick.AddListener(() =>
+        {
+            var types = (MapType[])System.Enum.GetValues(typeof(MapType));
+            int next = ((int)GameBootstrap.NextMapType + 1) % types.Length;
+            GameBootstrap.NextMapType = types[next];
+            lbl.text = MapGenerator.DisplayName(GameBootstrap.NextMapType);
+        });
     }
 
     // ── Difficulty row ───────────────────────────────────────────────────────

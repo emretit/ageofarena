@@ -134,33 +134,30 @@ public static class UnitFactory
         var g = NewUnit("Trebuchet", parent, worldPos);
         var t = g.transform;
 
-        var wood   = Prims.Mat(Prims.Hex(0x7a5c3a));
-        var metal  = Prims.Mat(Prims.Hex(0x888890), 0.4f, 0.6f);
-        var rope   = Prims.Mat(Prims.Hex(0xc8a878));
-        var accent = Prims.Mat(teamColor, 0.2f, 0.4f);
-
-        // Base frame
-        Prims.Box(t, new Vector3(0, 0.20f, 0),    new Vector3(1.2f, 0.14f, 0.7f), wood);
-        // Side uprights
-        Prims.Box(t, new Vector3(-0.45f, 0.65f, 0), new Vector3(0.12f, 0.82f, 0.45f), wood);
-        Prims.Box(t, new Vector3( 0.45f, 0.65f, 0), new Vector3(0.12f, 0.82f, 0.45f), wood);
-        // Cross beam at top
-        Prims.Box(t, new Vector3(0, 1.05f, 0),    new Vector3(1.1f, 0.12f, 0.18f), wood);
-        // Throwing arm (horizontal beam, tilted slightly forward)
-        Prims.Box(t, new Vector3(0, 1.18f, 0.28f), new Vector3(0.1f, 0.11f, 1.6f), wood);
-        // Counterweight at the rear end of arm
-        Prims.Box(t, new Vector3(0, 1.32f, -0.42f), new Vector3(0.3f, 0.28f, 0.24f), metal);
-        // Sling cup at front end
-        Prims.Box(t, new Vector3(0, 1.48f, 0.96f), new Vector3(0.16f, 0.16f, 0.16f), rope);
-        // Wheels (left / right)
-        foreach (float wx in new[] { -0.62f, 0.62f })
-            Prims.Box(t, new Vector3(wx, 0.16f, 0), new Vector3(0.14f, 0.32f, 0.34f), metal);
-        // Team-color accent strip on frame
-        Prims.Box(t, new Vector3(0, 0.52f, 0), new Vector3(1.2f, 0.07f, 0.11f), accent);
+        if (KenneyModels.Spawn("Castle/siege-trebuchet", t, Vector3.zero, 1.1f) == null)
+        {
+            // Primitive fallback
+            var wood   = Prims.Mat(Prims.Hex(0x7a5c3a));
+            var metal  = Prims.Mat(Prims.Hex(0x888890), 0.4f, 0.6f);
+            var rope   = Prims.Mat(Prims.Hex(0xc8a878));
+            Prims.Box(t, new Vector3(0, 0.20f, 0),     new Vector3(1.2f, 0.14f, 0.7f), wood);
+            Prims.Box(t, new Vector3(-0.45f, 0.65f, 0), new Vector3(0.12f, 0.82f, 0.45f), wood);
+            Prims.Box(t, new Vector3( 0.45f, 0.65f, 0), new Vector3(0.12f, 0.82f, 0.45f), wood);
+            Prims.Box(t, new Vector3(0, 1.05f, 0),     new Vector3(1.1f, 0.12f, 0.18f), wood);
+            Prims.Box(t, new Vector3(0, 1.18f, 0.28f), new Vector3(0.1f, 0.11f, 1.6f), wood);
+            Prims.Box(t, new Vector3(0, 1.32f, -0.42f), new Vector3(0.3f, 0.28f, 0.24f), metal);
+            Prims.Box(t, new Vector3(0, 1.48f, 0.96f), new Vector3(0.16f, 0.16f, 0.16f), rope);
+            foreach (float wx in new[] { -0.62f, 0.62f })
+                Prims.Box(t, new Vector3(wx, 0.16f, 0), new Vector3(0.14f, 0.32f, 0.34f), metal);
+        }
+        // Team-colour pennant above the frame (visible on both Kenney and fallback mesh)
+        Prims.Box(t, new Vector3(0, 1.7f, 0), new Vector3(0.06f, 0.5f, 0.28f),
+            Prims.Mat(teamColor, 0.1f, 0.4f));
 
         var e = Finish(g, UnitType.Trebuchet, teamColor);
         e.hp = e.maxHp = 150f;
         e.moveSpeed = 1.8f;
+        e.demolishedPrefab = Resources.Load<GameObject>("Kenney/Castle/siege-trebuchet-demolished");
         return e;
     }
 
@@ -300,28 +297,30 @@ public static class UnitFactory
         var g = NewUnit("Ram", parent, worldPos);
         var t = g.transform;
 
-        var wood  = Prims.Mat(Prims.Hex(0x6b4a2a));
-        var roof  = Prims.Mat(Prims.Hex(0x4a3520));
-        var metal = Prims.Mat(Prims.Hex(0x55585e), 0.5f, 0.6f);
-        var accent = Prims.Mat(teamColor, 0.1f, 0.3f);
-
-        // Wheeled protective shed.
-        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.9f, 0.6f, 1.7f), wood);     // frame
-        Prims.Box(t, new Vector3(0, 0.95f, 0), new Vector3(1.0f, 0.3f, 1.9f), roof);    // peaked roof
-        Prims.Box(t, new Vector3(0, 1.15f, 0), new Vector3(0.5f, 0.12f, 1.2f), accent); // banner strip
-        // The ram log poking out the front.
-        Prims.Cylinder(t, new Vector3(0, 0.55f, 1.05f), 0.16f, 1.2f, wood);
-        Prims.Box(t, new Vector3(0, 0.55f, 1.6f), new Vector3(0.34f, 0.34f, 0.3f), metal); // iron head
-        // Wheels.
-        foreach (var lx in new[] { -0.45f, 0.45f })
-            foreach (var lz in new[] { -0.6f, 0.6f })
-                Prims.Cylinder(t, new Vector3(lx, 0.2f, lz), 0.22f, 0.12f, metal);
+        if (KenneyModels.Spawn("Castle/siege-ram", t, Vector3.zero, 1.1f) == null)
+        {
+            // Primitive fallback
+            var wood  = Prims.Mat(Prims.Hex(0x6b4a2a));
+            var roof  = Prims.Mat(Prims.Hex(0x4a3520));
+            var metal = Prims.Mat(Prims.Hex(0x55585e), 0.5f, 0.6f);
+            Prims.Box(t, new Vector3(0, 0.5f, 0),    new Vector3(0.9f, 0.6f, 1.7f), wood);
+            Prims.Box(t, new Vector3(0, 0.95f, 0),   new Vector3(1.0f, 0.3f, 1.9f), roof);
+            Prims.Cylinder(t, new Vector3(0, 0.55f, 1.05f), 0.16f, 1.2f, wood);
+            Prims.Box(t, new Vector3(0, 0.55f, 1.6f), new Vector3(0.34f, 0.34f, 0.3f), metal);
+            foreach (var lx in new[] { -0.45f, 0.45f })
+                foreach (var lz in new[] { -0.6f, 0.6f })
+                    Prims.Cylinder(t, new Vector3(lx, 0.2f, lz), 0.22f, 0.12f, metal);
+        }
+        // Team-colour banner on the roof ridge
+        Prims.Box(t, new Vector3(0, 1.25f, 0), new Vector3(0.5f, 0.12f, 1.1f),
+            Prims.Mat(teamColor, 0.1f, 0.3f));
 
         var e = Finish(g, UnitType.Ram, teamColor);
         e.hp = e.maxHp = 200f;
-        e.moveSpeed = 2.2f;     // slow
+        e.moveSpeed = 2.2f;
         e.meleeArmor = 3f;
-        e.pierceArmor = 180f;   // arrows do only min-1 (pierce-immune)
+        e.pierceArmor = 180f;
+        e.demolishedPrefab = Resources.Load<GameObject>("Kenney/Castle/siege-ram-demolished");
         return e;
     }
 
@@ -330,27 +329,30 @@ public static class UnitFactory
         var g = NewUnit("Mangonel", parent, worldPos);
         var t = g.transform;
 
-        var wood  = Prims.Mat(Prims.Hex(0x7a5c3a));
-        var metal = Prims.Mat(Prims.Hex(0x888890), 0.4f, 0.6f);
-        var stone = Prims.Mat(Prims.Hex(0x8a8a8a), 0.05f);
-        var accent = Prims.Mat(teamColor, 0.1f, 0.3f);
-
-        // Base + wheels.
-        Prims.Box(t, new Vector3(0, 0.3f, 0), new Vector3(1.0f, 0.25f, 1.4f), wood);
-        foreach (var lz in new[] { -0.5f, 0.5f })
-            foreach (var lx in new[] { -0.5f, 0.5f })
-                Prims.Cylinder(t, new Vector3(lx, 0.2f, lz), 0.22f, 0.12f, metal);
-        // Angled throwing arm + bucket with a boulder.
-        Prims.Box(t, new Vector3(0, 0.75f, -0.1f), new Vector3(0.12f, 0.12f, 1.1f), wood)
-            .transform.localRotation = Quaternion.Euler(35f, 0, 0);
-        Prims.Box(t, new Vector3(0, 1.25f, 0.45f), new Vector3(0.3f, 0.18f, 0.3f), wood); // bucket
-        Prims.Sphere(t, new Vector3(0, 1.42f, 0.45f), 0.18f, stone);                       // boulder
-        Prims.Box(t, new Vector3(0, 0.55f, 0.3f), new Vector3(0.6f, 0.1f, 0.1f), accent);  // banner
+        if (KenneyModels.Spawn("Castle/siege-catapult", t, Vector3.zero, 1.1f) == null)
+        {
+            // Primitive fallback
+            var wood  = Prims.Mat(Prims.Hex(0x7a5c3a));
+            var metal = Prims.Mat(Prims.Hex(0x888890), 0.4f, 0.6f);
+            var stone = Prims.Mat(Prims.Hex(0x8a8a8a), 0.05f);
+            Prims.Box(t, new Vector3(0, 0.3f, 0), new Vector3(1.0f, 0.25f, 1.4f), wood);
+            foreach (var lz in new[] { -0.5f, 0.5f })
+                foreach (var lx in new[] { -0.5f, 0.5f })
+                    Prims.Cylinder(t, new Vector3(lx, 0.2f, lz), 0.22f, 0.12f, metal);
+            Prims.Box(t, new Vector3(0, 0.75f, -0.1f), new Vector3(0.12f, 0.12f, 1.1f), wood)
+                .transform.localRotation = Quaternion.Euler(35f, 0, 0);
+            Prims.Box(t, new Vector3(0, 1.25f, 0.45f), new Vector3(0.3f, 0.18f, 0.3f), wood);
+            Prims.Sphere(t, new Vector3(0, 1.42f, 0.45f), 0.18f, stone);
+        }
+        // Team-colour banner on the side frame
+        Prims.Box(t, new Vector3(0, 0.6f, 0.35f), new Vector3(0.6f, 0.1f, 0.1f),
+            Prims.Mat(teamColor, 0.1f, 0.3f));
 
         var e = Finish(g, UnitType.Mangonel, teamColor);
         e.hp = e.maxHp = 50f;
-        e.moveSpeed = 2.4f;     // slow
+        e.moveSpeed = 2.4f;
         e.pierceArmor = 4f;
+        e.demolishedPrefab = Resources.Load<GameObject>("Kenney/Castle/siege-catapult-demolished");
         return e;
     }
 
