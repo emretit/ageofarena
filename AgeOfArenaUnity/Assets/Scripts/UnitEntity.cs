@@ -260,6 +260,18 @@ public class UnitEntity : MonoBehaviour, IDamageable
     // AddComponent, so the per-type speed must be pushed to the agent one step later.
     void Start()
     {
+        // Naval agent type CAN'T be set in Awake: the factory assigns isNaval one line AFTER
+        // AddComponent (which already ran Awake with isNaval still false), so boats were born
+        // on the LAND agent type and never bound to the water mesh. Fix it here, then Warp to
+        // rebind the agent onto the naval NavMesh at its (already-on-water) spawn position.
+        if (isNaval && navalAgentTypeId >= 0 && _agent != null && _agent.agentTypeID != navalAgentTypeId)
+        {
+            _agent.agentTypeID = navalAgentTypeId;
+            _agent.radius = 0.5f;
+            _agent.height = 0.8f;
+            _agent.Warp(transform.position);
+        }
+
         // Capture the factory-assigned bases before layering bonuses (single source of truth).
         baseMaxHp = maxHp;
         baseMoveSpeed = moveSpeed;
@@ -666,9 +678,20 @@ public class UnitEntity : MonoBehaviour, IDamageable
         }
     }
 
+    // Max distance to pull an off-mesh move target onto the nearest walkable point. The
+    // "Ground" collider spans the WHOLE terrain disc, but walls, the coastal-forest ring,
+    // steep terrain and the map rim are carved OUT of the NavMesh. A right-click there hands
+    // SetDestination an off-mesh point that silently fails — the unit just never moves. (Gather
+    // never hit this because resource approach points are always inside the walkable area.)
+    const float NavSampleRadius = 6f;
+
     void Navigate(Vector3 pos)
     {
         if (!_agent.isOnNavMesh) return;
+        // Snap the destination onto THIS agent's NavMesh (areaMask keeps land units off the
+        // naval mesh) so off-mesh clicks resolve to the nearest reachable point.
+        if (NavMesh.SamplePosition(pos, out var navHit, NavSampleRadius, _agent.areaMask))
+            pos = navHit.position;
         _agent.isStopped = false;
         _agent.SetDestination(pos);
     }
