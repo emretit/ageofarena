@@ -20,6 +20,8 @@ public enum UnitType
     EliteEagle,      // Eagle → Elite Eagle (Aztecs, Imperial)
     // ── M10/VREGI: Regicide mode ──
     King,            // Regicide — each team's royal unit; losing it = eliminated
+    // ── M14/FISH: naval economy ──
+    FishingShip,     // gathers food from Fish ponds / Fish Traps, deposits at the Dock
 }
 
 /// <summary>Damage class for the armor counter matrix. Siege bypasses both armor types.</summary>
@@ -44,7 +46,7 @@ public enum ArmorClass
     Camel    = 1 << 6,
 }
 
-public enum BuildingType { TownCenter, House, Barracks, ArcheryRange, Stable, Farm, LumberCamp, MiningCamp, Mill, Market, Castle, Wall, Gate, Wonder, WatchTower, Blacksmith, Monastery, University, Dock, SiegeWorkshop, Outpost, BombardTower }
+public enum BuildingType { TownCenter, House, Barracks, ArcheryRange, Stable, Farm, LumberCamp, MiningCamp, Mill, Market, Castle, Wall, Gate, Wonder, WatchTower, Blacksmith, Monastery, University, Dock, SiegeWorkshop, Outpost, BombardTower, FishTrap }
 
 /// <summary>Tech progression tier. Higher ages gate buildings/units/techs.</summary>
 public enum Age { Dark, Feudal, Castle, Imperial }
@@ -68,12 +70,8 @@ public enum DiplomacyState { Enemy, Neutral, Allied }
 /// </summary>
 public enum AIPersonality { Balanced, Rusher, Boomer }
 
-/// <summary>Global AI difficulty. Scales every enemy's production speed, army cap and
-/// economy on top of its <see cref="AIPersonality"/> so one slider tunes the challenge.</summary>
-/// <summary>
-/// AI challenge level. 6 tiers — monotonically harder: longer spawn intervals and
-/// smaller armies at the low end; shorter intervals and higher pop caps at the top.
-/// </summary>
+/// <summary>AI challenge level — 6 tiers, monotonically harder. Scales spawn interval,
+/// army cap, and eco-mult for AI teams.</summary>
 public enum Difficulty { Easy, Moderate, Normal, Hard, Insane, Extreme }
 
 /// <summary>

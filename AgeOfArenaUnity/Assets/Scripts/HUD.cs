@@ -226,6 +226,7 @@ public class HUD : MonoBehaviour
         BuildIdleIndicator(bar);
         BuildDifficultyIndicator(bar);
         BuildCivIndicator(bar);
+        BuildSpeedIndicator(bar);
         BuildVictoryBanner(parent);
     }
 
@@ -277,6 +278,50 @@ public class HUD : MonoBehaviour
         Difficulty.Insane   => "Acımasız",
         Difficulty.Extreme  => "Efsanevi",
         _                   => "",
+    };
+
+    // ── Game speed indicator ────────────────────────────────────────────────────
+
+    Text _speedText;
+    static readonly float[] SpeedLevels = { 0f, 0.5f, 1f, 2f, 3f };
+    int _speedIdx = 2; // default 1×
+
+    void BuildSpeedIndicator(RectTransform bar)
+    {
+        var rect = NewRect("Speed", bar);
+        rect.anchorMin = rect.anchorMax = new Vector2(1, 0.5f);
+        rect.pivot = new Vector2(1, 0.5f);
+        rect.sizeDelta = new Vector2(80, 32);
+        rect.anchoredPosition = new Vector2(-668, 0);
+        var img = rect.gameObject.AddComponent<Image>();
+        img.color = new Color(0.22f, 0.22f, 0.30f, 0.92f);
+        UiSkin.SkinPanel(img, UiSkin.PillNormal, Color.white);
+        var btn = rect.gameObject.AddComponent<Button>();
+        btn.targetGraphic = img;
+        btn.onClick.AddListener(CycleSpeed);
+        _speedText = AddText(rect, SpeedLabel(), TextAnchor.MiddleCenter);
+        _speedText.fontSize = 14;
+        _speedText.fontStyle = FontStyle.Bold;
+        AddOutline(_speedText, 0.6f);
+    }
+
+    void CycleSpeed()
+    {
+        if (_gameOverShown) return;
+        _speedIdx = (_speedIdx + 1) % SpeedLevels.Length;
+        Time.timeScale = SpeedLevels[_speedIdx];
+        if (_speedText != null) _speedText.text = SpeedLabel();
+        AudioManager.Play(AudioManager.SoundId.ButtonClick, 0.4f);
+    }
+
+    string SpeedLabel() => SpeedLevels[_speedIdx] switch
+    {
+        0f    => "II Dur",
+        0.5f  => "► ½×",
+        1f    => "► 1×",
+        2f    => "►► 2×",
+        3f    => "███ 3×",
+        _     => "► 1×",
     };
 
     void BuildCivIndicator(RectTransform bar)
@@ -688,6 +733,15 @@ public class HUD : MonoBehaviour
         {
             if (_pauseMenu != null && _pauseMenu.activeSelf) ClosePauseMenu();
             else OpenPauseMenu(gm);
+        }
+
+        // Sync speed label with Time.timeScale (CommandSystem [ ] / Space may change it externally).
+        if (_speedText != null)
+        {
+            float ts = Time.timeScale;
+            for (int i = 0; i < SpeedLevels.Length; i++)
+                if (Mathf.Abs(SpeedLevels[i] - ts) < 0.1f) { _speedIdx = i; break; }
+            _speedText.text = SpeedLabel();
         }
 
         // DIPL: hotkey toggles diplomacy panel.
