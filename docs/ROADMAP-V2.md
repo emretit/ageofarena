@@ -322,7 +322,7 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 - [ ] N5.nteam: `[4]` diziler/`<4` guard'lar konfigüre takım sayısı; teamCount=5+ skirmish çalışır (TC/relic/save/repair doğru).
 - [ ] N5.fow: Per-team FoW görüşü; ally/spectator görüşü; team-0-only kalkar.
 - [ ] N5.pop: Per-team `RecomputePop`; AI'ın pop-cap'i var; AI pop-dolu iken üretmez.
-- [ ] N6.splash: Splash falloff + friendly-fire + per-victim zırh; blast-level field; Scorpion target-only.
+- [x] N6.splash: Splash distance-falloff eklendi — `UnitEntity.SplashFalloffAt(t)` blast-level profili: Mangonel iç-yarı %100 / dış-yarı %50, DemoShip patlama her yerde %100. Projectile splash döngüsü mesafe oranına göre `falloff` uygular. Friendly-fire + per-victim zırh + BonusDamageVs zaten N0.4'te. (Scorpion birimi yok → "target-only" N/A.) Runtime: Mangonel 0.3→1.0/0.7→0.5, DemoShip 0.3→1.0/0.9→1.0 doğrulandı. 0/0.
 - [ ] N6.bonus: Bonus damage tüm eşleşen armor-class'ta STACK + per-class zırh; Halberdier-vs-Elephant toplama doğru.
 - [ ] N6.ballistics: Pre-Ballistics miss + accuracy; Ballistics sonrası lead/isabet; kiting Play'de çalışır.
 - [ ] N6.elev: ±%25 elevation modifier terrain elevation'dan okunur.

@@ -288,6 +288,12 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.DemoShip => 2.5f,   // explosive area attack
         _                 => 0f,
     };
+    /// <summary>N6: blast-damage falloff for a secondary victim at fractional distance
+    /// <paramref name="t"/>∈[0,1] from the impact point. DemoShip is a full-power explosion
+    /// everywhere in the radius; Mangonel-style siege deals full damage in the inner half of
+    /// the blast and 50% in the outer half (AoE2 "blast level" rings, simplified).</summary>
+    public float SplashFalloffAt(float t)
+        => type == UnitType.DemoShip ? 1f : (t <= 0.5f ? 1f : 0.5f);
     /// <summary>First melee charge hit by a Cavalry unit deals 2.5× damage.</summary>
     public float ChargeMultiplier => type == UnitType.Cavalry ? 2.5f : 1f;
     /// <summary>Damage class this unit deals.</summary>

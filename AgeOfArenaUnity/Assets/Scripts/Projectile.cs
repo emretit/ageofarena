@@ -92,10 +92,14 @@ public class Projectile : MonoBehaviour
                         if (o == null || !o.IsAlive || ReferenceEquals(o, _target)) continue;
                         Vector3 op = o.transform.position;
                         float dx = op.x - ip.x, dz = op.z - ip.z;
-                        if (dx * dx + dz * dz > r2) continue;
-                        float sd = _attacker != null
+                        float distSq = dx * dx + dz * dz;
+                        if (distSq > r2) continue;
+                        // N6: blast-damage falls off toward the edge (per attacker's blast profile).
+                        float frac = _splashRadius > 0f ? Mathf.Sqrt(distSq) / _splashRadius : 0f;
+                        float falloff = _attacker != null ? _attacker.SplashFalloffAt(frac) : 1f;
+                        float sd = (_attacker != null
                             ? _attacker.AttackDamage + _attacker.BonusDamageVs(o)
-                            : _damage;
+                            : _damage) * falloff;
                         o.TakeDamage(sd, _damageType);
                         DamagePopup.Show(op + Vector3.up * 1.5f, Mathf.RoundToInt(sd), true);
                     }
