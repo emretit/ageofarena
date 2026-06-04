@@ -925,6 +925,7 @@ public class WorldRoot : MonoBehaviour
         gm.vfx           = go.AddComponent<VisualEffectSystem>();
         gm.triggers       = go.AddComponent<TriggerSystem>();   // N11.trig
         gm.scenarioEditor = go.AddComponent<ScenarioEditor>(); // N12.edit
+        gm.campaignScreen = go.AddComponent<CampaignScreen>(); // N13.camp
         return gm;
     }
 
@@ -1021,6 +1022,8 @@ public class WorldRoot : MonoBehaviour
 
         // N13.aow: inject challenge triggers after all systems are ready.
         ArtOfWarSystem.Setup(gm);
+        // N13.camp: inject campaign mission triggers (overrides AoW if both set).
+        CampaignSystem.Setup(gm);
     }
 
     // SAVF: restore a full game snapshot after arena rebuild (NavMesh already fresh).

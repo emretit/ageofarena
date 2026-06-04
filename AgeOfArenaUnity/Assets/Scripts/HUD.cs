@@ -1412,6 +1412,8 @@ public class HUD : MonoBehaviour
         AddBtn(Loc.Get("pause.hotkeys"), () => OpenHotkeyPanel(), 10f);   // N9.hotkeys: remap UI
         // N12.edit: open scenario editor
         AddBtn("📝 Editör", () => { ClosePauseMenu(); gm.scenarioEditor?.Open(); }, -30f);
+        // N13.camp: open campaign screen
+        AddBtn("⚔ Kampanya", () => { ClosePauseMenu(); gm.campaignScreen?.Show(); }, -90f);
         AddBtn(Loc.Get("pause.resign"),  () => { ClosePauseMenu(); gm.match?.Resign(); }, -50f);
         AddBtn(Loc.Get("pause.restart"), () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -110f);
         // FOWD: fog toggle in pause menu
@@ -1662,6 +1664,9 @@ public class HUD : MonoBehaviour
     {
         if (_gameOverShown || _canvasRoot == null) return;
         _gameOverShown = true;
+
+        // N13.camp: mark campaign mission complete on win.
+        if (playerWon) CampaignSystem.OnCampaignWin();
 
         var gm = GameManager.Instance;
 

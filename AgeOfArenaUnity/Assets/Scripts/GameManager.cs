@@ -58,8 +58,9 @@ public class GameManager : MonoBehaviour
     public RelicSystem relicSystem;
     public TradingSystem trading;
     public TutorialSystem tutorial;
-    public TriggerSystem   triggers;      // N11.trig
+    public TriggerSystem   triggers;       // N11.trig
     public ScenarioEditor  scenarioEditor; // N12.edit
+    public CampaignScreen  campaignScreen; // N13.camp
 
     /// <summary>N1: per-frame spatial index of all units for O(n) proximity queries
     /// (combat aggro / heal / convert / projectile splash). Rebuilt at the top of Update.</summary>
