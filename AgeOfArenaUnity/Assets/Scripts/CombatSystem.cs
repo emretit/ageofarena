@@ -130,7 +130,7 @@ public class CombatSystem : MonoBehaviour
 
                 if (u.IsRanged)
                 {
-                    Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, dmg, u.DamageKind, u.SplashRadius);
+                    Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, dmg, u.DamageKind, u.SplashRadius, u);
                     AudioManager.Play(AudioManager.SoundId.Arrow, 0.6f);
                 }
                 else
@@ -138,14 +138,10 @@ public class CombatSystem : MonoBehaviour
                     // Cavalry charge: first swing after 4s of non-combat deals 2.5× damage.
                     bool isCharge = u.ChargeReady;
                     if (isCharge) { dmg *= u.ChargeMultiplier; u.chargeTimer = 0f; }
-                    // Flanking bonus: +25% damage when attacking from behind the target.
-                    var tgtComp = target as Component;
-                    if (tgtComp != null)
-                    {
-                        Vector3 toAttacker = (u.transform.position - tgtComp.transform.position).normalized;
-                        toAttacker.y = 0;
-                        if (Vector3.Dot(tgtComp.transform.forward, toAttacker) > 0.5f) dmg *= 1.25f;
-                    }
+                    // N0.5: the old CBX +25% positional "flank" bonus was removed — AoE2 has no
+                    // facing-based damage, and it stacked multiplicatively with the charge bonus,
+                    // distorting counter math. (A morale/flank system could return later as an
+                    // explicit, documented opt-in, not a silent always-on melee multiplier.)
                     bool wasAlive = target.IsAlive;
                     target.TakeDamage(dmg, u.DamageKind);
                     if (wasAlive && !target.IsAlive) u.AddKill(); // veterancy

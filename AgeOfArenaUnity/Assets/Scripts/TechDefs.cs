@@ -166,6 +166,7 @@ public static class TechDefs
             if (tech != null && tech.Has(d.type)) continue;
             if (d.hasRequires && (tech == null || !tech.Has(d.requires))) continue; // prerequisite tech
             if (d.requiredCiv != Civilization.None && d.requiredCiv != civ) continue; // M9: civ-gated tech
+            if (CivilizationDefs.IsTechDenied(civ, d.type)) continue; // N0.7: tech-tree subtraction
             if (!IsAvailable(d, age)) continue;
             list.Add(d);
         }

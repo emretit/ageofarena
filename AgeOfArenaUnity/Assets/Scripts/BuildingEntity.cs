@@ -91,7 +91,10 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         {
             DamageType.Pierce => pierceArmor + (tech?.BuildingPierceArmor ?? 0f),
             DamageType.Melee  => meleeArmor + (tech?.BuildingMeleeArmor ?? 0f),
-            _                 => 0f,  // Siege bypasses armor
+            // N0.1: siege reduced by (building) melee armor instead of bypassing it; siege stays
+            // strong vs structures via anti-structure BonusDamageVs (Trebuchet/Ram), not bypass.
+            DamageType.Siege  => meleeArmor + (tech?.BuildingMeleeArmor ?? 0f),
+            _                 => 0f,
         };
         hp -= Mathf.Max(1f, amount - armor);
         // VFX: tint building darker as it takes damage (red shift at low HP).
@@ -287,16 +290,20 @@ public class BuildingEntity : MonoBehaviour, IDamageable
             _                         => Empty,
         };
 
-        // Filter out units the team hasn't unlocked yet (Archer→Feudal, Cavalry→Castle).
+        // Filter out units the team hasn't unlocked by age (Archer→Feudal, Cavalry→Castle)
+        // OR that this civ is denied (N0.7 tech-tree subtraction, e.g. Aztecs have no cavalry).
         Age age = TeamAge;
+        Civilization civ = TeamCiv;
+        bool Ok(UnitTrainable t) =>
+            age >= MinAgeFor(t.unitType) && !CivilizationDefs.IsUnitDenied(civ, t.unitType);
         int n = 0;
-        for (int i = 0; i < all.Length; i++) if (age >= MinAgeFor(all[i].unitType)) n++;
+        for (int i = 0; i < all.Length; i++) if (Ok(all[i])) n++;
         if (n == all.Length) return all;
         if (n == 0) return Empty;
         var filtered = new UnitTrainable[n];
         int j = 0;
         for (int i = 0; i < all.Length; i++)
-            if (age >= MinAgeFor(all[i].unitType)) filtered[j++] = all[i];
+            if (Ok(all[i])) filtered[j++] = all[i];
         return filtered;
     }
 

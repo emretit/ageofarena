@@ -22,13 +22,22 @@ public class TrainingQueue : MonoBehaviour
 
     GameManager GM => GameManager.Instance;
 
+    // N0.9: the resource/pop ledger of the building's OWNER, not always team 0. Previously the
+    // queue spent/refunded team 0's resources regardless of who owned the building — a latent
+    // multi-team bug (masked only because the AI bypasses the queue). N5 adds per-team pop cap.
+    ResourceManager Res(BuildingEntity b)
+        => GM.teamRes != null && b != null && b.teamId >= 0 && b.teamId < GM.teamRes.Length
+            ? GM.teamRes[b.teamId] : GM.resources;
+
     /// <summary>
     /// Attempt to enqueue a unit. Returns false if resources are insufficient or
     /// the queue is full.
     /// </summary>
     public bool Enqueue(BuildingEntity b, UnitTrainable def)
     {
-        var rm = GM.resources;
+        var rm = Res(b);                                   // N0.9: owner's ledger
+        // N0.7: this civ may be denied the unit (tech-tree subtraction, e.g. Aztecs no cavalry).
+        if (CivilizationDefs.IsUnitDenied(GM.teamCivs[b.teamId], def.unitType)) return false;
         if (rm.pop >= rm.popCap) return false;             // population cap reached
         if (!rm.CanAfford(def.food, def.wood, def.gold, 0)) return false;
 
@@ -84,7 +93,7 @@ public class TrainingQueue : MonoBehaviour
     {
         if (!_queues.TryGetValue(b, out var q) || index < 0 || index >= q.Count) return;
         var it = q[index];
-        var rm = GM.resources;
+        var rm = Res(b);                                   // N0.9: refund to the owner
         rm.Gain(ResourceKind.Food, it.food);
         rm.Gain(ResourceKind.Wood, it.wood);
         rm.Gain(ResourceKind.Gold, it.gold);

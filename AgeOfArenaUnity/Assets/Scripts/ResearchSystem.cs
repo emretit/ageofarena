@@ -30,10 +30,13 @@ public class ResearchSystem : MonoBehaviour
         if (b == null || _active.ContainsKey(b)) return false;
         var tech = GM.tech;                 // player = team 0
         if (tech.Has(def.type)) return false;
+        // N0.7: this civ may be denied the tech (tech-tree subtraction).
+        if (CivilizationDefs.IsTechDenied(GM.teamCivs[b.teamId], def.type)) return false;
         var rm = GM.resources;
         if (!rm.CanAfford(def.food, def.wood, def.gold, def.stone)) return false;
-        // AGEB: age advance requires ≥2 non-TC buildings first (AoE2 Dark→Feudal rule).
-        if (def.type == TechType.FeudalAge && !MeetsBuildingPrereq(b.teamId, 2)) return false;
+        // AGEB/N0.3: every age advance (Feudal/Castle/Imperial) requires ≥2 substantial
+        // buildings first — not just Dark→Feudal, and Houses/Farms/Walls don't count.
+        if (IsAgeTech(def.type) && !MeetsBuildingPrereq(b.teamId, 2)) return false;
 
         rm.Deduct(def.food, def.wood, def.gold, def.stone);
         _active[b] = new ResearchItem { type = def.type, totalTime = def.researchTime };
@@ -125,7 +128,21 @@ public class ResearchSystem : MonoBehaviour
         }
     }
 
-    // AGEB: count non-TC buildings owned by the team; return true if ≥ required.
+    // N0.3: the three age-advance techs share the building prerequisite.
+    static bool IsAgeTech(TechType t) =>
+        t == TechType.FeudalAge || t == TechType.CastleAge || t == TechType.ImperialAge;
+
+    // N0.3: trivial structures (TC, House, Farm, Wall/Gate, Outpost, FishTrap) don't satisfy the
+    // age requirement — only real economic/military buildings count (AoE2 "2 buildings of your age").
+    static bool CountsTowardAge(BuildingType t) => t switch
+    {
+        BuildingType.TownCenter or BuildingType.House or BuildingType.Farm
+            or BuildingType.Wall or BuildingType.Gate or BuildingType.Outpost
+            or BuildingType.FishTrap => false,
+        _ => true,
+    };
+
+    // AGEB/N0.3: count substantial completed buildings owned by the team; true if ≥ required.
     bool MeetsBuildingPrereq(int teamId, int required)
     {
         var gm = GM;
@@ -135,7 +152,7 @@ public class ResearchSystem : MonoBehaviour
         {
             var b = gm.buildings[i];
             if (b == null || b.teamId != teamId || b.underConstruction) continue;
-            if (b.type == BuildingType.TownCenter) continue; // TC doesn't count toward prereq
+            if (!CountsTowardAge(b.type)) continue;
             if (++count >= required) return true;
         }
         return false;
@@ -147,6 +164,7 @@ public class ResearchSystem : MonoBehaviour
     {
         var tech = GM?.tech;
         if (tech == null) return false;
-        return tech.age != Age.Dark || MeetsBuildingPrereq(0, 2);
+        // N0.3: prereq now applies at every age transition, not only Dark→Feudal.
+        return MeetsBuildingPrereq(0, 2);
     }
 }

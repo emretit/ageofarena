@@ -107,15 +107,15 @@ public class MatchSystem : MonoBehaviour
         VictoryStatus = "";
         for (int t = 0; t < 4; t++)
         {
-            // Wonder countdown.
+            // Wonder countdown. N0.2: a win by the player or an ally is a shared win, not a loss.
             if (hasWonder[t]) _wonderTimer[t] += CheckInterval; else _wonderTimer[t] = 0f;
-            if (_wonderTimer[t] >= WonderHoldTime) { End(t == 0, "Anıt zaferi", gm); return; }
+            if (_wonderTimer[t] >= WonderHoldTime) { End(gm.IsAllied(0, t), "Anıt zaferi", gm); return; }
 
             // Relic countdown — must hold every relic on the map.
             bool holdsAllRelics = totalRelics > 0 && gm.relicSystem != null
                                   && gm.relicSystem.CountControlled(t) == totalRelics;
             if (holdsAllRelics) _relicTimer[t] += CheckInterval; else _relicTimer[t] = 0f;
-            if (_relicTimer[t] >= RelicHoldTime) { End(t == 0, "Kalıntı zaferi", gm); return; }
+            if (_relicTimer[t] >= RelicHoldTime) { End(gm.IsAllied(0, t), "Kalıntı zaferi", gm); return; }
 
             // Surface the most advanced countdown for this team to the HUD.
             float w = _wonderTimer[t], r = _relicTimer[t];
@@ -134,7 +134,10 @@ public class MatchSystem : MonoBehaviour
                     kingAlive[u.teamId] = true;
             }
             if (!kingAlive[0]) { End(false, "Regicide (Kral öldü)", gm); return; }
-            bool anyEnemyKing = kingAlive[1] || kingAlive[2] || kingAlive[3];
+            // N0.2: only an enemy king alive blocks the player's regicide win; allied kings don't.
+            bool anyEnemyKing = false;
+            for (int t = 1; t < 4; t++)
+                if (kingAlive[t] && gm.IsEnemy(0, t)) { anyEnemyKing = true; break; }
             if (!anyEnemyKing) { End(true, "Regicide zaferi", gm); return; }
         }
 
@@ -160,7 +163,8 @@ public class MatchSystem : MonoBehaviour
             int s = Score(t, gm);
             if (s > bestScore) { bestScore = s; best = t; }
         }
-        End(best == 0, "Süre bitti", gm);
+        // N0.2: highest-scoring team wins; shared with the player's alliance.
+        End(gm.IsAllied(0, best), "Süre bitti", gm);
     }
 
     // Score = units × 10 + buildings × 20 + gold

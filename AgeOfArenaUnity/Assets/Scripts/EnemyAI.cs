@@ -82,7 +82,6 @@ public class EnemyAI : MonoBehaviour
     float _assessTimer = 2f;
     float _gatherTimer = 3f;
     float _techTimer;
-    int   _trainCursor = -1;   // rotates Militia → Archer → Cavalry as ages unlock
 
     // ── Army state machine ──────────────────────────────────────────────────
     Stance _stance = Stance.Gathering;

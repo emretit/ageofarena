@@ -94,6 +94,37 @@ public static class CivilizationDefs
         return Table[0];
     }
 
+    // ── N0.7: tech-tree subtraction (AoE2's defining civ mechanic) ───────────────────────────
+    // Units/techs a civ may NOT train/research. Interim hard-coded sets here; N4 folds these into
+    // the data-driven registry. The AI is unaffected (it spawns units & applies techs directly,
+    // bypassing the command card / queue), so denials constrain only the player's options.
+    static readonly System.Collections.Generic.Dictionary<Civilization, UnitType[]> DeniedUnitsByCiv = new()
+    {
+        { Civilization.Aztecs,   new[] { UnitType.Cavalry, UnitType.Scout, UnitType.Camel, UnitType.CavalryArcher } }, // no cavalry civ
+        { Civilization.Franks,   new[] { UnitType.Camel } },
+        { Civilization.Britons,  new[] { UnitType.Camel } },
+        { Civilization.Japanese, new[] { UnitType.Camel } },
+        { Civilization.Vikings,  new[] { UnitType.Camel } },
+    };
+
+    static readonly System.Collections.Generic.Dictionary<Civilization, TechType[]> DeniedTechsByCiv = new()
+    {
+        { Civilization.Franks,   new[] { TechType.Halberdier, TechType.Arbalest } },
+        { Civilization.Britons,  new[] { TechType.Paladin } },
+        { Civilization.Mongols,  new[] { TechType.Halberdier, TechType.Paladin } },
+        { Civilization.Japanese, new[] { TechType.Paladin } },
+        { Civilization.Aztecs,   new[] { TechType.Cavalier, TechType.Paladin, TechType.Bloodlines, TechType.Husbandry } },
+        { Civilization.Vikings,  new[] { TechType.Paladin } },
+    };
+
+    /// <summary>N0.7: true if <paramref name="civ"/> is forbidden from training this unit.</summary>
+    public static bool IsUnitDenied(Civilization civ, UnitType u)
+        => DeniedUnitsByCiv.TryGetValue(civ, out var arr) && System.Array.IndexOf(arr, u) >= 0;
+
+    /// <summary>N0.7: true if <paramref name="civ"/> is forbidden from researching this tech.</summary>
+    public static bool IsTechDenied(Civilization civ, TechType t)
+        => DeniedTechsByCiv.TryGetValue(civ, out var arr) && System.Array.IndexOf(arr, t) >= 0;
+
     /// <summary>All civilizations a player may pick (excludes <see cref="Civilization.None"/>).</summary>
     public static System.Collections.Generic.IEnumerable<CivBonus> Playable()
     {

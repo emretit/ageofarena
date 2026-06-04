@@ -522,7 +522,11 @@ public class UnitEntity : MonoBehaviour, IDamageable
         {
             DamageType.Pierce => pierceArmor + (tech?.ArmorBonus(type, DamageType.Pierce) ?? 0f),
             DamageType.Melee  => meleeArmor + (tech?.ArmorBonus(type, DamageType.Melee) ?? 0f),
-            _                 => 0f,  // Siege bypasses armor
+            // N0.1: siege deals melee-class damage reduced by melee armor (was: bypass all
+            // armor). Armored units (Paladin/Teutonic Knight) no longer take full siege damage;
+            // siege stays strong vs buildings via anti-structure BonusDamageVs, not armor bypass.
+            DamageType.Siege  => meleeArmor + (tech?.ArmorBonus(type, DamageType.Melee) ?? 0f),
+            _                 => 0f,
         };
         hp -= Mathf.Max(1f, amount - armor);
         if (gameObject.activeInHierarchy) StartCoroutine(HitFlash());

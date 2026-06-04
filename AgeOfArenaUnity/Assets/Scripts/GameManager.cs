@@ -78,6 +78,11 @@ public class GameManager : MonoBehaviour
     public bool IsEnemy(int a, int b) =>
         a != b && a >= 0 && a < 4 && b >= 0 && b < 4 && diplomacy[a, b] == DiplomacyState.Enemy;
 
+    /// <summary>N0.2: true if team b is team a itself or an ally — used for shared victory
+    /// (a wonder/relic/score win by an ally is a win for the whole alliance, not a loss).</summary>
+    public bool IsAllied(int a, int b) =>
+        a >= 0 && a < 4 && b >= 0 && b < 4 && (a == b || diplomacy[a, b] == DiplomacyState.Allied);
+
     /// <summary>AICH: per-team economy speed multiplier set by EnemyAI per difficulty.
     /// Applied to gather deposits and research time. Player (team 0) stays at 1×.</summary>
     public float[] teamEcoMult = { 1f, 1f, 1f, 1f };
@@ -94,14 +99,20 @@ public class GameManager : MonoBehaviour
     /// <summary>Civ bonus for any team.</summary>
     public CivBonus TeamCivBonus(int teamId) => CivilizationDefs.Get(teamCivs[teamId]);
 
-    /// <summary>CIVM: aggregated team (shared) bonus for a team. Once alliances land (M11)
-    /// this will sum every allied team's <see cref="TeamBonus"/>; for now each team stands
-    /// alone, so it returns that team's own civ team bonus. Consumed by gameplay systems
-    /// (e.g. GatherSystem food deposit).</summary>
+    /// <summary>CIVM/N0.6: aggregated team (shared) bonus for a team — the team's own civ
+    /// team bonus PLUS every allied team's team bonus (AoE2 shared team bonuses). Was a stub
+    /// that returned only the team's own bonus. Consumed by gameplay systems (e.g. GatherSystem
+    /// food deposit). When <see cref="TeamBonus"/> gains fields, sum each one here.</summary>
     public TeamBonus TeamSharedBonus(int teamId)
     {
         if (teamId < 0 || teamId >= teamCivs.Length) return default;
-        return CivilizationDefs.Get(teamCivs[teamId]).teamBonus;
+        var sum = new TeamBonus();
+        for (int t = 0; t < teamCivs.Length; t++)
+        {
+            if (!IsAllied(teamId, t)) continue;   // IsAllied is true for self and allies
+            sum.gatherFoodBonus += CivilizationDefs.Get(teamCivs[t]).teamBonus.gatherFoodBonus;
+        }
+        return sum;
     }
 
     void Awake()
