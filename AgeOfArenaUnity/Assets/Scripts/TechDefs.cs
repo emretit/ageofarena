@@ -133,6 +133,12 @@ public static class TechDefs
 
         // ── M9 (EAGLE): Aztec-only Eagle upgrade ──────────────────────────────
         new(TechType.EliteEagle,    BuildingType.Barracks,     Age.Imperial,200,   0, 100, 0, 35f, "Seçkin Kartal", Civilization.Aztecs),
+
+        // ── M9 (CIVT): civ-özel unique tech'ler (Castle'da araştırılır) ───────
+        new(TechType.Chivalry,      BuildingType.Castle,       Age.Castle,    0,   0, 400, 0, 40f, "Şövalyelik",    Civilization.Franks),
+        new(TechType.BeardedAxe,    BuildingType.Castle,       Age.Imperial,  0,   0, 400, 0, 40f, "Sakallı Balta", Civilization.Franks),
+        new(TechType.Ironclad,      BuildingType.Castle,       Age.Castle,    0,   0, 400, 0, 40f, "Zırhlı",        Civilization.Teutons),
+        new(TechType.Crenellations, BuildingType.Castle,       Age.Imperial,  0,   0, 400, 0, 40f, "Mazgallar",     Civilization.Teutons),
     };
 
     public static TechDef Get(TechType t)

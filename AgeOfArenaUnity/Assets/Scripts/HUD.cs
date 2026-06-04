@@ -1437,6 +1437,11 @@ public class HUD : MonoBehaviour
         TechType.Banking       => "Ticaret arabası geliri +.",
         TechType.Guilds        => "Pazar alış-satış farkı daralır.",
         TechType.EliteEagle    => "Kartal Savaşçı → Seçkin: can ve saldırı +.",
+        // ── M9 civ-özel unique tech ──
+        TechType.Chivalry      => "Frank: süvari canı +20.",
+        TechType.BeardedAxe    => "Frank: piyade saldırısı +2.",
+        TechType.Ironclad      => "Töton: kuşatma birimi zırhı +4.",
+        TechType.Crenellations => "Töton: kule menzili +.",
         _                      => "",
     };
 

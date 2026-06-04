@@ -294,13 +294,17 @@ public class CombatSystem : MonoBehaviour
                 ? new Color[] { Prims.Hex(0x1e5fcc), Prims.Hex(0xd42020), Prims.Hex(0x1e9e40), Prims.Hex(0xf0a010) }[newTeam]
                 : Color.white;
             tgt.teamId = newTeam;
+            // Tint primitive units (MeshRenderer)
             foreach (var r in tgt.GetComponentsInChildren<MeshRenderer>())
             {
                 if (r.gameObject.name == "BlobShadow" || r.gameObject.name.StartsWith("SelectionRing")) continue;
-                // tint the primary (first) material with the new team colour
-                var mat = r.material;
-                mat.color = Color.Lerp(mat.color, newColor, 0.5f);
+                r.material.color = Color.Lerp(r.material.color, newColor, 0.5f);
             }
+            // Tint KayKit models (SkinnedMeshRenderer) via MaterialPropertyBlock
+            var block = new MaterialPropertyBlock();
+            block.SetColor("_Color", Color.Lerp(Color.white, newColor, 0.28f));
+            foreach (var r in tgt.GetComponentsInChildren<SkinnedMeshRenderer>())
+                r.SetPropertyBlock(block);
             monk.Stop();
         }
     }

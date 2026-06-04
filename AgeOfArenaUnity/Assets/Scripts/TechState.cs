@@ -37,7 +37,8 @@ public class TechState
     float MilitiaLineAtk => (Has(TechType.ManAtArms) ? 1f : 0f)
                           + (Has(TechType.Longswordsman) ? 2f : 0f)
                           + (Has(TechType.TwoHandedSwordsman) ? 2f : 0f)
-                          + (Has(TechType.Champion) ? 2f : 0f);
+                          + (Has(TechType.Champion) ? 2f : 0f)
+                          + (Has(TechType.BeardedAxe) ? 2f : 0f);   // CIVT Franks (civ-gated)
     float CavalryLineAtk => (Has(TechType.Cavalier) ? 2f : 0f)
                           + (Has(TechType.Paladin) ? 3f : 0f);
     float ArcherLineAtk  => (Has(TechType.Crossbowman) ? 2f : 0f)
@@ -97,7 +98,8 @@ public class TechState
         UnitType.Cavalry => (Has(TechType.ScaleMail) ? 20f : 0f)
                           + (Has(TechType.Bloodlines) ? 20f : 0f)
                           + (Has(TechType.Cavalier) ? 20f : 0f)
-                          + (Has(TechType.Paladin) ? 25f : 0f),
+                          + (Has(TechType.Paladin) ? 25f : 0f)
+                          + (Has(TechType.Chivalry) ? 20f : 0f),   // CIVT Franks (civ-gated)
         UnitType.Archer  => (Has(TechType.Crossbowman) ? 10f : 0f)
                           + (Has(TechType.Arbalest) ? 15f : 0f),
         UnitType.Spearman => (Has(TechType.ScaleMail) ? 20f : 0f)
@@ -144,6 +146,8 @@ public class TechState
         UnitType.Archer or UnitType.Longbowman or UnitType.Skirmisher or UnitType.CavalryArcher =>
             (Has(TechType.PaddedArcherArmor) ? 1f : 0f) + (Has(TechType.LeatherArcherArmor) ? 1f : 0f) + (Has(TechType.RingArcherArmor) ? 1f : 0f),
         UnitType.Villager => Has(TechType.Loom) ? 1f : 0f,
+        UnitType.Trebuchet or UnitType.Mangonel or UnitType.Ram =>
+            Has(TechType.Ironclad) ? 4f : 0f,   // CIVT Teutons: siege armor (civ-gated)
         _ => 0f,
     };
 
@@ -213,7 +217,8 @@ public class TechState
     /// <summary>Watch Tower line upgrades (Guard Tower / Keep) + Chemistry: tower attack + range bonus.</summary>
     public float TowerAttackBonus => (Has(TechType.GuardTower) ? 3f : 0f) + (Has(TechType.Keep) ? 4f : 0f)
                                    + ChemistryBonus;
-    public float TowerRangeBonus  => Has(TechType.Keep) ? 1.5f : 0f;
+    public float TowerRangeBonus  => (Has(TechType.Keep) ? 1.5f : 0f)
+                                   + (Has(TechType.Crenellations) ? 1f : 0f);  // CIVT Teutons
 
     /// <summary>Farm food capacity bonus from Horse Collar / Heavy Plow / Crop Rotation (Mill techs).</summary>
     public int FarmCapacityBonus => (Has(TechType.HorseCollar) ? 75 : 0) + (Has(TechType.HeavyPlow) ? 75 : 0)

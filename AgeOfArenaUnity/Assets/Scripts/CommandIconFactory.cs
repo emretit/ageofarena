@@ -370,9 +370,16 @@ public static class CommandIconFactory
             case TechType.GuardTower:
             case TechType.Keep:
             case TechType.Architecture:
+            case TechType.Crenellations:
+            case TechType.Ironclad:
                 Add(icon, Square, Stone, 0, -2, 16, 28);           // tower
                 Add(icon, Square, Stone, -7, 13, 5, 6);            // battlement
                 Add(icon, Square, Stone, 7, 13, 5, 6);
+                break;
+            case TechType.Chivalry:
+            case TechType.BeardedAxe:
+                Add(icon, Triangle, Gold, 0, 6, 18, 16);           // crest
+                Add(icon, Square,   Steel, 0, -6, 6, 20);          // sword/lance
                 break;
             case TechType.Wheelbarrow:
                 Add(icon, Ring,   Dark, 0, -2, 20, 20);            // wheel

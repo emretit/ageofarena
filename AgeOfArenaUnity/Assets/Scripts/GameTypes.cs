@@ -140,6 +140,11 @@ public enum TechType
     Guilds,         // narrows market sell/buy spread (Imperial)
     // ── M9 (EAGLE): Eagle Warrior upgrade ──
     EliteEagle,     // Eagle → Elite Eagle: +hp/+atk (Aztecs, Imperial)
+    // ── M9 (CIVT): civilization unique techs (researched at the Castle) ──
+    Chivalry,       // Franks (Castle): cavalry +20 hp
+    BeardedAxe,     // Franks (Imperial): infantry +2 atk
+    Ironclad,       // Teutons (Castle): siege +4 armor
+    Crenellations,  // Teutons (Imperial): +tower range
 }
 
 /// <summary>Stance controlling auto-aggro and pursuit behavior.</summary>

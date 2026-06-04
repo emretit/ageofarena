@@ -27,6 +27,10 @@ public static class GameBootstrap
     /// </summary>
     static int _nextSeed; // 0 = pick fresh in WorldRoot.Build
 
+    /// <summary>CIVS: player's chosen civilization (team 0). Persists across restarts so the
+    /// civ-select screen only needs to be answered once. None until the player picks.</summary>
+    public static Civilization PlayerCiv = Civilization.None;
+
     /// <summary>Restart with a fresh random seed so the next map looks different.</summary>
     public static void Restart(int seed = 0)
     {
