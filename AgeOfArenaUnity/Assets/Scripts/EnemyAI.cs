@@ -278,8 +278,7 @@ public class EnemyAI : MonoBehaviour
         UnitType.Cavalry or UnitType.Camel or
         UnitType.Cataphract or UnitType.Mameluke or UnitType.WarElephant => BuildingType.Stable,
 
-        UnitType.Trebuchet or UnitType.Mangonel or UnitType.Scorpion or
-        UnitType.Ram => BuildingType.SiegeWorkshop,
+        UnitType.Trebuchet or UnitType.Mangonel or UnitType.Ram => BuildingType.SiegeWorkshop,
 
         UnitType.Medic => BuildingType.Castle,
 
@@ -299,7 +298,7 @@ public class EnemyAI : MonoBehaviour
         if (pick == null) return;
 
         // N14.aieco: find an idle team building of the right type and use TrainingQueue.
-        var tq = gm.training;
+        var tq = gm.trainingQueue;
         if (tq == null) return;
 
         BuildingType needed = BuildingFor(pick.Value);

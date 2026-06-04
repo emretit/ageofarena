@@ -291,7 +291,7 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 
 ### Wave 1 — Foundation
 - [x] N1.grid: `SpatialGrid.cs` (uniform XZ hash, cellSize 8); GameManager her frame rebuild; CombatSystem `FindNearestEnemy`/`StepHeal` + `Projectile` splash grid-komşuluğundan. Runtime: grid==brute (5==5) doğru; stres 326 birim → grid 2.212 vs brute 106.276 aday-kontrol (~48× az iş).
-- [ ] N1.pool: _(ikincil GC — revisit)_ Mermi/ok/popup `UnityEngine.Pool`'dan; Instantiate/Destroy yok; per-shot alloc ~0.
+- [x] N1.pool: Mermi/ok/popup `UnityEngine.Pool`'dan; Instantiate/Destroy yok; per-shot alloc ~0. `Projectile`: statik `ObjectPool<Projectile>` (capacity 64, max 256); `CreatePooled` pre-built mesh child (resize on Get); `Spawn` → Pool.Get + localScale ayarı; `ReturnToPool` → Pool.Release. `DamagePopup`: statik `ObjectPool<DamagePopup>` (capacity 32, max 128); `Show` → Pool.Get + text/color reset; timeout → Pool.Release. Runtime: Get CountActive=1, Release CountInactive=1 (Projectile+DamagePopup) doğrulandı. 0/0.
 - [ ] N1.mat: _(ikincil draw-call — revisit)_ Paylaşılan material cache + instancing + MaterialPropertyBlock (HitFlash/`.material` paylaşım dikkatli).
 - [x] N1.hpbar (kısmi): `UnitEntity.IsKayKitModel` cache'i — HP-bar IMGUI pass'ı artık per-frame `GetComponentInChildren<SkinnedMeshRenderer>()` çağırmıyor. _(Tam world-space billboard'a taşıma revisit.)_
 - [x] N1.budget: 300-birim stres-spawn ölçümü (RunCommand) — grid ~48× az proximity-iş; 16.6ms/alloc profiler dokümantasyonu N1.pool/mat sonrası.
