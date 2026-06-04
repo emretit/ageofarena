@@ -19,7 +19,7 @@ public class CombatSystem : MonoBehaviour
 
     GameManager GM => GameManager.Instance;
 
-    Texture2D _barBg, _barHp, _barEnemy;
+    // N1.hpbar: IMGUI bar textures removed — world-space WorldHpBar handles rendering.
 
     public void Tick(List<UnitEntity> units, float dt)
     {
@@ -329,67 +329,34 @@ public class CombatSystem : MonoBehaviour
         return center + dir.normalized * dist;
     }
 
-    // ── HP bars ──────────────────────────────────────────────────────────────
+    // ── HP bars (N1.hpbar: now world-space billboards via WorldHpBar, not IMGUI) ──────
 
-    void OnGUI()
+    void LateUpdate()
     {
         if (GM == null) return;
-        var cam = Camera.main;
-        if (cam == null) return;
-
-        EnsureBarTextures();
-
         var sel = GM.selection;
+
         var units = GM.units;
         for (int i = 0; i < units.Count; i++)
         {
             var u = units[i];
             if (u == null) continue;
-            // HPWB: show when damaged OR when selected; hide at full HP unless selected.
+            var bar = u.GetComponent<WorldHpBar>();
+            if (bar == null) continue;
             bool selected = sel != null && sel.Selected.Contains(u);
-            if (u.hp >= u.maxHp && !selected) continue;
-            // KayKit animated units are ~1.5u tall; primitives scaled to ~1.25u. N1: cached lookup.
-            float barY = u.IsKayKitModel ? 2.0f : 1.6f;
-            DrawBar(cam, u.transform.position + Vector3.up * barY,
-                u.hp / u.maxHp, u.teamId == 0, 26f);
+            bool show = u.hp < u.maxHp || selected;
+            bar.Refresh(u.hp / u.maxHp, show);
         }
 
         var buildings = GM.buildings;
         for (int i = 0; i < buildings.Count; i++)
         {
             var b = buildings[i];
-            if (b == null || b.maxHp <= 0f || b.hp >= b.maxHp) continue;
-            DrawBar(cam, b.transform.position + Vector3.up * 3.4f,
-                b.hp / b.maxHp, b.teamId == 0, 46f);
+            if (b == null) continue;
+            var bar = b.GetComponent<WorldHpBar>();
+            if (bar == null) continue;
+            bar.Refresh(b.hp / b.maxHp, b.hp < b.maxHp);
         }
-    }
-
-    void DrawBar(Camera cam, Vector3 worldPos, float frac, bool friendly, float width)
-    {
-        Vector3 sp = cam.WorldToScreenPoint(worldPos);
-        if (sp.z <= 0f) return;
-        float x = sp.x - width * 0.5f;
-        float y = Screen.height - sp.y;
-        const float h = 4f;
-        GUI.DrawTexture(new Rect(x - 1, y - 1, width + 2, h + 2), _barBg);
-        GUI.DrawTexture(new Rect(x, y, width * Mathf.Clamp01(frac), h),
-            friendly ? _barHp : _barEnemy);
-    }
-
-    void EnsureBarTextures()
-    {
-        if (_barBg != null) return;
-        _barBg    = Solid(new Color(0f, 0f, 0f, 0.7f));
-        _barHp    = Solid(new Color(0.3f, 0.85f, 0.35f, 1f));
-        _barEnemy = Solid(new Color(0.85f, 0.25f, 0.2f, 1f));
-    }
-
-    static Texture2D Solid(Color c)
-    {
-        var t = new Texture2D(1, 1);
-        t.SetPixel(0, 0, c);
-        t.Apply();
-        return t;
     }
 
     static float FlatDist(Vector3 a, Vector3 b) => Mathf.Sqrt(FlatSq(a, b));

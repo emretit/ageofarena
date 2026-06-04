@@ -148,7 +148,14 @@ public class GameManager : MonoBehaviour
 
     public void RegisterUnit(UnitEntity u)
     {
-        if (u != null && !units.Contains(u)) units.Add(u);
+        if (u != null && !units.Contains(u))
+        {
+            units.Add(u);
+            // N1.hpbar: attach world-space billboard HP bar (replaces IMGUI).
+            var bar = u.gameObject.AddComponent<WorldHpBar>();
+            float yOff = u.IsKayKitModel ? 2.0f : 1.6f;
+            bar.Init(yOff, u.teamId == 0);
+        }
     }
 
     public void RegisterNode(ResourceNode n)
@@ -158,7 +165,13 @@ public class GameManager : MonoBehaviour
 
     public void RegisterBuilding(BuildingEntity b)
     {
-        if (b != null && !buildings.Contains(b)) buildings.Add(b);
+        if (b != null && !buildings.Contains(b))
+        {
+            buildings.Add(b);
+            // N1.hpbar: world-space HP bar for buildings.
+            var bar = b.gameObject.AddComponent<WorldHpBar>();
+            bar.Init(3.4f, b.teamId == 0);
+        }
     }
 
     public void RegisterRelic(RelicEntity r)
