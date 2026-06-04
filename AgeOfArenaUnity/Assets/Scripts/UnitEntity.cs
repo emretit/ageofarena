@@ -97,7 +97,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public int  navalAgentTypeId = -1;
 
     /// <summary>This unit's per-team <see cref="TechState"/> (null-safe).</summary>
-    TechState TeamTech
+    public TechState TeamTech
     {
         get
         {

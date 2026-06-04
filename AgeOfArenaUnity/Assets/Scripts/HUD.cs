@@ -101,7 +101,7 @@ public class HUD : MonoBehaviour
         _font = ResolveFont();
         BuildCanvas();
         Refresh();
-        if (_ageText != null) _ageText.text = "Çağ: " + AgeName(Age.Dark);
+        if (_ageText != null) _ageText.text = Loc.Get("hud.age") + ": " + AgeName(Age.Dark);
         _res.OnChanged += Refresh;
         GameEvents.OnAgeAdvanced += OnAgeAdvanced;
     }
@@ -115,7 +115,7 @@ public class HUD : MonoBehaviour
     void OnAgeAdvanced(int team, Age newAge)
     {
         if (team != 0 || _ageText == null) return;
-        _ageText.text = "Çağ: " + AgeName(newAge);
+        _ageText.text = Loc.Get("hud.age") + ": " + AgeName(newAge);
         // AGFX: play age-up sound and show popup for player only.
         AudioManager.Play(AudioManager.SoundId.AgeUp, 1.0f);
         if (_canvasRoot != null)
@@ -212,12 +212,12 @@ public class HUD : MonoBehaviour
         UiSkin.SkinPanel(topBg, UiSkin.BarBg, Color.white);    // wooden frame when kit present
 
         float x = 24f;
-        _foodText  = AddEntry(bar, ref x, Prims.Hex(0xd64545), "Food");
-        _woodText  = AddEntry(bar, ref x, Prims.Hex(0x8a5a2b), "Wood");
-        _goldText  = AddEntry(bar, ref x, Prims.Hex(0xf2c14e), "Gold");
-        _stoneText = AddEntry(bar, ref x, Prims.Hex(0xb9b9b9), "Stone");
-        _popText   = AddEntry(bar, ref x, Prims.Hex(0x6fa8dc), "Pop");
-        _relicText = AddEntry(bar, ref x, Prims.Hex(0xe0b84b), "Relic");
+        _foodText  = AddEntry(bar, ref x, Prims.Hex(0xd64545), Loc.Get("res.food"));
+        _woodText  = AddEntry(bar, ref x, Prims.Hex(0x8a5a2b), Loc.Get("res.wood"));
+        _goldText  = AddEntry(bar, ref x, Prims.Hex(0xf2c14e), Loc.Get("res.gold"));
+        _stoneText = AddEntry(bar, ref x, Prims.Hex(0xb9b9b9), Loc.Get("res.stone"));
+        _popText   = AddEntry(bar, ref x, Prims.Hex(0x6fa8dc), Loc.Get("res.pop"));
+        _relicText = AddEntry(bar, ref x, Prims.Hex(0xe0b84b), Loc.Get("res.relic"));
         _relicText.color = Prims.Hex(0xf2d59b);
 
         var ageRect = NewRect("AgeText", bar);
@@ -274,17 +274,17 @@ public class HUD : MonoBehaviour
     {
         if (_difficultyText == null) return;
         var gm = GameManager.Instance;
-        _difficultyText.text = "Zorluk: " + (gm != null ? DiffName(gm.difficulty) : "");
+        _difficultyText.text = Loc.Get("hud.difficulty") + ": " + (gm != null ? DiffName(gm.difficulty) : "");
     }
 
     static string DiffName(Difficulty d) => d switch
     {
-        Difficulty.Easy     => "Kolay",
-        Difficulty.Moderate => "Orta",
-        Difficulty.Normal   => "Normal",
-        Difficulty.Hard     => "Zor",
-        Difficulty.Insane   => "Acımasız",
-        Difficulty.Extreme  => "Efsanevi",
+        Difficulty.Easy     => Loc.Get("diff.easy"),
+        Difficulty.Moderate => Loc.Get("diff.moderate"),
+        Difficulty.Normal   => Loc.Get("diff.normal"),
+        Difficulty.Hard     => Loc.Get("diff.hard"),
+        Difficulty.Insane   => Loc.Get("diff.insane"),
+        Difficulty.Extreme  => Loc.Get("diff.extreme"),
         _                   => "",
     };
 
@@ -366,7 +366,7 @@ public class HUD : MonoBehaviour
         if (_civText == null) return;
         var gm = GameManager.Instance;
         if (gm == null) return;
-        _civText.text = "Medeniyet: " + CivilizationDefs.Get(gm.playerCiv).display;
+        _civText.text = Loc.Get("hud.civ") + ": " + CivilizationDefs.Get(gm.playerCiv).display;
     }
 
     /// <summary>Top-centre banner that shows the active victory countdown
@@ -787,7 +787,7 @@ public class HUD : MonoBehaviour
             int idle = gm.selection.IdleVillagerCount();
             if (_idleButton.gameObject.activeSelf != (idle > 0))
                 _idleButton.gameObject.SetActive(idle > 0);
-            if (idle > 0 && _idleText != null) _idleText.text = "Boşta köylü: " + idle + " (.)";
+            if (idle > 0 && _idleText != null) _idleText.text = Loc.Get("hud.idleWorker") + ": " + idle + " (.)";
         }
 
         // VTIME: time limit countdown in top bar.
@@ -797,7 +797,7 @@ public class HUD : MonoBehaviour
             if (rem < float.MaxValue)
             {
                 int mins = (int)(rem / 60f), secs = (int)(rem % 60f);
-                string timeStr = $"Süre: {mins:00}:{secs:00}";
+                string timeStr = $"{Loc.Get("hud.time")}: {mins:00}:{secs:00}";
                 if (_victoryText.text != timeStr) _victoryText.text = timeStr;
                 if (!_victoryRect.gameObject.activeSelf) _victoryRect.gameObject.SetActive(true);
             }
@@ -862,7 +862,7 @@ public class HUD : MonoBehaviour
 
         // Live garrison count (updates as units enter/leave without reselecting).
         if (b != null && b.GarrisonCapacity > 0)
-            _infoSub.text = $"Garnizon {b.GarrisonCount}/{b.GarrisonCapacity}";
+            _infoSub.text = string.Format(Loc.Get("misc.garrisonFmt"), b.GarrisonCount, b.GarrisonCapacity);
 
         // Training / research progress (buildings only).
         float prog = -1f; bool isResearch = false; int qCount = 0;
@@ -898,13 +898,13 @@ public class HUD : MonoBehaviour
             {
                 string stanceName = sel2[0].stance switch
                 {
-                    AttackStance.Aggressive  => "Saldırgan",
-                    AttackStance.Defensive   => "Savunmacı",
-                    AttackStance.StandGround => "Yerinde Dur",
-                    AttackStance.NoAttack    => "Saldırma",
+                    AttackStance.Aggressive  => Loc.Get("stance.aggressive"),
+                    AttackStance.Defensive   => Loc.Get("stance.defensive"),
+                    AttackStance.StandGround => Loc.Get("stance.standground"),
+                    AttackStance.NoAttack    => Loc.Get("stance.noattack"),
                     _                        => "",
                 };
-                string stanceLine = stanceName.Length > 0 ? $"Duruş: {stanceName}  [Q]" : "";
+                string stanceLine = stanceName.Length > 0 ? string.Format(Loc.Get("misc.stanceFmt"), stanceName) : "";
                 if (_infoSub.text != stanceLine) _infoSub.text = stanceLine;
             }
         }
@@ -917,7 +917,7 @@ public class HUD : MonoBehaviour
         if (isResearch)
         {
             string techName = TechDefs.Get(gm.research.GetActiveTech(b)).display;
-            string line = "Araştırılıyor: " + techName;
+            string line = Loc.Get("hud.researching") + ": " + techName;
             if (_queueText.text != line) _queueText.text = line;
         }
         else if (qCount != _lastQueueCount)
@@ -925,7 +925,7 @@ public class HUD : MonoBehaviour
             // Training queue is shown as the clickable icon strip below; the label
             // only carries a short "Üretim" header so the strip reads clearly.
             _lastQueueCount = qCount;
-            _queueText.text = qCount > 0 ? "Üretim (iptal için tıkla):" : "";
+            _queueText.text = qCount > 0 ? Loc.Get("hud.producing") : "";
         }
     }
 
@@ -1367,12 +1367,12 @@ public class HUD : MonoBehaviour
             txt.fontSize = 22; txt.fontStyle = FontStyle.Bold;
         }
 
-        AddBtn("Devam", () => ClosePauseMenu(), 70f);
-        AddBtn("Tuşlar", () => OpenHotkeyPanel(), 10f);   // N9.hotkeys: remap UI
-        AddBtn("Teslim Ol", () => { ClosePauseMenu(); gm.match?.Resign(); }, -50f);
-        AddBtn("Yeniden Başlat", () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -110f);
+        AddBtn(Loc.Get("pause.resume"),  () => ClosePauseMenu(), 70f);
+        AddBtn(Loc.Get("pause.hotkeys"), () => OpenHotkeyPanel(), 10f);   // N9.hotkeys: remap UI
+        AddBtn(Loc.Get("pause.resign"),  () => { ClosePauseMenu(); gm.match?.Resign(); }, -50f);
+        AddBtn(Loc.Get("pause.restart"), () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -110f);
         // FOWD: fog toggle in pause menu
-        AddBtn(gm.fow != null && gm.fow.fogEnabled ? "Sis Kapat" : "Sis Aç",
+        AddBtn(gm.fow != null && gm.fow.fogEnabled ? Loc.Get("pause.fogOff") : Loc.Get("pause.fogOn"),
             () => { if (gm.fow != null) { gm.fow.fogEnabled = !gm.fow.fogEnabled; ClosePauseMenu(); } }, -170f);
     }
 
@@ -1464,8 +1464,8 @@ public class HUD : MonoBehaviour
             var t = AddText(br, lbl, TextAnchor.MiddleCenter);
             t.fontSize = 20; t.fontStyle = FontStyle.Bold;
         }
-        Btn("Varsayılana Dön", () => { Hotkeys.ResetAll(); _listeningAction = null; RefreshHotkeyLabels(); }, -115f);
-        Btn("Geri", () => { _listeningAction = null; _hotkeyPanel.SetActive(false); if (_pauseMenu != null) _pauseMenu.SetActive(true); }, 115f);
+        Btn(Loc.Get("hk.resetAll"), () => { Hotkeys.ResetAll(); _listeningAction = null; RefreshHotkeyLabels(); }, -115f);
+        Btn(Loc.Get("hk.back"), () => { _listeningAction = null; _hotkeyPanel.SetActive(false); if (_pauseMenu != null) _pauseMenu.SetActive(true); }, 115f);
     }
 
     /// <summary>Display string for a key (None → "—", listening row → "...").</summary>
@@ -1617,51 +1617,14 @@ public class HUD : MonoBehaviour
 
     static string AgeName(Age a) => a switch
     {
-        Age.Dark   => "Karanlık",
-        Age.Feudal => "Derebeylik",
-        Age.Castle => "Kale",
-        Age.Imperial => "İmparatorluk",
-        _          => "",
+        Age.Dark     => Loc.Get("age.dark"),
+        Age.Feudal   => Loc.Get("age.feudal"),
+        Age.Castle   => Loc.Get("age.castle"),
+        Age.Imperial => Loc.Get("age.imperial"),
+        _            => "",
     };
 
-    static string UnitTr(UnitType t) => t switch
-    {
-        UnitType.Villager    => "Köylü",
-        UnitType.Militia     => "Asker",
-        UnitType.Archer      => "Okçu",
-        UnitType.Cavalry     => "Süvari",
-        UnitType.Trebuchet   => "Mancınık",
-        UnitType.Scout       => "Gözcü",
-        UnitType.Medic       => "Şifacı",
-        UnitType.Spearman    => "Mızrakçı",
-        UnitType.Longbowman  => "Uzun Yaylı",
-        UnitType.Galley      => "Gemi",
-        UnitType.Skirmisher  => "Avcı",
-        UnitType.Camel       => "Deveci",
-        UnitType.Ram         => "Koçbaşı",
-        UnitType.Mangonel    => "Mancınık Arabası",
-        UnitType.CavalryArcher => "Atlı Okçu",
-        UnitType.FireShip    => "Ateş Gemisi",
-        UnitType.DemoShip    => "Patlayıcı Gemi",
-        // M9 unique units
-        UnitType.TeutonicKnight => "Töton Şövalyesi",
-        UnitType.WarElephant => "Savaş Fili",
-        UnitType.Mangudai    => "Mangudai",
-        UnitType.Samurai     => "Samuray",
-        // N4/CIVU
-        UnitType.ThrowingAxeman => "Balta Atan",
-        UnitType.Cataphract  => "Katafrakt",
-        UnitType.Berserk     => "Berserk",
-        UnitType.Mameluke    => "Memlük",
-        // N4/CIVC13
-        UnitType.WoadRaider  => "Woad Akıncısı",
-        UnitType.ChuKoNu     => "Chu Ko Nu",
-        UnitType.Huskarl     => "Huskarl",
-        UnitType.Janissary   => "Yeniçeri",
-        UnitType.Eagle       => "Kartal Savaşçı",
-        UnitType.FishingShip => "Balıkçı Gemisi",
-        _                    => t.ToString(),
-    };
+    static string UnitTr(UnitType t) => Loc.Get("unit." + t.ToString());
 
     /// <summary>Tech-aware unit name: a unit shows its highest researched tier's
     /// title (e.g. Militia → "Piyade" → "Uzun Kılıç"). Falls back to the base name.</summary>
