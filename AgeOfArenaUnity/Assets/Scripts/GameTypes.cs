@@ -15,6 +15,11 @@ public enum UnitType
     WarElephant,     // Persians — massive HP, bonus vs buildings
     Mangudai,        // Mongols — cavalry archer, bonus vs siege
     Samurai,         // Japanese — fast infantry
+    // ── N4/CIVU: second wave of unique units ──
+    ThrowingAxeman,  // Franks — ranged infantry (throws axes, melee damage)
+    Cataphract,      // Byzantines — heavy cavalry, bonus vs infantry
+    Berserk,         // Vikings — infantry that self-regenerates HP
+    Mameluke,        // Saracens — camel rider that throws scimitars (ranged, anti-cavalry)
     Eagle,           // Aztecs — fast scout-warrior (EAGLE)
     // ── M9/EAGLE upgrade ──
     EliteEagle,      // Eagle → Elite Eagle (Aztecs, Imperial)

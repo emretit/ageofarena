@@ -166,6 +166,27 @@ public static class CommandIconFactory
                 Add(icon, Circle,   Skin, 0, -2, 14, 14);          // body
                 Add(icon, Triangle, Prims.Hex(0xeac24a), 8, 2, 8, 8, -90); // beak
                 break;
+            case UnitType.ThrowingAxeman:                          // N4/CIVU
+                Add(icon, Square,   Dark,  -3, -3, 16, 22);        // body
+                Add(icon, Circle,   Skin,  -3, 10, 12, 12);        // head
+                Add(icon, Square,   Steel,  10, 4, 9, 6);          // axe head (thrown)
+                Add(icon, Square,   Wood,   7, 4, 3, 12, -20);     // haft
+                break;
+            case UnitType.Cataphract:                              // N4/CIVU
+                Add(icon, Square,   Stone, 0, -2, 26, 12);         // armoured horse
+                Add(icon, Square,   Steel, 11, 6, 8, 12);          // mailed rider
+                Add(icon, Circle,   Steel, 11, 13, 7, 7);          // helmet
+                break;
+            case UnitType.Berserk:                                 // N4/CIVU
+                Add(icon, Square,   Blue,  -3, -3, 17, 22);        // body
+                Add(icon, Circle,   Skin,  -3, 10, 12, 12);        // wild head
+                Add(icon, Square,   Steel,  10, 2, 3, 26, -20);    // great axe
+                break;
+            case UnitType.Mameluke:                                // N4/CIVU
+                Add(icon, Square,   Gold,  0, -2, 26, 12);         // camel
+                Add(icon, Square,   Gold,  9, 6, 7, 10);           // hump/neck
+                Add(icon, Square,   Steel, 11, 5, 3, 22, -35);     // scimitar
+                break;
             case UnitType.FishingShip:
                 Add(icon, Square,   Wood,  0, -6, 26, 9);          // hull
                 Add(icon, Triangle, Dark, -12, -4, 8, 11);         // bow

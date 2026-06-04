@@ -498,6 +498,102 @@ public static class UnitFactory
         return e;
     }
 
+    // ── N4/CIVU: second wave of unique units ─────────────────────────────────
+
+    /// <summary>Franks unique: ranged infantry that hurls axes (short range, melee damage).</summary>
+    public static UnitEntity ThrowingAxeman(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("ThrowingAxeman", parent, worldPos);
+        var t = g.transform;
+        var tunic = Prims.Mat(teamColor, 0.1f, 0.3f);
+        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+        var steel = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
+        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.42f, 0.8f, 0.3f), tunic);
+        Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.17f, skin);
+        Prims.Box(t, new Vector3(0, 1.12f, 0), new Vector3(0.32f, 0.18f, 0.32f), steel);   // helmet
+        Prims.Box(t, new Vector3(0.3f, 0.85f, 0.12f), new Vector3(0.18f, 0.14f, 0.05f), steel); // axe head
+        var e = Finish(g, UnitType.ThrowingAxeman, teamColor);
+        e.hp = e.maxHp = 60f;
+        e.moveSpeed = 4.0f;
+        e.meleeArmor = 1f;
+        e.pierceArmor = 1f;
+        return e;
+    }
+
+    /// <summary>Byzantines unique: heavily-armoured cataphract cavalry, bonus vs infantry.</summary>
+    public static UnitEntity Cataphract(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Cataphract", parent, worldPos);
+        var t = g.transform;
+        var horse = Prims.Mat(Prims.Hex(0x5a5a64), 0.4f, 0.4f);
+        var barding = Prims.Mat(teamColor, 0.2f, 0.4f);
+        var steel = Prims.Mat(Prims.Hex(0xc0c0c8), 0.7f, 0.6f);
+        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+        Prims.Box(t, new Vector3(0, 0.9f, 0), new Vector3(0.55f, 0.55f, 1.25f), horse);    // armoured horse
+        Prims.Box(t, new Vector3(0, 0.62f, 0.1f), new Vector3(0.6f, 0.25f, 1.1f), barding); // caparison
+        Prims.Box(t, new Vector3(0, 1.2f, 0.62f), new Vector3(0.34f, 0.5f, 0.36f), horse);
+        foreach (var lx in new[] { -0.2f, 0.2f })
+            foreach (var lz in new[] { -0.48f, 0.48f })
+                Prims.Box(t, new Vector3(lx, 0.38f, lz), new Vector3(0.12f, 0.78f, 0.12f), horse);
+        Prims.Box(t, new Vector3(0, 1.5f, -0.05f), new Vector3(0.36f, 0.55f, 0.3f), steel);  // mailed rider
+        Prims.Sphere(t, new Vector3(0, 1.88f, -0.05f), 0.16f, skin);
+        Prims.Box(t, new Vector3(0, 1.96f, -0.05f), new Vector3(0.3f, 0.18f, 0.3f), steel);  // helmet
+        var e = Finish(g, UnitType.Cataphract, teamColor);
+        e.hp = e.maxHp = 110f;
+        e.moveSpeed = 4.0f;
+        e.meleeArmor = 2f;
+        e.pierceArmor = 1f;
+        return e;
+    }
+
+    /// <summary>Vikings unique: ferocious infantry that regenerates its own HP.</summary>
+    public static UnitEntity Berserk(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Berserk", parent, worldPos);
+        var t = g.transform;
+        var fur = Prims.Mat(Prims.Hex(0x6b4a2a));
+        var cloth = Prims.Mat(teamColor, 0.1f, 0.3f);
+        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+        var steel = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
+        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.46f, 0.82f, 0.32f), cloth);
+        Prims.Box(t, new Vector3(0, 0.78f, 0), new Vector3(0.52f, 0.28f, 0.4f), fur);       // fur cloak
+        Prims.Sphere(t, new Vector3(0, 1.04f, 0), 0.18f, skin);
+        Prims.Box(t, new Vector3(0, 1.18f, 0), new Vector3(0.18f, 0.22f, 0.18f), fur);      // wild hair
+        Prims.Box(t, new Vector3(0.32f, 0.85f, 0.1f), new Vector3(0.06f, 0.9f, 0.12f), steel); // great axe
+        var e = Finish(g, UnitType.Berserk, teamColor);
+        e.hp = e.maxHp = 65f;
+        e.moveSpeed = 4.2f;
+        e.meleeArmor = 1f;
+        e.pierceArmor = 1f;
+        return e;
+    }
+
+    /// <summary>Saracens unique: camel rider that throws scimitars (ranged, anti-cavalry).</summary>
+    public static UnitEntity Mameluke(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Mameluke", parent, worldPos);
+        var t = g.transform;
+        var camel = Prims.Mat(Prims.Hex(0xc8a86a));
+        var robe = Prims.Mat(teamColor, 0.1f, 0.3f);
+        var skin = Prims.Mat(Prims.Hex(0xd0a060));
+        var steel = Prims.Mat(Prims.Hex(0xc0c0c8), 0.7f, 0.6f);
+        Prims.Box(t, new Vector3(0, 0.95f, 0), new Vector3(0.5f, 0.55f, 1.15f), camel);     // camel body
+        Prims.Box(t, new Vector3(0, 1.2f, -0.1f), new Vector3(0.42f, 0.4f, 0.5f), camel);   // hump
+        Prims.Box(t, new Vector3(0, 1.35f, 0.6f), new Vector3(0.28f, 0.5f, 0.32f), camel);  // neck/head
+        foreach (var lx in new[] { -0.18f, 0.18f })
+            foreach (var lz in new[] { -0.42f, 0.42f })
+                Prims.Box(t, new Vector3(lx, 0.42f, lz), new Vector3(0.11f, 0.85f, 0.11f), camel);
+        Prims.Box(t, new Vector3(0, 1.6f, -0.05f), new Vector3(0.32f, 0.5f, 0.28f), robe);  // rider
+        Prims.Sphere(t, new Vector3(0, 1.95f, -0.05f), 0.15f, skin);
+        Prims.Box(t, new Vector3(0.3f, 1.7f, 0.1f), new Vector3(0.05f, 0.06f, 0.4f), steel); // scimitar
+        var e = Finish(g, UnitType.Mameluke, teamColor);
+        e.hp = e.maxHp = 65f;
+        e.moveSpeed = 4.5f;
+        e.meleeArmor = 1f;
+        e.pierceArmor = 1f;
+        return e;
+    }
+
     // ── M10/VREGI: Regicide King ─────────────────────────────────────────────
 
     /// <summary>Regicide mode: each team has one King. Its death eliminates the team.</summary>

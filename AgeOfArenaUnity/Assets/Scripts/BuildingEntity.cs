@@ -170,6 +170,11 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         Civilization.Persians => new UnitTrainable(UnitType.WarElephant,    36f, 100,0,  70, "U"),
         Civilization.Mongols  => new UnitTrainable(UnitType.Mangudai,       28f, 0,  55, 65, "U"),
         Civilization.Japanese => new UnitTrainable(UnitType.Samurai,        26f, 60, 0,  30, "U"),
+        // N4/CIVU: second wave of unique units
+        Civilization.Franks    => new UnitTrainable(UnitType.ThrowingAxeman, 24f, 55, 0,  25, "U"),
+        Civilization.Byzantines=> new UnitTrainable(UnitType.Cataphract,     28f, 70, 0,  75, "U"),
+        Civilization.Vikings   => new UnitTrainable(UnitType.Berserk,        24f, 65, 0,  25, "U"),
+        Civilization.Saracens  => new UnitTrainable(UnitType.Mameluke,       30f, 55, 0,  85, "U"),
         _                     => (UnitTrainable?)null,
     };
 
@@ -267,6 +272,11 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         UnitType.Mangudai    => Age.Castle,
         UnitType.Samurai     => Age.Castle,
         UnitType.Eagle       => Age.Castle,
+        // N4/CIVU unique units (Castle-age)
+        UnitType.ThrowingAxeman => Age.Castle,
+        UnitType.Cataphract  => Age.Castle,
+        UnitType.Berserk     => Age.Castle,
+        UnitType.Mameluke    => Age.Castle,
         _                    => Age.Dark,
     };
 

@@ -153,6 +153,10 @@ public class TrainingQueue : MonoBehaviour
             UnitType.WarElephant => UnitFactory.WarElephant(unitsRoot, spawnPos, teamColor),
             UnitType.Mangudai    => UnitFactory.Mangudai(unitsRoot, spawnPos, teamColor),
             UnitType.Samurai     => UnitFactory.Samurai(unitsRoot, spawnPos, teamColor),
+            UnitType.ThrowingAxeman => UnitFactory.ThrowingAxeman(unitsRoot, spawnPos, teamColor),
+            UnitType.Cataphract  => UnitFactory.Cataphract(unitsRoot, spawnPos, teamColor),
+            UnitType.Berserk     => UnitFactory.Berserk(unitsRoot, spawnPos, teamColor),
+            UnitType.Mameluke    => UnitFactory.Mameluke(unitsRoot, spawnPos, teamColor),
             UnitType.Eagle       => UnitFactory.Eagle(unitsRoot, spawnPos, teamColor),
             _                    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor, tid),
         };

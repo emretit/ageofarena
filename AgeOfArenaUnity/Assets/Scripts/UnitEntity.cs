@@ -127,6 +127,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
         // M9 unique units
         UnitType.TeutonicKnight => 12f, UnitType.WarElephant => 20f, UnitType.Mangudai => 6f,
         UnitType.Samurai     => 9f,  UnitType.Eagle       => 7f,  UnitType.EliteEagle  => 9f,
+        // N4/CIVU unique units
+        UnitType.ThrowingAxeman => 9f, UnitType.Cataphract => 10f, UnitType.Berserk => 9f,
+        UnitType.Mameluke    => 8f,
         UnitType.King        => 6f,  // Regicide king: fights but is not a front-liner
         // Support units deal no damage: Scout is pure recon (gains attack via Light Cavalry/Hussar
         // tech, applied through TechState.AttackBonus), Medic only heals.
@@ -143,6 +146,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.FireShip    => 3f,   UnitType.DemoShip    => 1.5f,
         UnitType.TeutonicKnight => 1.4f, UnitType.WarElephant => 1.4f, UnitType.Mangudai => 5f,
         UnitType.Samurai     => 1.2f, UnitType.Eagle       => 1.3f,  UnitType.EliteEagle => 1.3f,
+        // N4/CIVU: Throwing Axeman & Mameluke hurl weapons at short range; others melee.
+        UnitType.ThrowingAxeman => 3f, UnitType.Mameluke => 3f,
+        UnitType.Cataphract  => 1.4f, UnitType.Berserk  => 1.3f,
         _                    => 1.1f,
     };
     /// <summary>Effective damage = base + tech bonus, scaled by civ infantry bonus for infantry types.</summary>
@@ -179,6 +185,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.FireShip    => 0.8f, UnitType.DemoShip    => 2.0f,
         UnitType.TeutonicKnight => 2.0f, UnitType.WarElephant => 2.5f, UnitType.Mangudai => 2.0f,
         UnitType.Samurai     => 1.3f, UnitType.Eagle       => 1.5f,  UnitType.EliteEagle => 1.4f,
+        // N4/CIVU
+        UnitType.ThrowingAxeman => 1.5f, UnitType.Cataphract => 1.5f, UnitType.Berserk => 1.2f,
+        UnitType.Mameluke    => 1.5f,
         _                    => 1.6f,
     };
     /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.
@@ -192,6 +201,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.FireShip    => 8f,  UnitType.DemoShip    => 6f,
         UnitType.TeutonicKnight => 7f, UnitType.WarElephant => 8f, UnitType.Mangudai => 10f,
         UnitType.Samurai     => 8f,  UnitType.Eagle       => 8f,  UnitType.EliteEagle => 8f,
+        // N4/CIVU
+        UnitType.ThrowingAxeman => 9f, UnitType.Cataphract => 8f, UnitType.Berserk => 8f,
+        UnitType.Mameluke    => 9f,
         UnitType.Scout       => (TeamTech?.Has(TechType.LightCavalry) ?? false) ? 8f : 0f,
         _                    => 0f,  // King, Villager, Monk, Medic — never auto-aggro
     };
@@ -202,6 +214,11 @@ public class UnitEntity : MonoBehaviour, IDamageable
     {
         UnitType.Militia or UnitType.Spearman                       => ArmorClass.Infantry,
         UnitType.TeutonicKnight or UnitType.Samurai or UnitType.Eagle or UnitType.EliteEagle => ArmorClass.Infantry,
+        // N4/CIVU: Throwing Axeman & Berserk are infantry; Cataphract is cavalry;
+        // Mameluke rides a camel (Cavalry+Camel class so Spearman/Camel counter it).
+        UnitType.ThrowingAxeman or UnitType.Berserk                 => ArmorClass.Infantry,
+        UnitType.Cataphract                                         => ArmorClass.Cavalry,
+        UnitType.Mameluke                                           => ArmorClass.Cavalry | ArmorClass.Camel,
         UnitType.King => ArmorClass.Infantry,
         UnitType.Archer or UnitType.Skirmisher or UnitType.Longbowman => ArmorClass.Archer,
         UnitType.CavalryArcher                                       => ArmorClass.Archer | ArmorClass.Cavalry,
@@ -236,6 +253,8 @@ public class UnitEntity : MonoBehaviour, IDamageable
             case UnitType.Ram:        if ((tc & ArmorClass.Building) != 0) bonus += 16f; break;
             case UnitType.WarElephant:if ((tc & ArmorClass.Building) != 0) bonus += 30f; break;  // CIVU
             case UnitType.Mangudai:   if ((tc & ArmorClass.Siege)    != 0) bonus += 10f; break;  // CIVU anti-siege
+            case UnitType.Cataphract: if ((tc & ArmorClass.Infantry) != 0) bonus += 12f; break;  // N4/CIVU anti-infantry
+            case UnitType.Mameluke:   if ((tc & ArmorClass.Cavalry)  != 0) bonus += 9f;  break;  // N4/CIVU anti-cavalry
         }
         return bonus;
     }
@@ -277,13 +296,19 @@ public class UnitEntity : MonoBehaviour, IDamageable
         || type == UnitType.Longbowman || type == UnitType.Galley || type == UnitType.Skirmisher
         || type == UnitType.Mangonel || type == UnitType.CavalryArcher
         || type == UnitType.FireShip || type == UnitType.DemoShip
-        || type == UnitType.Mangudai;
+        || type == UnitType.Mangudai
+        // N4/CIVU: throw weapons at short range but deal melee-type damage.
+        || type == UnitType.ThrowingAxeman || type == UnitType.Mameluke;
 
     // ── Medic healing (driven by CombatSystem.StepHeal) ──────────────────────
     /// <summary>Radius within which a Medic auto-heals friendly units; 0 = not a healer.</summary>
     public float HealRadius => type == UnitType.Medic ? 6f : 0f;
     /// <summary>Hitpoints a Medic restores per second to the chosen ally.</summary>
     public float HealPower  => type == UnitType.Medic ? 3f : 0f;
+
+    /// <summary>N4/CIVU: HP this unit regenerates on its own each second (Vikings'
+    /// Berserk signature trait); 0 = no self-regen. Applied in CombatSystem's tick.</summary>
+    public float SelfRegenPerSecond => type == UnitType.Berserk ? 0.6f : 0f;
 
     NavMeshAgent _agent;
     SelectionRing _ring;

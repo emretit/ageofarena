@@ -1460,6 +1460,11 @@ public class HUD : MonoBehaviour
         UnitType.WarElephant => "Savaş Fili",
         UnitType.Mangudai    => "Mangudai",
         UnitType.Samurai     => "Samuray",
+        // N4/CIVU
+        UnitType.ThrowingAxeman => "Balta Atan",
+        UnitType.Cataphract  => "Katafrakt",
+        UnitType.Berserk     => "Berserk",
+        UnitType.Mameluke    => "Memlük",
         UnitType.Eagle       => "Kartal Savaşçı",
         UnitType.FishingShip => "Balıkçı Gemisi",
         _                    => t.ToString(),

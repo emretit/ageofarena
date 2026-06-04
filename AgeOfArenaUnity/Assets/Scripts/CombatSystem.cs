@@ -37,6 +37,10 @@ public class CombatSystem : MonoBehaviour
             if (u.type == UnitType.Cavalry && u.state != UnitState.Attacking)
                 u.chargeTimer += dt;
 
+            // N4/CIVU: Vikings' Berserk slowly regenerates its own HP.
+            if (u.SelfRegenPerSecond > 0f && u.hp < u.maxHp)
+                u.Heal(u.SelfRegenPerSecond * dt);
+
             // Medic continuously heals the most-wounded ally in range while idle.
             if (u.type == UnitType.Medic) StepHeal(u, units, dt);
             if (u.type == UnitType.Monk)  StepConvert(u, units, dt);
