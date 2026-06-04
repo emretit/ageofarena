@@ -82,12 +82,12 @@ Akış: **Kod** gerçeği üretir → **Wiki** onu belgeler, **Reference** AoE2 
 |---|---|---|---|
 | 00 | [00-index.md](00-index.md) | İndeks | Bu sayfa: wiki nedir, katmanlar, harita, okuma sırası, bakım |
 | 01 | [01-game-flow-ages.md](01-game-flow-ages.md) | Oyun Akışı & Çağlar | Runtime sahne kurulumu, oyun döngüsü, 4 çağ ve çağ atlama |
-| 02 | [02-units.md](02-units.md) | Birimler | 12 birim türü: rol, statlar (HP/hasar/menzil/hız/zırh), mekanik |
+| 02 | [02-units.md](02-units.md) | Birimler | ~24 birim türü (temel + counter + deniz + civ unique): rol, statlar, mekanik |
 | 03 | [03-unit-upgrades.md](03-unit-upgrades.md) | Birim Yükseltme Zincirleri | Man-at-Arms / Crossbowman / Paladin vb. upgrade hatları |
 | 04 | [04-buildings.md](04-buildings.md) | Binalar & Garnizon | Bina tablosu, maliyet/HP/çağ, drop-off, garnizon mekaniği |
 | 05 | [05-tech-tree.md](05-tech-tree.md) | Teknoloji Ağacı | `TechDefs.Table`, araştırma, çağ kilidi, bonus uygulaması |
 | 06 | [06-civilizations.md](06-civilizations.md) | Medeniyetler | `Civilization` bonusları, unique unit/tech, takım seçimi |
-| 07 | [07-combat-counters.md](07-combat-counters.md) | Savaş & Counter Sistemi | Çarpan tabanlı counter matrisi, hasar↔zırh, projectile |
+| 07 | [07-combat-counters.md](07-combat-counters.md) | Savaş & Counter Sistemi | ArmorClass + additive bonus-damage modeli (M7), hasar↔zırh, projectile |
 | 08 | [08-economy-trade.md](08-economy-trade.md) | Ekonomi & Ticaret | 4 kaynak, toplama, depo, Market, Trade Cart, Relik |
 | 09 | [09-ai-difficulty.md](09-ai-difficulty.md) | AI & Zorluk | AIPersonality, üretim rotasyonu, zorluk parametreleri |
 | 10 | [10-victory-objectives.md](10-victory-objectives.md) | Zafer Koşulları | Fetih / Wonder / Relic / Score zafer yolları |
