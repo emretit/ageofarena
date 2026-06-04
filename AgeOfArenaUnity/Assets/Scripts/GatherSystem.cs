@@ -133,6 +133,8 @@ public class GatherSystem : MonoBehaviour
                         mult *= GM.turboGatherMult;
                         int gained = Mathf.RoundToInt(v.carrying.amount * mult);
                         GM.teamRes[v.teamId].Gain(v.carrying.kind, gained);
+                        // N11.trig: track cumulative resource gathered for trigger conditions.
+                        GM.triggers?.OnResourceDeposited(v.teamId, v.carrying.kind, gained);
                         // N7.sfx: gather sound (player team only to avoid SFX spam from AI villagers).
                         if (v.teamId == 0) AudioManager.Play(AudioManager.SoundId.Gather, 0.35f);
                     }

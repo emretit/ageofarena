@@ -85,8 +85,11 @@ public class CivSelectScreen : MonoBehaviour
         float sepY    = lastRowY - bh / 2f - 22f;
         Line(bg.transform, 0, sepY, 900, 1);
 
-        // ── Bottom controls: Map | Difficulty | Mode | Start ───────────────
-        float ctrlY = sepY - 44f;
+        // ── Bottom controls row 1: Art-of-War challenge ────────────────────
+        float aowY = sepY - 44f;
+        BuildArtOfWarRow(bg.transform, 0f, aowY);
+        // ── Bottom controls row 2: Map | Difficulty | Mode | Start ────────
+        float ctrlY = aowY - 56f;
         BuildMapTypeRow(bg.transform,    -420f, ctrlY);
         BuildDifficultyRow(bg.transform,  -90f, ctrlY);
         BuildGameModeRow(bg.transform,    250f, ctrlY);
@@ -159,6 +162,26 @@ public class CivSelectScreen : MonoBehaviour
         var gm2 = GameManager.Instance;
         if (gm2 != null) GameBootstrap.NextDifficulty = gm2.difficulty;
         Destroy(gameObject);
+    }
+
+    // ── Art-of-War row ───────────────────────────────────────────────────────
+
+    void BuildArtOfWarRow(Transform parent, float x, float y)
+    {
+        Label(parent, "Savaş Sanatı", x - 150f, y, 20, TextLabel, FontStyle.Normal);
+        var lbl0 = Label(parent, "Kapalı", x + 10f, y, 20, TextHint, FontStyle.Normal);
+        var btn = CtrlButton(parent, ArtOfWarSystem.DisplayName(ArtOfWarSystem.ActiveChallenge),
+            x + 140f, y, 220, 46);
+        var lbl = btn.GetComponentInChildren<Text>();
+        btn.GetComponent<Button>().onClick.AddListener(() =>
+        {
+            var values = (ArtOfWarChallenge[])System.Enum.GetValues(typeof(ArtOfWarChallenge));
+            int next = ((int)ArtOfWarSystem.ActiveChallenge + 1) % values.Length;
+            ArtOfWarSystem.ActiveChallenge = values[next];
+            lbl.text  = ArtOfWarSystem.DisplayName(ArtOfWarSystem.ActiveChallenge);
+            lbl0.text = ArtOfWarSystem.ActiveChallenge == ArtOfWarChallenge.None ? "Kapalı" : "Aktif";
+            lbl0.color = ArtOfWarSystem.ActiveChallenge == ArtOfWarChallenge.None ? TextHint : Gold;
+        });
     }
 
     // ── Map type row ─────────────────────────────────────────────────────────

@@ -53,8 +53,9 @@ public class SaveSystem : MonoBehaviour
         public List<BuildingSnap> buildings = new();
         public TeamSnap[]         teams     = new TeamSnap[GameManager.MaxTeams];
         public int  gameMode, difficulty;
-        public int  mapSeed;          // N12.savefull: reproduce same map
-        public string version = "3";  // bumped: veterancy/stance/rally added
+        public int  mapSeed;               // N12.savefull: reproduce same map
+        public List<TriggerData> triggers  = new(); // N11.trig: trigger state
+        public string version = "4";       // bumped: triggers added
     }
 
     void Update()
@@ -130,6 +131,10 @@ public class SaveSystem : MonoBehaviour
             });
         }
 
+        // N11.trig: snapshot trigger state
+        if (gm.triggers != null)
+            data.triggers = gm.triggers.Snapshot();
+
         PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(data));
         PlayerPrefs.Save();
         Debug.Log($"[SaveSystem] Saved {data.units.Count} units, {data.buildings.Count} buildings, seed={data.mapSeed}.");
@@ -140,7 +145,7 @@ public class SaveSystem : MonoBehaviour
         string json = PlayerPrefs.GetString(SaveKey, "");
         if (string.IsNullOrEmpty(json)) { Debug.Log("[SaveSystem] No save found."); return; }
         var data = JsonUtility.FromJson<SaveData>(json);
-        if (data == null || data.version != "3") { Debug.Log("[SaveSystem] Incompatible save (need v3)."); return; }
+        if (data == null || (data.version != "3" && data.version != "4")) { Debug.Log("[SaveSystem] Incompatible save (need v3/v4)."); return; }
 
         GameBootstrap.PendingLoad    = data;
         GameBootstrap.NextGameMode   = (GameMode)data.gameMode;

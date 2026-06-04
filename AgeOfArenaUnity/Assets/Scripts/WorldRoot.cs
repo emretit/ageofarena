@@ -29,8 +29,11 @@ public class WorldRoot : MonoBehaviour
     // N10.rms: active archetype; set from mapType in Build(). Default = Arena.
     MapGenerator.Archetype _arch = MapGenerator.Arena;
 
-    // Convenience alias — keeps all call sites unchanged; updated from _arch in Build().
+    // Convenience alias for instance methods — keeps all call sites unchanged.
     Vector3[] BasePositions => _arch.basePositions;
+
+    // Static cache so SampleTerrainNorm (static) can read base positions for terrain flattening.
+    static Vector3[] _basePositions = MapGenerator.Arena.basePositions;
 
     // Team tints now come from the single-source TeamPalette (N4.palette); this
     // indexer keeps the existing TeamColors[i] call sites working unchanged.
@@ -88,6 +91,7 @@ public class WorldRoot : MonoBehaviour
 
         // N10.rms: resolve archetype before anything uses BasePositions.
         _arch = MapGenerator.Get(mapType);
+        _basePositions = _arch.basePositions; // static cache for SampleTerrainNorm
 
         // Seed Unity's legacy RNG so trees/mines/relics produce a reproducible layout.
         if (mapSeed == 0) mapSeed = UnityEngine.Random.Range(1, int.MaxValue);
@@ -329,7 +333,7 @@ public class WorldRoot : MonoBehaviour
         float r = Mathf.Sqrt(x * x + z * z);
         n *= Mathf.Clamp01((LandRadius - r - 7f) / 11f);  // flatten near coast
         n *= Mathf.Clamp01((r - 10f) / 8f);               // flatten center pocket
-        foreach (var bp in BasePositions)
+        foreach (var bp in _basePositions)
         {
             float dx = x - bp.x, dz = z - bp.z;
             float d  = Mathf.Sqrt(dx * dx + dz * dz);
@@ -919,6 +923,7 @@ public class WorldRoot : MonoBehaviour
         gm.minimap       = go.AddComponent<MinimapSystem>();
         gm.match         = go.AddComponent<MatchSystem>();
         gm.vfx           = go.AddComponent<VisualEffectSystem>();
+        gm.triggers      = go.AddComponent<TriggerSystem>(); // N11.trig
         return gm;
     }
 
@@ -1012,6 +1017,9 @@ public class WorldRoot : MonoBehaviour
                 gm.turboGatherMult = 3f;
                 break;
         }
+
+        // N13.aow: inject challenge triggers after all systems are ready.
+        ArtOfWarSystem.Setup(gm);
     }
 
     // SAVF: restore a full game snapshot after arena rebuild (NavMesh already fresh).
@@ -1093,6 +1101,10 @@ public class WorldRoot : MonoBehaviour
         }
 
         gm.RecomputePop();
+
+        // N11.trig: restore trigger state
+        if (gm.triggers != null && data.triggers != null)
+            gm.triggers.LoadSnapshot(data.triggers);
     }
 
     // VDEATH: all teams start with abundant resources.
