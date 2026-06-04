@@ -45,16 +45,17 @@ public class RelicEntity : MonoBehaviour
     public void UpdateCapture(float dt)
     {
         // Tally nearby units per team.
-        var counts = new int[4];
+        int nTeams = GameManager.MaxTeams;
+        var counts = new int[nTeams];
         for (int i = 0; i < unitsNearby.Count; i++)
         {
             var u = unitsNearby[i];
-            if (u != null && u.teamId >= 0 && u.teamId < 4) counts[u.teamId]++;
+            if (u != null && u.teamId >= 0 && u.teamId < nTeams) counts[u.teamId]++;
         }
 
         // Dominant single team (a tie for the lead = contested → no capture).
         int top = -1, topCount = 0; bool tie = false;
-        for (int t = 0; t < 4; t++)
+        for (int t = 0; t < nTeams; t++)
         {
             if (counts[t] > topCount) { topCount = counts[t]; top = t; tie = false; }
             else if (counts[t] == topCount && counts[t] > 0) tie = true;

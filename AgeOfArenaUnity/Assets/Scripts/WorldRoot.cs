@@ -100,12 +100,12 @@ public class WorldRoot : MonoBehaviour
 
         // VNOMAD: skip static base construction; villagers scatter mid-map.
         if (gm.gameMode != GameMode.Nomad)
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < gm.TeamCount; i++)
                 BuildBase(BasePositions[i], TeamColors[i], i);
 
         BuildCoastalForest();   // dense conifer wall hugging the shoreline (blocks units)
         BuildInteriorClumps();  // a few broadleaf groves in the open battlefield
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < gm.TeamCount; i++)
             BuildBaseResources(BasePositions[i]); // gold/stone/berry/wood/fish inside each pocket
         BuildContestedResources(); // extra mines fought over in the centre
         BuildRelics();
@@ -740,7 +740,7 @@ public class WorldRoot : MonoBehaviour
         // GameBootstrap.PlayerCiv is None until the player picks via CivSelectScreen.
         var civValues = (Civilization[])System.Enum.GetValues(typeof(Civilization));
         gm.teamCivs[0] = GameBootstrap.PlayerCiv;
-        for (int i = 1; i < 4; i++)
+        for (int i = 1; i < gm.TeamCount; i++)
             gm.teamCivs[i] = civValues[Random.Range(1, civValues.Length)];
 
         var tcPos     = BasePositions[0];
@@ -772,15 +772,15 @@ public class WorldRoot : MonoBehaviour
         foreach (var p in mPos)
             gm.RegisterUnit(UnitFactory.Militia(unitsRoot.transform, p, teamColor));
 
-        // Enemy garrisons (teams 1-3): a starting army per base, plus an EnemyAI
-        // brain that reinforces and rushes. They self-defend via CombatSystem aggro.
-        for (int t = 1; t < 4; t++)
+        // Enemy garrisons (teams 1+): a starting army per base, plus an EnemyAI brain.
+        for (int t = 1; t < gm.TeamCount; t++)
         {
             SpawnGarrison(gm, unitsRoot.transform, BasePositions[t], TeamColors[t], t);
 
-            var aiGo = new GameObject($"EnemyAI_T{t}_{Personalities[t]}");
+            var personality = t < Personalities.Length ? Personalities[t] : Personalities[1];
+            var aiGo = new GameObject($"EnemyAI_T{t}_{personality}");
             aiGo.transform.SetParent(transform, false);
-            aiGo.AddComponent<EnemyAI>().Init(t, TeamColors[t], BasePositions[t], unitsRoot.transform, Personalities[t]);
+            aiGo.AddComponent<EnemyAI>().Init(t, TeamColors[t], BasePositions[t], unitsRoot.transform, personality);
         }
 
         // popCap now derives from team-0 buildings (TC + Houses) via RecomputePop.
@@ -830,7 +830,7 @@ public class WorldRoot : MonoBehaviour
     static void ApplyPendingLoad(GameManager gm, Transform unitsRoot, SaveSystem.SaveData data)
     {
         // Restore team resources, tech, civs.
-        for (int t = 0; t < 4 && t < data.teams.Length; t++)
+        for (int t = 0; t < gm.TeamCount && t < data.teams.Length; t++)
         {
             var ts = data.teams[t];
             if (ts == null) continue;
@@ -850,11 +850,13 @@ public class WorldRoot : MonoBehaviour
         gm.units.Clear();
 
         // Respawn saved units.
-        Color[] cols = { TeamColors[0], TeamColors[1], TeamColors[2], TeamColors[3] };
+        int nTeams = gm.TeamCount;
+        var cols = new Color[nTeams];
+        for (int i = 0; i < nTeams; i++) cols[i] = TeamColors[i];
         foreach (var us in data.units)
         {
             if (us == null) continue;
-            Color c = us.teamId >= 0 && us.teamId < 4 ? cols[us.teamId] : Color.white;
+            Color c = us.teamId >= 0 && us.teamId < nTeams ? cols[us.teamId] : Color.white;
             var pos = new Vector3(us.x, 0, us.z);
             UnitEntity e = null;
             switch ((UnitType)us.type)
@@ -893,7 +895,7 @@ public class WorldRoot : MonoBehaviour
     // VDEATH: all teams start with abundant resources.
     static void ApplyDeathmatch(GameManager gm)
     {
-        for (int t = 0; t < 4; t++)
+        for (int t = 0; t < gm.TeamCount; t++)
         {
             var r = gm.teamRes[t];
             r.food  = Mathf.Max(r.food,  20000);
@@ -906,7 +908,7 @@ public class WorldRoot : MonoBehaviour
     // N14/MODES: Empire Wars — all teams start at Castle Age with a solid eco base.
     static void ApplyEmpireWars(GameManager gm)
     {
-        for (int t = 0; t < 4; t++)
+        for (int t = 0; t < gm.TeamCount; t++)
         {
             ResearchSystem.Apply(TechType.FeudalAge, t);
             ResearchSystem.Apply(TechType.CastleAge, t);
@@ -921,7 +923,7 @@ public class WorldRoot : MonoBehaviour
     // VREGI: one King unit per team; MatchSystem handles elimination on King death.
     void SpawnKings(GameManager gm, Transform unitsRoot)
     {
-        for (int t = 0; t < 4; t++)
+        for (int t = 0; t < gm.TeamCount; t++)
         {
             var pos = BasePositions[t] + new Vector3(0, 0, 1.5f);
             var king = UnitFactory.King(unitsRoot, pos, TeamColors[t], t);
@@ -932,7 +934,7 @@ public class WorldRoot : MonoBehaviour
     // VNOMAD: no TC — scatter 6 villagers per team around the map centre.
     void SpawnNomad(GameManager gm, Transform unitsRoot)
     {
-        for (int t = 0; t < 4; t++)
+        for (int t = 0; t < gm.TeamCount; t++)
         {
             var dir   = (BasePositions[t] - Vector3.zero).normalized;
             var right = Vector3.Cross(Vector3.up, dir).normalized;

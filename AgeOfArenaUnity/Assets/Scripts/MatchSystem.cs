@@ -96,13 +96,14 @@ public class MatchSystem : MonoBehaviour
         if (gm == null) return;
 
         // ── Town Centers + Wonders alive per team ────────────────────────────────
-        var tcAlive    = new bool[4];
-        var hasWonder  = new bool[4];
+        int n = gm.TeamCount;   // N5: use live team count instead of hardwired 4
+        var tcAlive    = new bool[n];
+        var hasWonder  = new bool[n];
         var bs = gm.buildings;
         for (int i = 0; i < bs.Count; i++)
         {
             var b = bs[i];
-            if (b == null || b.hp <= 0f || b.teamId < 0 || b.teamId >= 4) continue;
+            if (b == null || b.hp <= 0f || b.teamId < 0 || b.teamId >= n) continue;
             if (b.type == BuildingType.TownCenter) tcAlive[b.teamId] = true;
             else if (b.type == BuildingType.Wonder && !b.underConstruction) hasWonder[b.teamId] = true;
         }
@@ -111,7 +112,7 @@ public class MatchSystem : MonoBehaviour
         int totalRelics = gm.relics != null ? gm.relics.Count : 0;
 
         VictoryStatus = "";
-        for (int t = 0; t < 4; t++)
+        for (int t = 0; t < n; t++)
         {
             // Wonder countdown. N0.2: a win by the player or an ally is a shared win, not a loss.
             if (hasWonder[t]) _wonderTimer[t] += CheckInterval; else _wonderTimer[t] = 0f;
@@ -132,17 +133,17 @@ public class MatchSystem : MonoBehaviour
         // ── Regicide ─────────────────────────────────────────────────────────────
         if (gm.gameMode == GameMode.Regicide)
         {
-            var kingAlive = new bool[4];
+            var kingAlive = new bool[n];
             for (int i = 0; i < gm.units.Count; i++)
             {
                 var u = gm.units[i];
-                if (u != null && u.type == UnitType.King && u.hp > 0f && u.teamId >= 0 && u.teamId < 4)
+                if (u != null && u.type == UnitType.King && u.hp > 0f && u.teamId >= 0 && u.teamId < n)
                     kingAlive[u.teamId] = true;
             }
             if (!kingAlive[0]) { End(false, "Regicide (Kral öldü)", gm); return; }
             // N0.2: only an enemy king alive blocks the player's regicide win; allied kings don't.
             bool anyEnemyKing = false;
-            for (int t = 1; t < 4; t++)
+            for (int t = 1; t < n; t++)
                 if (kingAlive[t] && gm.IsEnemy(0, t)) { anyEnemyKing = true; break; }
             if (!anyEnemyKing) { End(true, "Regicide zaferi", gm); return; }
         }
@@ -169,7 +170,7 @@ public class MatchSystem : MonoBehaviour
             {
                 int holder = centreTc.teamId;
                 _kothTimer[holder] += CheckInterval;
-                for (int t = 0; t < 4; t++) if (t != holder) _kothTimer[t] = 0f;
+                for (int t = 0; t < n; t++) if (t != holder) _kothTimer[t] = 0f;
                 if (_kothTimer[holder] >= KothHoldTime)
                     { End(gm.IsAllied(0, holder), "Tepenin Kralı zaferi", gm); return; }
                 SetStatus(holder, "KotH", KothHoldTime - _kothTimer[holder]);
@@ -179,7 +180,7 @@ public class MatchSystem : MonoBehaviour
         // ── Conquest (VDIPL: only counts enemy teams) ────────────────────────────
         bool playerAlive = tcAlive[0];
         bool anyEnemy = false;
-        for (int t = 1; t < 4; t++)
+        for (int t = 1; t < n; t++)
             if (tcAlive[t] && gm.IsEnemy(0, t)) { anyEnemy = true; break; }
         if (!playerAlive)   End(false, "Fetih (TC yıkıldı)", gm);
         else if (!anyEnemy) End(true,  "Fetih", gm);
@@ -193,7 +194,7 @@ public class MatchSystem : MonoBehaviour
 
         int best = 0;
         int bestScore = Score(0, gm);
-        for (int t = 1; t < 4; t++)
+        for (int t = 1; t < gm.TeamCount; t++)
         {
             int s = Score(t, gm);
             if (s > bestScore) { bestScore = s; best = t; }

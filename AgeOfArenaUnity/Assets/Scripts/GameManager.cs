@@ -26,8 +26,15 @@ public class GameManager : MonoBehaviour
     public readonly List<BuildingEntity> buildings = new();
     public readonly List<RelicEntity> relics = new();
 
+    /// <summary>N5: maximum simultaneous teams. All team-indexed arrays are sized to this.
+    /// Raising it to 8 enables 8-player skirmish without touching any < 4 guard — just
+    /// rebuild the world with more teams and resize these arrays accordingly.</summary>
+    public const int MaxTeams = 4;
+
     public ResourceManager[] teamRes = { new(), new(), new(), new() };
     public ResourceManager resources => teamRes[0];
+    /// <summary>Number of active teams (≤ MaxTeams). Currently fixed at MaxTeams; N5 raises this.</summary>
+    public int TeamCount => teamRes.Length;
 
     public TechState[] teamTech = { new(), new(), new(), new() };
     public TechState tech => teamTech[0];
@@ -81,21 +88,21 @@ public class GameManager : MonoBehaviour
 
     static DiplomacyState[,] InitDiplomacy()
     {
-        var d = new DiplomacyState[4, 4];
-        for (int a = 0; a < 4; a++)
-            for (int b = 0; b < 4; b++)
+        var d = new DiplomacyState[MaxTeams, MaxTeams];
+        for (int a = 0; a < MaxTeams; a++)
+            for (int b = 0; b < MaxTeams; b++)
                 d[a, b] = (a == b) ? DiplomacyState.Allied : DiplomacyState.Enemy;
         return d;
     }
 
     /// <summary>True if team a considers team b an enemy (i.e. will attack on sight).</summary>
     public bool IsEnemy(int a, int b) =>
-        a != b && a >= 0 && a < 4 && b >= 0 && b < 4 && diplomacy[a, b] == DiplomacyState.Enemy;
+        a != b && a >= 0 && a < MaxTeams && b >= 0 && b < MaxTeams && diplomacy[a, b] == DiplomacyState.Enemy;
 
     /// <summary>N0.2: true if team b is team a itself or an ally — used for shared victory
     /// (a wonder/relic/score win by an ally is a win for the whole alliance, not a loss).</summary>
     public bool IsAllied(int a, int b) =>
-        a >= 0 && a < 4 && b >= 0 && b < 4 && (a == b || diplomacy[a, b] == DiplomacyState.Allied);
+        a >= 0 && a < MaxTeams && b >= 0 && b < MaxTeams && (a == b || diplomacy[a, b] == DiplomacyState.Allied);
 
     /// <summary>AICH: per-team economy speed multiplier set by EnemyAI per difficulty.
     /// Applied to gather deposits and research time. Player (team 0) stays at 1×.</summary>

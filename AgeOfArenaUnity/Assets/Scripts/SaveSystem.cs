@@ -44,7 +44,7 @@ public class SaveSystem : MonoBehaviour
     {
         public List<UnitSnap>     units     = new();
         public List<BuildingSnap> buildings = new();
-        public TeamSnap[]         teams     = new TeamSnap[4];
+        public TeamSnap[]         teams     = new TeamSnap[GameManager.MaxTeams];
         public int gameMode, difficulty;
         public string version = "2";
     }
@@ -67,8 +67,8 @@ public class SaveSystem : MonoBehaviour
         };
 
         // Teams
-        data.teams = new TeamSnap[4];
-        for (int t = 0; t < 4; t++)
+        data.teams = new TeamSnap[gm.TeamCount];
+        for (int t = 0; t < gm.TeamCount; t++)
         {
             var r  = gm.teamRes[t];
             var tt = gm.teamTech[t];
