@@ -278,7 +278,7 @@ public class EnemyAI : MonoBehaviour
 
         Vector3 fwd   = _home.sqrMagnitude > 0.01f ? (-_home).normalized : Vector3.forward;
         Vector3 right = Vector3.Cross(Vector3.up, fwd);
-        Vector3 pos   = _home + fwd * 4f + right * Random.Range(-2.5f, 2.5f);
+        Vector3 pos   = _home + fwd * 4f + right * SimRandom.Range(-2.5f, 2.5f); // N3: sim RNG
 
         UnitEntity u;
         switch (pick.Value)
@@ -359,7 +359,7 @@ public class EnemyAI : MonoBehaviour
 
         float total = 0f;
         foreach (var c in candidates) total += c.w;
-        float roll = UnityEngine.Random.value * total;
+        float roll = SimRandom.Value * total; // N3: sim RNG
         float acc  = 0f;
         foreach (var c in candidates)
         {
@@ -547,7 +547,7 @@ public class EnemyAI : MonoBehaviour
             {
                 if (u.state == UnitState.Idle)
                     u.MoveTo(gm.units.Count > 0
-                        ? gm.units[UnityEngine.Random.Range(0, gm.units.Count)].transform.position
+                        ? gm.units[SimRandom.Range(0, gm.units.Count)].transform.position // N3: sim RNG
                         : Vector3.zero);
                 continue;
             }
@@ -607,7 +607,7 @@ public class EnemyAI : MonoBehaviour
 
         _res.Deduct(VillagerCostFood, 0, 0, 0);
         Vector3 fwd = _home.sqrMagnitude > 0.01f ? (-_home).normalized : Vector3.forward;
-        Vector3 pos = _home - fwd * 2f + Vector3.right * Random.Range(-1.5f, 1.5f);
+        Vector3 pos = _home - fwd * 2f + Vector3.right * SimRandom.Range(-1.5f, 1.5f); // N3: sim RNG
         var v = UnitFactory.Villager(_unitsRoot, pos, _teamColor);
         v.teamId = _teamId;
         gm.RegisterUnit(v);

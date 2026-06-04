@@ -298,9 +298,9 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 - [ ] N2.asmdef: _(ertelendi — asmdef yeniden-yapılandırması tüm build'i kırma riski; şimdilik `CombatMath.SelfTest` editör-içi pin sağlıyor)_ `AgeOfArena.asmdef` + `Tests.asmdef`; EditMode test runner yeşil.
 - [x] N2.resolver: Saf `CombatMath` (NetDamage + ArmorFor, N0.1 siege=melee dahil); `UnitEntity`/`BuildingEntity.TakeDamage` buna yönlendirildi; `CombatMath.SelfTest()` formülü pin'ler. Runtime: SelfTest PASS.
 - [ ] N2.mapgen: _(ertelendi — `WorldRoot` sahne-kurulumundan büyük çıkarma; N10 RMS ile birlikte yapılacak)_ Saf `MapGenerator` (seed→placement list).
-- [ ] N3.prng: Deterministik PRNG struct; 41 Random sahası sim/kozmetik ayrıldı; sim akışı mapSeed'den seeded; aynı seed→aynı sim sonucu (test).
-- [ ] N3.fixedstep: Fixed-step accumulator (~30Hz) tüm Tick'lere sabit dt; render interpolasyon; pause/hız sim-step üzerinden; `Time.deltaTime` sim'de yok.
-- [ ] N3.cmdlog: Command type seti + `CommandSystem`/`EnemyAI` enqueue eder; sim tick-başı uygular; lokal command recorder (seed+per-tick) replay temeli.
+- [x] N3.prng: `SimRandom.cs` (Xorshift32, mapSeed'den seeded `WorldRoot.Build`'da); 6 sim-Random sahası (monk convert, AI hedef-roll/spawn-jitter/scatter, agent avoidance) sim akışına yönlendirildi; kozmetik Random (particle/camera/decor/mapgen) ayrı kaldı. Runtime: same-seed→aynı dizi, diff-seed→farklı doğrulandı.
+- [ ] N3.fixedstep: _(MP-prep'e ertelendi — N16 ile; tek başına yapılınca doğrulanamaz, frame-timing değişimi riskli)_ Fixed-step accumulator (~30Hz); render interpolasyon; `Time.deltaTime` sim'de yok.
+- [ ] N3.cmdlog: _(MP-prep'e ertelendi — N15-16 ile)_ Command type seti + enqueue mimarisi + lokal command recorder (replay temeli).
 
 ### Paralel görünür kazanımlar (gün-1'den; N7 müzik · N9 UX/a11y/i18n)
 - [x] N9.pause: Pause-on-blur — `FocusPause.cs` (OnApplicationFocus/Pause → timeScale 0 + "Duraklatıldı" overlay); odak dönünce önceki hız geri yüklenir; game-over (`MatchSystem.IsOver`) / Esc-menü pause'larına dokunmaz. GameBootstrap'ta WorldRoot'a bağlı. Runtime: 1.5→0→1.5 doğrulandı.

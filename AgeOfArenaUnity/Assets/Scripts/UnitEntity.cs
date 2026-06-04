@@ -299,7 +299,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         _agent.acceleration = 12f;
         _agent.stoppingDistance = 0.25f;
         _agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance;
-        _agent.avoidancePriority = Random.Range(30, 70);
+        _agent.avoidancePriority = SimRandom.Range(30, 70); // N3: sim RNG (deterministic)
         _agent.autoRepath = true;
 
         if (isNaval && navalAgentTypeId >= 0)

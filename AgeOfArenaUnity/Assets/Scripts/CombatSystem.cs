@@ -281,7 +281,7 @@ public class CombatSystem : MonoBehaviour
         // Theocracy shortens it. The convert completes when progress passes the rolled threshold.
         bool theocracy = mtech?.MonkHasTheocracy ?? false;
         if (monk.convertProgress <= 0f)
-            monk.convertThreshold = Random.Range(UnitEntity.ConvertMinTime, UnitEntity.ConvertMaxTime)
+            monk.convertThreshold = SimRandom.Range(UnitEntity.ConvertMinTime, UnitEntity.ConvertMaxTime) // N3: sim RNG
                                   * (theocracy ? 0.6f : 1f);
         monk.convertProgress += dt;
 

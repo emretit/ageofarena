@@ -89,6 +89,7 @@ public class WorldRoot : MonoBehaviour
         // Seed Unity's legacy RNG so trees/mines/relics produce a reproducible layout.
         if (mapSeed == 0) mapSeed = UnityEngine.Random.Range(1, int.MaxValue);
         UnityEngine.Random.InitState(mapSeed);
+        SimRandom.Seed(mapSeed); // N3: seed the deterministic simulation RNG from the same seed
 
         AudioManager.Init();
         SetupEnvironment();
