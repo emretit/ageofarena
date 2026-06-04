@@ -192,28 +192,33 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Player (team 0) population = live team-0 unit count; population cap = sum of
-    /// <see cref="BuildingDefs"/> popProvided over completed team-0 buildings
-    /// (Town Center + Houses), clamped to 200. Only pushes to the
-    /// <see cref="ResourceManager"/> when a value actually changed, to avoid
-    /// firing <see cref="ResourceManager.OnChanged"/> (HUD refresh) every frame.
+    /// Per-team population: unit count + building popProvided for each team,
+    /// clamped to 200. Only pushes to <see cref="ResourceManager"/> when changed.
+    /// Called after unit/building add/remove; AI uses the resulting popCap before training.
     /// </summary>
     public void RecomputePop()
     {
-        int pop = 0;
-        for (int i = 0; i < units.Count; i++)
-            if (units[i] != null && units[i].teamId == 0) pop++;
+        int n = TeamCount;
+        var pop = new int[n];
+        var cap = new int[n];
 
-        int cap = 0;
+        for (int i = 0; i < units.Count; i++)
+        {
+            var u = units[i];
+            if (u != null && u.teamId >= 0 && u.teamId < n) pop[u.teamId]++;
+        }
         for (int i = 0; i < buildings.Count; i++)
         {
             var b = buildings[i];
-            if (b == null || b.teamId != 0 || b.underConstruction) continue;
-            cap += BuildingDefs.Get(b.type).popProvided;
+            if (b == null || b.underConstruction || b.teamId < 0 || b.teamId >= n) continue;
+            cap[b.teamId] += BuildingDefs.Get(b.type).popProvided;
         }
-        cap = Mathf.Clamp(cap, 0, 200);
-
-        if (pop != resources.pop || cap != resources.popCap)
-            resources.SetPop(pop, cap);
+        for (int t = 0; t < n; t++)
+        {
+            cap[t] = Mathf.Clamp(cap[t], 0, 200);
+            var res = teamRes[t];
+            if (pop[t] != res.pop || cap[t] != res.popCap)
+                res.SetPop(pop[t], cap[t]);
+        }
     }
 }

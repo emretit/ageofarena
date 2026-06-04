@@ -341,6 +341,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
     NavMeshAgent _agent;
     SelectionRing _ring;
 
+    /// <summary>N6.ballistics: current world-space velocity for projectile lead computation.</summary>
+    public Vector3 AgentVelocity => _agent != null ? _agent.velocity : Vector3.zero;
+
     void Awake()
     {
         _ring = GetComponentInChildren<SelectionRing>(true);

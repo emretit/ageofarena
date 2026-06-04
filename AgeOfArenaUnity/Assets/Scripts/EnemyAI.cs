@@ -273,6 +273,9 @@ public class EnemyAI : MonoBehaviour
     {
         if (CountArmy(gm) >= _armyCap) return;
 
+        // N5.pop: AI respects its own pop-cap (computed by GameManager.RecomputePop)
+        if (_res.pop >= _res.popCap) return;
+
         var pick = ChooseUnit(gm);
         if (pick == null) return;
 
