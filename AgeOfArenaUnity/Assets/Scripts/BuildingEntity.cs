@@ -87,16 +87,13 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         if (hp <= 0f) return;
         // Masonry / Fortified Wall (University techs) add armor to all team buildings.
         var tech = GameManager.Instance?.teamTech[teamId];
-        float armor = damageType switch
-        {
-            DamageType.Pierce => pierceArmor + (tech?.BuildingPierceArmor ?? 0f),
-            DamageType.Melee  => meleeArmor + (tech?.BuildingMeleeArmor ?? 0f),
-            // N0.1: siege reduced by (building) melee armor instead of bypassing it; siege stays
-            // strong vs structures via anti-structure BonusDamageVs (Trebuchet/Ram), not bypass.
-            DamageType.Siege  => meleeArmor + (tech?.BuildingMeleeArmor ?? 0f),
-            _                 => 0f,
-        };
-        hp -= Mathf.Max(1f, amount - armor);
+        // N2: base armor (incl. N0.1 siege=melee) + net-damage from pure CombatMath; the live
+        // Masonry/Fortified building-armor bonus is read here. Melee & Siege use building melee armor.
+        float baseArmor = CombatMath.ArmorFor(damageType, meleeArmor, pierceArmor);
+        float techArmor = damageType == DamageType.Pierce
+            ? (tech?.BuildingPierceArmor ?? 0f)
+            : (tech?.BuildingMeleeArmor  ?? 0f);
+        hp -= CombatMath.NetDamage(amount, baseArmor + techArmor);
         // VFX: tint building darker as it takes damage (red shift at low HP).
         float frac = maxHp > 0f ? hp / maxHp : 1f;
         if (frac < 0.5f) TintDamage(frac);

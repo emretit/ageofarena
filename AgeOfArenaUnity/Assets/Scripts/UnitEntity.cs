@@ -524,17 +524,14 @@ public class UnitEntity : MonoBehaviour, IDamageable
         // Base armor (UnitFactory) + live Blacksmith armor research (ChainMail/PlateMail,
         // barding, archer armor, Loom) read from this team's TechState each hit.
         var tech = TeamTech;
-        float armor = damageType switch
-        {
-            DamageType.Pierce => pierceArmor + (tech?.ArmorBonus(type, DamageType.Pierce) ?? 0f),
-            DamageType.Melee  => meleeArmor + (tech?.ArmorBonus(type, DamageType.Melee) ?? 0f),
-            // N0.1: siege deals melee-class damage reduced by melee armor (was: bypass all
-            // armor). Armored units (Paladin/Teutonic Knight) no longer take full siege damage;
-            // siege stays strong vs buildings via anti-structure BonusDamageVs, not armor bypass.
-            DamageType.Siege  => meleeArmor + (tech?.ArmorBonus(type, DamageType.Melee) ?? 0f),
-            _                 => 0f,
-        };
-        hp -= Mathf.Max(1f, amount - armor);
+        // N2: base armor (incl. the N0.1 siege=melee mapping) + net-damage formula come from the
+        // pure CombatMath; the live Blacksmith/tech armor bonus is entity-specific, read here.
+        // Melee & Siege both benefit from melee armor research (N0.1).
+        float baseArmor = CombatMath.ArmorFor(damageType, meleeArmor, pierceArmor);
+        float techArmor = damageType == DamageType.Pierce
+            ? (tech?.ArmorBonus(type, DamageType.Pierce) ?? 0f)
+            : (tech?.ArmorBonus(type, DamageType.Melee)  ?? 0f);
+        hp -= CombatMath.NetDamage(amount, baseArmor + techArmor);
         if (gameObject.activeInHierarchy) StartCoroutine(HitFlash());
         if (hp <= 0f) Die();
     }

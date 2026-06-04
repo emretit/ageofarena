@@ -295,9 +295,9 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 - [ ] N1.mat: _(ikincil draw-call — revisit)_ Paylaşılan material cache + instancing + MaterialPropertyBlock (HitFlash/`.material` paylaşım dikkatli).
 - [x] N1.hpbar (kısmi): `UnitEntity.IsKayKitModel` cache'i — HP-bar IMGUI pass'ı artık per-frame `GetComponentInChildren<SkinnedMeshRenderer>()` çağırmıyor. _(Tam world-space billboard'a taşıma revisit.)_
 - [x] N1.budget: 300-birim stres-spawn ölçümü (RunCommand) — grid ~48× az proximity-iş; 16.6ms/alloc profiler dokümantasyonu N1.pool/mat sonrası.
-- [ ] N2.asmdef: `AgeOfArena.asmdef` + `Tests.asmdef`; EditMode test runner yeşil; ≥10 saf-mantık testi geçer.
-- [ ] N2.resolver: Saf `CombatResolver` (`StepCombat` + testler aynı çağırır); net-hasar formülü test'le pin'li.
-- [ ] N2.mapgen: Saf `MapGenerator` (seed→placement list, GameObject yok); aynı seed→aynı liste (test).
+- [ ] N2.asmdef: _(ertelendi — asmdef yeniden-yapılandırması tüm build'i kırma riski; şimdilik `CombatMath.SelfTest` editör-içi pin sağlıyor)_ `AgeOfArena.asmdef` + `Tests.asmdef`; EditMode test runner yeşil.
+- [x] N2.resolver: Saf `CombatMath` (NetDamage + ArmorFor, N0.1 siege=melee dahil); `UnitEntity`/`BuildingEntity.TakeDamage` buna yönlendirildi; `CombatMath.SelfTest()` formülü pin'ler. Runtime: SelfTest PASS.
+- [ ] N2.mapgen: _(ertelendi — `WorldRoot` sahne-kurulumundan büyük çıkarma; N10 RMS ile birlikte yapılacak)_ Saf `MapGenerator` (seed→placement list).
 - [ ] N3.prng: Deterministik PRNG struct; 41 Random sahası sim/kozmetik ayrıldı; sim akışı mapSeed'den seeded; aynı seed→aynı sim sonucu (test).
 - [ ] N3.fixedstep: Fixed-step accumulator (~30Hz) tüm Tick'lere sabit dt; render interpolasyon; pause/hız sim-step üzerinden; `Time.deltaTime` sim'de yok.
 - [ ] N3.cmdlog: Command type seti + `CommandSystem`/`EnemyAI` enqueue eder; sim tick-başı uygular; lokal command recorder (seed+per-tick) replay temeli.
