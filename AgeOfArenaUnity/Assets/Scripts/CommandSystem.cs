@@ -135,7 +135,10 @@ public class CommandSystem : MonoBehaviour
             for (int i = 0; i < selected.Count; i++)
             {
                 var u = selected[i];
-                if (u != null && u.type == UnitType.Villager)
+                // Villagers gather any node; FISH: fishing ships gather food (fish ponds) on water.
+                bool canGather = u != null && (u.type == UnitType.Villager
+                    || (u.type == UnitType.FishingShip && node.kind == ResourceKind.Food));
+                if (canGather)
                 {
                     gm.gather.AssignGather(u, node);
                     any = true;

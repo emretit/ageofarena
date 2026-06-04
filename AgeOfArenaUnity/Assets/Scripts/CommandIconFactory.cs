@@ -166,6 +166,12 @@ public static class CommandIconFactory
                 Add(icon, Circle,   Skin, 0, -2, 14, 14);          // body
                 Add(icon, Triangle, Prims.Hex(0xeac24a), 8, 2, 8, 8, -90); // beak
                 break;
+            case UnitType.FishingShip:
+                Add(icon, Square,   Wood,  0, -6, 26, 9);          // hull
+                Add(icon, Triangle, Dark, -12, -4, 8, 11);         // bow
+                Add(icon, Square,   Dark,  0, 5, 3, 18);           // mast
+                Add(icon, Square,   Prims.Hex(0xc8c0a0), 6, -2, 10, 9); // net
+                break;
         }
     }
 
@@ -267,6 +273,12 @@ public static class CommandIconFactory
                 Add(icon, Square,   Stone, 0, -2, 18, 30);         // tower
                 Add(icon, Square,   Dark, 9, 9, 16, 6, -20);       // cannon barrel
                 Add(icon, Circle,   Dark, 15, 6, 7, 7);            // muzzle
+                break;
+            case BuildingType.FishTrap:
+                Add(icon, Square,   Prims.Hex(0x2a5db0), 0, -6, 30, 12); // water
+                Add(icon, Ring,     Wood, 0, 2, 18, 18);           // trap basket
+                Add(icon, Square,   Wood, 0, 2, 14, 3);            // weave
+                Add(icon, Square,   Wood, 0, 2, 3, 14);
                 break;
         }
     }

@@ -144,6 +144,7 @@ public class TrainingQueue : MonoBehaviour
             UnitType.Galley      => SpawnNaval(b, unitsRoot, teamColor, UnitType.Galley),
             UnitType.FireShip    => SpawnNaval(b, unitsRoot, teamColor, UnitType.FireShip),
             UnitType.DemoShip    => SpawnNaval(b, unitsRoot, teamColor, UnitType.DemoShip),
+            UnitType.FishingShip => SpawnNaval(b, unitsRoot, teamColor, UnitType.FishingShip),
             // M9 unique units (Castle) + Eagle (Barracks)
             UnitType.TeutonicKnight => UnitFactory.TeutonicKnight(unitsRoot, spawnPos, teamColor),
             UnitType.WarElephant => UnitFactory.WarElephant(unitsRoot, spawnPos, teamColor),
@@ -177,9 +178,10 @@ public class TrainingQueue : MonoBehaviour
 
         return type switch
         {
-            UnitType.FireShip => UnitFactory.FireShip(unitsRoot, spawnPos, teamColor, navalId),
-            UnitType.DemoShip => UnitFactory.DemoShip(unitsRoot, spawnPos, teamColor, navalId),
-            _                 => UnitFactory.Galley(unitsRoot, spawnPos, teamColor, navalId),
+            UnitType.FireShip    => UnitFactory.FireShip(unitsRoot, spawnPos, teamColor, navalId),
+            UnitType.DemoShip    => UnitFactory.DemoShip(unitsRoot, spawnPos, teamColor, navalId),
+            UnitType.FishingShip => UnitFactory.FishingShip(unitsRoot, spawnPos, teamColor, navalId),
+            _                    => UnitFactory.Galley(unitsRoot, spawnPos, teamColor, navalId),
         };
     }
 

@@ -699,6 +699,33 @@ public static class UnitFactory
         return e;
     }
 
+    /// <summary>M14/FISH: civilian fishing boat — gathers food from Fish ponds/Traps,
+    /// deposits at the Dock. Naval (water NavMesh), unarmed.</summary>
+    public static UnitEntity FishingShip(Transform parent, Vector3 worldPos, Color teamColor, int navalAgentTypeId)
+    {
+        var g = new GameObject("FishingShip");
+        g.transform.SetParent(parent, false);
+        g.transform.position = worldPos;
+        var t = g.transform;
+
+        var wood = Prims.Mat(Prims.Hex(0x6b4a2a));
+        var deck = Prims.Mat(Prims.Hex(0x8a6b3f));
+        var sail = Prims.Mat(teamColor, 0f, 0.3f);
+        var net  = Prims.Mat(Prims.Hex(0xc8c0a0), 0f, 0.2f);
+
+        Prims.Box(t, new Vector3(0, 0.2f, 0),     new Vector3(1.1f, 0.4f, 2.2f), wood);  // small hull
+        Prims.Box(t, new Vector3(0, 0.42f, 0.9f), new Vector3(0.85f, 0.32f, 0.5f), deck); // bow deck
+        Prims.Cylinder(t, new Vector3(0, 1.0f, -0.2f), 0.06f, 1.3f, wood);                // short mast
+        Prims.Box(t, new Vector3(0.25f, 1.2f, -0.2f), new Vector3(0.04f, 0.55f, 0.8f), sail);
+        Prims.Box(t, new Vector3(0, 0.5f, -0.9f), new Vector3(0.7f, 0.5f, 0.1f), net);    // hanging net at the stern
+
+        var e = FinishBoat(g, UnitType.FishingShip, navalAgentTypeId);
+        e.hp = e.maxHp = 60f;
+        e.moveSpeed = 3.6f;     // steady worker pace
+        e.pierceArmor = 0f;
+        return e;
+    }
+
     public static UnitEntity TradeCart(Transform parent, Vector3 worldPos, Color teamColor)
     {
         var g = new GameObject("TradeCart");

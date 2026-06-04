@@ -101,6 +101,9 @@ public static class BuildingDefs
         new(BuildingType.Outpost,       0,   25,  0,  5,  10f,  0,  200f, "Gözcü Kulesi",   'P', true,  meleeArm: 1f, pierceArm: 3f),
         // Bombard Tower: Imperial cannon tower — Siege damage, ~4× Watch Tower.
         new(BuildingType.BombardTower,  0,  125,  0,100,  24f,  0,  600f, "Bombard Kulesi", 'V', true,  false, 0, 8f, 30f, 2.0f, minAge: Age.Imperial, garrisonCap: 0, meleeArm: 3f, pierceArm: 6f, atkDmgType: DamageType.Siege),
+        // Fish Trap: M14/FISH — buildable renewable fish source on water; Fishing Ships
+        // gather food from a co-located node (registered in BuildingEntity.Start), deposit at Dock.
+        new(BuildingType.FishTrap,      0,   50,  0,  0,  14f,  0,  100f, "Balık Tuzağı",   'Q', true),
     };
 
     public static BuildingDef Get(BuildingType t)

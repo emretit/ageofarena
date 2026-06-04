@@ -131,6 +131,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         // Support units deal no damage: Scout is pure recon (gains attack via Light Cavalry/Hussar
         // tech, applied through TechState.AttackBonus), Medic only heals.
         UnitType.Scout       => 0f,  UnitType.Medic       => 0f,
+        UnitType.FishingShip => 0f,  // FISH: civilian gatherer, no attack
         _                    => 2f,
     };
     float BaseAttackRange => type switch
@@ -210,6 +211,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Camel                                              => ArmorClass.Cavalry | ArmorClass.Camel,
         UnitType.Trebuchet or UnitType.Mangonel or UnitType.Ram     => ArmorClass.Siege,
         UnitType.Galley or UnitType.FireShip or UnitType.DemoShip   => ArmorClass.Ship,
+        UnitType.FishingShip                                        => ArmorClass.Ship,
         _                                                          => ArmorClass.None, // Villager, Monk, Medic
     };
 
@@ -550,6 +552,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     void Die()
     {
         hp = 0f;
+        PlayDie(); // fire death animation before Destroy
         AudioManager.Play(AudioManager.SoundId.UnitDie, 0.8f);
         // List removal is deferred to GameManager's end-of-frame compaction so we
         // don't mutate gm.units while CombatSystem is iterating it.
@@ -587,11 +590,17 @@ public class UnitEntity : MonoBehaviour, IDamageable
     Animator _animator;
     static readonly int AnimIsMoving = Animator.StringToHash("IsMoving");
     static readonly int AnimAttack   = Animator.StringToHash("Attack");
+    static readonly int AnimDie      = Animator.StringToHash("Die");
 
     /// <summary>Fire the attack animation. No-op for primitive units (no Animator).</summary>
-    public void PlayAttack()
+    public void PlayAttack() { if (_animator != null) _animator.SetTrigger(AnimAttack); }
+
+    /// <summary>Fire the death animation and freeze locomotion. No-op for primitive units.</summary>
+    public void PlayDie()
     {
-        if (_animator != null) _animator.SetTrigger(AnimAttack);
+        if (_animator == null) return;
+        _animator.SetTrigger(AnimDie);
+        _animator.SetBool(AnimIsMoving, false);
     }
 
     void Update()

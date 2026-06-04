@@ -53,6 +53,24 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         var def = BuildingDefs.Get(type);
         meleeArmor = def.meleeArmor;
         pierceArmor = def.pierceArmor;
+
+        // M14/FISH: a Fish Trap is a renewable food source — register a co-located fish
+        // node so Fishing Ships can gather from it (deposit at the Dock). The core fishing
+        // loop also works on the FishPond nodes WorldRoot seeds near each base.
+        if (type == BuildingType.FishTrap)
+            RegisterFishNode();
+    }
+
+    bool _fishNodeMade;
+    /// <summary>Spawn + register a food resource node co-located with this Fish Trap.</summary>
+    void RegisterFishNode()
+    {
+        if (_fishNodeMade) return;
+        var gm = GameManager.Instance;
+        if (gm == null) return;
+        var parent = transform.parent != null ? transform.parent : transform;
+        var node = ResourceFactory.FishPond(parent, transform.position);
+        if (node != null) { gm.RegisterNode(node); _fishNodeMade = true; }
     }
 
     // ── IDamageable ─────────────────────────────────────────────────────────
@@ -176,6 +194,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
 
     static readonly UnitTrainable[] DockTrainables =
     {
+        new(UnitType.FishingShip, 22f, 0, 75,  0, "Q"), // FISH: food gatherer (Dark)
         new(UnitType.Galley,   35f, 0, 120, 60, "G"), // wood+gold — naval combat unit
         new(UnitType.FireShip, 32f, 0, 100, 45, "F"), // anti-ship (Feudal)
         new(UnitType.DemoShip, 30f, 0,  70, 50, "D"), // explosive splash (Castle)
@@ -241,6 +260,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         UnitType.CavalryArcher => Age.Castle,
         UnitType.FireShip    => Age.Feudal,
         UnitType.DemoShip    => Age.Castle,
+        UnitType.FishingShip => Age.Dark,   // FISH: available from the start
         // M9 unique units (Castle-age)
         UnitType.TeutonicKnight => Age.Castle,
         UnitType.WarElephant => Age.Castle,
