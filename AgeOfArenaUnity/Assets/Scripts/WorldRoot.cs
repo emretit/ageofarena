@@ -121,6 +121,8 @@ public class WorldRoot : MonoBehaviour
         BuildContestedResources(); // extra mines fought over in the centre
         BuildRelics();
         BakeNavMesh();
+        // N16.path: build deterministic grid pathfinder after NavMesh is baked.
+        GridPathfinder.Build(LandRadius);
         gm.cameraRig = cam;
         SetupGameplay(gm);
         cam.Init(BasePositions[0]);
@@ -136,6 +138,8 @@ public class WorldRoot : MonoBehaviour
         var gm2 = GameManager.Instance;
         if (gm2?.checksum != null && !string.IsNullOrEmpty(GameBootstrap.ReplayBaseline))
             ChecksumSystem.LoadBaseline(gm2.checksum);
+        // N17.replay: auto-open viewer if a replay is ready.
+        ReplayViewer.TryAutoStart();
 
         // CIVS: prompt the player to pick a civilization over the freshly-built arena.
         // STRT: show setup screen on first run; ARES: skip on restart (PlayerCiv persists).
@@ -933,6 +937,9 @@ public class WorldRoot : MonoBehaviour
         gm.campaignScreen = go.AddComponent<CampaignScreen>(); // N13.camp
         gm.cmdRecorder    = go.AddComponent<CommandRecorder>(); // N3.cmdlog
         gm.checksum       = go.AddComponent<ChecksumSystem>(); // N15.checksum
+        gm.lockstep       = go.AddComponent<LockstepSystem>(); // N16.lockstep
+        gm.desync         = go.AddComponent<DesyncHandler>();  // N17.desync
+        gm.transport      = go.AddComponent<TransportLayer>(); // N17.transport
         return gm;
     }
 
@@ -1025,6 +1032,17 @@ public class WorldRoot : MonoBehaviour
             case GameMode.Turbo:
                 gm.turboGatherMult = 3f;
                 break;
+        }
+
+        // N17: wire TransportLayer.OnChecksumReceived → DesyncHandler.
+        if (gm.transport != null && gm.desync != null)
+        {
+            int tickCapture = 0; // will be updated via lambda capture
+            gm.transport.OnChecksumReceived += remoteHash =>
+            {
+                uint local = gm.checksum?.LatestChecksum ?? 0u;
+                gm.desync.CheckTick(gm.cmdRecorder?.Tick ?? 0, local, remoteHash);
+            };
         }
 
         // N13.aow: inject challenge triggers after all systems are ready.

@@ -63,6 +63,9 @@ public class GameManager : MonoBehaviour
     public CampaignScreen  campaignScreen; // N13.camp
     public CommandRecorder cmdRecorder;    // N3.cmdlog
     public ChecksumSystem  checksum;       // N15.checksum
+    public LockstepSystem  lockstep;       // N16.lockstep
+    public DesyncHandler   desync;         // N17.desync
+    public TransportLayer  transport;      // N17.transport
 
     /// <summary>N1: per-frame spatial index of all units for O(n) proximity queries
     /// (combat aggro / heal / convert / projectile splash). Rebuilt at the top of Update.</summary>
@@ -185,9 +188,36 @@ public class GameManager : MonoBehaviour
         if (r != null && !relics.Contains(r)) relics.Add(r);
     }
 
+    // N3.fixedstep: fixed-step sim tick (~30 Hz). When enabled, sim systems receive a
+    // constant dt (FIXED_DT) regardless of render frame rate. Time.deltaTime is
+    // accumulated and drained in whole steps so the simulation remains deterministic.
+    public  bool  FixedStepEnabled = false;
+    const   float FIXED_DT         = 1f / 30f;
+    float         _stepAccumulator;
+
     void Update()
     {
-        float dt = Time.deltaTime;
+        if (FixedStepEnabled)
+        {
+            // N3.fixedstep: drain accumulator in constant-dt increments (max 3 steps/frame
+            // to prevent spiral-of-death on lag spikes).
+            _stepAccumulator += Time.deltaTime;
+            int steps = 0;
+            while (_stepAccumulator >= FIXED_DT && steps < 3)
+            {
+                SimTick(FIXED_DT);
+                _stepAccumulator -= FIXED_DT;
+                steps++;
+            }
+        }
+        else
+        {
+            SimTick(Time.deltaTime);
+        }
+    }
+
+    void SimTick(float dt)
+    {
         unitGrid.Rebuild(units);   // N1: refresh spatial index before any proximity query
         if (gather != null)        gather.Tick(units, dt);
         if (combat != null)        combat.Tick(units, dt);
@@ -208,6 +238,7 @@ public class GameManager : MonoBehaviour
         relics.RemoveAll(r => r == null);
 
         RecomputePop();
+        lockstep?.OnSimTick(); // N16.lockstep: advance tick after all systems
     }
 
     /// <summary>
