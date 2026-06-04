@@ -18,6 +18,10 @@ public class HUD : MonoBehaviour
     ResourceManager _res;
     Transform _canvasRoot;
     bool _gameOverShown;
+    /// <summary>N9.postgame test helper: reset game-over flag so overlay can be shown again.</summary>
+    public void ResetGameOver() { _gameOverShown = false; }
+    /// <summary>Diagnostic: returns whether the canvas root is initialised.</summary>
+    public bool HasCanvasRoot => _canvasRoot != null;
     GameObject _pauseMenu;
     // N9.hotkeys: remap panel state
     GameObject _hotkeyPanel;
@@ -1501,41 +1505,98 @@ public class HUD : MonoBehaviour
         if (_gameOverShown || _canvasRoot == null) return;
         _gameOverShown = true;
 
+        var gm = GameManager.Instance;
+
         var overlay = NewRect("GameOverOverlay", _canvasRoot);
         overlay.anchorMin = Vector2.zero; overlay.anchorMax = Vector2.one;
         overlay.offsetMin = Vector2.zero; overlay.offsetMax = Vector2.zero;
-        overlay.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.72f);
+        overlay.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.78f);
 
+        // ── Title ──────────────────────────────────────────────────────────
         var titleRect = NewRect("GameOverTitle", overlay);
-        titleRect.anchorMin = new Vector2(0, 0.5f); titleRect.anchorMax = new Vector2(1, 0.5f);
-        titleRect.pivot = new Vector2(0.5f, 0.5f);
-        titleRect.sizeDelta = new Vector2(0, 120);
-        titleRect.anchoredPosition = new Vector2(0, 30);
-        var title = AddText(titleRect, playerWon ? "ZAFER!" : "YENILDIN", TextAnchor.MiddleCenter);
-        title.fontSize = 80;
-        title.fontStyle = FontStyle.Bold;
+        titleRect.anchorMin = new Vector2(0, 1); titleRect.anchorMax = new Vector2(1, 1);
+        titleRect.pivot = new Vector2(0.5f, 1f);
+        titleRect.sizeDelta = new Vector2(0, 110);
+        titleRect.anchoredPosition = new Vector2(0, -20);
+        var title = AddText(titleRect, playerWon ? "ZAFER!" : "YENİLDİN", TextAnchor.MiddleCenter);
+        title.fontSize = 76; title.fontStyle = FontStyle.Bold;
         title.color = playerWon ? Prims.Hex(0x4caf50) : Prims.Hex(0xff5555);
 
         if (!string.IsNullOrEmpty(subtitle))
         {
             var subRect = NewRect("GameOverSub", overlay);
-            subRect.anchorMin = new Vector2(0, 0.5f); subRect.anchorMax = new Vector2(1, 0.5f);
-            subRect.pivot = new Vector2(0.5f, 0.5f);
-            subRect.sizeDelta = new Vector2(0, 40);
-            subRect.anchoredPosition = new Vector2(0, -50);
+            subRect.anchorMin = new Vector2(0, 1); subRect.anchorMax = new Vector2(1, 1);
+            subRect.pivot = new Vector2(0.5f, 1f);
+            subRect.sizeDelta = new Vector2(0, 36);
+            subRect.anchoredPosition = new Vector2(0, -130);
             var sub = AddText(subRect, subtitle, TextAnchor.MiddleCenter);
-            sub.fontSize = 26;
-            sub.color = Prims.Hex(0xf2d59b);
+            sub.fontSize = 22; sub.color = Prims.Hex(0xf2d59b);
         }
 
+        // ── N9.postgame: per-team stat summary ─────────────────────────────
+        if (gm != null)
+        {
+            int teamCount = gm.teamRes != null ? gm.teamRes.Length : 0;
+            string[] teamNames = { "Sen", "Kırmızı", "Yeşil", "Sarı" };
+
+            // Column header
+            var hdrRect = NewRect("PGHeader", overlay);
+            hdrRect.anchorMin = new Vector2(0.5f, 1); hdrRect.anchorMax = new Vector2(0.5f, 1);
+            hdrRect.pivot = new Vector2(0.5f, 1f);
+            hdrRect.sizeDelta = new Vector2(680, 28);
+            hdrRect.anchoredPosition = new Vector2(0, -176);
+            var hdr = AddText(hdrRect, "Takım            Skor    Ordu   Köy  Bina   Altın  Yaş", TextAnchor.MiddleLeft);
+            hdr.fontSize = 16; hdr.color = Prims.Hex(0xaab0c0);
+
+            float rowY = -206f;
+            for (int t = 0; t < Mathf.Min(teamCount, 4); t++)
+            {
+                int tt = t;
+                // Gather stats
+                int units = 0, military = 0, villagers = 0, buildings = 0;
+                for (int i = 0; i < gm.units.Count; i++)
+                {
+                    var u = gm.units[i];
+                    if (u == null || u.teamId != tt) continue;
+                    units++;
+                    if (u.type == UnitType.Villager) villagers++;
+                    else military++;
+                }
+                for (int i = 0; i < gm.buildings.Count; i++)
+                {
+                    var b = gm.buildings[i];
+                    if (b != null && b.teamId == tt && b.hp > 0f) buildings++;
+                }
+                var res = (gm.teamRes != null && tt < gm.teamRes.Length) ? gm.teamRes[tt] : null;
+                int gold = res != null ? res.gold : 0;
+                var tech = (gm.teamTech != null && tt < gm.teamTech.Length) ? gm.teamTech[tt] : null;
+                string ageLbl = tech != null ? AgeName(tech.age) : "—";
+                int score = units * 10 + military * 15 + buildings * 25 + (res != null ? (res.food + res.wood + res.gold + res.stone) / 10 : 0);
+
+                string line = $"{teamNames[Mathf.Min(tt, teamNames.Length-1)]}       {score,5}  {military,5}  {villagers,3}  {buildings,4}  {gold,5}  {ageLbl}";
+
+                var rowRect = NewRect("PGRow_" + tt, overlay);
+                rowRect.anchorMin = new Vector2(0.5f, 1); rowRect.anchorMax = new Vector2(0.5f, 1);
+                rowRect.pivot = new Vector2(0.5f, 1f);
+                rowRect.sizeDelta = new Vector2(680, 26);
+                rowRect.anchoredPosition = new Vector2(0, rowY);
+                var rowTxt = AddText(rowRect, line, TextAnchor.MiddleLeft);
+                rowTxt.fontSize = 16;
+                rowTxt.color = tt == 0
+                    ? (playerWon ? Prims.Hex(0x4cdd6a) : Prims.Hex(0xff7070))
+                    : TeamPalette.For(tt);
+                rowY -= 28f;
+            }
+        }
+
+        // ── Restart hint ───────────────────────────────────────────────────
         var hintRect = NewRect("GameOverHint", overlay);
-        hintRect.anchorMin = new Vector2(0, 0.5f); hintRect.anchorMax = new Vector2(1, 0.5f);
-        hintRect.pivot = new Vector2(0.5f, 0.5f);
-        hintRect.sizeDelta = new Vector2(0, 40);
-        hintRect.anchoredPosition = new Vector2(0, -100);
-        var hint = AddText(hintRect, "Yeniden baslatmak icin R", TextAnchor.MiddleCenter);
-        hint.fontSize = 28;
-        hint.color = new Color(0.85f, 0.85f, 0.85f, 1f);
+        hintRect.anchorMin = new Vector2(0, 0); hintRect.anchorMax = new Vector2(1, 0);
+        hintRect.pivot = new Vector2(0.5f, 0f);
+        hintRect.sizeDelta = new Vector2(0, 50);
+        hintRect.anchoredPosition = new Vector2(0, 30);
+        var hint = AddText(hintRect, "Yeniden başlatmak için R", TextAnchor.MiddleCenter);
+        hint.fontSize = 26; hint.color = new Color(0.85f, 0.85f, 0.85f, 1f);
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────
