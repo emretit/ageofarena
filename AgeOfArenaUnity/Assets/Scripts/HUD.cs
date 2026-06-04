@@ -1414,6 +1414,15 @@ public class HUD : MonoBehaviour
         AddBtn("📝 Editör", () => { ClosePauseMenu(); gm.scenarioEditor?.Open(); }, -30f);
         // N13.camp: open campaign screen
         AddBtn("⚔ Kampanya", () => { ClosePauseMenu(); gm.campaignScreen?.Show(); }, -90f);
+        // N15.checksum: save replay snapshot + trigger verify run
+        AddBtn("🔁 Replay", () =>
+        {
+            if (gm.checksum == null) return;
+            var result = gm.checksum.ReplayVerifyResult;
+            if (result != null) { ShowSubtitle($"Sonuç: {result}", 5f); return; }
+            ClosePauseMenu();
+            gm.checksum.StartReplayVerify();
+        }, -150f);
         AddBtn(Loc.Get("pause.resign"),  () => { ClosePauseMenu(); gm.match?.Resign(); }, -50f);
         AddBtn(Loc.Get("pause.restart"), () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -110f);
         // FOWD: fog toggle in pause menu

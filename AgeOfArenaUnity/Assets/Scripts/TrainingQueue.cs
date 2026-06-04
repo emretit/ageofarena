@@ -45,6 +45,10 @@ public class TrainingQueue : MonoBehaviour
         if (q.Count >= MaxQueueSize) return false;
 
         rm.Deduct(def.food, def.wood, def.gold, 0);
+        // N3.cmdlog: record train command (player team only)
+        if (b.teamId == 0)
+            GM.cmdRecorder?.Record(CommandType.Train, null,
+                intParam1: (int)def.unitType, intParam2: b.GetInstanceID());
         // Blacksmith aura: 20% faster training for military buildings within 14u.
         float time = def.trainTime;
         if (BlacksmithNearby(b, 14f)) time *= 0.80f;

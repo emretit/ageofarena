@@ -51,6 +51,9 @@ public static class GameBootstrap
     /// <summary>N10.rms: map archetype for the next match.</summary>
     public static MapType NextMapType = MapType.Arena;
 
+    /// <summary>N15.checksum: JSON replay baseline; set before Restart() for verify run.</summary>
+    public static string ReplayBaseline;
+
     /// <summary>Restart with a fresh random seed so the next map looks different.</summary>
     public static void Restart(int seed = 0)
     {

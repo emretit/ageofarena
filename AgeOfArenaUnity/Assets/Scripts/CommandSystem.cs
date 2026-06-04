@@ -108,7 +108,16 @@ public class CommandSystem : MonoBehaviour
                 var u = selected[i];
                 if (u != null) { u.AttackOrder(enemy); ordered = true; }
             }
-            if (ordered) SpawnMarker(enemy.Transform.position, AttackColor);
+            if (ordered)
+            {
+                SpawnMarker(enemy.Transform.position, AttackColor);
+                // N3.cmdlog: record attack command
+                int targetId = (enemy is UnitEntity ue) ? ue.unitId
+                             : (enemy is BuildingEntity be) ? be.GetInstanceID() : 0;
+                GameManager.Instance?.cmdRecorder?.Record(
+                    CommandType.Attack, UnitIds(selected), intParam1: targetId,
+                    x: enemy.Transform.position.x, z: enemy.Transform.position.z);
+            }
             return;
         }
 
@@ -158,7 +167,15 @@ public class CommandSystem : MonoBehaviour
                     any = true;
                 }
             }
-            if (any) SpawnMarker(node.transform.position, GatherColor);
+            if (any)
+            {
+                SpawnMarker(node.transform.position, GatherColor);
+                // N3.cmdlog: record gather command
+                GameManager.Instance?.cmdRecorder?.Record(
+                    CommandType.Gather, UnitIds(selected),
+                    intParam1: node.GetInstanceID(),
+                    x: node.transform.position.x, z: node.transform.position.z);
+            }
             return;
         }
 
@@ -364,6 +381,10 @@ public class CommandSystem : MonoBehaviour
     void MoveOrder(List<UnitEntity> selected, Vector3 point)
     {
         int n = selected.Count;
+        // N3.cmdlog: record move command
+        GameManager.Instance?.cmdRecorder?.Record(
+            CommandType.Move, UnitIds(selected), x: point.x, z: point.z);
+
         if (n == 1)
         {
             selected[0].Stop();
@@ -380,6 +401,14 @@ public class CommandSystem : MonoBehaviour
             u.Stop();
             u.MoveTo(point + offsets[i]);
         }
+    }
+
+    static int[] UnitIds(List<UnitEntity> units)
+    {
+        var ids = new int[units.Count];
+        for (int i = 0; i < units.Count; i++)
+            ids[i] = units[i] != null ? units[i].unitId : -1;
+        return ids;
     }
 
     /// <summary>Compute n world-space XZ offsets for the chosen formation type.</summary>

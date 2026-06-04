@@ -61,6 +61,8 @@ public class GameManager : MonoBehaviour
     public TriggerSystem   triggers;       // N11.trig
     public ScenarioEditor  scenarioEditor; // N12.edit
     public CampaignScreen  campaignScreen; // N13.camp
+    public CommandRecorder cmdRecorder;    // N3.cmdlog
+    public ChecksumSystem  checksum;       // N15.checksum
 
     /// <summary>N1: per-frame spatial index of all units for O(n) proximity queries
     /// (combat aggro / heal / convert / projectile splash). Rebuilt at the top of Update.</summary>

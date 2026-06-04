@@ -132,6 +132,11 @@ public class WorldRoot : MonoBehaviour
         // Post-processing: must run after camera is ready.
         SetupPostProcessing(cam.gameObject);
 
+        // N15.checksum: load replay baseline if this is a verify run.
+        var gm2 = GameManager.Instance;
+        if (gm2?.checksum != null && !string.IsNullOrEmpty(GameBootstrap.ReplayBaseline))
+            ChecksumSystem.LoadBaseline(gm2.checksum);
+
         // CIVS: prompt the player to pick a civilization over the freshly-built arena.
         // STRT: show setup screen on first run; ARES: skip on restart (PlayerCiv persists).
         if (GameBootstrap.PlayerCiv == Civilization.None)
@@ -926,6 +931,8 @@ public class WorldRoot : MonoBehaviour
         gm.triggers       = go.AddComponent<TriggerSystem>();   // N11.trig
         gm.scenarioEditor = go.AddComponent<ScenarioEditor>(); // N12.edit
         gm.campaignScreen = go.AddComponent<CampaignScreen>(); // N13.camp
+        gm.cmdRecorder    = go.AddComponent<CommandRecorder>(); // N3.cmdlog
+        gm.checksum       = go.AddComponent<ChecksumSystem>(); // N15.checksum
         return gm;
     }
 

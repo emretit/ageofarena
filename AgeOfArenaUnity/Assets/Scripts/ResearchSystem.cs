@@ -40,6 +40,10 @@ public class ResearchSystem : MonoBehaviour
 
         rm.Deduct(def.food, def.wood, def.gold, def.stone);
         _active[b] = new ResearchItem { type = def.type, totalTime = def.researchTime };
+        // N3.cmdlog: record research command (player team only)
+        if (b.teamId == 0)
+            GM.cmdRecorder?.Record(CommandType.Research, null,
+                intParam1: (int)def.type, intParam2: b.GetInstanceID());
         return true;
     }
 
