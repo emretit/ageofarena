@@ -218,6 +218,16 @@ public class CivSelectScreen : MonoBehaviour
         rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
     }
 
+    static Font _font;
+
+    static Font ResolvedFont()
+    {
+        if (_font != null) return _font;
+        _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (_font == null) _font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        return _font;
+    }
+
     static Text Label(Transform parent, string text, float x, float y, int size, Color color)
     {
         var go = new GameObject("Label");
@@ -227,7 +237,7 @@ public class CivSelectScreen : MonoBehaviour
         rt.anchoredPosition = new Vector2(x, y);
         var t = go.AddComponent<Text>();
         t.text = text;
-        t.font = null;                          // Unity 6 default runtime font (per HUD convention)
+        t.font = ResolvedFont();
         t.fontSize = size;
         t.alignment = TextAnchor.MiddleCenter;
         t.color = color;
