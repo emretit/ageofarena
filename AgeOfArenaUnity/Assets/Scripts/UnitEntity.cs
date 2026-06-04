@@ -247,30 +247,30 @@ public class UnitEntity : MonoBehaviour, IDamageable
     };
 
     /// <summary>
-    /// Additive bonus damage vs a target's armor classes (M7/BNUS), replacing the old
-    /// multiplicative anti-cavalry / anti-archer / anti-structure factors. Values are
-    /// tuned so a base-stat counter deals the same effective damage as before:
-    /// Spearman +8 vs Cavalry-class (was ×3), Camel +7 (×2), Skirmisher +3 vs Archer
-    /// (×2), Trebuchet +70 vs Building (×3), Ram +16 (×5).
+    /// Additive bonus damage vs a target's armor classes (M7/BNUS → N6/BONUS stacking).
+    /// Each bonus applies independently per matching armor class, so a target that carries
+    /// multiple classes (e.g. CavalryArcher = Archer|Cavalry; Mameluke = Cavalry|Camel)
+    /// receives ALL applicable bonuses from a single attacker (AoE2 stacking rule).
     /// </summary>
     public float BonusDamageVs(IDamageable target)
     {
         if (target == null) return 0f;
         ArmorClass tc = target.ArmorClasses;
         float bonus = 0f;
-        switch (type)
-        {
-            case UnitType.Spearman:   if ((tc & ArmorClass.Cavalry)  != 0) bonus += 8f;  break;
-            case UnitType.Camel:      if ((tc & ArmorClass.Cavalry)  != 0) bonus += 7f;  break;
-            case UnitType.Skirmisher: if ((tc & ArmorClass.Archer)   != 0) bonus += 3f;  break;
-            case UnitType.Trebuchet:  if ((tc & ArmorClass.Building) != 0) bonus += 70f; break;
-            case UnitType.Ram:        if ((tc & ArmorClass.Building) != 0) bonus += 16f; break;
-            case UnitType.WarElephant:if ((tc & ArmorClass.Building) != 0) bonus += 30f; break;  // CIVU
-            case UnitType.Mangudai:   if ((tc & ArmorClass.Siege)    != 0) bonus += 10f; break;  // CIVU anti-siege
-            case UnitType.Cataphract: if ((tc & ArmorClass.Infantry) != 0) bonus += 12f; break;  // N4/CIVU anti-infantry
-            case UnitType.Mameluke:   if ((tc & ArmorClass.Cavalry)  != 0) bonus += 9f;  break;  // N4/CIVU anti-cavalry
-            case UnitType.Huskarl:    if ((tc & ArmorClass.Archer)   != 0) bonus += 6f;  break;  // N4/CIVC13 anti-archer
-        }
+        // N6.bonus: use independent if-checks (NOT switch-break) so every matching class
+        // accumulates, reproducing AoE2's additive bonus-damage stacking behaviour.
+        if (type == UnitType.Spearman)   { if ((tc & ArmorClass.Cavalry)  != 0) bonus += 8f; }
+        if (type == UnitType.Camel)      { if ((tc & ArmorClass.Cavalry)  != 0) bonus += 7f; }
+        if (type == UnitType.Skirmisher) { if ((tc & ArmorClass.Archer)   != 0) bonus += 3f; }
+        if (type == UnitType.Trebuchet)  { if ((tc & ArmorClass.Building) != 0) bonus += 70f; }
+        if (type == UnitType.Ram)        { if ((tc & ArmorClass.Building) != 0) bonus += 16f; }
+        if (type == UnitType.WarElephant){ if ((tc & ArmorClass.Building) != 0) bonus += 30f; }  // CIVU
+        if (type == UnitType.Mangudai)   { if ((tc & ArmorClass.Siege)    != 0) bonus += 10f; }  // CIVU
+        if (type == UnitType.Cataphract) { if ((tc & ArmorClass.Infantry) != 0) bonus += 12f; }  // N4/CIVU
+        if (type == UnitType.Mameluke)   { if ((tc & ArmorClass.Cavalry)  != 0) bonus += 9f;  }  // N4/CIVU
+        if (type == UnitType.Huskarl)    { if ((tc & ArmorClass.Archer)   != 0) bonus += 6f;  }  // N4/CIVC13
+        // Tech-provided bonus damage: N4/CIVT techs that give UUs extra bonus vs a class.
+        // None yet — hook reserved for future data-driven expansion.
         return bonus;
     }
     /// <summary>Minimum attack range: siege weapons can't fire at point-blank targets.</summary>
