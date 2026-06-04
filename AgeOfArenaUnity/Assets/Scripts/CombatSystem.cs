@@ -14,6 +14,7 @@ public class CombatSystem : MonoBehaviour
     const float AggroInterval  = 0.5f;  // throttle idle enemy scans
 
     readonly Dictionary<UnitEntity, float> _repath = new();
+    readonly List<UnitEntity> _queryBuf = new();   // N1: reused spatial-grid query buffer
     float _aggroTimer;
 
     GameManager GM => GameManager.Instance;
@@ -169,16 +170,19 @@ public class CombatSystem : MonoBehaviour
         float bestSq = radius * radius;
         Vector3 pos = u.transform.position;
 
-        var units = GM.units;
-        for (int i = 0; i < units.Count; i++)
+        // N1: query the spatial grid's cell neighbourhood instead of all units.
+        _queryBuf.Clear();
+        GM.unitGrid.Query(pos, radius, _queryBuf);
+        for (int i = 0; i < _queryBuf.Count; i++)
         {
-            var o = units[i];
+            var o = _queryBuf[i];
             if (o == null || o.isGarrisoned) continue;
             if (!GM.IsEnemy(u.teamId, o.teamId)) continue;
             float sq = FlatSq(pos, o.transform.position);
             if (sq < bestSq) { bestSq = sq; best = o; }
         }
 
+        // Buildings stay a linear scan — only a few dozen exist, so a second grid isn't worth it.
         var buildings = GM.buildings;
         for (int i = 0; i < buildings.Count; i++)
         {
@@ -204,9 +208,12 @@ public class CombatSystem : MonoBehaviour
         float radiusSq = medic.HealRadius * medic.HealRadius;
         UnitEntity best = null;
         float bestRatio = 1f;
-        for (int i = 0; i < units.Count; i++)
+        // N1: only consider units in the heal-radius cell neighbourhood.
+        _queryBuf.Clear();
+        GM.unitGrid.Query(pos, medic.HealRadius, _queryBuf);
+        for (int i = 0; i < _queryBuf.Count; i++)
         {
-            var o = units[i];
+            var o = _queryBuf[i];
             if (o == null || o == medic || o.teamId != medic.teamId) continue;
             if (o.hp <= 0f || o.hp >= o.maxHp) continue;       // dead or already full
             if (FlatSq(pos, o.transform.position) > radiusSq) continue;
@@ -333,8 +340,8 @@ public class CombatSystem : MonoBehaviour
             // HPWB: show when damaged OR when selected; hide at full HP unless selected.
             bool selected = sel != null && sel.Selected.Contains(u);
             if (u.hp >= u.maxHp && !selected) continue;
-            // KayKit animated units are ~1.5u tall; primitives scaled to ~1.25u.
-            float barY = u.GetComponentInChildren<SkinnedMeshRenderer>() != null ? 2.0f : 1.6f;
+            // KayKit animated units are ~1.5u tall; primitives scaled to ~1.25u. N1: cached lookup.
+            float barY = u.IsKayKitModel ? 2.0f : 1.6f;
             DrawBar(cam, u.transform.position + Vector3.up * barY,
                 u.hp / u.maxHp, u.teamId == 0, 26f);
         }

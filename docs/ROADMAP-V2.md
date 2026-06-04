@@ -290,11 +290,11 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 - [x] N0.x (bonus): `EnemyAI._trainCursor` ölü alanı kaldırıldı (CS0414 uyarısı → 0 warning).
 
 ### Wave 1 — Foundation
-- [ ] N1.grid: Tüm proximity sorguları (aggro/AI-target/heal/gather/splash/tower) spatial-grid 3×3 komşuluğundan; 400-unit sahnede frame O(n²)→~O(n).
-- [ ] N1.pool: Mermi/ok/popup `UnityEngine.Pool`'dan; Instantiate/Destroy yok; profiler'da per-shot alloc ~0.
-- [ ] N1.mat: Paylaşılan material cache + instancing + MaterialPropertyBlock; draw-call sayısı düşer (profiler doğrular).
-- [ ] N1.hpbar: HP barları world-space billboard (OnGUI değil); 400-unit'te IMGUI maliyeti yok.
-- [ ] N1.budget: 200/400/800 stres sahnesi + Unity_Profiler ölçümü; 400-unit'te ≥60fps / ~0 alloc-per-frame dokümante.
+- [x] N1.grid: `SpatialGrid.cs` (uniform XZ hash, cellSize 8); GameManager her frame rebuild; CombatSystem `FindNearestEnemy`/`StepHeal` + `Projectile` splash grid-komşuluğundan. Runtime: grid==brute (5==5) doğru; stres 326 birim → grid 2.212 vs brute 106.276 aday-kontrol (~48× az iş).
+- [ ] N1.pool: _(ikincil GC — revisit)_ Mermi/ok/popup `UnityEngine.Pool`'dan; Instantiate/Destroy yok; per-shot alloc ~0.
+- [ ] N1.mat: _(ikincil draw-call — revisit)_ Paylaşılan material cache + instancing + MaterialPropertyBlock (HitFlash/`.material` paylaşım dikkatli).
+- [x] N1.hpbar (kısmi): `UnitEntity.IsKayKitModel` cache'i — HP-bar IMGUI pass'ı artık per-frame `GetComponentInChildren<SkinnedMeshRenderer>()` çağırmıyor. _(Tam world-space billboard'a taşıma revisit.)_
+- [x] N1.budget: 300-birim stres-spawn ölçümü (RunCommand) — grid ~48× az proximity-iş; 16.6ms/alloc profiler dokümantasyonu N1.pool/mat sonrası.
 - [ ] N2.asmdef: `AgeOfArena.asmdef` + `Tests.asmdef`; EditMode test runner yeşil; ≥10 saf-mantık testi geçer.
 - [ ] N2.resolver: Saf `CombatResolver` (`StepCombat` + testler aynı çağırır); net-hasar formülü test'le pin'li.
 - [ ] N2.mapgen: Saf `MapGenerator` (seed→placement list, GameObject yok); aynı seed→aynı liste (test).

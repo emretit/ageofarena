@@ -512,6 +512,12 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public Transform Transform => transform;
     public float Radius => 0.4f;
 
+    // N1: KayKit (skinned) models stand taller than primitive units, so the HP bar sits higher.
+    // Cache the check — otherwise the IMGUI HP-bar pass calls GetComponentInChildren over every
+    // unit every frame (a real per-frame cost at scale).
+    bool? _isKayKit;
+    public bool IsKayKitModel => _isKayKit ??= GetComponentInChildren<SkinnedMeshRenderer>() != null;
+
     public void TakeDamage(float amount, DamageType damageType = DamageType.Melee)
     {
         if (hp <= 0f) return;

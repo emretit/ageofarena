@@ -25,6 +25,8 @@ public class Projectile : MonoBehaviour
     UnitEntity _attacker;  // N0.4: source unit, so splash recomputes bonus damage per victim
     float _age;
 
+    static readonly System.Collections.Generic.List<UnitEntity> _splashBuf = new(); // N1: reused query buffer
+
     static readonly Color ArrowColor = Prims.Hex(0x4a3018);
 
     /// <summary>Fire an arrow from <paramref name="from"/> at <paramref name="target"/>.
@@ -81,10 +83,12 @@ public class Projectile : MonoBehaviour
                 {
                     Vector3 ip = tp;
                     float r2 = _splashRadius * _splashRadius;
-                    var units = gm.units;
-                    for (int i = 0; i < units.Count; i++)
+                    // N1: query the spatial grid's neighbourhood instead of all units.
+                    _splashBuf.Clear();
+                    gm.unitGrid.Query(ip, _splashRadius, _splashBuf);
+                    for (int i = 0; i < _splashBuf.Count; i++)
                     {
-                        var o = units[i];
+                        var o = _splashBuf[i];
                         if (o == null || !o.IsAlive || ReferenceEquals(o, _target)) continue;
                         Vector3 op = o.transform.position;
                         float dx = op.x - ip.x, dz = op.z - ip.z;

@@ -51,6 +51,10 @@ public class GameManager : MonoBehaviour
     public RelicSystem relicSystem;
     public TradingSystem trading;
 
+    /// <summary>N1: per-frame spatial index of all units for O(n) proximity queries
+    /// (combat aggro / heal / convert / projectile splash). Rebuilt at the top of Update.</summary>
+    public readonly SpatialGrid unitGrid = new SpatialGrid(8f);
+
     public BuildingEntity selectedBuilding;
 
     /// <summary>Global AI difficulty (applied by every <see cref="EnemyAI"/>).</summary>
@@ -148,6 +152,7 @@ public class GameManager : MonoBehaviour
     void Update()
     {
         float dt = Time.deltaTime;
+        unitGrid.Rebuild(units);   // N1: refresh spatial index before any proximity query
         if (gather != null)        gather.Tick(units, dt);
         if (combat != null)        combat.Tick(units, dt);
         if (buildingCombat != null) buildingCombat.Tick(buildings, units, dt);
