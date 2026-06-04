@@ -116,7 +116,10 @@ public class FogOfWarSystem : MonoBehaviour
         {
             var u = gm.units[i];
             if (u == null || !gm.IsAllied(0, u.teamId)) continue;
-            PaintCircle(u.transform.position, UnitSight(u.type));
+            // N10.minimap: elevation-aware sight — units on higher terrain see up to +20% farther.
+            float elevBonus = 1f + Mathf.Clamp01(WorldRoot.GetHeight(
+                u.transform.position.x, u.transform.position.z) / 1.4f) * 0.20f;
+            PaintCircle(u.transform.position, UnitSight(u.type) * elevBonus);
         }
 
         // 3. Paint sight circles for player (team 0) + allied buildings

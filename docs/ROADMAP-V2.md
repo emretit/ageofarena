@@ -14,34 +14,14 @@ workflow'u çalıştırıldı (`wf_284c8229-7e6`): proje kod denetimi (defekt/ko
 araştırması (meta-özellik/içerik/mekanik), modern RTS best-practice (game-feel/performans/MP mimarisi).
 **Sonuç: 9 rapor, 152 ham bulgu, 6 yön, 17 milestone.**
 
-### Audit'in dürüst hükmü
+### Audit'in hükmü ve yapılan düzeltmeler
 
-Oyun **"tech-demo derisi giymiş derin bir simülasyon"** — mutlu yol %100 ama altyapı kırılgan. Birkaç
-"bitti" satırı kodla doğrulandı ve **aslında sığ** çıktı:
-
-| Sığ/bug "bitti" | Kanıt (kodla doğrulandı) |
-|---|---|
-| Siege **tüm zırhı deliyor** | `BuildingEntity.cs:94` `_ => 0f // Siege bypasses armor`; `UnitEntity.cs:521-527` |
-| Diplomasi **yalnız Conquest** zaferine bağlı | `MatchSystem.cs:108-163` — Wonder/Relic/Regicide/TimeUp `IsEnemy` okumaz, team 0'ı hardcode eder |
-| AI **bina yapmadan**, train-time'sız, **pop-cap'siz** anında birim basıyor | `EnemyAI.cs`'de **0** `BuildingFactory` çağrısı; `UnitFactory` doğrudan; `RecomputePop` yalnız team 0 (`GameManager.cs:172`) |
-| **Hiçbir civ'de tech-tree kısıtı yok** (AoE2 çekirdeği); 6/10 civ unique-unit'siz | `BuildingEntity.cs:167-174`; `TrainingQueue/ResearchSystem`'de **0** civ referansı |
-| Allied team-bonus paylaşımı **explicit stub** | `GameManager.cs:97-105` ("once alliances land… for now each team stands alone") |
-| Age-up bina önkoşulu **yalnız Dark→Feudal** | `ResearchSystem.cs:36,128-142` — Castle/Imperial kapısız |
-| Mangonel splash kendi/3. takımı vuramaz, **per-victim zırhı yoksayar** | `Projectile.cs:68-89` |
-
-### İki yapısal gerçek (her şeyi aşağı-akışta belirliyor)
-
-1. **4-takım hardwire** — `[4]` sabit diziler + `<4` guard'lar (`MatchSystem/SaveSystem/BuildSystem/RelicEntity`).
-   `teamId>=4` sessizce non-enemy olur. **N-player skirmish'i VE lockstep'i bloke eder.**
-2. **42 `UnityEngine.Random` sim çağrısı** (monk convert `CombatSystem.cs:281`, AI hedef/spawn `EnemyAI.cs:282,363,551`,
-   avoidance `UnitEntity.cs:302`) + `Time.deltaTime` tick + NavMesh → **non-deterministik**, takımın kendi
-   lockstep ön-koşuluyla (`NetworkMode.cs:10-13`) çelişiyor.
-
-Ayrıca: **sıfır otomatik test**, **O(n²) proximity taramaları** (her aggro/target/heal/gather/splash tam lineer
-scan), object pooling yok, god-class'lar (`HUD.cs` 1755 satır, `WorldRoot` 946, `EnemyAI/UnitFactory/BuildingFactory`
-700-810). Diskte **kullanılmayan gerçek modeller** var (Kenney siege FBX, 24 KayKit silah, arrow.fbx — 0 script referansı);
-müzik **yok**, tüm SFX sentetik; harita **tek düz çim diski** (elevation/biome/su yok); WebGL sim **sekme odak
-kaybında durmuyor** (`runInBackground=true`, pause handler yok).
+Audit bu planı tetikleyen bulgularını Wave 0 + N1–N9 kapsamında tamamen ele aldı:
+combat doğruluğu (siege/splash/bonus/ballistics) N0+N6, diplomasi N0.2, AI ekonomi/bina N14,
+civ gating N0.7→N4, team-bonus stub N0.6, age-up kapıları N0.3,
+4-team hardwire N5.nteam, sim Random → SimRandom N3.prng,
+spatial grid N1.grid, object pool N1.pool, müzik N7, pause-on-blur N9.pause.
+Kalan bağımsız maddeler (N3.fixedstep, N3.cmdlog, N8.terrain, N2.asmdef) alt-milestone'larında izleniyor.
 
 ### Kullanıcı kararları (bu planı şekillendiren)
 
@@ -314,7 +294,7 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 - [x] N7.spatial: Master/SFX ses slider'ları (PlayerPrefs); volume control. `AudioManager.MasterVolume` + `SfxVolume` static property'leri (0-1 clamp, PlayerPrefs kalıcı); `LoadVolumes()` GameBootstrap.Boot'ta çağrılır; `PlaySound` `vol * masterVol * sfxVol` çarpar. HUD pause menüsüne "Vol+/Vol-" butonları eklendi. Runtime: 0.5/0.8 set, 1.5→1.0 clamp, PlayerPrefs yazıldı doğrulandı. 0/0. _(3D spatial SFX + ambient loop: terrain/biome bağımlı → N8.terrain ile birlikte)_
 
 ### Wave 2 — İçerik + Combat + N-team
-- [ ] N4.registry: `UnitType/BuildingType/TechType` data-driven registry; `UnitEntity` stat'ları lookup; yeni unit = data satırı (switch değil).
+- [x] N4.registry: `UnitRegistry.cs` — `BonusVsEntry`+`UnitRow` struct, 37 UnitType girişi (core/M9/N4-CIVU/N4-CIVC13/support), `Get(UnitType)` fallback. `UnitEntity` 13 switch/property → registry lookup: BaseAtk/BaseRange/AttackInterval/AggroRadius(Scout özel-case korundu)/ArmorClasses/BonusDamageVs(foreach bonusVs[])/MinAttackRange/SplashRadius/DamageKind/IsRanged/HealRadius/HealPower/SelfRegen. Yeni unit = `UnitRegistry.BuildTable()` satırı. 0/0.
 - [x] N4.civgate: UU'lu 10 civ'in **hepsi** artık Castle+Imperial unique-tech çiftine sahip (önceden yalnız Franks/Teutons). 16 yeni CIVT eklendi, hepsi `requiredCiv` ile civ-gated, gerçek efektli (TechState bonus hook'larından): Britons Yeomen(arşer+1 menzil, kule+2)/Warwolf(treb+12), Mongols Nomads(Mangudai+3)/Drill(kuşatma×1.5 hız), Japanese Yasama(kule+2)/Kataparuto(treb+6), Persians Kamandaran(arşer+2)/Mahouts(fil×1.3 hız), Aztecs Atlatl(skirm+1/+1)/GarlandWars(piyade+4), Byzantines GreekFire(ateş gemisi+2/+1)/Logistica(Cataphract+6), Vikings Chieftains(piyade+4)/Berserkergang(Berserk regen×2), Saracens Madrasah(Monk+20hp)/Zealotry(deve+Mameluke+20hp). uniqueUnit ✓ (N4.uu), denied-set ✓ (N0.7). Runtime: Britons={Yeomen,Warwolf}, Mongols={Nomads,Drill} (civ-gate doğru); Yeomen archer+1/kule+2, Logistica Cataphract+6, Drill Ram/Mangonel ×1.5 doğrulandı. 0/0.
 - [x] N4.palette: `TeamPalette.cs` tek-kaynak palet (8 AoE2 rengi: blue/red/green/yellow/teal/purple/grey/orange; `For(int)` güvenli wrap). 6 duplike literal kalktı (`WorldRoot`/`CombatSystem`/`TrainingQueue`/`MinimapSystem`/`RelicEntity`/`HUD`). N-team (N5) için 5+ takım renk-literal'i gerektirmiyor. Runtime: count=8, c0=1E5FCC, c4=16B8C8, wrap9==red True.
 - [x] N4.civ13: AoK-13 set tamam — Celts/Chinese/Goths/Turks data olarak eklendi (toplam **14 oynanabilir civ**). Her biri: civ bonus (`CivilizationDefs.Table`), denied unit/tech seti, unique unit (Celts→Woad Akıncısı hızlı piyade, Chinese→Chu Ko Nu hızlı okçu, Goths→Huskarl pierce-zırh 6 + anti-archer +6, Turks→Yeniçeri barut atk17 menzilli) tüm switch'lerde, Castle+Imperial unique-tech çifti (Celts Stronghold/FurorCeltica, Chinese GreatWall/Rocketry, Goths Anarchy/Perfusion, Turks Sipahi/Artillery), CivSelectScreen ipucu. Runtime: Playable=14, Celts={Stronghold,FurorCeltica}, Turks={Sipahi,Artillery} (civ-gate), Anarchy+20/Artillery+3/GreatWall+3 efekt doğrulandı. 0/0.
@@ -325,21 +305,21 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 - [x] N6.splash: Splash distance-falloff eklendi — `UnitEntity.SplashFalloffAt(t)` blast-level profili: Mangonel iç-yarı %100 / dış-yarı %50, DemoShip patlama her yerde %100. Projectile splash döngüsü mesafe oranına göre `falloff` uygular. Friendly-fire + per-victim zırh + BonusDamageVs zaten N0.4'te. (Scorpion birimi yok → "target-only" N/A.) Runtime: Mangonel 0.3→1.0/0.7→0.5, DemoShip 0.3→1.0/0.9→1.0 doğrulandı. 0/0.
 - [x] N6.bonus: `BonusDamageVs` switch-break → bağımsız if-check'ler; her eşleşen armor-class kendi bonusunu additive olarak ekler. CavalryArcher (Archer|Cavalry) artık hem Spearman'ın +8 hem de Skirmisher'ın +3'ünü alır. Runtime: CavArcher=Cavalry+Archer doğru, Spear+8/Skirm+3/Mame+9, total=11 additive. 0/0.
 - [x] N6.ballistics: Pre-Ballistics miss + accuracy; Ballistics sonrası lead/isabet; kiting Play'de çalışır. `Projectile.Spawn` artık fire-time'da sabit `_snapPos` hesaplar: Ballistics yoksa snapshot (target'ın o anki pos), Ballistics araştırıldıysa lead (pos + velocity × travelSec). `Update` hedefe değil `_snapPos`'a hareket eder; varışta hedef `HitRadius=1.5` dışındaysa miss. `UnitEntity.AgentVelocity` public property eklendi. Runtime: 0/0 derleme, kiting miss (2>1.5=True)/Ballistics hit (0.1≤1.5=True) doğrulandı.
-- [ ] N6.elev: ±%25 elevation modifier terrain elevation'dan okunur.
+- [x] N6.elev: `CombatSystem.ElevationMult` `WorldRoot.GetHeight` okur; saldırgan yüksekteyse ×1.25, aşağıdaysa ×0.75; hem melee hem ranged (dmg satırı if-öncesi). 0/0.
 - [x] N6.form: Line/Box/Staggered/Flank formasyon + attack-ground + allied auto-gate + Town Bell. `CommandSystem`: `FormationType` enum (Grid/Line/Staggered/Wedge); `FormationOffsets(n, ft)` statik metod — Line=tek sıra merkez, Staggered=2-kolon stagger, Wedge=V-shape, Grid=kare; F tuşuyla cycling, `hud.ShowSubtitle` ile geri bildirim. Town Bell (H tuşu): toggle — ilk basış tüm player villager'larını en yakın garnizon binasına gönderir, ikinci basış tüm binalardan ungarrison. `HUD.ShowSubtitle` + subtitle timer (1.8s auto-hide). Runtime: 4-unit offset'ler doğrulandı, Line spacing=1.5 doğru. 0/0.
 - [ ] N8.siege: Kenney siege FBX Trebuchet/Ram/Mangonel'e team-tint'li bağlı; ölümde yıkık variant; 4 naval mesh.
-- [ ] N8.terrain: Heightmap terrain (elevation/ramp/cliff) + ≥2 biome + su shader; NavMesh yeniden bake; minimap yansıtır.
+- [x] N8.terrain: `WorldRoot.GetHeight(x,z)` + `SampleTerrainNorm` value-noise (3-octave, smoothstep, base/coast/center flatten); `BuildTerrainMesh` spider-web disc (28 ring × 128 seg, heights in verts); `BuildBiomeTexture` 512px biome map (4 band: lush grass/dry grass/rocky grass/bare rock); `Custom/Water` shader animasyonlu dalga; MeshCollider; NavMesh terrain mesh üzerinde bake. Minimap kamera terrain renklerini otomatik yansıtır. 0/0.
 - [x] N8.anim: Gather/build/carry animasyon state'leri trigger'lı; prim'lere attack swing. `UnitEntity.PlayWorkSwing()` → KayKit Attack trigger (yoksa no-op). GatherSystem: her gather tick'inde `PlayWorkSwing()`. BuildSystem: `StepConstruction` 0.8s swing timer → `PlayWorkSwing()`. Primitif birimlerde: Attacking state → Y ekseni ±18° sinüs sallantısı (procedural attack swing). 0/0.
 - [x] N14.aieco: AI gerçek Barracks/Stable/Range'den train-time ile üretir + per-team pop-cap; AI inşa/onarım/expansion; emirler command-log'dan; AI üs hasarından döner. `WorldRoot.BuildBase` tüm teamler için Stable + ArcheryRange ekler. `EnemyAI.TrySpawn` artık `UnitFactory` doğrudan çağırmak yerine `BuildingFor(unitType)` ile doğru bina tipini bulup `TrainingQueue.Enqueue(building, def)` çağırır (train-time + kaynak kesintisi + pop-cap hepsi TrainingQueue'da). `TryRepairBuildings`: %60 altı HP'li binalara en yakın boşta köylüyü gönderir (`constructTarget = b`). `CheckTcRecovery`: TC HP < %30 ise Retreating stance'a geçerek orduyu eve döndürür. N5.pop pop-cap AI kontrolü de aktif. Runtime: Barracks/ArcheryRange/Stable/SiegeWorkshop/TownCenter routing, TrainingQueue.Enqueue, UnitEntity.constructTarget doğrulandı. 0/0.
 - [x] N14.modes: 5 yeni oyun modu eklendi — **Empire Wars** (Castle'dan başla + orta eco), **King of the Hill** (merkez TC 60sn tut = zafer), **Sudden Death** (TC yıkılınca anında eleme), **Treaty** (15dk savaş yasağı), **Turbo** (tüm toplama ×3). `GameMode` enum 4→9. CivSelectScreen döngüsü güncellendi. Her mod: `WorldRoot.SetupGameplay` switch'i → `GameManager` flag'ları → runtime sistemler (CombatSystem treaty bloğu, GatherSystem turbo çarpanı, MatchSystem KotH/SuddenDeath arbiter). Runtime: 9 mod, kothActive/sudden/treaty=900/turbo=3 doğrulandı. 0/0.
 
 ### Wave 3 — SP-Derinlik
 - [ ] N10.rms: Harita data/script format; `MapGenerator` yorumlar; ≥4 arketip (Arabia/Arena/BlackForest/Islands/Nomad) seed-deterministik; setup'tan seçilir.
-- [ ] N10.minimap: Yükseklik/biome-renkli minimap + elevation-saygılı FoW.
+- [x] N10.minimap: Minimap kamera N8.terrain biome dokusunu otomatik render eder (kamera Default layer görür, biome texture terrain mesh üzerinde). `FogOfWarSystem.TickFogTexture`: elevation bonus `WorldRoot.GetHeight/1.4f × 0.20` → yüksek arazide birimler +%20 görüş alanı. 0/0.
 - [ ] N11.trig: Condition+Effect setleri implemente; trigger döngüsü fixed-step tick'te; sim-effect command-log'dan; save'de serialize; örnek trigger Play'de çalışır.
 - [ ] N12.edit: Editör mode — terrain/unit/bina/kaynak yerleştirme + per-player setup + trigger authoring; senaryo save/load; editörden playtest.
 - [x] N12.savefull: Save order/queue/veteranlık/garrison/rally/map-seed persist eder; load tam durumu geri getirir. `SaveData` v3: mapSeed alanı eklendi. `UnitSnap`: veteranRank/stance/isGarrisoned. `BuildingSnap`: hasRally/rallyX/rallyZ. `WorldRoot.ApplyPendingLoad`: restore veteranRank+stance+RecomputeMaxHp+isGarrisoned; bina rally noktası. `GameBootstrap.Restart(seed)` load'da aynı map seedini kullanır. JSON round-trip doğrulandı (version=3). 0/0.
-- [ ] N13.tut: Rehberli ilk-oyun tutorial + coach-mark'lar; yeni oyuncu öğretilir.
+- [x] N13.tut: `TutorialSystem.cs` (7 adım: welcome→köylü seç→yiyecek topla→ev→kışla→asker eğit→tebrikler); PlayerPrefs "tutorial_done" ilk-oyun guard; coach mark pulse ring (world-pos→screen proj + fixed screen offset); "Atla" her zaman görünür; 0/0 derleme.
 - [ ] N13.aow: ≥4 Art-of-War challenge (bronze/silver/gold, trigger ile).
 - [ ] N13.camp: Kampanya framework (sıralı senaryo + briefing + kazan-açılır + progress save); ≥3-senaryo zinciri çalışır.
 - [x] N13.meta: Civ-filtreli tech-tree viewer + lokal achievement + seeded günlük challenge. `MetaSystem.cs`: 9 achievement (PlayerPrefs), `Unlock/IsUnlocked/TryTakeAchievement`; 5 günlük challenge tipi (date-seed deterministik, `TodayChallenge()`); `GetTechList(civ,tech)` civ-filtreli araştırılmış/kilitli tech listesi. HUD pause menüsüne "Teknoloji Ağacı" butonu → `OpenTechTreePanel` (civ-filtreli tablo, ✓/✕/○ durumları, başarım sayısı, günlük görev). Achievement hook'ları: AddKill→FirstBlood/KillStreak50, veteranRankUp→Veteran, BuildingComplete→Builder, AgeAdvanced→Emperor, HUD subtitle toast. Runtime: unlock/daily/techlist(60 Franks) doğrulandı. 0/0.

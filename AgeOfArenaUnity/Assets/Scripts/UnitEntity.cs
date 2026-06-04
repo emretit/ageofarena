@@ -117,46 +117,8 @@ public class UnitEntity : MonoBehaviour, IDamageable
     }
 
     /// <summary>Per-type combat stats. Villager only self-defends weakly; Archer/Trebuchet are ranged.</summary>
-    float BaseAttackDamage => type switch
-    {
-        UnitType.Militia     => 5f,  UnitType.Archer      => 4f,  UnitType.Cavalry    => 8f,
-        UnitType.Trebuchet   => 35f, UnitType.Spearman    => 4f,  UnitType.Longbowman => 5f,
-        UnitType.Galley      => 8f,  UnitType.Skirmisher  => 3f,  UnitType.Camel      => 7f,
-        UnitType.Ram         => 4f,  UnitType.Mangonel    => 25f, UnitType.CavalryArcher => 5f,
-        UnitType.FireShip    => 6f,  UnitType.DemoShip    => 40f,
-        // M9 unique units
-        UnitType.TeutonicKnight => 12f, UnitType.WarElephant => 20f, UnitType.Mangudai => 6f,
-        UnitType.Samurai     => 9f,  UnitType.Eagle       => 7f,  UnitType.EliteEagle  => 9f,
-        // N4/CIVU unique units
-        UnitType.ThrowingAxeman => 9f, UnitType.Cataphract => 10f, UnitType.Berserk => 9f,
-        UnitType.Mameluke    => 8f,
-        // N4/CIVC13 unique units
-        UnitType.WoadRaider  => 8f,  UnitType.ChuKoNu     => 8f,
-        UnitType.Huskarl     => 10f, UnitType.Janissary   => 17f,
-        UnitType.King        => 6f,  // Regicide king: fights but is not a front-liner
-        // Support units deal no damage: Scout is pure recon (gains attack via Light Cavalry/Hussar
-        // tech, applied through TechState.AttackBonus), Medic only heals.
-        UnitType.Scout       => 0f,  UnitType.Medic       => 0f,
-        UnitType.FishingShip => 0f,  // FISH: civilian gatherer, no attack
-        _                    => 2f,
-    };
-    float BaseAttackRange => type switch
-    {
-        UnitType.Militia     => 1.3f, UnitType.Archer      => 6.5f, UnitType.Cavalry    => 1.4f,
-        UnitType.Trebuchet   => 15f,  UnitType.Spearman    => 1.5f, UnitType.Longbowman => 8.5f,
-        UnitType.Galley      => 5.5f, UnitType.Skirmisher  => 5f,   UnitType.Camel      => 1.4f,
-        UnitType.Ram         => 1.3f, UnitType.Mangonel    => 9f,   UnitType.CavalryArcher => 4f,
-        UnitType.FireShip    => 3f,   UnitType.DemoShip    => 1.5f,
-        UnitType.TeutonicKnight => 1.4f, UnitType.WarElephant => 1.4f, UnitType.Mangudai => 5f,
-        UnitType.Samurai     => 1.2f, UnitType.Eagle       => 1.3f,  UnitType.EliteEagle => 1.3f,
-        // N4/CIVU: Throwing Axeman & Mameluke hurl weapons at short range; others melee.
-        UnitType.ThrowingAxeman => 3f, UnitType.Mameluke => 3f,
-        UnitType.Cataphract  => 1.4f, UnitType.Berserk  => 1.3f,
-        // N4/CIVC13: Chu Ko Nu & Janissary are ranged; Woad/Huskarl are melee.
-        UnitType.ChuKoNu     => 6f,   UnitType.Janissary => 7f,
-        UnitType.WoadRaider  => 1.3f, UnitType.Huskarl  => 1.3f,
-        _                    => 1.1f,
-    };
+    float BaseAttackDamage => UnitRegistry.Get(type).baseAtk;
+    float BaseAttackRange  => UnitRegistry.Get(type).baseRange;
     /// <summary>Effective damage = base + tech bonus, scaled by civ infantry bonus for infantry types.</summary>
     public float AttackDamage
     {
@@ -182,69 +144,22 @@ public class UnitEntity : MonoBehaviour, IDamageable
             return isArcher ? range + TeamCivBonus.archerRangeBonus : range;
         }
     }
-    public float AttackInterval => type switch
-    {
-        UnitType.Militia     => 1.0f, UnitType.Archer      => 1.4f, UnitType.Cavalry    => 1.1f,
-        UnitType.Trebuchet   => 5.5f, UnitType.Spearman    => 1.3f, UnitType.Longbowman => 1.6f,
-        UnitType.Galley      => 2.0f, UnitType.Skirmisher  => 2.0f, UnitType.Camel      => 1.1f,
-        UnitType.Ram         => 3.0f, UnitType.Mangonel    => 4.0f, UnitType.CavalryArcher => 2.0f,
-        UnitType.FireShip    => 0.8f, UnitType.DemoShip    => 2.0f,
-        UnitType.TeutonicKnight => 2.0f, UnitType.WarElephant => 2.5f, UnitType.Mangudai => 2.0f,
-        UnitType.Samurai     => 1.3f, UnitType.Eagle       => 1.5f,  UnitType.EliteEagle => 1.4f,
-        // N4/CIVU
-        UnitType.ThrowingAxeman => 1.5f, UnitType.Cataphract => 1.5f, UnitType.Berserk => 1.2f,
-        UnitType.Mameluke    => 1.5f,
-        // N4/CIVC13: Chu Ko Nu fires rapidly; Janissary reloads slowly.
-        UnitType.ChuKoNu     => 1.0f, UnitType.Janissary => 3.0f,
-        UnitType.WoadRaider  => 1.0f, UnitType.Huskarl   => 1.1f,
-        _                    => 1.6f,
-    };
+    public float AttackInterval => UnitRegistry.Get(type).attackInterval;
     /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.
     /// Scout is passive recon until upgraded to Light Cavalry (then it becomes combat-capable).</summary>
-    public float AggroRadius => type switch
+    public float AggroRadius
     {
-        UnitType.Militia     => 7f,  UnitType.Archer      => 9f,   UnitType.Cavalry    => 8f,
-        UnitType.Trebuchet   => 15f, UnitType.Spearman    => 7f,   UnitType.Longbowman => 11f,
-        UnitType.Galley      => 8f,  UnitType.Skirmisher  => 9f,   UnitType.Camel      => 8f,
-        UnitType.Mangonel    => 11f, UnitType.Ram         => 4f,   UnitType.CavalryArcher => 10f,
-        UnitType.FireShip    => 8f,  UnitType.DemoShip    => 6f,
-        UnitType.TeutonicKnight => 7f, UnitType.WarElephant => 8f, UnitType.Mangudai => 10f,
-        UnitType.Samurai     => 8f,  UnitType.Eagle       => 8f,  UnitType.EliteEagle => 8f,
-        // N4/CIVU
-        UnitType.ThrowingAxeman => 9f, UnitType.Cataphract => 8f, UnitType.Berserk => 8f,
-        UnitType.Mameluke    => 9f,
-        // N4/CIVC13
-        UnitType.ChuKoNu     => 10f, UnitType.Janissary => 11f, UnitType.WoadRaider => 8f, UnitType.Huskarl => 8f,
-        UnitType.Scout       => (TeamTech?.Has(TechType.LightCavalry) ?? false) ? 8f : 0f,
-        _                    => 0f,  // King, Villager, Monk, Medic — never auto-aggro
-    };
+        get
+        {
+            if (type == UnitType.Scout)
+                return (TeamTech?.Has(TechType.LightCavalry) ?? false) ? 8f : 0f;
+            return UnitRegistry.Get(type).aggroRadius;
+        }
+    }
     /// <summary>Armor classes this unit belongs to (M7/ARMC) — what incoming bonus
     /// damage applies to it. Cavalry-class is shared by Camel/Scout/Cavalry Archer so
     /// the Spearman line counters all of them; Camel also carries its own class.</summary>
-    public ArmorClass ArmorClasses => type switch
-    {
-        UnitType.Militia or UnitType.Spearman                       => ArmorClass.Infantry,
-        UnitType.TeutonicKnight or UnitType.Samurai or UnitType.Eagle or UnitType.EliteEagle => ArmorClass.Infantry,
-        // N4/CIVU: Throwing Axeman & Berserk are infantry; Cataphract is cavalry;
-        // Mameluke rides a camel (Cavalry+Camel class so Spearman/Camel counter it).
-        UnitType.ThrowingAxeman or UnitType.Berserk                 => ArmorClass.Infantry,
-        UnitType.Cataphract                                         => ArmorClass.Cavalry,
-        UnitType.Mameluke                                           => ArmorClass.Cavalry | ArmorClass.Camel,
-        // N4/CIVC13
-        UnitType.WoadRaider or UnitType.Huskarl                     => ArmorClass.Infantry,
-        UnitType.ChuKoNu or UnitType.Janissary                      => ArmorClass.Archer,
-        UnitType.King => ArmorClass.Infantry,
-        UnitType.Archer or UnitType.Skirmisher or UnitType.Longbowman => ArmorClass.Archer,
-        UnitType.CavalryArcher                                       => ArmorClass.Archer | ArmorClass.Cavalry,
-        UnitType.Mangudai                                           => ArmorClass.Archer | ArmorClass.Cavalry,
-        UnitType.Cavalry or UnitType.Scout                          => ArmorClass.Cavalry,
-        UnitType.WarElephant                                        => ArmorClass.Cavalry,
-        UnitType.Camel                                              => ArmorClass.Cavalry | ArmorClass.Camel,
-        UnitType.Trebuchet or UnitType.Mangonel or UnitType.Ram     => ArmorClass.Siege,
-        UnitType.Galley or UnitType.FireShip or UnitType.DemoShip   => ArmorClass.Ship,
-        UnitType.FishingShip                                        => ArmorClass.Ship,
-        _                                                          => ArmorClass.None, // Villager, Monk, Medic
-    };
+    public ArmorClass ArmorClasses => UnitRegistry.Get(type).armorClasses;
 
     /// <summary>
     /// Additive bonus damage vs a target's armor classes (M7/BNUS → N6/BONUS stacking).
@@ -255,39 +170,18 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public float BonusDamageVs(IDamageable target)
     {
         if (target == null) return 0f;
-        ArmorClass tc = target.ArmorClasses;
-        float bonus = 0f;
-        // N6.bonus: use independent if-checks (NOT switch-break) so every matching class
-        // accumulates, reproducing AoE2's additive bonus-damage stacking behaviour.
-        if (type == UnitType.Spearman)   { if ((tc & ArmorClass.Cavalry)  != 0) bonus += 8f; }
-        if (type == UnitType.Camel)      { if ((tc & ArmorClass.Cavalry)  != 0) bonus += 7f; }
-        if (type == UnitType.Skirmisher) { if ((tc & ArmorClass.Archer)   != 0) bonus += 3f; }
-        if (type == UnitType.Trebuchet)  { if ((tc & ArmorClass.Building) != 0) bonus += 70f; }
-        if (type == UnitType.Ram)        { if ((tc & ArmorClass.Building) != 0) bonus += 16f; }
-        if (type == UnitType.WarElephant){ if ((tc & ArmorClass.Building) != 0) bonus += 30f; }  // CIVU
-        if (type == UnitType.Mangudai)   { if ((tc & ArmorClass.Siege)    != 0) bonus += 10f; }  // CIVU
-        if (type == UnitType.Cataphract) { if ((tc & ArmorClass.Infantry) != 0) bonus += 12f; }  // N4/CIVU
-        if (type == UnitType.Mameluke)   { if ((tc & ArmorClass.Cavalry)  != 0) bonus += 9f;  }  // N4/CIVU
-        if (type == UnitType.Huskarl)    { if ((tc & ArmorClass.Archer)   != 0) bonus += 6f;  }  // N4/CIVC13
-        // Tech-provided bonus damage: N4/CIVT techs that give UUs extra bonus vs a class.
-        // None yet — hook reserved for future data-driven expansion.
-        return bonus;
+        ArmorClass tc  = target.ArmorClasses;
+        float      sum = 0f;
+        var entries = UnitRegistry.Get(type).bonusVs;
+        if (entries != null)
+            foreach (var e in entries)
+                if ((tc & e.cls) != 0) sum += e.bonus;
+        return sum;
     }
     /// <summary>Minimum attack range: siege weapons can't fire at point-blank targets.</summary>
-    public float MinAttackRange => type switch
-    {
-        UnitType.Trebuchet => 3f,
-        UnitType.Mangonel  => 2f,
-        UnitType.Galley    => 1.5f,
-        _                  => 0f,
-    };
+    public float MinAttackRange => UnitRegistry.Get(type).minAttackRange;
     /// <summary>Area-of-effect splash radius for projectiles (0 = single target).</summary>
-    public float SplashRadius => type switch
-    {
-        UnitType.Mangonel => 1.8f,
-        UnitType.DemoShip => 2.5f,   // explosive area attack
-        _                 => 0f,
-    };
+    public float SplashRadius => UnitRegistry.Get(type).splashRadius;
     /// <summary>N6: blast-damage falloff for a secondary victim at fractional distance
     /// <paramref name="t"/>∈[0,1] from the impact point. DemoShip is a full-power explosion
     /// everywhere in the radius; Mangonel-style siege deals full damage in the inner half of
@@ -297,46 +191,28 @@ public class UnitEntity : MonoBehaviour, IDamageable
     /// <summary>First melee charge hit by a Cavalry unit deals 2.5× damage.</summary>
     public float ChargeMultiplier => type == UnitType.Cavalry ? 2.5f : 1f;
     /// <summary>Damage class this unit deals.</summary>
-    public DamageType DamageKind => type switch
-    {
-        UnitType.Archer      => DamageType.Pierce,
-        UnitType.Longbowman  => DamageType.Pierce,
-        UnitType.Skirmisher  => DamageType.Pierce,
-        UnitType.CavalryArcher => DamageType.Pierce,
-        UnitType.Mangudai    => DamageType.Pierce,
-        UnitType.ChuKoNu     => DamageType.Pierce,   // N4/CIVC13
-        UnitType.Janissary   => DamageType.Pierce,   // N4/CIVC13 (gunpowder)
-        UnitType.Galley      => DamageType.Pierce,
-        UnitType.FireShip    => DamageType.Pierce,
-        UnitType.Trebuchet   => DamageType.Siege,
-        UnitType.Mangonel    => DamageType.Siege,
-        UnitType.Ram         => DamageType.Siege,
-        UnitType.DemoShip    => DamageType.Siege,
-        _                    => DamageType.Melee,
-    };
+    public DamageType DamageKind => UnitRegistry.Get(type).damageKind;
     /// <summary>Ranged units attack via projectiles instead of melee contact.</summary>
-    public bool IsRanged => type == UnitType.Archer || type == UnitType.Trebuchet
-        || type == UnitType.Longbowman || type == UnitType.Galley || type == UnitType.Skirmisher
-        || type == UnitType.Mangonel || type == UnitType.CavalryArcher
-        || type == UnitType.FireShip || type == UnitType.DemoShip
-        || type == UnitType.Mangudai
-        // N4/CIVU: throw weapons at short range but deal melee-type damage.
-        || type == UnitType.ThrowingAxeman || type == UnitType.Mameluke
-        // N4/CIVC13: Chu Ko Nu (bow) & Janissary (gunpowder) are ranged pierce.
-        || type == UnitType.ChuKoNu || type == UnitType.Janissary;
+    public bool IsRanged => UnitRegistry.Get(type).isRanged;
 
     // ── Medic healing (driven by CombatSystem.StepHeal) ──────────────────────
     /// <summary>Radius within which a Medic auto-heals friendly units; 0 = not a healer.</summary>
-    public float HealRadius => type == UnitType.Medic ? 6f : 0f;
+    public float HealRadius => UnitRegistry.Get(type).healRadius;
     /// <summary>Hitpoints a Medic restores per second to the chosen ally.</summary>
-    public float HealPower  => type == UnitType.Medic ? 3f : 0f;
+    public float HealPower  => UnitRegistry.Get(type).healPower;
 
     /// <summary>N4/CIVU: HP this unit regenerates on its own each second (Vikings'
     /// Berserk signature trait); 0 = no self-regen. Berserkergang (N4/CIVT) doubles it.
     /// Applied in CombatSystem's tick.</summary>
-    public float SelfRegenPerSecond => type == UnitType.Berserk
-        ? 0.6f * ((TeamTech?.Has(TechType.Berserkergang) ?? false) ? 2f : 1f)
-        : 0f;
+    public float SelfRegenPerSecond
+    {
+        get
+        {
+            float base_ = UnitRegistry.Get(type).selfRegen;
+            if (base_ <= 0f) return 0f;
+            return base_ * ((TeamTech?.Has(TechType.Berserkergang) ?? false) ? 2f : 1f);
+        }
+    }
 
     NavMeshAgent _agent;
     SelectionRing _ring;

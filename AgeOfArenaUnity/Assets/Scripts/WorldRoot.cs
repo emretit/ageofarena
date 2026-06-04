@@ -6,7 +6,7 @@ using UnityEngine.Rendering.PostProcessing;
 /// <summary>
 /// Builds the full 4-player arena at runtime: 4 walled bases in a diamond layout,
 /// shared forest ring, central mines, NavMesh, and gameplay systems.
-/// Only team 0 (south) is player-controlled; teams 1-3 are static enemy placeholders.
+/// Team 0 (south) is player-controlled; teams 1-3 are AI-controlled.
 /// </summary>
 public class WorldRoot : MonoBehaviour
 {
@@ -43,6 +43,9 @@ public class WorldRoot : MonoBehaviour
     static readonly Color RoofColor = Prims.Hex(0xa6402f);
 
     MeshRenderer _groundRenderer;  // saved for FogOfWarSystem.Init
+
+    // N8.terrain: seed used by the heightmap (set in Build() before SetupGround).
+    static int _mapSeed;
 
     // ── Island geometry (AoE2 "Arena island": round land ringed by ocean) ──────
     const float LandRadius  = 92f;   // grass disc radius (coastline)
@@ -87,6 +90,7 @@ public class WorldRoot : MonoBehaviour
         if (mapSeed == 0) mapSeed = UnityEngine.Random.Range(1, int.MaxValue);
         UnityEngine.Random.InitState(mapSeed);
         SimRandom.Seed(mapSeed); // N3: seed the deterministic simulation RNG from the same seed
+        _mapSeed = mapSeed;      // N8.terrain: heightmap uses same seed for determinism
 
         AudioManager.Init();
         SetupEnvironment();
@@ -176,29 +180,46 @@ public class WorldRoot : MonoBehaviour
     // the playable land; the ocean shows in the ring/corners around it.
     void SetupGround()
     {
-        // ── Ocean (bottom layer, y=0) — large flat plane, keeps its MeshCollider so
-        // click-to-move / selection raycasts resolve everywhere (land discs have none).
+        // ── Ocean (bottom layer, y=0) — large flat plane with animated water shader.
+        // Keeps its MeshCollider so naval click-to-move raycasts resolve on the sea.
         var ocean = GameObject.CreatePrimitive(PrimitiveType.Plane);
         ocean.name = "Ocean";
         ocean.transform.SetParent(transform, false);
-        ocean.transform.localScale = new Vector3(OceanHalf * 2f / 10f, 1f, OceanHalf * 2f / 10f); // Plane = 10u @ scale 1
+        ocean.transform.localScale = new Vector3(OceanHalf * 2f / 10f, 1f, OceanHalf * 2f / 10f);
         var oceanRend = ocean.GetComponent<MeshRenderer>();
-        oceanRend.sharedMaterial = Prims.Mat(Prims.Hex(0x2766a8), 0.1f, 0.82f); // deep glossy sea
+        // N8.terrain: water shader with animated waves; fallback to flat material.
+        var waterShader = Shader.Find("Custom/Water");
+        if (waterShader != null)
+        {
+            var waterMat = new Material(waterShader);
+            waterMat.SetColor("_Color",     Prims.Hex(0x2a70bc));
+            waterMat.SetColor("_DeepColor", Prims.Hex(0x102a4a));
+            oceanRend.sharedMaterial = waterMat;
+        }
+        else
+        {
+            oceanRend.sharedMaterial = Prims.Mat(Prims.Hex(0x2766a8), 0.1f, 0.82f);
+        }
         oceanRend.receiveShadows = false;
 
-        // ── Beach (sand rim, y=0.03) — a flat-coloured disc poking out past the grass.
+        // ── Beach (sand rim, y=0.03) — flat-coloured disc poking out past the terrain.
         var sand = NewMeshObject("Beach", BuildDiscMesh(BeachRadius, 72, 0f),
             Prims.Mat(Prims.Hex(0x9c8350), 0f, 0.05f), 0.03f);
         sand.GetComponent<MeshRenderer>().receiveShadows = true;
 
-        // ── Grass (playable land, y=0.05) — reuses the seamless grass texture, tiled via
-        // baked UVs (every 16 world units) so detail stays crisp on the big disc.
-        var grassMat = Prims.Mat(Color.white, 0f, 0.05f);
-        grassMat.mainTexture = BuildGroundTexture();
-        _landMesh = BuildDiscMesh(LandRadius, 96, 1f / 16f);
-        var grass = NewMeshObject("Ground", _landMesh, grassMat, 0.05f);
-        _groundRenderer = grass.GetComponent<MeshRenderer>();
+        // ── N8.terrain: heightmap terrain mesh with biome texture (replaces flat disc).
+        // Heights embedded in mesh vertices; base zones (near each base + center) stay at
+        // y≈0 so existing buildings/units remain flush with the ground there.
+        var biomeTex   = BuildBiomeTexture(512, LandRadius);
+        var terrainMat = Prims.Mat(Color.white, 0f, 0.04f);
+        terrainMat.mainTexture = biomeTex;
+        _landMesh = BuildTerrainMesh(LandRadius, 28, 128); // 28 rings × 128 segs
+        var ground = NewMeshObject("Ground", _landMesh, terrainMat, 0f);
+        _groundRenderer = ground.GetComponent<MeshRenderer>();
         _groundRenderer.receiveShadows = true;
+        // MeshCollider so terrain raycasts return actual terrain surface height.
+        var mc = ground.AddComponent<MeshCollider>();
+        mc.sharedMesh = _landMesh;
     }
 
     // Flat horizontal disc (triangle fan) facing +Y, parented at the origin. uvWorldScale
@@ -285,6 +306,141 @@ public class WorldRoot : MonoBehaviour
         return Mathf.Lerp(Mathf.Lerp(a, b, u), Mathf.Lerp(c, d, u), v);
     }
 
+    // ── N8.terrain: heightmap helpers ────────────────────────────────────────
+
+    /// <summary>
+    /// World-space terrain height at (x, z). Returns 0 in flattened zones (bases, center)
+    /// and up to 1.4 units in the elevated mid-ring between bases.
+    /// Deterministic: same mapSeed → same terrain each restart.
+    /// </summary>
+    public static float GetHeight(float x, float z) => SampleTerrainNorm(x, z) * 1.4f;
+
+    static float SampleTerrainNorm(float x, float z)
+    {
+        float n = VNoise(x * 0.026f, z * 0.026f, _mapSeed)       * 1.000f
+                + VNoise(x * 0.065f, z * 0.065f, _mapSeed +  7)  * 0.500f
+                + VNoise(x * 0.130f, z * 0.130f, _mapSeed + 13)  * 0.250f;
+        n = n / 1.75f;
+        n = n * n * (3f - 2f*n); // smoothstep: fewer but smoother hills
+
+        float r = Mathf.Sqrt(x * x + z * z);
+        n *= Mathf.Clamp01((LandRadius - r - 7f) / 11f);  // flatten near coast
+        n *= Mathf.Clamp01((r - 10f) / 8f);               // flatten center pocket
+        foreach (var bp in BasePositions)
+        {
+            float dx = x - bp.x, dz = z - bp.z;
+            float d  = Mathf.Sqrt(dx * dx + dz * dz);
+            n *= Mathf.Clamp01((d - 16f) / 10f);          // flatten near each base
+        }
+        return Mathf.Clamp01(n);
+    }
+
+    static float VNoise(float x, float z, int seed)
+    {
+        int   ix = Mathf.FloorToInt(x), iz = Mathf.FloorToInt(z);
+        float fx = x - ix,             fz = z - iz;
+        float ux = fx * fx * (3f - 2f * fx);
+        float uz = fz * fz * (3f - 2f * fz);
+        return Mathf.Lerp(
+            Mathf.Lerp(NHash(ix,   iz,   seed), NHash(ix+1, iz,   seed), ux),
+            Mathf.Lerp(NHash(ix,   iz+1, seed), NHash(ix+1, iz+1, seed), ux), uz);
+    }
+
+    static float NHash(int x, int z, int s)
+    {
+        unchecked
+        {
+            int h = x * 374761393 + z * 668265263 + s * 1234567891;
+            h = (h ^ (h >> 13)) * 1274126177;
+            return ((h ^ (h >> 16)) & 0xffff) / 65535f;
+        }
+    }
+
+    Mesh BuildTerrainMesh(float radius, int rings, int segs)
+    {
+        var verts = new System.Collections.Generic.List<Vector3>(rings * segs + 1);
+        var uvs   = new System.Collections.Generic.List<Vector2>(rings * segs + 1);
+        var tris  = new System.Collections.Generic.List<int>(rings * segs * 6);
+
+        verts.Add(new Vector3(0f, GetHeight(0f, 0f), 0f));
+        uvs.Add(new Vector2(0.5f, 0.5f));
+
+        for (int r = 1; r <= rings; r++)
+        {
+            float rad = radius * r / rings;
+            for (int s = 0; s < segs; s++)
+            {
+                float a  = s / (float)segs * Mathf.PI * 2f;
+                float wx = Mathf.Cos(a) * rad;
+                float wz = Mathf.Sin(a) * rad;
+                verts.Add(new Vector3(wx, GetHeight(wx, wz), wz));
+                uvs.Add(new Vector2(wx / (radius * 2f) + 0.5f, wz / (radius * 2f) + 0.5f));
+            }
+        }
+
+        for (int s = 0; s < segs; s++)
+        {
+            int n = (s + 1) % segs;
+            tris.Add(0); tris.Add(1 + s); tris.Add(1 + n);
+        }
+        for (int r = 1; r < rings; r++)
+        {
+            int ib = 1 + (r-1) * segs;
+            int ob = 1 + r     * segs;
+            for (int s = 0; s < segs; s++)
+            {
+                int n = (s + 1) % segs;
+                tris.Add(ib+s); tris.Add(ob+s); tris.Add(ib+n);
+                tris.Add(ib+n); tris.Add(ob+s); tris.Add(ob+n);
+            }
+        }
+
+        var m = new Mesh
+        {
+            name        = "Terrain",
+            indexFormat = UnityEngine.Rendering.IndexFormat.UInt32,
+        };
+        m.SetVertices(verts);
+        m.SetUVs(0, uvs);
+        m.SetTriangles(tris, 0);
+        m.RecalculateNormals();
+        m.RecalculateBounds();
+        return m;
+    }
+
+    static Texture2D BuildBiomeTexture(int N, float radius)
+    {
+        var tex = new Texture2D(N, N, TextureFormat.RGB24, false)
+        {
+            wrapMode   = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+        };
+        var pixels = new Color[N * N];
+        float invN = 1f / N;
+        for (int py = 0; py < N; py++)
+        for (int px = 0; px < N; px++)
+        {
+            float wx = (px * invN - 0.5f) * radius * 2f;
+            float wz = (py * invN - 0.5f) * radius * 2f;
+            float r  = Mathf.Sqrt(wx * wx + wz * wz);
+            Color c  = r > radius - 0.5f
+                ? new Color(0.13f, 0.32f, 0.11f)
+                : TerrainBiomeColor(SampleTerrainNorm(wx, wz));
+            pixels[py * N + px] = c;
+        }
+        tex.SetPixels(pixels);
+        tex.Apply(false);
+        return tex;
+    }
+
+    static Color TerrainBiomeColor(float h)
+    {
+        if (h < 0.12f) return new Color(0.42f, 0.60f, 0.25f); // lush grass
+        if (h < 0.38f) return new Color(0.50f, 0.56f, 0.31f); // dry grass
+        if (h < 0.62f) return new Color(0.46f, 0.44f, 0.30f); // rocky grass
+        return                 new Color(0.52f, 0.48f, 0.43f); // bare rock
+    }
+
     IsometricCameraRig SetupCamera()
     {
         var camGo = new GameObject("MainCamera");
@@ -348,7 +504,7 @@ public class WorldRoot : MonoBehaviour
     // ── Base builder ─────────────────────────────────────────────────────────
 
     /// <param name="center">World position of this base's Town Center.</param>
-    /// <param name="teamId">0 = player; 1-3 = enemy placeholders.</param>
+    /// <param name="teamId">0 = player; 1-3 = AI-controlled teams.</param>
     void BuildBase(Vector3 center, Color teamColor, int teamId)
     {
         // Direction from this base toward the arena center — that's where the gate opens.

@@ -153,6 +153,10 @@ public class CombatSystem : MonoBehaviour
                 // multiplicative anti-cavalry/anti-archer/anti-structure factors. Bonus is keyed
                 // off the target's ArmorClass flags (ARMC), so it works for units and buildings.
                 float dmg = u.AttackDamage + u.BonusDamageVs(target);
+                // N6.elev: ±25% elevation modifier — attacker higher → bonus, lower → penalty.
+                var tgtComp = target as UnityEngine.Component;
+                if (tgtComp != null)
+                    dmg *= ElevationMult(u.transform.position, tgtComp.transform.position);
 
                 if (u.IsRanged)
                 {
@@ -382,5 +386,15 @@ public class CombatSystem : MonoBehaviour
     {
         float dx = a.x - b.x, dz = a.z - b.z;
         return dx * dx + dz * dz;
+    }
+
+    // N6.elev: ±25% elevation modifier. Scales ±0.7 world-unit height delta to ±1 fraction.
+    // 0.7 = half the max terrain elevation (1.4), so full ±25% at maximum hill height.
+    static float ElevationMult(Vector3 atkPos, Vector3 tgtPos)
+    {
+        float dh   = WorldRoot.GetHeight(atkPos.x, atkPos.z)
+                   - WorldRoot.GetHeight(tgtPos.x, tgtPos.z);
+        float frac = Mathf.Clamp(dh / 0.7f, -1f, 1f);
+        return 1f + frac * 0.25f;
     }
 }

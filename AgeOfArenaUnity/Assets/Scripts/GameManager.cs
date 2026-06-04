@@ -57,6 +57,7 @@ public class GameManager : MonoBehaviour
     public FogOfWarSystem fow;
     public RelicSystem relicSystem;
     public TradingSystem trading;
+    public TutorialSystem tutorial;
 
     /// <summary>N1: per-frame spatial index of all units for O(n) proximity queries
     /// (combat aggro / heal / convert / projectile splash). Rebuilt at the top of Update.</summary>
