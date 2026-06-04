@@ -594,6 +594,88 @@ public static class UnitFactory
         return e;
     }
 
+    // ── N4/CIVC13: AoK-13 unique units ───────────────────────────────────────
+
+    /// <summary>Celts unique: very fast infantry raider with a heavy blade.</summary>
+    public static UnitEntity WoadRaider(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("WoadRaider", parent, worldPos);
+        var t = g.transform;
+        var skin = Prims.Mat(Prims.Hex(0x6fa3c8));   // woad-blue painted skin
+        var cloth = Prims.Mat(teamColor, 0.1f, 0.3f);
+        var steel = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
+        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.42f, 0.8f, 0.3f), cloth);
+        Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.17f, skin);
+        Prims.Box(t, new Vector3(0.3f, 0.85f, 0.1f), new Vector3(0.06f, 0.85f, 0.12f), steel); // sword
+        var e = Finish(g, UnitType.WoadRaider, teamColor);
+        e.hp = e.maxHp = 65f;
+        e.moveSpeed = 4.8f;      // very fast
+        e.meleeArmor = 0f;
+        e.pierceArmor = 1f;
+        return e;
+    }
+
+    /// <summary>Chinese unique: rapid-fire repeating crossbow archer.</summary>
+    public static UnitEntity ChuKoNu(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("ChuKoNu", parent, worldPos);
+        var t = g.transform;
+        var robe = Prims.Mat(teamColor, 0.1f, 0.3f);
+        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+        var wood = Prims.Mat(Prims.Hex(0x6b4a2a));
+        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.4f, 0.8f, 0.3f), robe);
+        Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.16f, skin);
+        Prims.Box(t, new Vector3(0, 1.14f, 0), new Vector3(0.34f, 0.14f, 0.34f), wood);   // conical hat
+        Prims.Box(t, new Vector3(0.26f, 0.7f, 0.12f), new Vector3(0.06f, 0.4f, 0.1f), wood); // repeating crossbow
+        var e = Finish(g, UnitType.ChuKoNu, teamColor);
+        e.hp = e.maxHp = 45f;
+        e.moveSpeed = 3.6f;
+        e.pierceArmor = 0f;
+        return e;
+    }
+
+    /// <summary>Goths unique: heavily-armoured Huskarl, high pierce armor (anti-archer).</summary>
+    public static UnitEntity Huskarl(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Huskarl", parent, worldPos);
+        var t = g.transform;
+        var leather = Prims.Mat(Prims.Hex(0x7a5230));
+        var cloth = Prims.Mat(teamColor, 0.1f, 0.3f);
+        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+        var steel = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
+        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.46f, 0.82f, 0.34f), leather);
+        Prims.Box(t, new Vector3(0, 0.5f, 0.18f), new Vector3(0.5f, 0.5f, 0.06f), cloth);  // round shield
+        Prims.Sphere(t, new Vector3(0, 1.04f, 0), 0.18f, skin);
+        Prims.Box(t, new Vector3(0, 1.16f, 0), new Vector3(0.34f, 0.2f, 0.34f), leather);  // helm
+        Prims.Box(t, new Vector3(0.32f, 0.85f, 0.1f), new Vector3(0.05f, 0.8f, 0.05f), steel); // axe
+        var e = Finish(g, UnitType.Huskarl, teamColor);
+        e.hp = e.maxHp = 70f;
+        e.moveSpeed = 4.2f;
+        e.meleeArmor = 0f;
+        e.pierceArmor = 6f;      // signature: shrugs off arrows
+        return e;
+    }
+
+    /// <summary>Turks unique: gunpowder Janissary, slow but very high damage.</summary>
+    public static UnitEntity Janissary(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Janissary", parent, worldPos);
+        var t = g.transform;
+        var robe = Prims.Mat(teamColor, 0.1f, 0.3f);
+        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+        var iron = Prims.Mat(Prims.Hex(0x3a3a40), 0.7f, 0.5f);
+        var white = Prims.Mat(Prims.Hex(0xe8e4dc));
+        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.42f, 0.8f, 0.3f), robe);
+        Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.16f, skin);
+        Prims.Box(t, new Vector3(0, 1.18f, 0), new Vector3(0.22f, 0.3f, 0.22f), white);   // tall cap
+        Prims.Box(t, new Vector3(0.24f, 0.78f, 0.18f), new Vector3(0.05f, 0.05f, 0.55f), iron); // hand cannon
+        var e = Finish(g, UnitType.Janissary, teamColor);
+        e.hp = e.maxHp = 55f;
+        e.moveSpeed = 3.6f;
+        e.pierceArmor = 1f;
+        return e;
+    }
+
     // ── M10/VREGI: Regicide King ─────────────────────────────────────────────
 
     /// <summary>Regicide mode: each team has one King. Its death eliminates the team.</summary>

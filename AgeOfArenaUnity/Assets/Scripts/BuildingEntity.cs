@@ -175,6 +175,11 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         Civilization.Byzantines=> new UnitTrainable(UnitType.Cataphract,     28f, 70, 0,  75, "U"),
         Civilization.Vikings   => new UnitTrainable(UnitType.Berserk,        24f, 65, 0,  25, "U"),
         Civilization.Saracens  => new UnitTrainable(UnitType.Mameluke,       30f, 55, 0,  85, "U"),
+        // N4/CIVC13: AoK-13 unique units
+        Civilization.Celts     => new UnitTrainable(UnitType.WoadRaider,     24f, 65, 0,  25, "U"),
+        Civilization.Chinese   => new UnitTrainable(UnitType.ChuKoNu,        26f, 0,  40, 35, "U"),
+        Civilization.Goths     => new UnitTrainable(UnitType.Huskarl,        24f, 52, 0,  26, "U"),
+        Civilization.Turks     => new UnitTrainable(UnitType.Janissary,      28f, 0,  60, 55, "U"),
         _                     => (UnitTrainable?)null,
     };
 
@@ -277,6 +282,11 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         UnitType.Cataphract  => Age.Castle,
         UnitType.Berserk     => Age.Castle,
         UnitType.Mameluke    => Age.Castle,
+        // N4/CIVC13 unique units (Castle-age)
+        UnitType.WoadRaider  => Age.Castle,
+        UnitType.ChuKoNu     => Age.Castle,
+        UnitType.Huskarl     => Age.Castle,
+        UnitType.Janissary   => Age.Castle,
         _                    => Age.Dark,
     };
 

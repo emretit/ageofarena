@@ -187,6 +187,26 @@ public static class CommandIconFactory
                 Add(icon, Square,   Gold,  9, 6, 7, 10);           // hump/neck
                 Add(icon, Square,   Steel, 11, 5, 3, 22, -35);     // scimitar
                 break;
+            case UnitType.WoadRaider:                              // N4/CIVC13
+                Add(icon, Square,   Prims.Hex(0x6fa3c8), -3, -3, 16, 22); // woad body
+                Add(icon, Circle,   Prims.Hex(0x6fa3c8), -3, 10, 12, 12); // painted head
+                Add(icon, Square,   Steel, 10, 2, 3, 26, -18);     // sword
+                break;
+            case UnitType.ChuKoNu:                                 // N4/CIVC13
+                Add(icon, Triangle, Wood,  0, 9, 20, 12);          // conical hat
+                Add(icon, Square,   Red,   -3, -3, 16, 20);        // robe
+                Add(icon, Square,   Wood,  10, 0, 4, 14);          // crossbow
+                break;
+            case UnitType.Huskarl:                                 // N4/CIVC13
+                Add(icon, Circle,   Blue,  -4, -2, 16, 16);        // round shield
+                Add(icon, Square,   Prims.Hex(0x7a5230), 4, -2, 14, 22); // armoured body
+                Add(icon, Square,   Steel, 12, 2, 3, 24, -18);     // axe
+                break;
+            case UnitType.Janissary:                               // N4/CIVC13
+                Add(icon, Square,   Prims.Hex(0xe8e4dc), 0, 11, 12, 14); // tall cap
+                Add(icon, Square,   Red,   -3, -3, 16, 20);        // robe
+                Add(icon, Square,   Dark,  9, 0, 4, 22, -75);      // hand cannon
+                break;
             case UnitType.FishingShip:
                 Add(icon, Square,   Wood,  0, -6, 26, 9);          // hull
                 Add(icon, Triangle, Dark, -12, -4, 8, 11);         // bow

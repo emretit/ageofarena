@@ -130,6 +130,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
         // N4/CIVU unique units
         UnitType.ThrowingAxeman => 9f, UnitType.Cataphract => 10f, UnitType.Berserk => 9f,
         UnitType.Mameluke    => 8f,
+        // N4/CIVC13 unique units
+        UnitType.WoadRaider  => 8f,  UnitType.ChuKoNu     => 8f,
+        UnitType.Huskarl     => 10f, UnitType.Janissary   => 17f,
         UnitType.King        => 6f,  // Regicide king: fights but is not a front-liner
         // Support units deal no damage: Scout is pure recon (gains attack via Light Cavalry/Hussar
         // tech, applied through TechState.AttackBonus), Medic only heals.
@@ -149,6 +152,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
         // N4/CIVU: Throwing Axeman & Mameluke hurl weapons at short range; others melee.
         UnitType.ThrowingAxeman => 3f, UnitType.Mameluke => 3f,
         UnitType.Cataphract  => 1.4f, UnitType.Berserk  => 1.3f,
+        // N4/CIVC13: Chu Ko Nu & Janissary are ranged; Woad/Huskarl are melee.
+        UnitType.ChuKoNu     => 6f,   UnitType.Janissary => 7f,
+        UnitType.WoadRaider  => 1.3f, UnitType.Huskarl  => 1.3f,
         _                    => 1.1f,
     };
     /// <summary>Effective damage = base + tech bonus, scaled by civ infantry bonus for infantry types.</summary>
@@ -188,6 +194,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
         // N4/CIVU
         UnitType.ThrowingAxeman => 1.5f, UnitType.Cataphract => 1.5f, UnitType.Berserk => 1.2f,
         UnitType.Mameluke    => 1.5f,
+        // N4/CIVC13: Chu Ko Nu fires rapidly; Janissary reloads slowly.
+        UnitType.ChuKoNu     => 1.0f, UnitType.Janissary => 3.0f,
+        UnitType.WoadRaider  => 1.0f, UnitType.Huskarl   => 1.1f,
         _                    => 1.6f,
     };
     /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.
@@ -204,6 +213,8 @@ public class UnitEntity : MonoBehaviour, IDamageable
         // N4/CIVU
         UnitType.ThrowingAxeman => 9f, UnitType.Cataphract => 8f, UnitType.Berserk => 8f,
         UnitType.Mameluke    => 9f,
+        // N4/CIVC13
+        UnitType.ChuKoNu     => 10f, UnitType.Janissary => 11f, UnitType.WoadRaider => 8f, UnitType.Huskarl => 8f,
         UnitType.Scout       => (TeamTech?.Has(TechType.LightCavalry) ?? false) ? 8f : 0f,
         _                    => 0f,  // King, Villager, Monk, Medic — never auto-aggro
     };
@@ -219,6 +230,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.ThrowingAxeman or UnitType.Berserk                 => ArmorClass.Infantry,
         UnitType.Cataphract                                         => ArmorClass.Cavalry,
         UnitType.Mameluke                                           => ArmorClass.Cavalry | ArmorClass.Camel,
+        // N4/CIVC13
+        UnitType.WoadRaider or UnitType.Huskarl                     => ArmorClass.Infantry,
+        UnitType.ChuKoNu or UnitType.Janissary                      => ArmorClass.Archer,
         UnitType.King => ArmorClass.Infantry,
         UnitType.Archer or UnitType.Skirmisher or UnitType.Longbowman => ArmorClass.Archer,
         UnitType.CavalryArcher                                       => ArmorClass.Archer | ArmorClass.Cavalry,
@@ -255,6 +269,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
             case UnitType.Mangudai:   if ((tc & ArmorClass.Siege)    != 0) bonus += 10f; break;  // CIVU anti-siege
             case UnitType.Cataphract: if ((tc & ArmorClass.Infantry) != 0) bonus += 12f; break;  // N4/CIVU anti-infantry
             case UnitType.Mameluke:   if ((tc & ArmorClass.Cavalry)  != 0) bonus += 9f;  break;  // N4/CIVU anti-cavalry
+            case UnitType.Huskarl:    if ((tc & ArmorClass.Archer)   != 0) bonus += 6f;  break;  // N4/CIVC13 anti-archer
         }
         return bonus;
     }
@@ -283,6 +298,8 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Skirmisher  => DamageType.Pierce,
         UnitType.CavalryArcher => DamageType.Pierce,
         UnitType.Mangudai    => DamageType.Pierce,
+        UnitType.ChuKoNu     => DamageType.Pierce,   // N4/CIVC13
+        UnitType.Janissary   => DamageType.Pierce,   // N4/CIVC13 (gunpowder)
         UnitType.Galley      => DamageType.Pierce,
         UnitType.FireShip    => DamageType.Pierce,
         UnitType.Trebuchet   => DamageType.Siege,
@@ -298,7 +315,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
         || type == UnitType.FireShip || type == UnitType.DemoShip
         || type == UnitType.Mangudai
         // N4/CIVU: throw weapons at short range but deal melee-type damage.
-        || type == UnitType.ThrowingAxeman || type == UnitType.Mameluke;
+        || type == UnitType.ThrowingAxeman || type == UnitType.Mameluke
+        // N4/CIVC13: Chu Ko Nu (bow) & Janissary (gunpowder) are ranged pierce.
+        || type == UnitType.ChuKoNu || type == UnitType.Janissary;
 
     // ── Medic healing (driven by CombatSystem.StepHeal) ──────────────────────
     /// <summary>Radius within which a Medic auto-heals friendly units; 0 = not a healer.</summary>

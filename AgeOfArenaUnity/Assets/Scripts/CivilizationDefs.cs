@@ -13,6 +13,7 @@ public enum Civilization
     None,
     Franks, Britons, Mongols, Japanese, Byzantines,   // original 5
     Aztecs, Teutons, Persians, Vikings, Saracens,      // M9/CIVC expansion (10 playable total)
+    Celts, Chinese, Goths, Turks,                      // N4/CIVC13: AoK-13 completion (14 playable)
 }
 
 /// <summary>
@@ -85,6 +86,11 @@ public static class CivilizationDefs
         Row(Civilization.Persians,   "Persler",       food: 1.1f, cavHp: 1.1f),
         Row(Civilization.Vikings,    "Vikingler",     archAtk: 1.1f, wood: 1.1f),
         Row(Civilization.Saracens,   "Saracenler",    gold: 1.15f, archAtk: 1.1f),
+        // ── N4/CIVC13: AoK-13 completion ──
+        Row(Civilization.Celts,      "Keltler",       wood: 1.15f, infAtk: 1.05f),
+        Row(Civilization.Chinese,    "Çinliler",      food: 1.1f, trainTime: 0.9f),
+        Row(Civilization.Goths,      "Gotlar",        food: 1.1f, infAtk: 1.05f),
+        Row(Civilization.Turks,      "Türkler",       gold: 1.15f, cavHp: 1.05f),
     };
 
     public static CivBonus Get(Civilization c)
@@ -105,6 +111,10 @@ public static class CivilizationDefs
         { Civilization.Britons,  new[] { UnitType.Camel } },
         { Civilization.Japanese, new[] { UnitType.Camel } },
         { Civilization.Vikings,  new[] { UnitType.Camel } },
+        // N4/CIVC13
+        { Civilization.Celts,    new[] { UnitType.Camel, UnitType.CavalryArcher } },
+        { Civilization.Goths,    new[] { UnitType.Camel } },
+        { Civilization.Chinese,  new[] { UnitType.Camel } },
     };
 
     static readonly System.Collections.Generic.Dictionary<Civilization, TechType[]> DeniedTechsByCiv = new()
@@ -115,6 +125,11 @@ public static class CivilizationDefs
         { Civilization.Japanese, new[] { TechType.Paladin } },
         { Civilization.Aztecs,   new[] { TechType.Cavalier, TechType.Paladin, TechType.Bloodlines, TechType.Husbandry } },
         { Civilization.Vikings,  new[] { TechType.Paladin } },
+        // N4/CIVC13
+        { Civilization.Celts,    new[] { TechType.Paladin, TechType.Arbalest } },
+        { Civilization.Chinese,  new[] { TechType.Halberdier } },
+        { Civilization.Goths,    new[] { TechType.Paladin, TechType.Arbalest } },
+        { Civilization.Turks,    new[] { TechType.Halberdier, TechType.EliteSkirmisher } },
     };
 
     /// <summary>N0.7: true if <paramref name="civ"/> is forbidden from training this unit.</summary>

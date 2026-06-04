@@ -190,6 +190,10 @@ public class CivSelectScreen : MonoBehaviour
         Civilization.Persians   => "+%10 yiyecek, süvari +%10 can",
         Civilization.Vikings    => "Okçu +%10 atk, +%10 odun",
         Civilization.Saracens   => "+%15 altın, okçu +%10 atk",
+        Civilization.Celts      => "+%15 odun, güçlü piyade, Woad Akıncısı",
+        Civilization.Chinese    => "+%10 yiyecek, hızlı eğitim, Chu Ko Nu",
+        Civilization.Goths      => "+%10 yiyecek, ucuz piyade, Huskarl",
+        Civilization.Turks      => "+%15 altın, barut, Yeniçeri",
         _                       => "",
     };
 

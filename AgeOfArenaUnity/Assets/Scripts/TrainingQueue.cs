@@ -157,6 +157,10 @@ public class TrainingQueue : MonoBehaviour
             UnitType.Cataphract  => UnitFactory.Cataphract(unitsRoot, spawnPos, teamColor),
             UnitType.Berserk     => UnitFactory.Berserk(unitsRoot, spawnPos, teamColor),
             UnitType.Mameluke    => UnitFactory.Mameluke(unitsRoot, spawnPos, teamColor),
+            UnitType.WoadRaider  => UnitFactory.WoadRaider(unitsRoot, spawnPos, teamColor),
+            UnitType.ChuKoNu     => UnitFactory.ChuKoNu(unitsRoot, spawnPos, teamColor),
+            UnitType.Huskarl     => UnitFactory.Huskarl(unitsRoot, spawnPos, teamColor),
+            UnitType.Janissary   => UnitFactory.Janissary(unitsRoot, spawnPos, teamColor),
             UnitType.Eagle       => UnitFactory.Eagle(unitsRoot, spawnPos, teamColor),
             _                    => UnitFactory.Villager(unitsRoot, spawnPos, teamColor, tid),
         };

@@ -20,6 +20,11 @@ public enum UnitType
     Cataphract,      // Byzantines — heavy cavalry, bonus vs infantry
     Berserk,         // Vikings — infantry that self-regenerates HP
     Mameluke,        // Saracens — camel rider that throws scimitars (ranged, anti-cavalry)
+    // ── N4/CIVC13: AoK-13 unique units ──
+    WoadRaider,      // Celts — very fast infantry raider
+    ChuKoNu,         // Chinese — rapid-fire archer
+    Huskarl,         // Goths — infantry with high pierce armor (anti-archer)
+    Janissary,       // Turks — gunpowder hand cannoneer (ranged)
     Eagle,           // Aztecs — fast scout-warrior (EAGLE)
     // ── M9/EAGLE upgrade ──
     EliteEagle,      // Eagle → Elite Eagle (Aztecs, Imperial)
@@ -186,6 +191,15 @@ public enum TechType
     Berserkergang,  // Vikings (Imperial): Berserk regenerates ×2 faster
     Madrasah,       // Saracens (Castle): Monk +20 hp
     Zealotry,       // Saracens (Imperial): Camel & Mameluke +20 hp
+    // ── N4/CIVC13: AoK-13 civ unique techs ──
+    Stronghold,     // Celts (Castle): Woad Raider moves ×1.15
+    FurorCeltica,   // Celts (Imperial): siege units +40 hp
+    GreatWall,      // Chinese (Castle): buildings +3 armor
+    Rocketry,       // Chinese (Imperial): Chu Ko Nu +2 atk
+    Anarchy,        // Goths (Castle): Huskarl +20 hp
+    Perfusion,      // Goths (Imperial): infantry (Militia/Spearman) +2 atk
+    Sipahi,         // Turks (Castle): Cavalry Archer +20 hp
+    Artillery,      // Turks (Imperial): Janissary +3 atk
 }
 
 /// <summary>Stance controlling auto-aggro and pursuit behavior.</summary>

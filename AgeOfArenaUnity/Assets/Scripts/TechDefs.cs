@@ -156,6 +156,15 @@ public static class TechDefs
         new(TechType.Berserkergang, BuildingType.Castle,       Age.Imperial,300,   0, 350, 0, 40f, "Berserkergang",  Civilization.Vikings),
         new(TechType.Madrasah,      BuildingType.Castle,       Age.Castle,    0,   0, 200, 0, 40f, "Medrese",        Civilization.Saracens),
         new(TechType.Zealotry,      BuildingType.Castle,       Age.Imperial,750,   0, 800, 0, 40f, "Bağnazlık",      Civilization.Saracens),
+        // ── N4/CIVC13: AoK-13 civ unique techs ──
+        new(TechType.Stronghold,    BuildingType.Castle,       Age.Castle,    0,   0, 300, 0, 40f, "Müstahkem Mevki",Civilization.Celts),
+        new(TechType.FurorCeltica,  BuildingType.Castle,       Age.Imperial,750,   0, 450, 0, 40f, "Furor Celtica",  Civilization.Celts),
+        new(TechType.GreatWall,     BuildingType.Castle,       Age.Castle,  400,   0, 200, 0, 40f, "Çin Seddi",      Civilization.Chinese),
+        new(TechType.Rocketry,      BuildingType.Castle,       Age.Imperial,600,   0, 600, 0, 40f, "Roket",          Civilization.Chinese),
+        new(TechType.Anarchy,       BuildingType.Castle,       Age.Castle,    0,   0, 350, 0, 40f, "Anarşi",         Civilization.Goths),
+        new(TechType.Perfusion,     BuildingType.Castle,       Age.Imperial,  0,   0, 450, 0, 40f, "Perfüzyon",      Civilization.Goths),
+        new(TechType.Sipahi,        BuildingType.Castle,       Age.Castle,  350,   0, 150, 0, 40f, "Sipahi",         Civilization.Turks),
+        new(TechType.Artillery,     BuildingType.Castle,       Age.Imperial,500,   0, 450, 0, 40f, "Topçuluk",       Civilization.Turks),
     };
 
     public static TechDef Get(TechType t)

@@ -1465,6 +1465,11 @@ public class HUD : MonoBehaviour
         UnitType.Cataphract  => "Katafrakt",
         UnitType.Berserk     => "Berserk",
         UnitType.Mameluke    => "Memlük",
+        // N4/CIVC13
+        UnitType.WoadRaider  => "Woad Akıncısı",
+        UnitType.ChuKoNu     => "Chu Ko Nu",
+        UnitType.Huskarl     => "Huskarl",
+        UnitType.Janissary   => "Yeniçeri",
         UnitType.Eagle       => "Kartal Savaşçı",
         UnitType.FishingShip => "Balıkçı Gemisi",
         _                    => t.ToString(),

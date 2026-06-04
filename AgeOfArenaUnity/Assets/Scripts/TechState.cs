@@ -40,7 +40,8 @@ public class TechState
                           + (Has(TechType.Champion) ? 2f : 0f)
                           + (Has(TechType.BeardedAxe) ? 2f : 0f)    // CIVT Franks (civ-gated)
                           + (Has(TechType.GarlandWars) ? 4f : 0f)   // N4/CIVT Aztecs
-                          + (Has(TechType.Chieftains) ? 4f : 0f);   // N4/CIVT Vikings
+                          + (Has(TechType.Chieftains) ? 4f : 0f)    // N4/CIVT Vikings
+                          + (Has(TechType.Perfusion) ? 2f : 0f);    // N4/CIVC13 Goths
     float CavalryLineAtk => (Has(TechType.Cavalier) ? 2f : 0f)
                           + (Has(TechType.Paladin) ? 3f : 0f);
     float ArcherLineAtk  => (Has(TechType.Crossbowman) ? 2f : 0f)
@@ -50,7 +51,8 @@ public class TechState
     float SpearmanLineAtk   => (Has(TechType.Pikeman) ? 2f : 0f)
                              + (Has(TechType.Halberdier) ? 3f : 0f)
                              + (Has(TechType.GarlandWars) ? 4f : 0f)  // N4/CIVT Aztecs
-                             + (Has(TechType.Chieftains) ? 4f : 0f);  // N4/CIVT Vikings
+                             + (Has(TechType.Chieftains) ? 4f : 0f)   // N4/CIVT Vikings
+                             + (Has(TechType.Perfusion) ? 2f : 0f);   // N4/CIVC13 Goths
     float SkirmisherLineAtk => (Has(TechType.EliteSkirmisher) ? 1f : 0f)
                              + (Has(TechType.Atlatl) ? 1f : 0f);      // N4/CIVT Aztecs
     float CamelLineAtk      => Has(TechType.HeavyCamel) ? 3f : 0f;
@@ -82,6 +84,8 @@ public class TechState
         UnitType.Mangudai   => Has(TechType.Nomads) ? 3f : 0f,        // Mongols
         UnitType.Cataphract => Has(TechType.Logistica) ? 6f : 0f,     // Byzantines
         UnitType.FireShip   => Has(TechType.GreekFire) ? 2f : 0f,     // Byzantines
+        UnitType.ChuKoNu    => Has(TechType.Rocketry) ? 2f : 0f,      // N4/CIVC13 Chinese
+        UnitType.Janissary  => Has(TechType.Artillery) ? 3f : 0f,     // N4/CIVC13 Turks
         _ => 0f,
     };
 
@@ -134,7 +138,11 @@ public class TechState
                           + (Has(TechType.Hussar) ? 15f : 0f)
                           + (Has(TechType.Bloodlines) ? 20f : 0f),
         UnitType.CavalryArcher => (Has(TechType.Bloodlines) ? 20f : 0f)
-                          + (Has(TechType.HeavyCavalryArcher) ? 20f : 0f),
+                          + (Has(TechType.HeavyCavalryArcher) ? 20f : 0f)
+                          + (Has(TechType.Sipahi) ? 20f : 0f),     // N4/CIVC13 Turks
+        UnitType.Huskarl => Has(TechType.Anarchy) ? 20f : 0f,      // N4/CIVC13 Goths
+        UnitType.Ram or UnitType.Mangonel or UnitType.Trebuchet =>
+                            Has(TechType.FurorCeltica) ? 40f : 0f, // N4/CIVC13 Celts
         UnitType.Galley  => (Has(TechType.WarGalley) ? 20f : 0f)
                           + (Has(TechType.Galleon) ? 30f : 0f),
         UnitType.Villager => Has(TechType.Loom) ? 15f : 0f,   // ECON: Loom +15 hp
@@ -219,6 +227,8 @@ public class TechState
         if (siege && Has(TechType.Drill)) m *= 1.5f;
         // N4/CIVT Persians (Mahouts): War Elephant moves 30% faster.
         if (t == UnitType.WarElephant && Has(TechType.Mahouts)) m *= 1.3f;
+        // N4/CIVC13 Celts (Stronghold): Woad Raider moves 15% faster.
+        if (t == UnitType.WoadRaider && Has(TechType.Stronghold)) m *= 1.15f;
         return m;
     }
 
@@ -238,9 +248,11 @@ public class TechState
 
     /// <summary>Extra melee armor from Masonry/Fortified Wall + Architecture (University techs).</summary>
     public float BuildingMeleeArmor => (Has(TechType.Masonry) ? 2f : 0f) + (Has(TechType.Fortified) ? 3f : 0f)
-                                     + (Has(TechType.Architecture) ? 1f : 0f);
+                                     + (Has(TechType.Architecture) ? 1f : 0f)
+                                     + (Has(TechType.GreatWall) ? 3f : 0f);   // N4/CIVC13 Chinese
     public float BuildingPierceArmor => (Has(TechType.Masonry) ? 2f : 0f) + (Has(TechType.Fortified) ? 3f : 0f)
-                                      + (Has(TechType.Architecture) ? 1f : 0f);
+                                      + (Has(TechType.Architecture) ? 1f : 0f)
+                                      + (Has(TechType.GreatWall) ? 3f : 0f);  // N4/CIVC13 Chinese
 
     /// <summary>Watch Tower line upgrades (Guard Tower / Keep) + Chemistry: tower attack + range bonus.</summary>
     public float TowerAttackBonus => (Has(TechType.GuardTower) ? 3f : 0f) + (Has(TechType.Keep) ? 4f : 0f)
