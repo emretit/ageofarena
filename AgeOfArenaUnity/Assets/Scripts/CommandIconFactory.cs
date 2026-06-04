@@ -344,6 +344,14 @@ public static class CommandIconFactory
                 Add(icon, Ring,   Dark, 0, -2, 20, 20);            // wheel
                 Add(icon, Circle, Dark, 0, -2, 6, 6);
                 break;
+            case TechType.Sanctity:
+            case TechType.BlockPrinting:
+            case TechType.Redemption:
+            case TechType.Theocracy:
+                Add(icon, Square, Color.white, 0, 2, 6, 22);       // holy cross (vertical)
+                Add(icon, Square, Color.white, 0, 7, 16, 6);       // cross arms
+                Add(icon, Circle, Gold, 0, 7, 8, 8);               // halo
+                break;
         }
     }
 

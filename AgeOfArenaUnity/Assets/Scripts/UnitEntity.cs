@@ -62,7 +62,13 @@ public class UnitEntity : MonoBehaviour, IDamageable
 
     // Monk conversion: time spent channeling on the current target.
     public float convertProgress;
-    public const float ConvertTime = 4f;  // seconds to convert an enemy unit
+    public const float ConvertTime = 4f;  // legacy fixed convert time (fallback)
+    // CONV: AoE2 conversions are probabilistic — they take a variable time. Each new
+    // conversion rolls a random threshold in [ConvertMinTime, ConvertMaxTime]; Theocracy
+    // shortens it. convertThreshold holds the rolled target for the in-progress convert.
+    public const float ConvertMinTime = 3f;
+    public const float ConvertMaxTime = 7f;
+    public float convertThreshold;
     // Faith: a Monk must be at full faith to start a conversion; faith drops to 0
     // after a successful convert and regenerates over time (AoE2 recharge model).
     public float faith = FaithFull;
@@ -174,13 +180,43 @@ public class UnitEntity : MonoBehaviour, IDamageable
         UnitType.Scout       => (TeamTech?.Has(TechType.LightCavalry) ?? false) ? 8f : 0f,
         _                    => 0f,
     };
-    /// <summary>Siege units deal bonus building damage: Trebuchet 3×, Ram 5×.</summary>
-    public float AntiStructureMultiplier => type switch
+    /// <summary>Armor classes this unit belongs to (M7/ARMC) — what incoming bonus
+    /// damage applies to it. Cavalry-class is shared by Camel/Scout/Cavalry Archer so
+    /// the Spearman line counters all of them; Camel also carries its own class.</summary>
+    public ArmorClass ArmorClasses => type switch
     {
-        UnitType.Trebuchet => 3f,
-        UnitType.Ram       => 5f,
-        _                  => 1f,
+        UnitType.Militia or UnitType.Spearman                       => ArmorClass.Infantry,
+        UnitType.Archer or UnitType.Skirmisher or UnitType.Longbowman => ArmorClass.Archer,
+        UnitType.CavalryArcher                                       => ArmorClass.Archer | ArmorClass.Cavalry,
+        UnitType.Cavalry or UnitType.Scout                          => ArmorClass.Cavalry,
+        UnitType.Camel                                              => ArmorClass.Cavalry | ArmorClass.Camel,
+        UnitType.Trebuchet or UnitType.Mangonel or UnitType.Ram     => ArmorClass.Siege,
+        UnitType.Galley or UnitType.FireShip or UnitType.DemoShip   => ArmorClass.Ship,
+        _                                                          => ArmorClass.None, // Villager, Monk, Medic
     };
+
+    /// <summary>
+    /// Additive bonus damage vs a target's armor classes (M7/BNUS), replacing the old
+    /// multiplicative anti-cavalry / anti-archer / anti-structure factors. Values are
+    /// tuned so a base-stat counter deals the same effective damage as before:
+    /// Spearman +8 vs Cavalry-class (was ×3), Camel +7 (×2), Skirmisher +3 vs Archer
+    /// (×2), Trebuchet +70 vs Building (×3), Ram +16 (×5).
+    /// </summary>
+    public float BonusDamageVs(IDamageable target)
+    {
+        if (target == null) return 0f;
+        ArmorClass tc = target.ArmorClasses;
+        float bonus = 0f;
+        switch (type)
+        {
+            case UnitType.Spearman:   if ((tc & ArmorClass.Cavalry)  != 0) bonus += 8f;  break;
+            case UnitType.Camel:      if ((tc & ArmorClass.Cavalry)  != 0) bonus += 7f;  break;
+            case UnitType.Skirmisher: if ((tc & ArmorClass.Archer)   != 0) bonus += 3f;  break;
+            case UnitType.Trebuchet:  if ((tc & ArmorClass.Building) != 0) bonus += 70f; break;
+            case UnitType.Ram:        if ((tc & ArmorClass.Building) != 0) bonus += 16f; break;
+        }
+        return bonus;
+    }
     /// <summary>Minimum attack range: siege weapons can't fire at point-blank targets.</summary>
     public float MinAttackRange => type switch
     {
@@ -198,15 +234,6 @@ public class UnitEntity : MonoBehaviour, IDamageable
     };
     /// <summary>First melee charge hit by a Cavalry unit deals 2.5× damage.</summary>
     public float ChargeMultiplier => type == UnitType.Cavalry ? 2.5f : 1f;
-    /// <summary>Anti-cavalry bonus vs Cavalry/Camel targets: Spearman 3×, Camel 2×.</summary>
-    public float AntiCavalryMultiplier => type switch
-    {
-        UnitType.Spearman => 3.0f,
-        UnitType.Camel    => 2.0f,
-        _                 => 1f,
-    };
-    /// <summary>Anti-archer bonus vs archer-class targets: Skirmisher 2×.</summary>
-    public float AntiArcherMultiplier => type == UnitType.Skirmisher ? 2.0f : 1f;
     /// <summary>Damage class this unit deals.</summary>
     public DamageType DamageKind => type switch
     {

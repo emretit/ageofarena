@@ -558,11 +558,11 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] CAVT: TechType.Husbandry; TechState.MoveSpeedMult(Cavalry)=1.1; UnitEntity.RecomputeSpeed (baseMoveSpeed) + ResearchSystem.Apply canlı birimlere uygular → NavMeshAgent.speed. Runtime: 1.1.
 - [x] CARA: TechType.Caravan; TradingSystem StepCart TradeGoldMult (×1.5); Dock/Trade Cog rotası aynı StepCart mantığını paylaşır (su haritası gelince). Runtime: 1.5.
 - [x] UNIV: Ballistics/Chemistry/Architecture; BuildingHpMult (Architecture 1.10, BuildingEntity.Start) + Building armor +1; Chemistry +1 missile atk (archer/galley/tower). Ballistics = homing mermi zaten %100 isabet (Projectile not). Runtime: Architecture 1.1/armor1, Chemistry archer1/tower1.
-- [ ] ARMC: ArmorClass enum/flag (GameTypes/UnitEntity); UnitFactory atar; BuildingEntity Building class; melee/pierce regresyonsuz.
-- [ ] BNUS: CombatSystem dmg=base+bonus, sonra max(1,amount-armor); `*= AntiCavalryMultiplier` yok/taşınmış; tüm counter Play testleri geçer.
-- [ ] MONK: grep Sanctity/BlockPrinting/Redemption (Monastery); HpBonus(Monk)+15; StepConvert ConvertRange BlockPrinting ile artar.
-- [ ] CONV: grep ≥2 monk tech; StepConvert olasılıksal/değişken süre (Random/değişken eşik); Has(Theocracy) tüketilir.
-- [ ] ARMR: TechState.MeleeArmorBonus/PierceArmorBonus(UnitType); UnitEntity etkili armor=base+bonus; ScaleMail sonrası net hasar düşer.
+- [x] ARMC: ArmorClass flags enum (GameTypes); UnitEntity.ArmorClasses (type-driven, factory'den daha güvenli — desync olmaz) + BuildingEntity.ArmorClasses=Building; IDamageable.ArmorClasses uniform. Runtime: Cavalry/[Cavalry,Camel]/[Cavalry,Archer]/Archer/Siege doğrulandı.
+- [x] BNUS: CombatSystem dmg = AttackDamage + BonusDamageVs(target), sonra TakeDamage max(1,amount-armor). Eski `*= AntiCavalry/AntiArcher/AntiStructure` kaldırıldı → UnitEntity.BonusDamageVs (additive, ArmorClass-keyed). Base-stat counter'lar birebir korundu (Spear+8/Camel+7 vs Cavalry, Skirm+3 vs Archer, Treb+70/Ram+16 vs Building). Runtime doğrulandı.
+- [x] MONK: Sanctity/BlockPrinting/Redemption (Monastery, Castle); HpBonus(Monk)=Sanctity +15; StepConvert ConvertRange = 2.5 + BlockPrinting 1.5 (TechState.MonkConvertRange). Runtime: hp+15, range 4.0.
+- [x] CONV: 4 monk tech (Sanctity/BlockPrinting/Redemption/Theocracy ≥2); StepConvert olasılıksal/değişken süre (convertThreshold = Random[3..7]s, Theocracy ×0.6); Has(Theocracy) tüketilir (faith yarıda kalır). Runtime: Theocracy/Redemption True.
+- [x] ARMR: TechState.MeleeArmorBonus/PierceArmorBonus(UnitType) = Blacksmith armor + ScaleMail + tier-terfi zırhı (infantry/cav melee, archer pierce); UnitEntity.TakeDamage live okur. Runtime: ScaleMail 1/1, Militia tier melee 3, archer tier pierce 2.
 - [ ] MKTT: grep Coinage/Banking/Caravan/Guilds; Market TechDefs satırları; Guilds sonrası MarketSystem.Rates farklı (spread daralır).
 - [ ] TRIB: ResourceManager/TributeSystem.Tribute(from,to,kind,amount); Coinage yoksa %30 vergi; iki teamRes doğru güncellenir.
 - [ ] STONE: ResourceManager stone başlangıç >0 (örn 200); BuildingDefs'te stone>0 satır; yetersizken inşa engellenir.

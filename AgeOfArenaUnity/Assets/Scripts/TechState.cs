@@ -113,8 +113,17 @@ public class TechState
         UnitType.Galley  => (Has(TechType.WarGalley) ? 20f : 0f)
                           + (Has(TechType.Galleon) ? 30f : 0f),
         UnitType.Villager => Has(TechType.Loom) ? 15f : 0f,   // ECON: Loom +15 hp
+        UnitType.Monk    => Has(TechType.Sanctity) ? 15f : 0f, // MONK: Sanctity +15 hp
         _ => 0f,
     };
+
+    // ── M7 (MONK/CONV): Monastery conversion tuning ──────────────────────────
+    /// <summary>Monk conversion range: base 2.5 + Block Printing (+1.5).</summary>
+    public float MonkConvertRange => 2.5f + (Has(TechType.BlockPrinting) ? 1.5f : 0f);
+    /// <summary>Theocracy: a converting monk keeps half its faith (recharges faster).</summary>
+    public bool MonkHasTheocracy => Has(TechType.Theocracy);
+    /// <summary>Redemption: monks may also convert buildings/siege.</summary>
+    public bool MonkHasRedemption => Has(TechType.Redemption);
 
     /// <summary>
     /// Additive armor bonus for a unit type and damage class (read live by
@@ -122,37 +131,50 @@ public class TechState
     /// (ChainMail/PlateMail), cavalry barding (Scale/Chain/Plate), archer armor
     /// (Padded/Leather/Ring). Loom gives villagers a little armor too.
     /// </summary>
-    public float ArmorBonus(UnitType t, DamageType dmg)
+    /// <summary>Blacksmith armor (equal melee+pierce) + ScaleMail base armor — shared by both
+    /// damage types. BSMT infantry (Chain/Plate), BFUR cavalry barding, ARRM archer armor, Loom.</summary>
+    float BlacksmithArmor(UnitType t) => t switch
     {
-        float melee = 0f, pierce = 0f;
+        UnitType.Militia or UnitType.Spearman =>
+            (Has(TechType.ScaleMail) ? 1f : 0f) + (Has(TechType.ChainMail) ? 1f : 0f) + (Has(TechType.PlateMail) ? 2f : 0f),
+        UnitType.Cavalry or UnitType.Camel or UnitType.Scout =>
+            (Has(TechType.ScaleBarding) ? 1f : 0f) + (Has(TechType.ChainBarding) ? 1f : 0f) + (Has(TechType.PlateBarding) ? 2f : 0f),
+        UnitType.Archer or UnitType.Longbowman or UnitType.Skirmisher or UnitType.CavalryArcher =>
+            (Has(TechType.PaddedArcherArmor) ? 1f : 0f) + (Has(TechType.LeatherArcherArmor) ? 1f : 0f) + (Has(TechType.RingArcherArmor) ? 1f : 0f),
+        UnitType.Villager => Has(TechType.Loom) ? 1f : 0f,
+        _ => 0f,
+    };
+
+    /// <summary>Additive melee armor bonus (ARMR): Blacksmith/ScaleMail armor + melee-side
+    /// tier-promotion armor (infantry & cavalry upgrades each add +1 melee armor).</summary>
+    public float MeleeArmorBonus(UnitType t)
+    {
+        float a = BlacksmithArmor(t);
         switch (t)
         {
-            case UnitType.Militia:
-            case UnitType.Spearman:                       // BSMT: infantry armor
-                if (Has(TechType.ChainMail)) { melee += 1f; pierce += 1f; }
-                if (Has(TechType.PlateMail)) { melee += 2f; pierce += 2f; }
-                break;
-            case UnitType.Cavalry:
-            case UnitType.Camel:
-            case UnitType.Scout:                          // BFUR: cavalry barding
-                if (Has(TechType.ScaleBarding)) { melee += 1f; pierce += 1f; }
-                if (Has(TechType.ChainBarding)) { melee += 1f; pierce += 1f; }
-                if (Has(TechType.PlateBarding)) { melee += 2f; pierce += 2f; }
-                break;
-            case UnitType.Archer:
-            case UnitType.Longbowman:
-            case UnitType.Skirmisher:
-            case UnitType.CavalryArcher:                  // ARRM: archer armor (+3 pierce total)
-                if (Has(TechType.PaddedArcherArmor))  { melee += 1f; pierce += 1f; }
-                if (Has(TechType.LeatherArcherArmor)) { melee += 1f; pierce += 1f; }
-                if (Has(TechType.RingArcherArmor))    { melee += 1f; pierce += 1f; }
-                break;
-            case UnitType.Villager:                       // ECON: Loom armor
-                if (Has(TechType.Loom)) { melee += 1f; pierce += 1f; }
-                break;
+            case UnitType.Militia:  a += (Has(TechType.Longswordsman) ? 1f : 0f) + (Has(TechType.Champion) ? 1f : 0f); break;
+            case UnitType.Spearman: a += (Has(TechType.Pikeman) ? 1f : 0f) + (Has(TechType.Halberdier) ? 1f : 0f); break;
+            case UnitType.Cavalry:  a += (Has(TechType.Cavalier) ? 1f : 0f) + (Has(TechType.Paladin) ? 1f : 0f); break;
         }
-        return dmg switch { DamageType.Pierce => pierce, DamageType.Melee => melee, _ => 0f };
+        return a;
     }
+
+    /// <summary>Additive pierce armor bonus (ARMR): Blacksmith/ScaleMail armor + pierce-side
+    /// tier-promotion armor (archer upgrades each add +1 pierce armor).</summary>
+    public float PierceArmorBonus(UnitType t)
+    {
+        float a = BlacksmithArmor(t);
+        if (t == UnitType.Archer) a += (Has(TechType.Crossbowman) ? 1f : 0f) + (Has(TechType.Arbalest) ? 1f : 0f);
+        return a;
+    }
+
+    /// <summary>Effective armor bonus for a damage class (read live by UnitEntity.TakeDamage).</summary>
+    public float ArmorBonus(UnitType t, DamageType dmg) => dmg switch
+    {
+        DamageType.Pierce => PierceArmorBonus(t),
+        DamageType.Melee  => MeleeArmorBonus(t),
+        _                 => 0f,
+    };
 
     /// <summary>Cavalry/villager move-speed multiplier: Husbandry (cavalry ×1.1),
     /// Wheelbarrow (villager ×1.1). Read live by <see cref="UnitEntity.RecomputeSpeed"/>.</summary>

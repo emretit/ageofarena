@@ -1418,6 +1418,11 @@ public class HUD : MonoBehaviour
         TechType.Ballistics    => "Mermiler hareketli hedefleri daha iyi vurur.",
         TechType.Chemistry     => "Tüm menzilli saldırılar +1.",
         TechType.Architecture  => "Bina canı ve zırhı +.",
+        // ── M7 Manastır ──
+        TechType.Sanctity      => "Keşiş canı +.",
+        TechType.BlockPrinting => "Keşiş dönüştürme menzili +.",
+        TechType.Redemption    => "Keşişler bina/kuşatma dönüştürebilir.",
+        TechType.Theocracy     => "Dönüştürmede yalnız bir keşiş inanç harcar.",
         _                      => "",
     };
 

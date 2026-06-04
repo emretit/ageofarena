@@ -121,22 +121,12 @@ public class CombatSystem : MonoBehaviour
             // Siege weapons (min range) can't fire at point-blank targets.
             if (u.attackCooldown <= 0f && FlatDist(pos, tpos) >= u.MinAttackRange)
             {
-                float dmg = u.AttackDamage;
-
-                // Counter bonuses vs unit classes: anti-cavalry (Spearman/Camel) vs
-                // Cavalry/Camel; anti-archer (Skirmisher) vs archer-class targets.
-                if (u.attackTarget is UnitEntity tu)
-                {
-                    if (tu.type == UnitType.Cavalry || tu.type == UnitType.Camel)
-                        dmg *= u.AntiCavalryMultiplier;
-                    else if (tu.type == UnitType.Archer || tu.type == UnitType.Longbowman
-                          || tu.type == UnitType.Skirmisher)
-                        dmg *= u.AntiArcherMultiplier;
-                }
-
-                // Anti-structure bonus (Trebuchet) when hitting a building.
-                if (u.attackTarget is BuildingEntity)
-                    dmg *= u.AntiStructureMultiplier;
+                u.PlayAttack();   // fire the attack animation (no-op for primitive units)
+                // BNUS: AoE2 additive bonus-damage model. dmg = base + class bonus, then the
+                // target's armor is subtracted once inside TakeDamage (max 1). Replaces the old
+                // multiplicative anti-cavalry/anti-archer/anti-structure factors. Bonus is keyed
+                // off the target's ArmorClass flags (ARMC), so it works for units and buildings.
+                float dmg = u.AttackDamage + u.BonusDamageVs(target);
 
                 if (u.IsRanged)
                 {
@@ -259,18 +249,20 @@ public class CombatSystem : MonoBehaviour
         // Can't begin/continue a conversion without full faith (must recharge first).
         if (!monk.FaithReady) { monk.convertProgress = 0f; return; }
 
-        const float ConvertRange = 2.5f;
+        // MONK: conversion range grows with Block Printing (Monastery tech).
+        var mtech = GM != null ? GM.teamTech[monk.teamId] : null;
+        float convertRange = mtech?.MonkConvertRange ?? 2.5f;
         float dist = FlatDist(monk.transform.position, tgt.transform.position);
-        if (dist > ConvertRange * 2f) { monk.convertProgress = 0f; return; } // too far
+        if (dist > convertRange * 2f) { monk.convertProgress = 0f; return; } // too far
 
-        if (dist > ConvertRange)
+        if (dist > convertRange)
         {
             monk.state = UnitState.MovingToAttack;
             _repath.TryGetValue(monk, out float rt);
             rt -= dt;
             if (rt <= 0f)
             {
-                monk.NavigateTo(ApproachPoint(tgt.transform.position, monk.transform.position, ConvertRange * 0.7f));
+                monk.NavigateTo(ApproachPoint(tgt.transform.position, monk.transform.position, convertRange * 0.7f));
                 rt = RepathInterval;
             }
             _repath[monk] = rt;
@@ -280,12 +272,20 @@ public class CombatSystem : MonoBehaviour
         monk.HaltAgent();
         monk.FaceToward(tgt.transform.position);
         monk.state = UnitState.Attacking;
+
+        // CONV: roll a probabilistic (variable) conversion time when the channel begins;
+        // Theocracy shortens it. The convert completes when progress passes the rolled threshold.
+        bool theocracy = mtech?.MonkHasTheocracy ?? false;
+        if (monk.convertProgress <= 0f)
+            monk.convertThreshold = Random.Range(UnitEntity.ConvertMinTime, UnitEntity.ConvertMaxTime)
+                                  * (theocracy ? 0.6f : 1f);
         monk.convertProgress += dt;
 
-        if (monk.convertProgress >= UnitEntity.ConvertTime)
+        if (monk.convertProgress >= monk.convertThreshold)
         {
             monk.convertProgress = 0f;
-            monk.faith = 0f;            // spent — must recharge before the next convert
+            // Theocracy: only partial faith is spent (group convert efficiency) → recharges faster.
+            monk.faith = theocracy ? UnitEntity.FaithFull * 0.5f : 0f;
             monk.attackTarget = null;
             // Switch team: update teamId and tint renderers with new team colour.
             var gm = GM;

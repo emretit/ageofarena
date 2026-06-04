@@ -60,6 +60,9 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     public bool IsAlive => this != null && hp > 0f;
     public Transform Transform => transform;
     public float Radius => 2.6f; // footprint so attackers stop at the wall, not the centre
+    /// <summary>All buildings carry the Building armor class (M7/ARMC) so siege units'
+    /// anti-structure bonus damage (Trebuchet/Ram) applies to them.</summary>
+    public ArmorClass ArmorClasses => ArmorClass.Building;
 
     public void TakeDamage(float amount, DamageType damageType = DamageType.Melee)
     {

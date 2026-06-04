@@ -109,6 +109,12 @@ public static class TechDefs
         new(TechType.Ballistics,    BuildingType.University,   Age.Castle,  300,   0, 175, 0, 35f, "Balistik"),
         new(TechType.Chemistry,     BuildingType.University,   Age.Imperial,300,   0, 200, 0, 40f, "Kimya"),
         new(TechType.Architecture,  BuildingType.University,   Age.Castle,  300,   0,   0, 0, 35f, "Mimari"),
+
+        // ── M7 (MONK/CONV): Monastery monk techs ──────────────────────────────
+        new(TechType.Sanctity,      BuildingType.Monastery,    Age.Castle,  120,   0,   0, 0, 30f, "Kutsallık"),
+        new(TechType.BlockPrinting, BuildingType.Monastery,    Age.Castle,    0,   0, 200, 0, 32f, "Matbaa"),
+        new(TechType.Redemption,    BuildingType.Monastery,    Age.Castle,    0,   0, 475, 0, 35f, "Kurtarış"),
+        new(TechType.Theocracy,     BuildingType.Monastery,    Age.Imperial,  0,   0, 200, 0, 40f, "Teokrasi"),
     };
 
     public static TechDef Get(TechType t)

@@ -11,6 +11,25 @@ public enum UnitType { Villager, Militia, Archer, Cavalry, Trebuchet, Scout, Med
 /// <summary>Damage class for the armor counter matrix. Siege bypasses both armor types.</summary>
 public enum DamageType { Melee, Pierce, Siege }
 
+/// <summary>
+/// AoE2-style armor classes (M7/ARMC). A unit/building belongs to one or more
+/// classes; an attacker's <see cref="UnitEntity.BonusDamageVs"/> adds flat bonus
+/// damage when the target carries the matching class (additive bonus-damage model,
+/// replacing the old multiplicative anti-cavalry/anti-archer/anti-structure factors).
+/// </summary>
+[System.Flags]
+public enum ArmorClass
+{
+    None     = 0,
+    Infantry = 1 << 0,
+    Cavalry  = 1 << 1,
+    Archer   = 1 << 2,
+    Siege    = 1 << 3,
+    Building = 1 << 4,
+    Ship     = 1 << 5,
+    Camel    = 1 << 6,
+}
+
 public enum BuildingType { TownCenter, House, Barracks, ArcheryRange, Stable, Farm, LumberCamp, MiningCamp, Mill, Market, Castle, Wall, Gate, Wonder, WatchTower, Blacksmith, Monastery, University, Dock, SiegeWorkshop, Outpost, BombardTower }
 
 /// <summary>Tech progression tier. Higher ages gate buildings/units/techs.</summary>
@@ -100,6 +119,11 @@ public enum TechType
     Ballistics,     // projectile accuracy vs moving targets (Castle)
     Chemistry,      // +1 missile attack: archers/towers/galleys (Imperial)
     Architecture,   // +building hp & armor (Castle)
+    // ── M7 (MONK/CONV): Monastery monk techs ──
+    Sanctity,       // +Monk hp (Castle)
+    BlockPrinting,  // +Monk conversion range (Castle)
+    Redemption,     // Monk may convert buildings/siege (Castle)
+    Theocracy,      // group convert spends only one monk's faith → faster, faith-retaining (Imperial)
 }
 
 /// <summary>Stance controlling auto-aggro and pursuit behavior.</summary>
