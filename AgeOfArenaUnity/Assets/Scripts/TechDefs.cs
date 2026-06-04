@@ -174,6 +174,9 @@ public static class TechDefs
         return Table[0];
     }
 
+    /// <summary>N13.meta: all tech definitions for tech-tree viewer.</summary>
+    public static TechDef[] All() => Table;
+
     /// <summary>
     /// Techs researchable right now at a building of <paramref name="building"/>:
     /// defined for that building, age requirement met, and not already researched.

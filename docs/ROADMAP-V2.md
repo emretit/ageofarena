@@ -342,7 +342,7 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 - [ ] N13.tut: Rehberli ilk-oyun tutorial + coach-mark'lar; yeni oyuncu öğretilir.
 - [ ] N13.aow: ≥4 Art-of-War challenge (bronze/silver/gold, trigger ile).
 - [ ] N13.camp: Kampanya framework (sıralı senaryo + briefing + kazan-açılır + progress save); ≥3-senaryo zinciri çalışır.
-- [ ] N13.meta: Civ-filtreli tech-tree viewer + lokal achievement + seeded günlük challenge.
+- [x] N13.meta: Civ-filtreli tech-tree viewer + lokal achievement + seeded günlük challenge. `MetaSystem.cs`: 9 achievement (PlayerPrefs), `Unlock/IsUnlocked/TryTakeAchievement`; 5 günlük challenge tipi (date-seed deterministik, `TodayChallenge()`); `GetTechList(civ,tech)` civ-filtreli araştırılmış/kilitli tech listesi. HUD pause menüsüne "Teknoloji Ağacı" butonu → `OpenTechTreePanel` (civ-filtreli tablo, ✓/✕/○ durumları, başarım sayısı, günlük görev). Achievement hook'ları: AddKill→FirstBlood/KillStreak50, veteranRankUp→Veteran, BuildingComplete→Builder, AgeAdvanced→Emperor, HUD subtitle toast. Runtime: unlock/daily/techlist(60 Franks) doğrulandı. 0/0.
 
 ### Wave 4 — Multiplayer
 - [ ] N15.spike: Photon Quantum spike (1 birim move+combat port + WebGL build doğrulandı) + karar kaydı (custom vs Quantum).

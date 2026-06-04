@@ -641,11 +641,13 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public bool AddKill()
     {
         killCount++;
+        MetaSystem.OnKill(teamId); // N13.meta: achievement tracking
         int newRank = killCount >= 3 ? 2 : killCount >= 1 ? 1 : 0;
         if (newRank <= veteranRank) return false;
         veteranRank = newRank;
         RecomputeMaxHp();
         ApplyVeteranTint();
+        MetaSystem.OnVeteranRankUp(this); // N13.meta
         return true;
     }
 

@@ -120,7 +120,8 @@ public class HUD : MonoBehaviour
         _ageText.text = Loc.Get("hud.age") + ": " + AgeName(newAge);
         // AGFX: play age-up sound and show popup for player only.
         AudioManager.Play(AudioManager.SoundId.AgeUp, 1.0f);
-        AudioManager.PlayMusicForAge(newAge); // N7.music: switch to age-specific track
+        AudioManager.PlayMusicForAge(newAge); // N7.music
+        MetaSystem.OnAgeAdvanced(team, newAge); // N13.meta
         if (_canvasRoot != null)
             StartCoroutine(ShowAgePopup(newAge));
     }
@@ -771,6 +772,10 @@ public class HUD : MonoBehaviour
                 _subtitleText.transform.parent.gameObject.SetActive(false);
         }
 
+        // N13.meta: achievement toast via subtitle.
+        if (MetaSystem.TryTakeAchievement(out var ach))
+            ShowSubtitle("🏆 " + MetaSystem.DisplayName(ach) + " rozeti kazanıldı!", 3.5f);
+
         // N9.hotkeys: while a remap row is listening, capture the key here and consume
         // all input this frame so the pressed key doesn't also fire a game action.
         if (_listeningAction.HasValue) { PollHotkeyRebind(); return; }
@@ -1402,7 +1407,8 @@ public class HUD : MonoBehaviour
             txt.fontSize = 22; txt.fontStyle = FontStyle.Bold;
         }
 
-        AddBtn(Loc.Get("pause.resume"),  () => ClosePauseMenu(), 70f);
+        AddBtn(Loc.Get("pause.resume"),  () => ClosePauseMenu(), 130f);
+        AddBtn("Teknoloji Ağacı", () => { ClosePauseMenu(); OpenTechTreePanel(gm); }, 70f);
         AddBtn(Loc.Get("pause.hotkeys"), () => OpenHotkeyPanel(), 10f);   // N9.hotkeys: remap UI
         AddBtn(Loc.Get("pause.resign"),  () => { ClosePauseMenu(); gm.match?.Resign(); }, -50f);
         AddBtn(Loc.Get("pause.restart"), () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -110f);
@@ -1428,6 +1434,102 @@ public class HUD : MonoBehaviour
         if (_canvasScaler == null) return;
         float s = 1f / AccessibilitySettings.UiScale;
         _canvasScaler.referenceResolution = new Vector2(1920f * s, 1080f * s);
+    }
+
+    // N13.meta: tech-tree viewer panel
+    GameObject _techTreePanel;
+
+    void OpenTechTreePanel(GameManager gm)
+    {
+        if (_canvasRoot == null) return;
+        if (_techTreePanel != null) { _techTreePanel.SetActive(true); return; }
+
+        // Full-screen semi-transparent overlay
+        var overlay = NewRect("TechTreePanel", _canvasRoot);
+        _techTreePanel = overlay.gameObject;
+        overlay.anchorMin = Vector2.zero; overlay.anchorMax = Vector2.one;
+        overlay.offsetMin = Vector2.zero; overlay.offsetMax = Vector2.zero;
+        var ovImg = overlay.gameObject.AddComponent<UnityEngine.UI.Image>();
+        ovImg.color = new Color(0.04f, 0.05f, 0.08f, 0.96f);
+        overlay.gameObject.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+
+        // Title
+        var titleR = NewRect("Title", overlay);
+        titleR.anchorMin = new Vector2(0.5f, 1f); titleR.anchorMax = new Vector2(0.5f, 1f);
+        titleR.pivot = new Vector2(0.5f, 1f);
+        titleR.sizeDelta = new Vector2(700, 50);
+        titleR.anchoredPosition = new Vector2(0, -20);
+        var title = AddText(titleR, "TEKNOLOJİ AĞACI", TextAnchor.MiddleCenter);
+        title.fontSize = 30; title.fontStyle = FontStyle.Bold;
+        title.color = new Color(0.95f, 0.82f, 0.42f);
+
+        // Close button
+        var closeR = NewRect("CloseBtn", overlay);
+        closeR.anchorMin = new Vector2(1f, 1f); closeR.anchorMax = new Vector2(1f, 1f);
+        closeR.pivot = new Vector2(1f, 1f);
+        closeR.sizeDelta = new Vector2(100, 40);
+        closeR.anchoredPosition = new Vector2(-20, -15);
+        var closeImg = closeR.gameObject.AddComponent<UnityEngine.UI.Image>();
+        closeImg.color = new Color(0.5f, 0.1f, 0.1f);
+        var closeBtn = closeR.gameObject.AddComponent<UnityEngine.UI.Button>();
+        closeBtn.onClick.AddListener(() => _techTreePanel.SetActive(false));
+        AddText(closeR, "✕ Kapat", TextAnchor.MiddleCenter).color = Color.white;
+
+        // Achievement count
+        int achCount = MetaSystem.UnlockedCount();
+        int achTotal = System.Enum.GetValues(typeof(MetaSystem.Achievement)).Length;
+        var achR = NewRect("AchCount", overlay);
+        achR.anchorMin = new Vector2(0f, 1f); achR.anchorMax = new Vector2(0f, 1f);
+        achR.pivot = new Vector2(0f, 1f);
+        achR.sizeDelta = new Vector2(300, 36);
+        achR.anchoredPosition = new Vector2(20, -15);
+        AddText(achR, $"🏆 Başarımlar: {achCount}/{achTotal}", TextAnchor.MiddleLeft).color = new Color(0.9f, 0.82f, 0.42f);
+
+        // Daily challenge
+        var ch = MetaSystem.TodayChallenge();
+        var chalR = NewRect("DailyChallenge", overlay);
+        chalR.anchorMin = new Vector2(0f, 1f); chalR.anchorMax = new Vector2(0f, 1f);
+        chalR.pivot = new Vector2(0f, 1f);
+        chalR.sizeDelta = new Vector2(600, 32);
+        chalR.anchoredPosition = new Vector2(20, -55);
+        AddText(chalR, "📅 Günün Görevi: " + MetaSystem.ChallengeName(ch), TextAnchor.MiddleLeft).color = new Color(0.7f, 0.9f, 0.7f);
+
+        // Tech list (scrollable region)
+        var civ   = gm?.playerCiv ?? Civilization.None;
+        var tech  = gm?.teamTech?[0];
+        var techs = MetaSystem.GetTechList(civ, tech);
+
+        float rowH = 32f, startY = -90f, x = 50f;
+        int perCol = 20;
+        for (int i = 0; i < techs.Count; i++)
+        {
+            var (def, researched, locked) = techs[i];
+            int col = i / perCol;
+            int row = i % perCol;
+            float px = x + col * 450f;
+            float py = startY - row * rowH;
+
+            var rowR = NewRect("Tech_" + i, overlay);
+            rowR.anchorMin = new Vector2(0f, 1f); rowR.anchorMax = new Vector2(0f, 1f);
+            rowR.pivot = new Vector2(0f, 1f);
+            rowR.sizeDelta = new Vector2(440f, rowH - 4f);
+            rowR.anchoredPosition = new Vector2(px, py);
+
+            var rowImg = rowR.gameObject.AddComponent<UnityEngine.UI.Image>();
+            rowImg.color = researched ? new Color(0.1f, 0.25f, 0.12f, 0.8f)
+                         : locked     ? new Color(0.2f, 0.08f, 0.08f, 0.6f)
+                         :              new Color(0.12f, 0.16f, 0.22f, 0.7f);
+
+            string status = researched ? "✓" : locked ? "✕" : "○";
+            string costStr = def.gold > 0 ? $"{def.gold}A" : def.wood > 0 ? $"{def.wood}O" : $"{def.food}Y";
+            string label = $"{status}  {def.display}  ({costStr})";
+
+            var txt = AddText(rowR, label, TextAnchor.MiddleLeft);
+            txt.fontSize = 16;
+            txt.color = researched ? new Color(0.5f, 1f, 0.55f)
+                      : locked     ? new Color(0.6f, 0.35f, 0.35f)
+                      :              new Color(0.85f, 0.88f, 0.95f);
+        }
     }
 
     void ClosePauseMenu()
