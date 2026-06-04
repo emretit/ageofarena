@@ -11,7 +11,7 @@ public class ResourceManager
     public int food = 200;
     public int wood = 200;
     public int gold = 100;
-    public int stone = 0;   // Unity-port addition; original game had no stone.
+    public int stone = 200;  // M8/STONE: AoE2-parity stone economy (Castle/University/towers cost stone).
 
     public int pop = 0;
     public int popCap = 5;  // TC_BASE_POP

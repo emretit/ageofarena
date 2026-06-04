@@ -1423,6 +1423,10 @@ public class HUD : MonoBehaviour
         TechType.BlockPrinting => "Keşiş dönüştürme menzili +.",
         TechType.Redemption    => "Keşişler bina/kuşatma dönüştürebilir.",
         TechType.Theocracy     => "Dönüştürmede yalnız bir keşiş inanç harcar.",
+        // ── M8 Pazar ──
+        TechType.Coinage       => "Haraç vergisiz gönderilir.",
+        TechType.Banking       => "Ticaret arabası geliri +.",
+        TechType.Guilds        => "Pazar alış-satış farkı daralır.",
         _                      => "",
     };
 

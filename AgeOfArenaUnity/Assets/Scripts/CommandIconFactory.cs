@@ -333,6 +333,13 @@ public static class CommandIconFactory
                 Add(icon, Ring,   Steel, 0, -4, 14, 14);
                 Add(icon, Triangle, Steel, 9, 6, 10, 8, -90);      // route arrow
                 break;
+            case TechType.Coinage:
+            case TechType.Banking:
+            case TechType.Guilds:
+                Add(icon, Circle, Gold, -5, 3, 14, 14);            // coin stack
+                Add(icon, Circle, Gold, 4, -3, 14, 14);
+                Add(icon, Ring,   Dark, -5, 3, 14, 14);
+                break;
             case TechType.GuardTower:
             case TechType.Keep:
             case TechType.Architecture:

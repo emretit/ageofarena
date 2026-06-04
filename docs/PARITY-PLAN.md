@@ -563,9 +563,9 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] MONK: Sanctity/BlockPrinting/Redemption (Monastery, Castle); HpBonus(Monk)=Sanctity +15; StepConvert ConvertRange = 2.5 + BlockPrinting 1.5 (TechState.MonkConvertRange). Runtime: hp+15, range 4.0.
 - [x] CONV: 4 monk tech (Sanctity/BlockPrinting/Redemption/Theocracy ≥2); StepConvert olasılıksal/değişken süre (convertThreshold = Random[3..7]s, Theocracy ×0.6); Has(Theocracy) tüketilir (faith yarıda kalır). Runtime: Theocracy/Redemption True.
 - [x] ARMR: TechState.MeleeArmorBonus/PierceArmorBonus(UnitType) = Blacksmith armor + ScaleMail + tier-terfi zırhı (infantry/cav melee, archer pierce); UnitEntity.TakeDamage live okur. Runtime: ScaleMail 1/1, Militia tier melee 3, archer tier pierce 2.
-- [ ] MKTT: grep Coinage/Banking/Caravan/Guilds; Market TechDefs satırları; Guilds sonrası MarketSystem.Rates farklı (spread daralır).
-- [ ] TRIB: ResourceManager/TributeSystem.Tribute(from,to,kind,amount); Coinage yoksa %30 vergi; iki teamRes doğru güncellenir.
-- [ ] STONE: ResourceManager stone başlangıç >0 (örn 200); BuildingDefs'te stone>0 satır; yetersizken inşa engellenir.
+- [x] MKTT: Coinage/Banking/Guilds (Caravan M6'da) Market TechDefs satırları; Guilds → MarketSystem spread daralır (sell 70→80, buy 130→120, spread 60→40); Banking TradeGoldMult ×1.2 (Caravan ile 1.8). Runtime doğrulandı.
+- [x] TRIB: TributeSystem.Tribute(from,to,kind,amount); Coinage yoksa %30 vergi (100→alıcı 70), Coinage ile vergisiz (100→100); yetersiz kaynak reddedilir; iki teamRes doğru. Runtime doğrulandı.
+- [x] STONE: ResourceManager.stone=200 başlangıç (team0+AI); BuildingDefs stone>0 (Castle 650/University 150/BombardTower 100/Outpost 5/Wonder 600); BuildingPlacement.CanAfford(...,stone) yetersizken engeller (University@200 ✓, Castle@200 ✗, Castle@700 ✓). CLAUDE.md kuralı güncellendi (kullanıcı onayı). Runtime doğrulandı.
 - [ ] CIVS: WorldRoot Random yalnız AI(1..3); player civ seçimle; seçim UI 5+None; HUD doğru gösterir; bonus etkin.
 - [ ] CIVM: grep `TeamBonus`/`teamBonus`; GameManager TeamSharedBonus API; ≥1 team-bonus bir sistemde tüketilir.
 - [ ] CIVD: CivBonus'a ≥2 yeni alan, 5 civ için doldurulu; her alan ≥1 başka .cs'de okunur; sayılar referanstan.

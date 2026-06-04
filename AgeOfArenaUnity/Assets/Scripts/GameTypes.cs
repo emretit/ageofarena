@@ -124,6 +124,10 @@ public enum TechType
     BlockPrinting,  // +Monk conversion range (Castle)
     Redemption,     // Monk may convert buildings/siege (Castle)
     Theocracy,      // group convert spends only one monk's faith → faster, faith-retaining (Imperial)
+    // ── M8 (MKTT): Market economy techs ──
+    Coinage,        // tribute sent tax-free (Castle)
+    Banking,        // +trade cart gold (stacks with Caravan) (Imperial)
+    Guilds,         // narrows market sell/buy spread (Imperial)
 }
 
 /// <summary>Stance controlling auto-aggro and pursuit behavior.</summary>

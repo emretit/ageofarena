@@ -115,6 +115,11 @@ public static class TechDefs
         new(TechType.BlockPrinting, BuildingType.Monastery,    Age.Castle,    0,   0, 200, 0, 32f, "Matbaa"),
         new(TechType.Redemption,    BuildingType.Monastery,    Age.Castle,    0,   0, 475, 0, 35f, "Kurtarış"),
         new(TechType.Theocracy,     BuildingType.Monastery,    Age.Imperial,  0,   0, 200, 0, 40f, "Teokrasi"),
+
+        // ── M8 (MKTT): Market economy techs (Caravan zaten M6'da tanımlı) ─────
+        new(TechType.Coinage,       BuildingType.Market,       Age.Castle,    0,   0, 200, 0, 30f, "Sikke Basımı"),
+        new(TechType.Banking,       BuildingType.Market,       Age.Imperial,  0,   0, 300, 0, 35f, "Bankacılık",   TechType.Coinage),
+        new(TechType.Guilds,        BuildingType.Market,       Age.Imperial,300,   0,   0, 0, 35f, "Loncalar"),
     };
 
     public static TechDef Get(TechType t)

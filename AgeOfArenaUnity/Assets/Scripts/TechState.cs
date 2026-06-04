@@ -193,8 +193,11 @@ public class TechState
     /// <summary>Flat carry bonus (reserved for a future Hand Cart tier).</summary>
     public int CarryBonus => 0;
 
-    /// <summary>Trade-cart gold multiplier (Caravan ×1.5) — read by TradingSystem.</summary>
-    public float TradeGoldMult => Has(TechType.Caravan) ? 1.5f : 1f;
+    /// <summary>Trade-cart gold multiplier: Caravan ×1.5, Banking ×1.2 (stack) — read by TradingSystem.</summary>
+    public float TradeGoldMult => (Has(TechType.Caravan) ? 1.5f : 1f) * (Has(TechType.Banking) ? 1.2f : 1f);
+
+    /// <summary>Guilds narrows the Market sell/buy spread (better sell, cheaper buy).</summary>
+    public bool HasGuilds => Has(TechType.Guilds);
 
     /// <summary>University Architecture: +10% building max-HP (applied in BuildingEntity.Start).</summary>
     public float BuildingHpMult => Has(TechType.Architecture) ? 1.10f : 1f;
