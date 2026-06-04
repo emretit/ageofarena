@@ -373,12 +373,15 @@ public class CommandSystem : MonoBehaviour
         }
     }
 
-    // ── Rally flag ────────────────────────────────────────────────────────────
+    // ── Rally flag + line ───────────────────────────────────────────────────────
 
     GameObject _rallyFlag;
+    LineRenderer _rallyLine;
+    static readonly Color RallyColor = Prims.Hex(0x39c24a);
 
-    /// <summary>Show a small flag at the selected building's rally point; hide it
-    /// when no rally-capable building is selected.</summary>
+    /// <summary>Show a small flag at the selected building's rally point (plus a line
+    /// from the building to it, N9.feedback); hide both when no rally-capable building
+    /// is selected.</summary>
     void UpdateRallyFlag(GameManager gm)
     {
         var b = gm.selectedBuilding;
@@ -386,6 +389,7 @@ public class CommandSystem : MonoBehaviour
         if (!show)
         {
             if (_rallyFlag != null && _rallyFlag.activeSelf) _rallyFlag.SetActive(false);
+            if (_rallyLine != null && _rallyLine.enabled) _rallyLine.enabled = false;
             return;
         }
         if (_rallyFlag == null)
@@ -394,10 +398,26 @@ public class CommandSystem : MonoBehaviour
             Prims.Cylinder(_rallyFlag.transform, new Vector3(0, 0.9f, 0), 0.06f, 1.8f,
                 Prims.Mat(Prims.Hex(0x4a3520)));
             Prims.Box(_rallyFlag.transform, new Vector3(0.3f, 1.5f, 0f), new Vector3(0.55f, 0.38f, 0.04f),
-                Prims.Mat(Prims.Hex(0x39c24a)));
+                Prims.Mat(RallyColor));
         }
         _rallyFlag.transform.position = b.rallyPoint;
         if (!_rallyFlag.activeSelf) _rallyFlag.SetActive(true);
+
+        // N9.feedback: a ground line connecting the building to its rally point.
+        if (_rallyLine == null)
+        {
+            var lgo = new GameObject("RallyLine");
+            _rallyLine = lgo.AddComponent<LineRenderer>();
+            _rallyLine.useWorldSpace = true;
+            _rallyLine.widthMultiplier = 0.12f;
+            _rallyLine.material = Prims.UnlitColorMat(RallyColor);
+            _rallyLine.startColor = _rallyLine.endColor = RallyColor;
+            _rallyLine.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _rallyLine.positionCount = 2;
+        }
+        _rallyLine.SetPosition(0, b.transform.position + Vector3.up * 0.1f);
+        _rallyLine.SetPosition(1, b.rallyPoint + Vector3.up * 0.1f);
+        if (!_rallyLine.enabled) _rallyLine.enabled = true;
     }
 
     void SpawnMarker(Vector3 pos, Color color)

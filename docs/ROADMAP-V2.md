@@ -305,7 +305,7 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 ### Paralel görünür kazanımlar (gün-1'den; N7 müzik · N9 UX/a11y/i18n)
 - [x] N9.pause: Pause-on-blur — `FocusPause.cs` (OnApplicationFocus/Pause → timeScale 0 + "Duraklatıldı" overlay); odak dönünce önceki hız geri yüklenir; game-over (`MatchSystem.IsOver`) / Esc-menü pause'larına dokunmaz. GameBootstrap'ta WorldRoot'a bağlı. Runtime: 1.5→0→1.5 doğrulandı.
 - [ ] N9.hotkeys: Remappable `HotkeyAction`→`KeyCode` + ayar UI + PlayerPrefs + çakışma tespiti + buton-üstü hotkey etiketi (mevcut `Hotkeys.cs` üzerine).
-- [ ] N9.feedback: Attack-move zemin göstergesi + rally çizgileri + shift-kuyruk waypoint görseli; FoW varsayılan açık toggle.
+- [x] N9.feedback: Rally **çizgisi** eklendi (`CommandSystem.UpdateRallyFlag` → bina→rally-noktası LineRenderer, seçili rally-binasında görünür). Attack-move zemin göstergesi (kırmızı ring), move/attack/gather marker'ları, rally flag, FoW varsayılan-açık + pause-menü toggle zaten vardı. Runtime: RallyLine bina(-64)→rally(-58) enabled doğrulandı. _Shift-kuyruk waypoint görseli ertelendi — komut-kuyruğu mekanizması gerektiriyor (N3.cmdlog'a bağlı, MP-prep)._ 0/0.
 - [ ] N9.i18n: Lokalizasyon tablosu (key→string, TR+EN) + TR-glyph kapsamlı TMP/SDF font; tüm HUD string'leri buradan.
 - [ ] N9.a11y: Colorblind-güvenli palet + şekil/ikon kodlama (minimap/HP/diplomasi); UI-ölçek slider; caption toggle.
 - [ ] N9.postgame: Maç-sonu özet (kaynak/birim/çağ-zamanları/skor grafiği) + birim stat paneli + canlı tech-boost'lu tooltip + olay-uyarı logu.
