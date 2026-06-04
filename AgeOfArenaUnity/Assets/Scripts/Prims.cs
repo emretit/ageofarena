@@ -10,14 +10,25 @@ public static class Prims
     static Shader _standard;
     static Shader Standard => _standard != null ? _standard : (_standard = Shader.Find("Standard"));
 
+    // N1.mat: shared material cache — same (color, metallic, smoothness) → same Material instance.
+    // This allows GPU instancing to batch identical primitives into single draw calls.
+    static readonly System.Collections.Generic.Dictionary<(Color, float, float), Material> _matCache = new();
+
     public static Material Mat(Color color, float metallic = 0f, float smoothness = 0.15f)
     {
+        var key = (color, metallic, smoothness);
+        if (_matCache.TryGetValue(key, out var cached)) return cached;
         var m = new Material(Standard);
-        m.color = color;
-        m.SetFloat("_Metallic", metallic);
-        m.SetFloat("_Glossiness", smoothness);
+        m.color       = color;
+        m.SetFloat("_Metallic",    metallic);
+        m.SetFloat("_Glossiness",  smoothness);
+        m.enableInstancing = true;   // allow GPU instancing when many identical meshes share this mat
+        _matCache[key] = m;
         return m;
     }
+
+    /// <summary>Clear the material cache (call on scene restart to avoid stale references).</summary>
+    public static void ClearMatCache() => _matCache.Clear();
 
     public static Color Hex(int rgb)
     {

@@ -52,6 +52,7 @@ public static class GameBootstrap
         _nextSeed = seed; // 0 → WorldRoot picks one
         Time.timeScale = 1f;
         GameEvents.Reset();
+        Prims.ClearMatCache();   // N1.mat: rebuild shared material cache for fresh scene
 
         var existing = Object.FindAnyObjectByType<WorldRoot>();
         if (existing != null) Object.Destroy(existing.gameObject);
