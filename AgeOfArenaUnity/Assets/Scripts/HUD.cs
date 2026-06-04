@@ -33,6 +33,7 @@ public class HUD : MonoBehaviour
     Text _foodText, _woodText, _goldText, _stoneText, _popText, _ageText, _relicText;
     Button _idleButton; Text _idleText;
     Text _victoryText; RectTransform _victoryRect;
+    Text _subtitleText; float _subtitleTimer; // N6.form: short transient notification
     Text _difficultyText;
     Text _civText;
 
@@ -388,6 +389,29 @@ public class HUD : MonoBehaviour
         _victoryText.color = Prims.Hex(0xffe08a);
         AddOutline(_victoryText, 0.6f);
         _victoryRect.gameObject.SetActive(false);
+
+        // N6.form: small subtitle bar just below victory banner (formation name, etc.)
+        var subRect = NewRect("SubtitleBar", parent);
+        subRect.anchorMin = new Vector2(0.5f, 1f);
+        subRect.anchorMax = new Vector2(0.5f, 1f);
+        subRect.pivot     = new Vector2(0.5f, 1f);
+        subRect.sizeDelta = new Vector2(320, 26);
+        subRect.anchoredPosition = new Vector2(0, -102);
+        subRect.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
+        _subtitleText = AddText(subRect, "", TextAnchor.MiddleCenter);
+        _subtitleText.fontSize = 15;
+        _subtitleText.color = Color.white;
+        subRect.gameObject.SetActive(false);
+        _subtitleText.transform.parent.gameObject.SetActive(false);
+    }
+
+    /// <summary>N6.form: show a brief text notification (formation name, Town Bell, etc.).</summary>
+    public void ShowSubtitle(string msg, float duration = 1.8f)
+    {
+        if (_subtitleText == null) return;
+        _subtitleText.text = msg;
+        _subtitleText.transform.parent.gameObject.SetActive(true);
+        _subtitleTimer = duration;
     }
 
     /// <summary>Clickable "idle villager" pill, left of the age label. Hidden when none
@@ -737,6 +761,14 @@ public class HUD : MonoBehaviour
     {
         var gm = GameManager.Instance;
         if (gm == null || _cmdBar == null) return;
+
+        // N6.form: tick subtitle auto-hide timer.
+        if (_subtitleTimer > 0f)
+        {
+            _subtitleTimer -= Time.unscaledDeltaTime;
+            if (_subtitleTimer <= 0f && _subtitleText != null)
+                _subtitleText.transform.parent.gameObject.SetActive(false);
+        }
 
         // N9.hotkeys: while a remap row is listening, capture the key here and consume
         // all input this frame so the pressed key doesn't also fire a game action.

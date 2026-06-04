@@ -14,6 +14,11 @@ public class CommandSystem : MonoBehaviour
     static readonly Color GatherColor = Prims.Hex(0xffcc44);
     static readonly Color AttackColor = Prims.Hex(0xff3322);
 
+    // N6.form: formation type cycling (F key)
+    public enum FormationType { Grid, Line, Staggered, Wedge }
+    public static FormationType CurrentFormation = FormationType.Grid;
+    static readonly string[] FormationNames = { "Izgara", "Hat", "Sıralı", "V" };
+
     Camera _cam;
 
     /// <summary>True while waiting for the player to click an attack-move destination.</summary>
@@ -57,6 +62,15 @@ public class CommandSystem : MonoBehaviour
         HandleBuildHotkeys();
         HandleUnitHotkeys();
         HandleGarrisonHotkeys();
+
+        // N6.form: F = cycle formation type; H = Town Bell
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            CurrentFormation = (FormationType)(((int)CurrentFormation + 1) % 4);
+            gm.hud?.ShowSubtitle(FormationNames[(int)CurrentFormation]);
+        }
+        if (Input.GetKeyDown(KeyCode.H)) TownBell(gm);
+
         if (!Input.GetMouseButtonDown(1)) return;
         // A right-click over the HUD command bar shouldn't issue a world order.
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
@@ -357,23 +371,113 @@ public class CommandSystem : MonoBehaviour
             return;
         }
 
-        // Formation grid (Selection.ts:265-277): centered cols×rows around click.
-        int cols = Mathf.CeilToInt(Mathf.Sqrt(n));
-        int rows = Mathf.CeilToInt(n / (float)cols);
+        // N6.form: apply formation-type-specific slot layout.
+        var offsets = FormationOffsets(n, CurrentFormation);
         for (int i = 0; i < n; i++)
         {
             var u = selected[i];
             if (u == null) continue;
-            int row = i / cols;
-            int col = i % cols;
-            float offX = (col - (cols - 1) / 2f) * FormationSpacing;
-            float offZ = (row - (rows - 1) / 2f) * FormationSpacing;
             u.Stop();
-            u.MoveTo(point + new Vector3(offX, 0f, offZ));
+            u.MoveTo(point + offsets[i]);
         }
     }
 
-    // ── Rally flag + line ───────────────────────────────────────────────────────
+    /// <summary>Compute n world-space XZ offsets for the chosen formation type.</summary>
+    public static Vector3[] FormationOffsets(int n, FormationType ft)
+    {
+        var offs = new Vector3[n];
+        float s = FormationSpacing;
+        switch (ft)
+        {
+            case FormationType.Line:
+                // Single long row.
+                for (int i = 0; i < n; i++)
+                    offs[i] = new Vector3((i - (n - 1) / 2f) * s, 0f, 0f);
+                break;
+            case FormationType.Staggered:
+                // Two-column stagger (AoE2 "standard" default).
+                for (int i = 0; i < n; i++)
+                {
+                    int col = i % 2;
+                    int row = i / 2;
+                    offs[i] = new Vector3((col - 0.5f) * s, 0f, -row * s);
+                }
+                break;
+            case FormationType.Wedge:
+                // V-shape: front solo, then expanding rows.
+                int front = 1;
+                int placed = 0, rowIdx = 0;
+                while (placed < n)
+                {
+                    int inRow = Mathf.Min(front, n - placed);
+                    for (int c = 0; c < inRow; c++)
+                        offs[placed++] = new Vector3((c - (inRow - 1) / 2f) * s, 0f, -rowIdx * s);
+                    front += 2; rowIdx++;
+                }
+                break;
+            default: // Grid
+                int cols = Mathf.CeilToInt(Mathf.Sqrt(n));
+                for (int i = 0; i < n; i++)
+                    offs[i] = new Vector3((i % cols - (cols - 1) / 2f) * s, 0f, -(i / cols) * s);
+                break;
+        }
+        return offs;
+    }
+
+    // ── Town Bell (N6.form) ────────────────────────────────────────────────────
+
+    static bool _townBellActive;
+
+    /// <summary>Toggle: first press = all player villagers garrison into nearest TC/tower/castle.
+    /// Second press = all garrison buildings ungarrison.</summary>
+    static void TownBell(GameManager gm)
+    {
+        if (gm == null) return;
+        _townBellActive = !_townBellActive;
+        gm.hud?.ShowSubtitle(_townBellActive ? "⚑ Kule Çanı — Köylüler garnizona!" : "⚑ Kule Çanı — Geri dön!");
+
+        if (_townBellActive)
+        {
+            // Find all team-0 garrison-capable buildings sorted by distance to base.
+            var garrisonBuildings = new System.Collections.Generic.List<BuildingEntity>();
+            for (int i = 0; i < gm.buildings.Count; i++)
+            {
+                var b = gm.buildings[i];
+                if (b != null && b.teamId == 0 && b.GarrisonCapacity > 0 && b.hp > 0f && !b.underConstruction)
+                    garrisonBuildings.Add(b);
+            }
+            if (garrisonBuildings.Count == 0) return;
+
+            // Send all player villagers to garrison the nearest eligible building.
+            for (int i = 0; i < gm.units.Count; i++)
+            {
+                var u = gm.units[i];
+                if (u == null || u.teamId != 0 || u.type != UnitType.Villager || u.isGarrisoned) continue;
+                // Find nearest garrison building.
+                BuildingEntity best = null;
+                float bestDist = float.MaxValue;
+                foreach (var b in garrisonBuildings)
+                {
+                    if (b.GarrisonCount >= b.GarrisonCapacity) continue;
+                    float d = (b.transform.position - u.transform.position).sqrMagnitude;
+                    if (d < bestDist) { bestDist = d; best = b; }
+                }
+                if (best != null) u.GarrisonOrder(best);
+            }
+        }
+        else
+        {
+            // Release all garrisoned units from all team-0 buildings.
+            for (int i = 0; i < gm.buildings.Count; i++)
+            {
+                var b = gm.buildings[i];
+                if (b != null && b.teamId == 0 && b.GarrisonCount > 0)
+                    gm.garrison?.UngarrisonAll(b);
+            }
+        }
+    }
+
+    // ── Rally flag + line ────────────────────────────────────────────────────────
 
     GameObject _rallyFlag;
     LineRenderer _rallyLine;
