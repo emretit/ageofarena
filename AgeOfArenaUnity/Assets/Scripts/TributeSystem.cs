@@ -2,10 +2,10 @@ using UnityEngine;
 
 /// <summary>
 /// Resource tribute between teams (M8/TRIB). A team sends a resource amount to
-/// another team; a flat <see cref="TaxRate"/> (30%) is skimmed off the top unless
-/// the sending team has researched <see cref="TechType.Coinage"/> (then it is
-/// tax-free, AoE2-style). Both teams' <see cref="ResourceManager"/> ledgers are
-/// updated. Used by the diplomacy/AI layers (M11) and the HUD tribute controls.
+/// another team; a <see cref="TaxRate"/> (30%) is skimmed off the top. AoE2 tiering:
+/// <see cref="TechType.Coinage"/> reduces the tax to 20%, and <see cref="TechType.Banking"/>
+/// removes it entirely. Both teams' <see cref="ResourceManager"/> ledgers are updated.
+/// Used by the diplomacy/AI layers (M11) and the HUD tribute controls.
 /// </summary>
 public static class TributeSystem
 {
@@ -29,9 +29,15 @@ public static class TributeSystem
         var to   = gm.teamRes[toTeam];
         if (from == null || to == null || from.Get(kind) < amount) return false;
 
-        // Coinage (sender's Market tech) removes the tribute tax.
-        bool taxFree = gm.teamTech[fromTeam] != null && gm.teamTech[fromTeam].Has(TechType.Coinage);
-        int received = taxFree ? amount : Mathf.RoundToInt(amount * (1f - TaxRate));
+        // AoE2 tiering: base 30% tax → Coinage reduces it to 20% → Banking removes it entirely.
+        var senderTech = gm.teamTech[fromTeam];
+        float tax = TaxRate;
+        if (senderTech != null)
+        {
+            if (senderTech.Has(TechType.Banking))      tax = 0f;
+            else if (senderTech.Has(TechType.Coinage)) tax = 0.20f;
+        }
+        int received = Mathf.RoundToInt(amount * (1f - tax));
 
         from.Gain(kind, -amount);
         to.Gain(kind, received);

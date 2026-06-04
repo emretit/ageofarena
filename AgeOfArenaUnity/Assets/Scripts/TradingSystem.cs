@@ -29,40 +29,51 @@ public class TradingSystem : MonoBehaviour
 
     void StepCart(UnitEntity u, System.Collections.Generic.List<BuildingEntity> buildings)
     {
-        // Cart stores trade state in the unitType-specific patrol fields.
-        // patrolA = home market pos, patrolB = target market pos, patrolActive = returning
-        if (!u.patrolActive)
+        // Trade state in patrolA (home market) / patrolB (target market) + tradeActive /
+        // tradeReturning. Driven entirely here (NOT the patrol auto-flip), so the cart is
+        // paid exactly once per ROUND TRIP — on arrival back at the home market (AoE2),
+        // not on the outbound leg, and never twice.
+        if (!u.tradeActive)
         {
-            // Phase 1: find home market + target market, start trip.
+            // Phase 1: find home + target market, head out to the target.
             BuildingEntity home   = NearestMarket(buildings, u.transform.position, u.teamId,  true);
             BuildingEntity target = NearestMarket(buildings, u.transform.position, u.teamId, false);
             if (home == null || target == null) return;
-            u.patrolA = home.transform.position;
-            u.patrolB = target.transform.position;
-            u.patrolActive = true;
+            u.patrolA        = home.transform.position;
+            u.patrolB        = target.transform.position;
+            u.tradeActive    = true;
+            u.tradeReturning = false;
             u.MoveTo(u.patrolB);
+            return;
         }
-        else
-        {
-            // Phase 2: arrived at target? Turn around.
-            float dist = Vector3.Distance(u.transform.position, u.patrolB);
-            if (dist < DepositRange)
-            {
-                float tripDist  = Vector3.Distance(u.patrolA, u.patrolB);
-                float earnedF   = Mathf.Max(MinGold, tripDist * TradeGoldPerUnit);
-                var   gm        = GameManager.Instance;
-                if (gm != null)
-                {
-                    // CARA: Market Caravan tech boosts trade-cart yield (×1.5). The same
-                    // distance-based route also models a Dock-based Trade Cog (water route)
-                    // — naval trade reuses this StepCart logic once a water map ships.
-                    earnedF *= gm.teamTech[u.teamId].TradeGoldMult;
-                    gm.teamRes[u.teamId].Gain(ResourceKind.Gold, Mathf.RoundToInt(earnedF));
-                }
 
-                // Swap: now go back home (patrol will flip A/B in UnitEntity.Update).
+        if (!u.tradeReturning)
+        {
+            // Phase 2 (outbound): reached the target market? pick up goods, head home.
+            if (Vector3.Distance(u.transform.position, u.patrolB) < DepositRange)
+            {
+                u.tradeReturning = true;
                 u.MoveTo(u.patrolA);
             }
+            return;
+        }
+
+        // Phase 3 (inbound): reached the home market? deposit the gold and loop.
+        if (Vector3.Distance(u.transform.position, u.patrolA) < DepositRange)
+        {
+            float tripDist = Vector3.Distance(u.patrolA, u.patrolB);
+            float earnedF  = Mathf.Max(MinGold, tripDist * TradeGoldPerUnit);
+            var   gm       = GameManager.Instance;
+            if (gm != null)
+            {
+                // CARA: Market Caravan tech boosts trade-cart yield (×1.5). The same
+                // distance-based route also models a Dock-based Trade Cog (water route)
+                // — naval trade reuses this StepCart logic once a water map ships.
+                earnedF *= gm.teamTech[u.teamId].TradeGoldMult;
+                gm.teamRes[u.teamId].Gain(ResourceKind.Gold, Mathf.RoundToInt(earnedF));
+            }
+            // Re-find markets next tick (handles a market being built/destroyed) and repeat.
+            u.tradeActive = false;
         }
     }
 

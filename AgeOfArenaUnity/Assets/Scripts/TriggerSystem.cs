@@ -88,6 +88,7 @@ public class TriggerSystem : MonoBehaviour
     readonly float[] _stoneGathered = new float[GameManager.MaxTeams];
 
     float _matchTime; // seconds since Build()
+    bool  _sawEnemy;  // latched once any enemy unit/building has been observed (see AllEnemiesGone)
 
     public float MatchTime => _matchTime;
 
@@ -125,6 +126,18 @@ public class TriggerSystem : MonoBehaviour
 
         _matchTime += Time.deltaTime;
 
+        // Latch "an enemy has existed" so EnemyEliminated can't fire on frame 1 (before enemy
+        // units/buildings are registered) and hand an instant, accidental win.
+        if (!_sawEnemy)
+            for (int team = 1; team < gm.TeamCount && !_sawEnemy; team++)
+            {
+                foreach (var u in gm.units)
+                    if (u != null && u.teamId == team) { _sawEnemy = true; break; }
+                if (_sawEnemy) break;
+                foreach (var b in gm.buildings)
+                    if (b != null && b.teamId == team && b.type != BuildingType.Wall) { _sawEnemy = true; break; }
+            }
+
         foreach (var t in _triggers)
         {
             if (!t.enabled || t.fired) continue;
@@ -147,8 +160,11 @@ public class TriggerSystem : MonoBehaviour
     bool EvaluateCondition(TriggerData t, GameManager gm) => t.conditionType switch
     {
         ConditionType.Timer           => _matchTime >= t.condFloat1,
-        ConditionType.OwnUnits        => CountUnits(t.condInt1, gm) >= (int)t.condFloat1,
-        ConditionType.OwnBuildings    => CountBuildings(t.condInt1, gm) >= (int)t.condFloat1,
+        // condInt2 optionally filters by unit/building type: <= 0 = any type (back-compat
+        // default), > 0 = only that (UnitType)/(BuildingType). Lets "own N Spearmen" /
+        // "own N Castles" objectives be expressed (e.g. the AoW Counters challenge).
+        ConditionType.OwnUnits        => CountUnits(t.condInt1, t.condInt2, gm) >= (int)t.condFloat1,
+        ConditionType.OwnBuildings    => CountBuildings(t.condInt1, t.condInt2, gm) >= (int)t.condFloat1,
         ConditionType.ResourceGathered=> GatheredAmount(t.condInt1, (ResourceKind)t.condInt2) >= t.condFloat1,
         ConditionType.EnemyEliminated => AllEnemiesGone(gm),
         ConditionType.TechResearched  => gm.teamTech[t.condInt1]?.Has((TechType)t.condInt2) ?? false,
@@ -157,17 +173,19 @@ public class TriggerSystem : MonoBehaviour
         _                             => false,
     };
 
-    int CountUnits(int teamId, GameManager gm)
+    int CountUnits(int teamId, int typeFilter, GameManager gm)
     {
         int c = 0;
-        foreach (var u in gm.units) if (u != null && u.teamId == teamId) c++;
+        foreach (var u in gm.units)
+            if (u != null && u.teamId == teamId && (typeFilter <= 0 || (int)u.type == typeFilter)) c++;
         return c;
     }
 
-    int CountBuildings(int teamId, GameManager gm)
+    int CountBuildings(int teamId, int typeFilter, GameManager gm)
     {
         int c = 0;
-        foreach (var b in gm.buildings) if (b != null && b.teamId == teamId) c++;
+        foreach (var b in gm.buildings)
+            if (b != null && b.teamId == teamId && (typeFilter <= 0 || (int)b.type == typeFilter)) c++;
         return c;
     }
 
@@ -182,6 +200,7 @@ public class TriggerSystem : MonoBehaviour
 
     bool AllEnemiesGone(GameManager gm)
     {
+        if (!_sawEnemy) return false;   // no enemy has ever existed yet → not an "elimination"
         for (int t = 1; t < gm.TeamCount; t++)
         {
             foreach (var u in gm.units)    if (u != null && u.teamId == t) return false;

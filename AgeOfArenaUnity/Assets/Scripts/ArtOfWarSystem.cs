@@ -86,40 +86,49 @@ public static class ArtOfWarSystem
         });
     }
 
-    // Combat: eliminate all enemies within 5 minutes.
-    // Timer thresholds: Gold <2min, Silver <3.5min, Bronze <5min.
+    // Combat: eliminate all enemies, medal by how fast. Exactly ONE EnemyEliminated win
+    // trigger is active in each time window — Gold <2min, Silver <3.5min, Bronze <5min —
+    // and the 5-min fail timer stays enabled the whole match (the old version made the match
+    // unloseable after 120s and always awarded Gold because two win triggers ran in parallel).
     static void SetupCombat(TriggerSystem ts)
     {
-        // Gold: enemies gone within 120 seconds
-        ts.Add(new TriggerData {
-            id = 20, enabled = true, oneShot = true,
-            conditionType = ConditionType.Timer, condFloat1 = 120f,
-            effectType = EffectType.DeactivateTrigger, effectInt1 = 21,  // disable silver trigger
-            effect2Type = EffectType.DeactivateTrigger, effect2Int1 = 22,
-        });
-        // After 120s: check enemy eliminated for gold
+        // Gold win — enemies gone before 120s. Enabled from the start.
         ts.Add(new TriggerData {
             id = 23, enabled = true, oneShot = true,
             conditionType = ConditionType.EnemyEliminated,
-            effectType = EffectType.YouWin, effectStr1 = "🥇 Altın — Hızlı zafer!",
+            effectType = EffectType.YouWin, effectStr1 = "🥇 Altın — Hızlı zafer! (<2dk)",
         });
-        // Silver: enemies gone within 210 seconds
+        // At 120s the gold window closes → switch to the silver win.
+        ts.Add(new TriggerData {
+            id = 20, enabled = true, oneShot = true,
+            conditionType = ConditionType.Timer, condFloat1 = 120f,
+            effectType = EffectType.DeactivateTrigger, effectInt1 = 23,
+            effect2Type = EffectType.ActivateTrigger,  effect2Int1 = 25,
+        });
+        // Silver win — enemies gone 120–210s. Starts disabled; activated by id=20.
+        ts.Add(new TriggerData {
+            id = 25, enabled = false, oneShot = true,
+            conditionType = ConditionType.EnemyEliminated,
+            effectType = EffectType.YouWin, effectStr1 = "🥈 Gümüş zafer! (<3.5dk)",
+        });
+        // At 210s the silver window closes → switch to the bronze win.
         ts.Add(new TriggerData {
             id = 21, enabled = true, oneShot = true,
             conditionType = ConditionType.Timer, condFloat1 = 210f,
-            effectType = EffectType.ShowMessage, effectStr1 = "Gümüş süresinde…",
+            effectType = EffectType.DeactivateTrigger, effectInt1 = 25,
+            effect2Type = EffectType.ActivateTrigger,  effect2Int1 = 26,
         });
-        // Bronze: enemies gone within 300 seconds (5 min)
+        // Bronze win — enemies gone 210–300s. Starts disabled; activated by id=21.
+        ts.Add(new TriggerData {
+            id = 26, enabled = false, oneShot = true,
+            conditionType = ConditionType.EnemyEliminated,
+            effectType = EffectType.YouWin, effectStr1 = "🥉 Bronz zafer! (<5dk)",
+        });
+        // 5-minute fail — stays enabled the entire match (never removed).
         ts.Add(new TriggerData {
             id = 22, enabled = true, oneShot = true,
             conditionType = ConditionType.Timer, condFloat1 = 300f,
             effectType = EffectType.YouLose, effectStr1 = "Süre doldu — Rakip hayatta!",
-        });
-        // Persistent enemy-eliminated check after silver window
-        ts.Add(new TriggerData {
-            id = 24, enabled = true, oneShot = true,
-            conditionType = ConditionType.EnemyEliminated,
-            effectType = EffectType.YouWin, effectStr1 = "Tüm düşmanlar yok edildi!",
         });
     }
 
@@ -132,17 +141,20 @@ public static class ArtOfWarSystem
             conditionType = ConditionType.Timer, condFloat1 = 480f,
             effectType = EffectType.YouLose, effectStr1 = "Süre doldu!",
         });
-        // Bronze: train 5 Spearmen (condInt2 = UnitType.Spearman = 3)
+        // Bronze: own 5 actual Spearmen (condInt2 filters by unit type — the old code
+        // counted ANY 5 units, even villagers, so it never tested the counter knowledge).
         ts.Add(new TriggerData {
             id = 30, enabled = true, oneShot = true,
-            conditionType = ConditionType.OwnUnits, condInt1 = 0, condFloat1 = 5f,
+            conditionType = ConditionType.OwnUnits, condInt1 = 0,
+            condInt2 = (int)UnitType.Spearman, condFloat1 = 5f,
             effectType = EffectType.ShowMessage, effectStr1 = "🥉 Bronz — 5 Kargıcı eğitildi!",
         });
-        // Silver: also own 3 Skirmishers
+        // Silver: own 3 actual Skirmishers.
         ts.Add(new TriggerData {
             id = 31, enabled = true, oneShot = true,
-            conditionType = ConditionType.OwnUnits, condInt1 = 0, condFloat1 = 10f,
-            effectType = EffectType.ShowMessage, effectStr1 = "🥈 Gümüş — 10 birim!",
+            conditionType = ConditionType.OwnUnits, condInt1 = 0,
+            condInt2 = (int)UnitType.Skirmisher, condFloat1 = 3f,
+            effectType = EffectType.ShowMessage, effectStr1 = "🥈 Gümüş — 3 Okçu-avcı eğitildi!",
         });
         // Gold: reach Castle Age with counter force
         ts.Add(new TriggerData {

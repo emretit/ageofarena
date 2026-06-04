@@ -100,6 +100,7 @@ public class WorldRoot : MonoBehaviour
         if (mapSeed == 0) mapSeed = UnityEngine.Random.Range(1, int.MaxValue);
         UnityEngine.Random.InitState(mapSeed);
         SimRandom.Seed(mapSeed); // N3: seed the deterministic simulation RNG from the same seed
+        MarketSystem.Reset();    // restore base market prices (static — would otherwise carry over a previous match's drift)
         _mapSeed = mapSeed;      // N8.terrain: heightmap uses same seed for determinism
 
         AudioManager.Init();
@@ -1046,7 +1047,6 @@ public class WorldRoot : MonoBehaviour
         // N17: wire TransportLayer.OnChecksumReceived → DesyncHandler.
         if (gm.transport != null && gm.desync != null)
         {
-            int tickCapture = 0; // will be updated via lambda capture
             gm.transport.OnChecksumReceived += remoteHash =>
             {
                 uint local = gm.checksum?.LatestChecksum ?? 0u;
@@ -1130,6 +1130,35 @@ public class WorldRoot : MonoBehaviour
         }
 
         gm.RecomputePop();
+
+        // Relic ownership (relics are re-spawned at the same seed-deterministic positions).
+        if (data.relics != null)
+            foreach (var rs in data.relics)
+            {
+                if (rs.controllingTeam < 0) continue;
+                var rpos = new Vector3(rs.x, 0, rs.z);
+                foreach (var r in gm.relics)
+                    if (r != null && Vector3.Distance(r.transform.position, rpos) < 2f)
+                    { r.ForceControl(rs.controllingTeam); break; }
+            }
+
+        // Training queues + active research (match the owning building by position).
+        if (data.queues != null && gm.trainingQueue != null)
+            foreach (var qs in data.queues)
+            {
+                var bpos = new Vector3(qs.x, 0, qs.z);
+                foreach (var b in gm.buildings)
+                    if (b != null && Vector3.Distance(b.transform.position, bpos) < 3f)
+                    { gm.trainingQueue.RestoreQueue(b, qs.types, qs.frontElapsed); break; }
+            }
+        if (data.research != null && gm.research != null)
+            foreach (var resd in data.research)
+            {
+                var bpos = new Vector3(resd.x, 0, resd.z);
+                foreach (var b in gm.buildings)
+                    if (b != null && Vector3.Distance(b.transform.position, bpos) < 3f)
+                    { gm.research.RestoreActive(b, resd.tech, resd.elapsed); break; }
+            }
 
         // N11.trig: restore trigger state
         if (gm.triggers != null && data.triggers != null)

@@ -196,6 +196,21 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
+    /// <summary>Live registry of all active AI brains, so callers (e.g. the HUD difficulty
+    /// cycler) don't have to FindObjectsByType (a full scene scan) to reach them.</summary>
+    public static readonly List<EnemyAI> All = new();
+    void OnEnable()  { if (!All.Contains(this)) All.Add(this); }
+    void OnDisable() { All.Remove(this); }
+
+    /// <summary>Daily-challenge "Assault": drop the rush threshold and speed up production so
+    /// the AI commits to attacking almost immediately (no early boom). Call after Init.</summary>
+    public void MakeAggressive()
+    {
+        _rushThreshold = 1;
+        if (_spawnInterval > 0f) _spawnInterval *= 0.7f;
+        _assessTimer = 0f;   // re-assess (and likely push) on the next tick
+    }
+
     void Start()
     {
         var gm = GameManager.Instance;

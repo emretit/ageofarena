@@ -91,20 +91,55 @@ public class TrainingQueue : MonoBehaviour
         return n;
     }
 
-    /// <summary>
-    /// Read-only snapshot of a building's queue for the HUD queue strip: the
-    /// front item carries its live 0–1 progress, the rest report 0.
-    /// </summary>
-    public List<(UnitType type, float progress)> GetQueueView(BuildingEntity b)
+    /// <summary>Type of the queued item at <paramref name="index"/> (non-allocating —
+    /// the HUD reads count + per-index type + front progress instead of allocating a
+    /// List&lt;tuple&gt; every frame). Returns Villager for an out-of-range index.</summary>
+    public UnitType GetQueuedType(BuildingEntity b, int index)
     {
-        var view = new List<(UnitType, float)>();
-        if (!_queues.TryGetValue(b, out var q)) return view;
-        for (int i = 0; i < q.Count; i++)
+        if (!_queues.TryGetValue(b, out var q) || index < 0 || index >= q.Count) return UnitType.Villager;
+        return q[index].unitType;
+    }
+
+    // ── Save / load ─────────────────────────────────────────────────────────────
+
+    /// <summary>Export every non-empty queue (keyed by building position) for the save file.</summary>
+    public void ExportTo(List<SaveSystem.QueueSnap> into)
+    {
+        if (into == null) return;
+        foreach (var kv in _queues)
         {
-            var it = q[i];
-            view.Add((it.unitType, i == 0 ? it.elapsed / it.totalTime : 0f));
+            var b = kv.Key; var q = kv.Value;
+            if (b == null || q.Count == 0) continue;
+            var snap = new SaveSystem.QueueSnap {
+                x = b.transform.position.x, z = b.transform.position.z,
+                frontElapsed = q[0].elapsed,
+            };
+            for (int i = 0; i < q.Count; i++) snap.types.Add((int)q[i].unitType);
+            into.Add(snap);
         }
-        return view;
+    }
+
+    /// <summary>Re-create a queue on load WITHOUT deducting resources (the saved ledger already
+    /// reflects the spend). Train time is recomputed the same way Enqueue does.</summary>
+    public void RestoreQueue(BuildingEntity b, List<int> types, float frontElapsed)
+    {
+        if (b == null || types == null || types.Count == 0) return;
+        var trainables = b.GetTrainables();
+        if (!_queues.TryGetValue(b, out var q)) _queues[b] = q = new List<TrainingItem>();
+        for (int i = 0; i < types.Count; i++)
+        {
+            var ut = (UnitType)types[i];
+            float baseTime = 10f;
+            for (int k = 0; k < trainables.Length; k++)
+                if (trainables[k].unitType == ut) { baseTime = trainables[k].trainTime; break; }
+            float time = baseTime;
+            if (BlacksmithNearby(b, 14f)) time *= 0.80f;
+            time *= GM.TeamCivBonus(b.teamId).unitTrainTimeMult;
+            q.Add(new TrainingItem {
+                unitType = ut, totalTime = Mathf.Max(0.1f, time),
+                elapsed  = i == 0 ? frontElapsed : 0f,
+            });
+        }
     }
 
     /// <summary>

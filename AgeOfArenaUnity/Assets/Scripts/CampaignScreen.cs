@@ -107,10 +107,9 @@ public class CampaignScreen : MonoBehaviour
         var titleCol = done ? new Color(0.6f, 1f, 0.65f) : unlocked ? White : LockedGrey;
         AddLabel(card, m.name, -100f, 42, 24, titleCol, FontStyle.Bold);
 
+        // Cards are freshly built each open (never reused), so no de-dup check is needed.
         var briefCol = done ? new Color(0.55f, 0.85f, 0.60f) : unlocked ? Dim : LockedGrey;
-        var bText = card.gameObject.transform.Find("Brf") ? null
-                  : AddLabel(card, m.briefing, -100f, 0, 15, briefCol, FontStyle.Normal);
-        if (bText != null) bText.name = "Brf";
+        AddLabel(card, m.briefing, -100f, 0, 15, briefCol, FontStyle.Normal);
 
         // Status badge
         string statusStr = done ? "✅ Tamamlandı" : unlocked ? "🔓 Hazır" : "🔒 Kilitli";
@@ -153,6 +152,9 @@ public class CampaignScreen : MonoBehaviour
     static void StartMission(int id)
     {
         CampaignSystem.ActiveMissionId = id;
+        // Campaign and Art-of-War are mutually exclusive — starting a mission clears any
+        // selected AoW challenge so the two trigger sets don't clobber each other.
+        ArtOfWarSystem.ActiveChallenge = ArtOfWarChallenge.None;
         Time.timeScale = 1f;
         GameBootstrap.Restart();
     }

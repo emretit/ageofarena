@@ -164,6 +164,7 @@ public class GameManager : MonoBehaviour
             var bar = u.gameObject.AddComponent<WorldHpBar>();
             float yOff = u.IsKayKitModel ? 2.0f : 1.6f;
             bar.Init(yOff, u.teamId == 0);
+            u.hpBar = bar;   // cache so CombatSystem.LateUpdate skips per-frame GetComponent
         }
     }
 
@@ -180,6 +181,7 @@ public class GameManager : MonoBehaviour
             // N1.hpbar: world-space HP bar for buildings.
             var bar = b.gameObject.AddComponent<WorldHpBar>();
             bar.Init(3.4f, b.teamId == 0);
+            b.hpBar = bar;   // cache so CombatSystem.LateUpdate skips per-frame GetComponent
         }
     }
 
@@ -230,8 +232,18 @@ public class GameManager : MonoBehaviour
         MarketSystem.Tick(dt);
         if (trading != null) trading.Tick(units, buildings, dt);
 
+        // Farm reseed/decay now ticks inside the sim (was a per-frame ResourceNode.Update on
+        // Time.deltaTime, which mutated the resource ledger outside the deterministic tick stream).
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            var nd = nodes[i];
+            if (nd != null) nd.SimStep(dt);
+        }
+
         // Compact lists once per frame after all systems ticked, so destroyed
-        // units/buildings (Unity fake-null) don't linger as null holes.
+        // units/buildings (Unity fake-null) don't linger as null holes. The predicate
+        // captures nothing, so Roslyn caches the delegate — these are allocation-free
+        // O(n) scans (all sim systems also null-check, so this is hygiene, not correctness).
         units.RemoveAll(u => u == null);
         buildings.RemoveAll(b => b == null);
         nodes.RemoveAll(n => n == null);
@@ -246,11 +258,17 @@ public class GameManager : MonoBehaviour
     /// clamped to 200. Only pushes to <see cref="ResourceManager"/> when changed.
     /// Called after unit/building add/remove; AI uses the resulting popCap before training.
     /// </summary>
+    int[] _popBuf, _capBuf;   // reused across calls — RecomputePop runs every SimTick
+
     public void RecomputePop()
     {
         int n = TeamCount;
-        var pop = new int[n];
-        var cap = new int[n];
+        // Reuse buffers instead of allocating two int[] every tick (steady GC pressure).
+        if (_popBuf == null || _popBuf.Length < n) { _popBuf = new int[n]; _capBuf = new int[n]; }
+        var pop = _popBuf;
+        var cap = _capBuf;
+        System.Array.Clear(pop, 0, n);
+        System.Array.Clear(cap, 0, n);
 
         for (int i = 0; i < units.Count; i++)
         {

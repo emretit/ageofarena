@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -24,6 +25,9 @@ public class FogOfWarSystem : MonoBehaviour
     const float PixPerUnit = TexSize / WorldSize;  // pixels per world-unit (~1.067)
 
     const float VisCheckInterval = 0.5f;
+    // Fog texture repaint cadence. The full 128×128 repaint + SetPixels32 + GPU upload is
+    // far too expensive to run every frame; ~0.2 s is smooth and cuts the cost ~5-12×.
+    const float FogRepaintInterval = 0.2f;
 
     /// <summary>FOWD: Master switch — defaults to true (classic AoE2 fog). Set false to
     /// reveal the whole map (no fog); Init stays inert and Update no-ops.</summary>
@@ -43,6 +47,12 @@ public class FogOfWarSystem : MonoBehaviour
     byte[]    _explored;   // 0 = never seen, 1 = previously seen (shroud)
 
     float _visTimer;
+    float _fogTimer;
+
+    // Cached enemy renderer arrays + their current lit state, so the 0.5 s visibility
+    // pass neither calls GetComponentsInChildren (alloc) nor re-toggles .enabled every tick.
+    readonly Dictionary<GameObject, Renderer[]> _rendererCache = new();
+    readonly Dictionary<GameObject, bool>       _litState      = new();
 
     // ── Init / Reset ──────────────────────────────────────────────────────────
 
@@ -85,6 +95,8 @@ public class FogOfWarSystem : MonoBehaviour
         for (int i = 0; i < _pixels.Length; i++) _pixels[i] = Black;
         _fogTex.SetPixels32(_pixels);
         _fogTex.Apply(false);
+        _rendererCache.Clear();
+        _litState.Clear();
     }
 
     // ── Per-frame ─────────────────────────────────────────────────────────────
@@ -95,7 +107,12 @@ public class FogOfWarSystem : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null || _fogTex == null) return;
 
-        TickFogTexture(gm);
+        _fogTimer -= Time.deltaTime;
+        if (_fogTimer <= 0f)
+        {
+            _fogTimer = FogRepaintInterval;
+            TickFogTexture(gm);
+        }
 
         _visTimer -= Time.deltaTime;
         if (_visTimer <= 0f)
@@ -192,10 +209,19 @@ public class FogOfWarSystem : MonoBehaviour
         return _pixels[z * TexSize + x].r == 255;
     }
 
-    static void SetRenderersEnabled(GameObject go, bool on)
+    void SetRenderersEnabled(GameObject go, bool on)
     {
-        var rs = go.GetComponentsInChildren<Renderer>();
-        for (int i = 0; i < rs.Length; i++) rs[i].enabled = on;
+        // Skip if already in the desired state (absence in _litState = unknown → apply once).
+        if (_litState.TryGetValue(go, out bool cur) && cur == on) return;
+        _litState[go] = on;
+
+        if (!_rendererCache.TryGetValue(go, out var rs))
+        {
+            rs = go.GetComponentsInChildren<Renderer>();   // cache once — no per-tick alloc
+            _rendererCache[go] = rs;
+        }
+        for (int i = 0; i < rs.Length; i++)
+            if (rs[i] != null) rs[i].enabled = on;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

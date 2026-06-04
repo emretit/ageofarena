@@ -54,6 +54,33 @@ public class ResearchSystem : MonoBehaviour
     public TechType GetActiveTech(BuildingEntity b)
         => _active.TryGetValue(b, out var it) ? it.type : default;
 
+    // ── Save / load ─────────────────────────────────────────────────────────────
+
+    /// <summary>Export active research (keyed by building position) for the save file.</summary>
+    public void ExportTo(List<SaveSystem.ResearchSnap> into)
+    {
+        if (into == null) return;
+        foreach (var kv in _active)
+        {
+            var b = kv.Key; var it = kv.Value;
+            if (b == null) continue;
+            into.Add(new SaveSystem.ResearchSnap {
+                x = b.transform.position.x, z = b.transform.position.z,
+                tech = (int)it.type, elapsed = it.elapsed,
+            });
+        }
+    }
+
+    /// <summary>Re-start research on load WITHOUT deducting (the saved ledger already reflects it).</summary>
+    public void RestoreActive(BuildingEntity b, int techType, float elapsed)
+    {
+        if (b == null || _active.ContainsKey(b)) return;
+        var def = TechDefs.Get((TechType)techType);
+        _active[b] = new ResearchItem {
+            type = (TechType)techType, totalTime = Mathf.Max(0.1f, def.researchTime), elapsed = elapsed,
+        };
+    }
+
     /// <summary>Cancel the building's active research and refund its cost.</summary>
     public void CancelActive(BuildingEntity b)
     {

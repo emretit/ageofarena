@@ -36,11 +36,16 @@ public class ResourceNode : MonoBehaviour
         this.maxAmount = amount;
     }
 
-    void Update()
+    float _decayAccum;   // fractional decay carry (so sub-1.0/tick decay still applies)
+
+    /// <summary>Advance reseed + decay. Called from <see cref="GameManager.SimTick"/> with the
+    /// sim dt — NOT a MonoBehaviour Update — so farm food economy is part of the deterministic,
+    /// fixed-step tick stream (and frame-rate independent), not driven by render Time.deltaTime.</summary>
+    public void SimStep(float dt)
     {
         // Auto-reseed a depleted renewable field (farm) by spending the owner's
         // wood. Runs regardless of gatherers so harvesting continues uninterrupted;
-        // if the owner can't afford it the field stays empty and retries next frame.
+        // if the owner can't afford it the field stays empty and retries next tick.
         if (renewable && Depleted)
         {
             var rm = GameManager.Instance?.teamRes[ownerTeamId];
@@ -50,19 +55,29 @@ public class ResourceNode : MonoBehaviour
                 // Horse Collar / Heavy Plow raise the reseeded farm's food capacity.
                 int farmBonus = GameManager.Instance?.teamTech[ownerTeamId]?.FarmCapacityBonus ?? 0;
                 amount = maxAmount + farmBonus;
+                _decayAccum = 0f;
             }
         }
 
-        // Remove emptied nodes once their gatherers have left (GameManager's
-        // end-of-frame compaction clears the null hole from gm.nodes). Farm fields
-        // opt out so the placed building isn't destroyed.
+        // Slow decay of idle farms. Accumulate the fractional amount so sub-1.0-per-tick
+        // decay isn't rounded away to zero (the old RoundToInt(amount - rate*dt) never decayed
+        // at all for small dt) and so the rate is independent of tick length.
         if (decayPerSecond > 0f && amount > 0)
         {
             // Franks: idle farms decay at half rate (farmDecayMult 0.5); other civs ×1.0.
             float decayMult = GameManager.Instance?.TeamCivBonus(ownerTeamId).farmDecayMult ?? 1f;
-            amount = Mathf.Max(0, Mathf.RoundToInt(amount - decayPerSecond * decayMult * Time.deltaTime));
+            _decayAccum += decayPerSecond * decayMult * dt;
+            if (_decayAccum >= 1f)
+            {
+                int dec = Mathf.FloorToInt(_decayAccum);
+                amount = Mathf.Max(0, amount - dec);
+                _decayAccum -= dec;
+            }
         }
 
+        // Remove emptied nodes once their gatherers have left (GameManager's end-of-tick
+        // compaction clears the null hole from gm.nodes). Farm fields opt out so the placed
+        // building isn't destroyed.
         if (destroyOnDeplete && Depleted && currentGatherers == 0)
             Destroy(gameObject);
     }

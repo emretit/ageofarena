@@ -20,6 +20,9 @@ public class MinimapSystem : MonoBehaviour
     const float MapSize = 140f; // world units captured (covers the arena + margin)
     const int   TexSize = 256;  // render-texture resolution
     const float Side    = 130f; // RawImage square side; rotated 45° → diamond ≈184px bound
+    // The minimap doesn't need 60 fps: throttle BOTH the full secondary-camera scene render
+    // and the per-entity blip rebuild to ~10 Hz instead of every frame.
+    const float RefreshInterval = 0.1f;
 
     Camera        _mmCam;
     RenderTexture _rt;
@@ -53,7 +56,10 @@ public class MinimapSystem : MonoBehaviour
         _mmCam.depth             = -2; // render before the main camera
         _mmCam.backgroundColor   = new Color(0.05f, 0.12f, 0.05f, 1f);
         _mmCam.clearFlags        = CameraClearFlags.SolidColor;
+        _mmCam.enabled           = false; // disabled → we drive it with manual Render() at RefreshInterval
     }
+
+    float _refreshTimer;
 
     void BuildUI()
     {
@@ -127,6 +133,13 @@ public class MinimapSystem : MonoBehaviour
     {
         var gm = GameManager.Instance;
         if (gm == null || _mapRT == null || _mmCam == null) return;
+
+        // Throttle to ~10 Hz: skip the full scene render + blip rebuild on most frames.
+        _refreshTimer -= Time.deltaTime;
+        if (_refreshTimer > 0f) return;
+        _refreshTimer = RefreshInterval;
+
+        _mmCam.Render();   // manual render (camera.enabled = false)
 
         int idx = 0;
         var units = gm.units;

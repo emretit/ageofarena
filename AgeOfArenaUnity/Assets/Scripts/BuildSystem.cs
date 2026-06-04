@@ -87,8 +87,13 @@ public class BuildSystem : MonoBehaviour
         _swingTimers[builder] = st;
 
         float time = Mathf.Max(0.1f, site.buildTime);
+        float prev = site.buildProgress;
         site.buildProgress = Mathf.Clamp01(site.buildProgress + dt / time);
-        site.hp = Mathf.Max(1f, site.maxHp * site.buildProgress);
+        // Accrue hp additively (this tick's construction increment) instead of overwriting
+        // hp = maxHp*progress every tick. That way combat damage to the site competes with
+        // construction — an attacker can out-pace a lone builder and destroy a half-built
+        // structure (AoE2 behaviour) rather than the builder's formula clobbering the damage.
+        site.hp = Mathf.Min(site.maxHp, site.hp + site.maxHp * (site.buildProgress - prev));
 
         // Grow the building visually from 0→1 on the Y axis as construction progresses.
         float scaleY = Mathf.Lerp(0.05f, 1f, site.buildProgress);
@@ -97,7 +102,8 @@ public class BuildSystem : MonoBehaviour
         if (site.buildProgress >= 1f)
         {
             site.underConstruction = false;
-            site.hp = site.maxHp;
+            // Don't force full hp here — honor any damage the site took during construction.
+            site.hp = Mathf.Min(site.hp, site.maxHp);
             site.transform.localScale = Vector3.one;
 
             // A finished Farm becomes a gatherable food field — the slice's only
@@ -147,6 +153,14 @@ public class BuildSystem : MonoBehaviour
         site.hp = Mathf.Min(site.maxHp, site.hp + heal);
         if (site.hp >= site.maxHp)
         {
+            // Charge any residual fractional debt (ceil) so the final sub-1.0 chunk isn't
+            // forgiven — the old code dropped it via Remove(), a small free heal each repair.
+            if (site.teamId == 0 && _repairOwed.TryGetValue(site, out var rem))
+            {
+                int rf = Mathf.CeilToInt(rem[0]), rw = Mathf.CeilToInt(rem[1]),
+                    rg = Mathf.CeilToInt(rem[2]), rs = Mathf.CeilToInt(rem[3]);
+                if (rf + rw + rg + rs > 0) GM.resources.Deduct(rf, rw, rg, rs);
+            }
             _repairOwed.Remove(site);
             if (site.teamId == 0) AudioManager.Play(AudioManager.SoundId.Repair, 0.7f); // N7.sfx
         }

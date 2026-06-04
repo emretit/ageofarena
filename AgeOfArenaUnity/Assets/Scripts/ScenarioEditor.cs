@@ -34,16 +34,18 @@ public class ScenarioEditor : MonoBehaviour
     static readonly string[] Categories = { "Birimler", "Binalar", "Kaynaklar" };
 
     // palette items (display-name, action-key)
-    static readonly (string label, System.Action<Vector3, Color> spawn)[] UnitItems =
+    // Unit palette: type only. PlaceSelected routes through UnitFactory.Spawn so the team is
+    // assigned BEFORE RegisterUnit (the HP bar's friendly/enemy colour is baked at register time).
+    static readonly (string label, UnitType type)[] UnitItems =
     {
-        ("Köylü",   (p,c) => Reg(UnitFactory.Villager(Root(), p, c))),
-        ("Piyade",  (p,c) => Reg(UnitFactory.Militia(Root(), p, c))),
-        ("Okçu",    (p,c) => Reg(UnitFactory.Archer(Root(), p, c))),
-        ("Süvari",  (p,c) => Reg(UnitFactory.Cavalry(Root(), p, c))),
-        ("Kargıcı", (p,c) => Reg(UnitFactory.Spearman(Root(), p, c))),
-        ("Trebuchet",(p,c) => Reg(UnitFactory.Trebuchet(Root(), p, c))),
-        ("Ram",     (p,c) => Reg(UnitFactory.Ram(Root(), p, c))),
-        ("Mangonel",(p,c) => Reg(UnitFactory.Mangonel(Root(), p, c))),
+        ("Köylü",    UnitType.Villager),
+        ("Piyade",   UnitType.Militia),
+        ("Okçu",     UnitType.Archer),
+        ("Süvari",   UnitType.Cavalry),
+        ("Kargıcı",  UnitType.Spearman),
+        ("Trebuchet", UnitType.Trebuchet),
+        ("Ram",      UnitType.Ram),
+        ("Mangonel", UnitType.Mangonel),
     };
 
     static readonly (string label, System.Action<Vector3, Color, int> spawn)[] BuildingItems =
@@ -160,13 +162,9 @@ public class ScenarioEditor : MonoBehaviour
 
         if (_selectedCategory == 0 && _selectedItem < UnitItems.Length)
         {
-            UnitItems[_selectedItem].spawn(pos, col);
-            // Most factories set teamId=0 by default; fix to selected team.
-            if (gm.units.Count > 0)
-            {
-                var u = gm.units[gm.units.Count - 1];
-                if (u != null) { u.teamId = _selectedTeam; }
-            }
+            // teamId set inside Spawn → correct HP-bar ownership at RegisterUnit (no fragile
+            // "patch units[Count-1] after the fact").
+            Reg(UnitFactory.Spawn(UnitItems[_selectedItem].type, Root(), pos, _selectedTeam));
         }
         else if (_selectedCategory == 1 && _selectedItem < BuildingItems.Length)
         {
@@ -244,7 +242,7 @@ public class ScenarioEditor : MonoBehaviour
             if (u == null) continue;
             data.units.Add(new SaveSystem.UnitSnap {
                 type = (int)u.type, teamId = u.teamId,
-                x = u.transform.position.x, z = u.transform.position.z, hp = u.maxHp,
+                x = u.transform.position.x, z = u.transform.position.z, hp = u.hp,  // current hp, not maxHp
             });
         }
         foreach (var b in gm.buildings)
@@ -252,7 +250,7 @@ public class ScenarioEditor : MonoBehaviour
             if (b == null) continue;
             data.buildings.Add(new SaveSystem.BuildingSnap {
                 type = (int)b.type, teamId = b.teamId,
-                x = b.transform.position.x, z = b.transform.position.z, hp = b.maxHp,
+                x = b.transform.position.x, z = b.transform.position.z, hp = b.hp,  // current hp, not maxHp
             });
         }
         if (gm.triggers != null) data.triggers = gm.triggers.Snapshot();

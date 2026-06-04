@@ -111,8 +111,14 @@ public class GatherSystem : MonoBehaviour
 
             case UnitState.ReturningToDropoff:
             {
-                // NavMeshAgent is already navigating to dropoff (set in BeginReturn).
-                var camp = NearestDropoff(pos, v.carrying.kind, v.teamId);
+                // Reuse the drop-off chosen at BeginReturn; only re-scan all buildings if
+                // it was destroyed (Unity fake-null). Avoids an O(buildings) scan per tick.
+                var camp = v.dropoffTarget;
+                if (camp == null || camp.underConstruction)
+                {
+                    camp = NearestDropoff(pos, v.carrying.kind, v.teamId);
+                    v.dropoffTarget = camp;
+                }
                 if (camp == null) { v.Stop(); break; }   // no valid drop-off left
                 float reach = camp.Radius + DropoffRange;
                 if (FlatDist(pos, camp.transform.position) <= reach)
@@ -161,6 +167,7 @@ public class GatherSystem : MonoBehaviour
     void BeginReturn(UnitEntity v)
     {
         var camp = NearestDropoff(v.transform.position, v.carrying.kind, v.teamId);
+        v.dropoffTarget = camp;   // cache for the ReturningToDropoff tick (no per-tick re-scan)
         if (camp == null) { v.Stop(); return; }
         var dest = ApproachPoint(null, v.transform.position,
             camp.Radius + DropoffRange * 0.6f, camp.transform.position);

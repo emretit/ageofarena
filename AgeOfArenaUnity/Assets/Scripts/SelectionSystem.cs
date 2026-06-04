@@ -135,15 +135,21 @@ public class SelectionSystem : MonoBehaviour
         if (!(Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)))
             ClearSelection();
 
-        float xMin = Mathf.Min(a.x, b.x), xMax = Mathf.Max(a.x, b.x);
-        float yMin = Mathf.Min(a.y, b.y), yMax = Mathf.Max(a.y, b.y);
+        // Compare in viewport space (0..1) so the box matches the units under it on ANY
+        // DPI / render-scale / letterboxed display. The old code mixed Input.mousePosition
+        // (screen px) with WorldToScreenPoint (camera px) — correct only at 1.0 scale.
+        float sw = Screen.width, sh = Screen.height;
+        Vector2 av = new Vector2(a.x / sw, a.y / sh);
+        Vector2 bv = new Vector2(b.x / sw, b.y / sh);
+        float xMin = Mathf.Min(av.x, bv.x), xMax = Mathf.Max(av.x, bv.x);
+        float yMin = Mathf.Min(av.y, bv.y), yMax = Mathf.Max(av.y, bv.y);
 
         var units = GameManager.Instance.units;
         for (int i = 0; i < units.Count; i++)
         {
             var u = units[i];
             if (u == null || u.teamId != 0 || u.isGarrisoned) continue;
-            Vector3 sp = _cam.WorldToScreenPoint(u.transform.position);
+            Vector3 sp = _cam.WorldToViewportPoint(u.transform.position);
             if (sp.z < 0f) continue; // behind camera
             if (sp.x >= xMin && sp.x <= xMax && sp.y >= yMin && sp.y <= yMax && !Selected.Contains(u))
                 Select(u);

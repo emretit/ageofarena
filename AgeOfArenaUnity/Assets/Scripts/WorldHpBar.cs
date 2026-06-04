@@ -58,11 +58,25 @@ public class WorldHpBar : MonoBehaviour
         if (_bg != null) _bg.gameObject.SetActive(on);
     }
 
+    // Camera.main does a tagged scene scan; cache its transform statically (shared by every
+    // bar). Re-fetches automatically when the cached camera is destroyed (e.g. on Restart).
+    static Transform _camTf;
+    static Transform CamTf
+    {
+        get
+        {
+            if (_camTf == null) { var c = Camera.main; _camTf = c != null ? c.transform : null; }
+            return _camTf;
+        }
+    }
+
     void LateUpdate()
     {
-        if (!_visible || Camera.main == null) return;
+        if (!_visible) return;
+        var cam = CamTf;
+        if (cam == null) return;
         // Billboard: face the camera.
-        _bg.rotation = Camera.main.transform.rotation;
+        _bg.rotation = cam.rotation;
     }
 
     Transform CreateQuad(string name, Vector3 localPos, Vector3 localScale, Color color)

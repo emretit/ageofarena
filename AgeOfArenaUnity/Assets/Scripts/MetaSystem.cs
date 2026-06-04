@@ -26,7 +26,7 @@ public static class MetaSystem
         KillStreak50,    // 50 total kills in one game
         EcoMaster,       // accumulated 5000 gold in one game
         Defender,        // repelled an AI attack (TC survived with <20% HP)
-        Diplomat,        // researched a Diplomacy tech
+        Diplomat,        // researched the first non-age tech ("İlk Teknoloji")
         AllCivs,         // played as every civ at least once
     }
 
@@ -68,7 +68,7 @@ public static class MetaSystem
         Achievement.KillStreak50=> "Katliamcı (50 kill)",
         Achievement.EcoMaster   => "Ekonomi Ustası",
         Achievement.Defender    => "Kale Koruyucusu",
-        Achievement.Diplomat    => "Diplomat",
+        Achievement.Diplomat    => "İlk Teknoloji",  // trigger = first non-age research (name matches the trigger)
         Achievement.AllCivs     => "Dünya Fatihi",
         _                       => a.ToString(),
     };
@@ -140,7 +140,7 @@ public static class MetaSystem
     {
         if (teamId != 0) return;
         if (tech == TechType.FeudalAge || tech == TechType.CastleAge || tech == TechType.ImperialAge) return;
-        Unlock(Achievement.Diplomat); // any non-age tech counts as "diplomacy" (simplified)
+        Unlock(Achievement.Diplomat); // awarded for the first non-age tech researched (see display name)
     }
 
     public static void Reset()
@@ -180,6 +180,9 @@ public static class MetaSystem
         _                       => c.ToString(),
     };
 
+    /// <summary>Apply a daily challenge's match modifiers. NOTE: this is currently not wired into
+    /// game start (there is no "play daily challenge" opt-in yet) — TodayChallenge() is shown in the
+    /// HUD for info only. All five cases are implemented so it works the moment a caller opts in.</summary>
     public static void ApplyDailyChallenge(GameManager gm, ChallengeType c)
     {
         if (gm == null) return;
@@ -197,6 +200,15 @@ public static class MetaSystem
             case ChallengeType.Marathon:
                 var match = gm.gameObject.GetComponent<MatchSystem>();
                 if (match != null) match.MatchTimeLimit = 3600f; // 60 min
+                break;
+            case ChallengeType.Assault:
+                // AI commits to attacking from the start (no early boom phase).
+                var ais = EnemyAI.All;
+                for (int i = 0; i < ais.Count; i++) if (ais[i] != null) ais[i].MakeAggressive();
+                break;
+            case ChallengeType.Pacifist:
+                // "1000 score without military" is a constraint evaluated at game-over; no
+                // start-of-match setup is needed (the player simply avoids training military).
                 break;
         }
     }

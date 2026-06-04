@@ -54,7 +54,7 @@ public class HUD : MonoBehaviour
     RectTransform _queueStrip;
     readonly List<GameObject> _queueIcons = new();
     Image _queueFrontFill;
-    string _queueSig = "";
+    readonly List<int> _queueSigTypes = new();   // cached queued-type signature (no per-frame string alloc)
 
     // Clickable command button + its enable predicate (re-evaluated each frame).
     class CommandSlot
@@ -271,7 +271,8 @@ public class HUD : MonoBehaviour
         if (gm == null) return;
         // AIDF: 6 levels — modulo wraps Easy→Moderate→Normal→Hard→Insane→Extreme→Easy.
         gm.difficulty = (Difficulty)(((int)gm.difficulty + 1) % 6);
-        foreach (var ai in Object.FindObjectsByType<EnemyAI>(FindObjectsInactive.Exclude)) ai.SetDifficulty();
+        var ais = EnemyAI.All;   // cached registry — no FindObjectsByType scene scan
+        for (int i = 0; i < ais.Count; i++) if (ais[i] != null) ais[i].SetDifficulty();
         UpdateDifficultyLabel();
     }
 
@@ -830,26 +831,31 @@ public class HUD : MonoBehaviour
             if (idle > 0 && _idleText != null) _idleText.text = Loc.Get("hud.idleWorker") + ": " + idle + " (.)";
         }
 
-        // VTIME: time limit countdown in top bar.
-        if (gm.match != null && gm.match.MatchTimeLimit > 0f && _victoryText != null)
+        // Victory / time-limit banner — ONE priority-ordered show/hide. An imminent
+        // Wonder/relic/KotH countdown (VictoryStatus) takes priority; otherwise the
+        // time-limit countdown shows. Previously the time-limit branch hid VictoryStatus
+        // entirely in timed matches AND never turned its own banner off (no else).
+        if (_victoryRect != null && _victoryText != null)
         {
-            float rem = gm.match.TimeRemaining;
-            if (rem < float.MaxValue)
-            {
-                int mins = (int)(rem / 60f), secs = (int)(rem % 60f);
-                string timeStr = $"{Loc.Get("hud.time")}: {mins:00}:{secs:00}";
-                if (_victoryText.text != timeStr) _victoryText.text = timeStr;
-                if (!_victoryRect.gameObject.activeSelf) _victoryRect.gameObject.SetActive(true);
-            }
-        }
-
-        // Victory countdown banner: visible only while a Wonder/relic count is running.
-        if (_victoryRect != null && (gm.match == null || gm.match.MatchTimeLimit <= 0f))
-        {
+            string banner = null;
             string vs = gm.match != null ? gm.match.VictoryStatus : "";
-            bool showVictory = !string.IsNullOrEmpty(vs);
-            if (_victoryRect.gameObject.activeSelf != showVictory) _victoryRect.gameObject.SetActive(showVictory);
-            if (showVictory && _victoryText != null) _victoryText.text = vs;
+            if (!string.IsNullOrEmpty(vs))
+            {
+                banner = vs;
+            }
+            else if (gm.match != null && gm.match.MatchTimeLimit > 0f)
+            {
+                float rem = gm.match.TimeRemaining;
+                if (rem < float.MaxValue)
+                {
+                    int mins = (int)(rem / 60f), secs = (int)(rem % 60f);
+                    banner = $"{Loc.Get("hud.time")}: {mins:00}:{secs:00}";
+                }
+            }
+
+            bool show = banner != null;
+            if (_victoryRect.gameObject.activeSelf != show) _victoryRect.gameObject.SetActive(show);
+            if (show && _victoryText.text != banner) _victoryText.text = banner;
         }
 
         var b = gm.selectedBuilding;
@@ -973,33 +979,37 @@ public class HUD : MonoBehaviour
 
     void UpdateQueueStrip(GameManager gm, BuildingEntity b)
     {
-        var view = (b != null && gm.trainingQueue != null) ? gm.trainingQueue.GetQueueView(b) : null;
-        int n = view != null ? view.Count : 0;
+        var tq = (b != null) ? gm.trainingQueue : null;
+        int n = tq != null ? tq.GetQueueCount(b) : 0;
 
-        // Rebuild icons only when the queued unit list changes (not every frame).
-        string sig = "";
-        for (int i = 0; i < n; i++) sig += (int)view[i].type + ",";
-        if (sig != _queueSig)
+        // Detect a change without allocating (the old code built a List<tuple> via
+        // GetQueueView + a string sig every frame): compare queued types to a cached list.
+        bool changed = n != _queueSigTypes.Count;
+        if (!changed)
+            for (int i = 0; i < n; i++)
+                if (_queueSigTypes[i] != (int)tq.GetQueuedType(b, i)) { changed = true; break; }
+        if (changed)
         {
-            _queueSig = sig;
-            RebuildQueueStrip(b, view);
+            _queueSigTypes.Clear();
+            for (int i = 0; i < n; i++) _queueSigTypes.Add((int)tq.GetQueuedType(b, i));
+            RebuildQueueStrip(b, tq, n);
         }
 
         // The front item's fill advances every frame.
         if (_queueFrontFill != null && n > 0)
-            _queueFrontFill.rectTransform.sizeDelta = new Vector2(36f * Mathf.Clamp01(view[0].progress), 4f);
+            _queueFrontFill.rectTransform.sizeDelta = new Vector2(36f * Mathf.Clamp01(tq.GetProgress(b)), 4f);
     }
 
-    void RebuildQueueStrip(BuildingEntity b, List<(UnitType type, float progress)> view)
+    void RebuildQueueStrip(BuildingEntity b, TrainingQueue tq, int n)
     {
         for (int i = 0; i < _queueIcons.Count; i++)
             if (_queueIcons[i] != null) Destroy(_queueIcons[i]);
         _queueIcons.Clear();
         _queueFrontFill = null;
-        if (view == null || view.Count == 0) return;
+        if (tq == null || n == 0) return;
 
         const float size = 38f, gap = 4f;
-        for (int i = 0; i < view.Count; i++)
+        for (int i = 0; i < n; i++)
         {
             int index = i;
             var bb = b;
@@ -1023,7 +1033,7 @@ public class HUD : MonoBehaviour
             iconRect.anchorMin = iconRect.anchorMax = iconRect.pivot = new Vector2(0.5f, 0.5f);
             iconRect.sizeDelta = new Vector2(30, 30);
             iconRect.anchoredPosition = new Vector2(0, 2);
-            CommandIconFactory.Unit(iconRect, view[i].type);
+            CommandIconFactory.Unit(iconRect, tq.GetQueuedType(b, i));
 
             // The front (currently-training) item carries a thin progress fill.
             if (i == 0)
@@ -1674,8 +1684,10 @@ public class HUD : MonoBehaviour
         if (_gameOverShown || _canvasRoot == null) return;
         _gameOverShown = true;
 
-        // N13.camp: mark campaign mission complete on win.
+        // N13.camp: mark campaign mission complete on win; on defeat, abort it so the
+        // mission's triggers/economy don't leak into the next normal match.
         if (playerWon) CampaignSystem.OnCampaignWin();
+        else           CampaignSystem.Abort();
 
         var gm = GameManager.Instance;
 

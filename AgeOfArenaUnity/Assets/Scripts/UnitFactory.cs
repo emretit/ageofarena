@@ -226,7 +226,7 @@ public static class UnitFactory
             Prims.Box(t, new Vector3(0.34f, 1.95f, 0.08f), new Vector3(0.08f, 0.25f, 0.08f), metal);
         }
         var e = Finish(g, UnitType.Spearman, teamColor, visual, teamId);
-        e.hp = e.maxHp = 25f;
+        e.hp = e.maxHp = 45f;   // AoE2 parity (was 25 — even below Militia's 40, so the anti-cav unit died before it could out-trade)
         e.moveSpeed = 3.3f;
         e.pierceArmor = 3f;
         return e;

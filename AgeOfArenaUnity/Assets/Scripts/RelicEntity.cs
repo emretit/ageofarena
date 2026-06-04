@@ -41,12 +41,16 @@ public class RelicEntity : MonoBehaviour
     /// <summary>Factory hands over the orb material so capture can re-tint it.</summary>
     public void SetOrb(Material orbMat) => _orbMat = orbMat;
 
+    int[] _captureCounts;   // reused across ticks (UpdateCapture runs per relic per tick)
+
     /// <summary>Advance capture + passive income. Called by <see cref="RelicSystem"/>.</summary>
     public void UpdateCapture(float dt)
     {
-        // Tally nearby units per team.
+        // Tally nearby units per team (reuse the buffer instead of allocating int[] each tick).
         int nTeams = GameManager.MaxTeams;
-        var counts = new int[nTeams];
+        if (_captureCounts == null) _captureCounts = new int[nTeams];
+        var counts = _captureCounts;
+        System.Array.Clear(counts, 0, counts.Length);
         for (int i = 0; i < unitsNearby.Count; i++)
         {
             var u = unitsNearby[i];

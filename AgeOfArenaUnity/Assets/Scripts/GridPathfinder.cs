@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
+/// ⚠️ BUILT BUT NOT QUERIED (2026-06 audit): FindPath() has no caller — units move via NavMeshAgent.
+/// SetBlocked() is also never called, so the grid never reflects placed buildings. This is the
+/// intended deterministic-movement backend for the future MP2 migration. See NetworkMode.cs.
+///
 /// N16.path: Deterministic grid-based A* pathfinder — NavMesh-free alternative
 /// for multiplayer determinism. Uses integer arithmetic throughout; no floating-
 /// point in the search loop.

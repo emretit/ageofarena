@@ -260,7 +260,7 @@ public class CombatSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Monk conversion: close in and channel for <see cref="UnitEntity.ConvertTime"/> seconds.
+    /// Monk conversion: close in and channel for a random time (ConvertMin/MaxTime) per target.
     /// On completion the target unit switches to the Monk's team (new colour).
     /// Cancels if the target dies or moves beyond 2× range.
     /// </summary>
@@ -327,17 +327,23 @@ public class CombatSystem : MonoBehaviour
                 ? TeamPalette.For(newTeam)
                 : Color.white;
             tgt.teamId = newTeam;
-            // Tint primitive units (MeshRenderer)
+            // Tint via MaterialPropertyBlock for BOTH renderer kinds — the old MeshRenderer
+            // path used r.material (instance), leaking a material per renderer on each convert.
+            var block = new MaterialPropertyBlock();
             foreach (var r in tgt.GetComponentsInChildren<MeshRenderer>())
             {
                 if (r.gameObject.name == "BlobShadow" || r.gameObject.name.StartsWith("SelectionRing")) continue;
-                r.material.color = Color.Lerp(r.material.color, newColor, 0.5f);
-            }
-            // Tint KayKit models (SkinnedMeshRenderer) via MaterialPropertyBlock
-            var block = new MaterialPropertyBlock();
-            block.SetColor("_Color", Color.Lerp(Color.white, newColor, 0.28f));
-            foreach (var r in tgt.GetComponentsInChildren<SkinnedMeshRenderer>())
+                Color baseCol = r.sharedMaterial != null ? r.sharedMaterial.color : Color.white;
+                r.GetPropertyBlock(block);
+                block.SetColor("_Color", Color.Lerp(baseCol, newColor, 0.5f));
                 r.SetPropertyBlock(block);
+            }
+            foreach (var r in tgt.GetComponentsInChildren<SkinnedMeshRenderer>())
+            {
+                r.GetPropertyBlock(block);
+                block.SetColor("_Color", Color.Lerp(Color.white, newColor, 0.28f));
+                r.SetPropertyBlock(block);
+            }
             monk.Stop();
         }
     }
@@ -362,7 +368,7 @@ public class CombatSystem : MonoBehaviour
         {
             var u = units[i];
             if (u == null) continue;
-            var bar = u.GetComponent<WorldHpBar>();
+            var bar = u.hpBar;   // cached at RegisterUnit (no per-frame GetComponent)
             if (bar == null) continue;
             bool selected = sel != null && sel.Selected.Contains(u);
             bool show = u.hp < u.maxHp || selected;
@@ -374,7 +380,7 @@ public class CombatSystem : MonoBehaviour
         {
             var b = buildings[i];
             if (b == null) continue;
-            var bar = b.GetComponent<WorldHpBar>();
+            var bar = b.hpBar;   // cached at RegisterBuilding (no per-frame GetComponent)
             if (bar == null) continue;
             bar.Refresh(b.hp / b.maxHp, b.hp < b.maxHp);
         }

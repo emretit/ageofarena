@@ -15,10 +15,20 @@
 ///   • MP3 (transport + lobby) requires a transport layer; Unity Netcode for GameObjects
 ///     or Mirror are the leading candidates.
 ///
-/// This file is a design decision record — no runtime code until MP2 is green.
+/// ⚠️ DETERMINISM STATUS (2026-06, audit): the lockstep scaffolding (LockstepSystem,
+/// FixedPoint, GridPathfinder, ChecksumSystem, CommandRecorder, DesyncHandler, TransportLayer)
+/// is CHECKED IN BUT NOT INTEGRATED into the live simulation:
+///   • LockstepSystem.StartLockstep() is never called → IsActive stays false → OnSimTick is inert.
+///   • GameManager.FixedStepEnabled stays false → the sim runs on Time.deltaTime, not FIXED_DT.
+///   • FixedPoint has zero callers; GridPathfinder.FindPath is never queried (units use NavMeshAgent).
+///   • ChecksumSystem hashes float NavMesh positions, so it is not a true determinism guarantee.
+/// In other words the game is SINGLE-PLAYER and NOT yet deterministic. MP2 (the determinism
+/// pre-req below) is the work that wires this up. Don't treat the scaffolding as "MP done".
+///
+/// This file is a design decision record. IsMultiplayerEnabled stays false until MP2 is green.
 /// </summary>
 public static class NetworkMode
 {
     public const string ChosenArchitecture = "Lockstep";
-    public const bool IsMultiplayerEnabled = false; // flip when MP2 is done
+    public const bool IsMultiplayerEnabled = false; // flip when MP2 (determinism) is actually integrated
 }

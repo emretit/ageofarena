@@ -220,4 +220,9 @@ public static class CampaignSystem
         // Reset so a normal restart doesn't re-run campaign mode.
         ActiveMissionId = -1;
     }
+
+    /// <summary>Abandon the active mission WITHOUT completing/unlocking it (called on
+    /// defeat or quit-to-menu). Without this, losing a mission leaves ActiveMissionId set
+    /// and the next normal "New Game" silently re-injects the mission's triggers + economy.</summary>
+    public static void Abort() => ActiveMissionId = -1;
 }

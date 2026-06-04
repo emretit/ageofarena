@@ -2,6 +2,9 @@ using System;
 using UnityEngine;
 
 /// <summary>
+/// ⚠️ NOT YET USED (2026-06 audit): zero callers outside this file — the live sim still runs on
+/// float/Vector3. This is groundwork for the future deterministic-sim (MP2) migration. See NetworkMode.cs.
+///
 /// N16.fixed: Deterministic fixed-point arithmetic (Q16.16 format).
 /// 16 integer bits + 16 fractional bits → range ≈ ±32767, precision ~0.000015.
 /// All operations use integer arithmetic only — no floating-point involvement.

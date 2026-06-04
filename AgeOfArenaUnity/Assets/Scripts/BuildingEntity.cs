@@ -30,6 +30,10 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     public bool hasRally;
     public Vector3 rallyPoint;
 
+    // Cached HP-bar reference (set at RegisterBuilding) so CombatSystem's LateUpdate
+    // doesn't GetComponent<WorldHpBar>() for every building every frame.
+    [System.NonSerialized] public WorldHpBar hpBar;
+
     // Garrison: units sheltered inside (hidden + healed; add defensive arrows via
     // BuildingCombatSystem). Capacity comes from BuildingDefs; 0 = cannot garrison.
     public readonly System.Collections.Generic.List<UnitEntity> garrison = new();
@@ -100,16 +104,27 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         if (hp <= 0f) Die();
     }
 
+    // Damage tint via MaterialPropertyBlock — renderers cached once, no per-hit material
+    // instancing. The old code read r.material (instance) on every hit below 50% HP, leaking
+    // a Material per renderer per hit — hundreds of leaks during a single siege.
+    Renderer[] _tintRenderers;
+    MaterialPropertyBlock _tintMpb;
+    static readonly int TintColorId = Shader.PropertyToID("_Color");
+
     void TintDamage(float hpFrac)
     {
         // Lerp toward char-black at 0 HP so heavily damaged buildings look burned.
         var tint = Color.Lerp(new Color(0.15f, 0.08f, 0.05f), Color.white, hpFrac * 2f);
-        foreach (var r in GetComponentsInChildren<Renderer>())
-            if (r.sharedMaterial != null)
-            {
-                var m = r.material; // instance copy
-                m.color = tint;
-            }
+        _tintRenderers ??= GetComponentsInChildren<Renderer>();
+        _tintMpb ??= new MaterialPropertyBlock();
+        for (int i = 0; i < _tintRenderers.Length; i++)
+        {
+            var r = _tintRenderers[i];
+            if (r == null) continue;
+            r.GetPropertyBlock(_tintMpb);
+            _tintMpb.SetColor(TintColorId, tint);
+            r.SetPropertyBlock(_tintMpb);
+        }
     }
 
     void Die()

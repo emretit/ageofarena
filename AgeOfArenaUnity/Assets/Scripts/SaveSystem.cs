@@ -38,6 +38,29 @@ public class SaveSystem : MonoBehaviour
     }
 
     [Serializable]
+    public class RelicSnap   // relic ownership (position-matched on load)
+    {
+        public float x, z;
+        public int   controllingTeam;
+    }
+
+    [Serializable]
+    public class QueueSnap    // a building's training queue (position-matched on load)
+    {
+        public float x, z;
+        public List<int> types = new();   // (int)UnitType in queue order
+        public float frontElapsed;        // elapsed seconds on the front item
+    }
+
+    [Serializable]
+    public class ResearchSnap // a building's active research (position-matched on load)
+    {
+        public float x, z;
+        public int   tech;     // (int)TechType
+        public float elapsed;  // elapsed seconds
+    }
+
+    [Serializable]
     public class TeamSnap
     {
         public int food, wood, gold, stone;
@@ -55,7 +78,10 @@ public class SaveSystem : MonoBehaviour
         public int  gameMode, difficulty;
         public int  mapSeed;               // N12.savefull: reproduce same map
         public List<TriggerData> triggers  = new(); // N11.trig: trigger state
-        public string version = "4";       // bumped: triggers added
+        public List<RelicSnap>    relics   = new(); // relic ownership
+        public List<QueueSnap>    queues   = new(); // training queues
+        public List<ResearchSnap> research = new(); // active research
+        public string version = "5";       // bumped: relics/queues/research added
     }
 
     void Update()
@@ -135,6 +161,20 @@ public class SaveSystem : MonoBehaviour
         if (gm.triggers != null)
             data.triggers = gm.triggers.Snapshot();
 
+        // Relic ownership (avoids relic-victory progress silently resetting on reload).
+        foreach (var r in gm.relics)
+        {
+            if (r == null) continue;
+            data.relics.Add(new RelicSnap {
+                x = r.transform.position.x, z = r.transform.position.z,
+                controllingTeam = r.controllingTeam,
+            });
+        }
+
+        // Training + research queues (so queued, already-paid-for items aren't lost on reload).
+        gm.trainingQueue?.ExportTo(data.queues);
+        gm.research?.ExportTo(data.research);
+
         PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(data));
         PlayerPrefs.Save();
         Debug.Log($"[SaveSystem] Saved {data.units.Count} units, {data.buildings.Count} buildings, seed={data.mapSeed}.");
@@ -145,7 +185,8 @@ public class SaveSystem : MonoBehaviour
         string json = PlayerPrefs.GetString(SaveKey, "");
         if (string.IsNullOrEmpty(json)) { Debug.Log("[SaveSystem] No save found."); return; }
         var data = JsonUtility.FromJson<SaveData>(json);
-        if (data == null || (data.version != "3" && data.version != "4")) { Debug.Log("[SaveSystem] Incompatible save (need v3/v4)."); return; }
+        if (data == null || (data.version != "3" && data.version != "4" && data.version != "5"))
+        { Debug.Log("[SaveSystem] Incompatible save (need v3/v4/v5)."); return; }
 
         GameBootstrap.PendingLoad    = data;
         GameBootstrap.NextGameMode   = (GameMode)data.gameMode;

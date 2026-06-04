@@ -2,6 +2,10 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
+/// ⚠️ NOT WIRED INTO THE LIVE SIM (2026-06 audit). StartLockstep() has no caller, so IsActive
+/// stays false and OnSimTick() returns immediately. This is MP scaffolding for the future MP2
+/// work; the shipping game is single-player on NavMesh + Time.deltaTime. See NetworkMode.cs.
+///
 /// N16.lockstep: Local in-process 2-player lockstep harness.
 ///
 /// Lockstep model:

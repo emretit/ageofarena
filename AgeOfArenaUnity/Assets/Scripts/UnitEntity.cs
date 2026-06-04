@@ -51,6 +51,12 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public bool patrolActive;
     public Vector3 patrolA, patrolB;
 
+    // Trade cart round-trip state (driven by TradingSystem, NOT the patrol auto-flip —
+    // a separate flag so Update's patrol bounce doesn't double-drive the cart). patrolA =
+    // home market, patrolB = target market; tradeReturning = on the home-bound leg.
+    [System.NonSerialized] public bool tradeActive;
+    [System.NonSerialized] public bool tradeReturning;
+
     // Veterancy: accumulate kills → rank (0=recruit, 1=veteran, 2=elite).
     // Each rank grants +10% attack (via VeteranMult in AttackDamage) and +10 max HP
     // (via RecomputeMaxHp). Recruit/Veteran/Elite = ×1.0 / ×1.1 / ×1.2 attack.
@@ -62,7 +68,6 @@ public class UnitEntity : MonoBehaviour, IDamageable
 
     // Monk conversion: time spent channeling on the current target.
     public float convertProgress;
-    public const float ConvertTime = 4f;  // legacy fixed convert time (fallback)
     // CONV: AoE2 conversions are probabilistic — they take a variable time. Each new
     // conversion rolls a random threshold in [ConvertMinTime, ConvertMaxTime]; Theocracy
     // shortens it. convertThreshold holds the rolled target for the in-progress convert.
@@ -327,6 +332,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     {
         state = UnitState.Idle;
         patrolActive = false;
+        tradeActive  = false;   // a manual order cancels an in-progress trade route
         if (_agent.isOnNavMesh)
         {
             _agent.isStopped = true;
@@ -377,6 +383,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
     public void GarrisonOrder(BuildingEntity building)
     {
         if (building == null || !building.IsAlive) return;
+        // Reject buildings that can't garrison anyone (e.g. Bombard Tower, capacity 0) up front,
+        // instead of walking there forever and silently dropping the order on arrival.
+        if (building.GarrisonCapacity <= 0) return;
         if (gatherTarget != null)
         {
             gatherTarget.currentGatherers = Mathf.Max(0, gatherTarget.currentGatherers - 1);
@@ -453,6 +462,22 @@ public class UnitEntity : MonoBehaviour, IDamageable
     bool? _isKayKit;
     public bool IsKayKitModel => _isKayKit ??= GetComponentInChildren<SkinnedMeshRenderer>() != null;
 
+    // Cached HP-bar reference (set at RegisterUnit) so CombatSystem's LateUpdate doesn't
+    // GetComponent<WorldHpBar>() for every unit every frame.
+    [System.NonSerialized] public WorldHpBar hpBar;
+
+    // Drop-off chosen at BeginReturn, reused while returning so GatherSystem doesn't
+    // re-scan all buildings every tick for every returning villager.
+    [System.NonSerialized] public BuildingEntity dropoffTarget;
+
+    // Material tinting via MaterialPropertyBlock (NO per-hit material instancing/leak).
+    // Renderers are cached once; the block is read-modified-written so HitFlash (_EmissionColor)
+    // and ApplyVeteranTint (_Color) coexist without clobbering each other.
+    MeshRenderer[] _flashRenderers;
+    MaterialPropertyBlock _mpb;
+    static readonly int ColorId    = Shader.PropertyToID("_Color");
+    static readonly int EmissionId = Shader.PropertyToID("_EmissionColor");
+
     public void TakeDamage(float amount, DamageType damageType = DamageType.Melee)
     {
         if (hp <= 0f) return;
@@ -473,15 +498,28 @@ public class UnitEntity : MonoBehaviour, IDamageable
 
     System.Collections.IEnumerator HitFlash()
     {
-        var renderers = GetComponentsInChildren<MeshRenderer>();
-        foreach (var r in renderers)
+        _flashRenderers ??= GetComponentsInChildren<MeshRenderer>();   // cache once, no per-hit alloc
+        _mpb ??= new MaterialPropertyBlock();
+        for (int i = 0; i < _flashRenderers.Length; i++)
         {
-            r.material.EnableKeyword("_EMISSION");
-            r.material.SetColor("_EmissionColor", Color.white * 1.5f);
+            var r = _flashRenderers[i];
+            if (r == null) continue;
+            // Keyword toggled on the SHARED material (idempotent, no instancing); emission
+            // color driven per-renderer via the property block so nothing leaks.
+            if (r.sharedMaterial != null) r.sharedMaterial.EnableKeyword("_EMISSION");
+            r.GetPropertyBlock(_mpb);                       // preserve any _Color (veteran tint)
+            _mpb.SetColor(EmissionId, Color.white * 1.5f);
+            r.SetPropertyBlock(_mpb);
         }
         yield return new WaitForSeconds(0.08f);
-        foreach (var r in renderers)
-            r.material.SetColor("_EmissionColor", Color.black);
+        for (int i = 0; i < _flashRenderers.Length; i++)
+        {
+            var r = _flashRenderers[i];
+            if (r == null) continue;
+            r.GetPropertyBlock(_mpb);
+            _mpb.SetColor(EmissionId, Color.black);
+            r.SetPropertyBlock(_mpb);
+        }
     }
 
     /// <summary>Restore hp up to maxHp (Medic healing). No-op once dead.</summary>
@@ -540,14 +578,23 @@ public class UnitEntity : MonoBehaviour, IDamageable
     {
         if (veteranRank == 0) return;
         Color gold = veteranRank == 2 ? new Color(1f, 0.85f, 0.1f) : new Color(0.9f, 0.75f, 0.3f);
-        var block = new MaterialPropertyBlock();
-        block.SetColor("_Color", Color.Lerp(Color.white, gold, veteranRank == 2 ? 0.5f : 0.28f));
+        _mpb ??= new MaterialPropertyBlock();
+        Color tint = Color.Lerp(Color.white, gold, veteranRank == 2 ? 0.5f : 0.28f);
         foreach (var smr in GetComponentsInChildren<SkinnedMeshRenderer>())
-            smr.SetPropertyBlock(block);
+        {
+            smr.GetPropertyBlock(_mpb);
+            _mpb.SetColor(ColorId, tint);
+            smr.SetPropertyBlock(_mpb);
+        }
+        // MeshRenderer (prim) path: use the property block instead of mr.material (which
+        // instantiates a leaked material per renderer). Lerp from the shared base color.
         foreach (var mr in GetComponentsInChildren<MeshRenderer>())
         {
             if (mr.gameObject.name == "BlobShadow" || mr.gameObject.name.StartsWith("SelectionRing")) continue;
-            mr.material.color = Color.Lerp(mr.material.color, gold, 0.2f);
+            Color baseCol = mr.sharedMaterial != null ? mr.sharedMaterial.color : Color.white;
+            mr.GetPropertyBlock(_mpb);                       // preserve any _EmissionColor (hit flash)
+            _mpb.SetColor(ColorId, Color.Lerp(baseCol, gold, veteranRank == 2 ? 0.4f : 0.2f));
+            mr.SetPropertyBlock(_mpb);
         }
     }
 
@@ -556,7 +603,6 @@ public class UnitEntity : MonoBehaviour, IDamageable
     static readonly int AnimIsMoving  = Animator.StringToHash("IsMoving");
     static readonly int AnimAttack    = Animator.StringToHash("Attack");
     static readonly int AnimDie       = Animator.StringToHash("Die");
-    static readonly int AnimIsWorking = Animator.StringToHash("IsMoving"); // N8.anim: gather/build reuse walk blend
 
     /// <summary>Fire the attack animation. No-op for primitive units (no Animator).</summary>
     public void PlayAttack() { if (_animator != null) _animator.SetTrigger(AnimAttack); }

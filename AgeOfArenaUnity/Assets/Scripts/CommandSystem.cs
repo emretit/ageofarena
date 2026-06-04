@@ -31,9 +31,7 @@ public class CommandSystem : MonoBehaviour
     public void BeginAttackMove()
     {
         var sel = GameManager.Instance?.selection?.Selected;
-        if (sel == null) return;
-        for (int i = 0; i < sel.Count; i++)
-            if (sel[i] != null) { AttackMovePending = true; return; }
+        if (sel != null && sel.Exists(u => u != null)) AttackMovePending = true;
     }
 
     static bool CtrlHeld => Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
@@ -281,15 +279,12 @@ public class CommandSystem : MonoBehaviour
         else if (Hotkeys.Down(HotkeyAction.AttackMove))
             BeginAttackMove();
         else if (Input.GetKeyDown(KeyCode.P))
-            BeginPatrol(gm, sel);
+            BeginPatrol();
     }
 
     bool _patrolPending;
 
-    void BeginPatrol(GameManager gm, System.Collections.Generic.List<UnitEntity> sel)
-    {
-        _patrolPending = true;
-    }
+    void BeginPatrol() => _patrolPending = true;
 
     // Called in Update when patrol is pending; next right-click becomes the patrol endpoint.
     void HandlePatrolPick(GameManager gm)

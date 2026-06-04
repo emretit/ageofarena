@@ -27,9 +27,6 @@ public class AudioManager : MonoBehaviour
     // N7.sfx: pitch variation range ±PitchJitter per shot — avoids "machine gun" sameness.
     const float PitchJitter = 0.10f;
 
-    // N7.sfx: per-SoundId round-robin counter to cycle between variant takes (future: load _1, _2, _3).
-    readonly int[] _rrIdx = new int[System.Enum.GetValues(typeof(SoundId)).Length];
-
     static AudioManager _instance;
     AudioSource[] _pool;
     int _poolIdx;
@@ -197,9 +194,6 @@ public class AudioManager : MonoBehaviour
         // N7.sfx: pitch variation ±PitchJitter to avoid "machine gun" identical repeats.
         src.pitch = 1f + Random.Range(-PitchJitter, PitchJitter);
         src.PlayOneShot(clip, vol * 0.65f * _masterVol * _sfxVol);
-        // Advance round-robin counter for this SoundId (used if variant clips are loaded later).
-        int idx = (int)id;
-        _rrIdx[idx] = (_rrIdx[idx] + 1) % 3;
     }
 
     // ── Procedural clip generation ────────────────────────────────────────────

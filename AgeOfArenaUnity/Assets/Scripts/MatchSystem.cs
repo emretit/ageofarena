@@ -77,17 +77,20 @@ public class MatchSystem : MonoBehaviour
         float dt = Time.unscaledDeltaTime;
         _matchElapsed += dt;
 
-        // VTIME: time-limit check — fires once the clock runs out.
-        if (MatchTimeLimit > 0f && _matchElapsed >= MatchTimeLimit)
+        bool timeUp = MatchTimeLimit > 0f && _matchElapsed >= MatchTimeLimit;
+
+        // Run the real victory conditions (conquest/wonder/relic/regicide) first — throttled,
+        // but FORCED on the frame the clock runs out so a genuine victory at 59:59 isn't
+        // overridden by the score-based time finish. (unscaled so it ignores timeScale.)
+        if (timeUp || (_timer -= dt) <= 0f)
         {
-            CheckTimeUp();
-            return;
+            _timer = CheckInterval;
+            CheckEnd();
+            if (_over) return;   // a real victory fired
         }
 
-        // Throttle the scan; unscaled so it behaves identically regardless of timeScale.
-        if ((_timer -= dt) > 0f) return;
-        _timer = CheckInterval;
-        CheckEnd();
+        // VTIME: only if no real victory ended the match, decide on score when time is up.
+        if (timeUp) CheckTimeUp();
     }
 
     void CheckEnd()

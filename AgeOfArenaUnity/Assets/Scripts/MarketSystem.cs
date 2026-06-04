@@ -20,8 +20,19 @@ public static class MarketSystem
     const float MinSell    = 0.3f;
     const float MaxBuy     = 2.5f;
 
+    // NOTE: these are global (player-oriented) market rates. The AI doesn't trade, so a
+    // single curve is fine for the single-player slice. A per-team market (each player has
+    // an independent price curve) is an MP follow-up — track it with the rest of the MP work.
     static readonly float[] _sellRate = { BaseSell, BaseSell, BaseSell }; // Food/Wood/Stone
     static readonly float[] _buyRate  = { BaseBuy,  BaseBuy,  BaseBuy  };
+
+    /// <summary>Restore base prices. MUST be called on match start — these arrays are static
+    /// and survive Restart, so without this a previous match's drifted prices bleed into the
+    /// next one (a real cross-match bug, not just an MP concern).</summary>
+    public static void Reset()
+    {
+        for (int i = 0; i < 3; i++) { _sellRate[i] = BaseSell; _buyRate[i] = BaseBuy; }
+    }
 
     const float GuildsAdjust = 0.10f;  // MKTT: Guilds narrows the spread by this much each side
 
@@ -39,6 +50,9 @@ public static class MarketSystem
         {
             _sellRate[i] = Mathf.MoveTowards(_sellRate[i], BaseSell, DriftRate * dt);
             _buyRate[i]  = Mathf.MoveTowards(_buyRate[i],  BaseBuy,  DriftRate * dt);
+            // Keep at least the 0.2 spread after drift so a sell-then-buy can't transiently
+            // arbitrage in the window between a trade's clamp and the next drift.
+            if (_buyRate[i] < _sellRate[i] + 0.2f) _buyRate[i] = _sellRate[i] + 0.2f;
         }
     }
 

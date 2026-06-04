@@ -111,33 +111,74 @@ public class VisualEffectSystem : MonoBehaviour
         }
     }
 
+    // Pool of reusable death-FX particle systems. The old code did new GameObject +
+    // AddComponent<ParticleSystem> + Destroy on EVERY death — heavy GC/instantiate churn
+    // exactly when a big battle is busiest. Now we reuse from a pool and recycle on fade-out.
+    static readonly System.Collections.Generic.Stack<ParticleSystem> _deathPool = new();
+    static readonly ParticleSystem.Burst[] _burstSmall = { new ParticleSystem.Burst(0f, 12) };
+    static readonly ParticleSystem.Burst[] _burstLarge = { new ParticleSystem.Burst(0f, 28) };
+
     static void SpawnDeathParticle(Vector3 pos, bool large = false)
     {
-        var go = new GameObject("DeathFX");
+        ParticleSystem ps = null;
+        while (_deathPool.Count > 0 && ps == null) ps = _deathPool.Pop(); // skip any destroyed by Restart
+        if (ps == null) ps = CreateDeathPS();
+
+        var go = ps.gameObject;
         go.transform.position = pos;
-        var ps = go.AddComponent<ParticleSystem>();
+        if (!go.activeSelf) go.SetActive(true);
 
         var main = ps.main;
-        main.startLifetime  = large ? 0.8f : 0.5f;
-        main.startSpeed     = large ? 5f   : 3f;
-        main.startSize      = large ? 0.5f : 0.28f;
-        main.startColor     = new ParticleSystem.MinMaxGradient(
-            new Color(1f, 0.6f, 0.15f, 1f),
-            new Color(0.9f, 0.2f, 0.05f, 1f));
-        main.maxParticles   = large ? 30 : 14;
-        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.startLifetime = large ? 0.8f : 0.5f;
+        main.startSpeed    = large ? 5f   : 3f;
+        main.startSize     = large ? 0.5f : 0.28f;
+        main.maxParticles  = large ? 30   : 14;
 
-        var emission = ps.emission;
-        emission.rateOverTime = 0;
-        var burst = new ParticleSystem.Burst(0f, large ? 28 : 12);
-        emission.SetBursts(new[] { burst });
+        ps.emission.SetBursts(large ? _burstLarge : _burstSmall);
 
         var shape = ps.shape;
-        shape.shapeType = ParticleSystemShapeType.Sphere;
-        shape.radius    = large ? 0.6f : 0.25f;
+        shape.radius = large ? 0.6f : 0.25f;
 
+        ps.Clear();
         ps.Play();
-        // Destroy after particles have faded out.
-        Destroy(go, main.startLifetime.constant + 0.2f);
+
+        // Return to the pool (not Destroy) once the burst has faded.
+        var ret = go.GetComponent<DeathFXReturn>();
+        if (ret == null) ret = go.AddComponent<DeathFXReturn>();
+        ret.Arm(main.startLifetime.constant + 0.2f);
+    }
+
+    static ParticleSystem CreateDeathPS()
+    {
+        var go = new GameObject("DeathFX");
+        var ps = go.AddComponent<ParticleSystem>();
+        var main = ps.main;
+        main.startColor      = new ParticleSystem.MinMaxGradient(
+            new Color(1f, 0.6f, 0.15f, 1f),
+            new Color(0.9f, 0.2f, 0.05f, 1f));
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.playOnAwake     = false;
+        var emission = ps.emission; emission.rateOverTime = 0;
+        var shape    = ps.shape;    shape.shapeType = ParticleSystemShapeType.Sphere;
+        return ps;
+    }
+
+    internal static void ReturnToPool(ParticleSystem ps)
+    {
+        if (ps != null) _deathPool.Push(ps);
+    }
+}
+
+/// <summary>Recycles a pooled death-FX particle system back to the pool once its burst
+/// has faded, instead of destroying the GameObject (avoids per-death instantiate/GC churn).</summary>
+class DeathFXReturn : MonoBehaviour
+{
+    float _t;
+    public void Arm(float seconds) { _t = seconds; }
+    void Update()
+    {
+        if ((_t -= Time.deltaTime) > 0f) return;
+        gameObject.SetActive(false);
+        VisualEffectSystem.ReturnToPool(GetComponent<ParticleSystem>());
     }
 }
