@@ -125,6 +125,9 @@ public class GatherSystem : MonoBehaviour
                         // CIVM: team (shared) food bonus stacks on food deposits.
                         if (v.carrying.kind == ResourceKind.Food)
                             mult *= 1f + GM.TeamSharedBonus(v.teamId).gatherFoodBonus;
+                        // AICH: difficulty eco multiplier (AI teams only; player = 1×).
+                        if (v.teamId > 0 && v.teamId < GM.teamEcoMult.Length)
+                            mult *= GM.teamEcoMult[v.teamId];
                         int gained = Mathf.RoundToInt(v.carrying.amount * mult);
                         GM.teamRes[v.teamId].Gain(v.carrying.kind, gained);
                     }

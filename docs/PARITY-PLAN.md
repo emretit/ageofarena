@@ -583,10 +583,10 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] DIPL: grep `Diplom` HUD; panel tıkla→GameManager matris güncellenir; text.font=null render.
 - [x] AIDP: grep `Diplomacy` EnemyAI; Allied takım hedeflenmez; default-düşman regresyonsuz.
 - [x] AIWN: MatchSystem countdown public getter; EnemyAI Wonder'a countdown'da hedef değeri yükseltir; AI ordusu Wonder'a yönelir.
-- [ ] AIRD: EnemyAI ApplyDifficulty türevleri doküman ile tutarlı (FloorToInt(x+0.5f) veya wiki güncel).
-- [ ] AIDF: grep `enum Difficulty` 6 değer; ApplyDifficulty 6 case (default'a düşmez); HUD 6 seviye döner; monoton.
-- [ ] AICH: EnemyAI eko/üretim hızında difficulty çarpanı; bedava kaynak YOK; Easy az / Insane çok birim.
-- [ ] AISC: grep `AIProfile`/yeni struct; birim karışım profilden; Rusher≠Boomer dağılımı; 3 personality regresyonsuz.
+- [x] AIRD: EnemyAI ApplyDifficulty türevleri doküman ile tutarlı (FloorToInt(x+0.5f) veya wiki güncel).
+- [x] AIDF: grep `enum Difficulty` 6 değer; ApplyDifficulty 6 case (default'a düşmez); HUD 6 seviye döner; monoton.
+- [x] AICH: EnemyAI eko/üretim hızında difficulty çarpanı; bedava kaynak YOK; Easy az / Insane çok birim.
+- [x] AISC: grep `AIProfile`/yeni struct; birim karışım profilden; Rusher≠Boomer dağılımı; 3 personality regresyonsuz.
 - [ ] AGEB: TechDefs prereqBuildings+minPrereqCount; IsAvailable tamamlanmış bina sayar; Dark'ta FeudalAge butonu kilitli/2-bina ile açılır.
 - [ ] AGFX: grep AudioManager.SoundId.AgeUp; HUD.OnAgeAdvanced Play(AgeUp); çağ popup'ı görünür; yalnız team 0.
 - [ ] DARK: BuildingDefs Dark-dışı binalar requiredAge/minAge≥Feudal; Dark'ta yalnız temel aktif.

@@ -225,8 +225,8 @@ public class HUD : MonoBehaviour
         BuildVictoryBanner(parent);
     }
 
-    /// <summary>Clickable difficulty pill (top bar). Cycles Easy→Normal→Hard→Insane and
-    /// re-applies to every live <see cref="EnemyAI"/> immediately.</summary>
+    /// <summary>Clickable difficulty pill (top bar). Cycles all 6 difficulty levels and
+    /// re-applies to every live <see cref="EnemyAI"/> immediately (AIDF).</summary>
     void BuildDifficultyIndicator(RectTransform bar)
     {
         var rect = NewRect("Difficulty", bar);
@@ -251,7 +251,8 @@ public class HUD : MonoBehaviour
     {
         var gm = GameManager.Instance;
         if (gm == null) return;
-        gm.difficulty = (Difficulty)(((int)gm.difficulty + 1) % 4);
+        // AIDF: 6 levels — modulo wraps Easy→Moderate→Normal→Hard→Insane→Extreme→Easy.
+        gm.difficulty = (Difficulty)(((int)gm.difficulty + 1) % 6);
         foreach (var ai in Object.FindObjectsByType<EnemyAI>(FindObjectsInactive.Exclude)) ai.SetDifficulty();
         UpdateDifficultyLabel();
     }
@@ -265,11 +266,13 @@ public class HUD : MonoBehaviour
 
     static string DiffName(Difficulty d) => d switch
     {
-        Difficulty.Easy   => "Kolay",
-        Difficulty.Normal => "Normal",
-        Difficulty.Hard   => "Zor",
-        Difficulty.Insane => "Acımasız",
-        _                 => "",
+        Difficulty.Easy     => "Kolay",
+        Difficulty.Moderate => "Orta",
+        Difficulty.Normal   => "Normal",
+        Difficulty.Hard     => "Zor",
+        Difficulty.Insane   => "Acımasız",
+        Difficulty.Extreme  => "Efsanevi",
+        _                   => "",
     };
 
     void BuildCivIndicator(RectTransform bar)

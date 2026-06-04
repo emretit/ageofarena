@@ -2,6 +2,31 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
+/// AISC: unit-mix profile driven by personality. Weights are relative — the AI
+/// samples them probabilistically so composition varies game-to-game while staying
+/// thematically consistent (Rusher = heavy melee bias; Boomer = balanced with siege;
+/// Balanced = slight archer lean for ranged harassment).
+/// </summary>
+public struct AIProfile
+{
+    public float meleeWeight;   // Militia / Spearman
+    public float archerWeight;  // Archer
+    public float cavalryWeight; // Cavalry
+    public float siegeWeight;   // Trebuchet (Castle+)
+
+    static readonly AIProfile _rusher   = new AIProfile { meleeWeight = 0.65f, archerWeight = 0.15f, cavalryWeight = 0.15f, siegeWeight = 0.05f };
+    static readonly AIProfile _boomer   = new AIProfile { meleeWeight = 0.25f, archerWeight = 0.25f, cavalryWeight = 0.30f, siegeWeight = 0.20f };
+    static readonly AIProfile _balanced = new AIProfile { meleeWeight = 0.35f, archerWeight = 0.35f, cavalryWeight = 0.20f, siegeWeight = 0.10f };
+
+    public static AIProfile For(AIPersonality p) => p switch
+    {
+        AIPersonality.Rusher   => _rusher,
+        AIPersonality.Boomer   => _boomer,
+        _                      => _balanced,
+    };
+}
+
+/// <summary>
 /// Per-team enemy brain. Manages an economy (villagers gather resources) and a
 /// coordinated military loop: instead of trickling units at the player one by
 /// one, the army gathers at a rally point, marches on a target together, and
@@ -70,6 +95,7 @@ public class EnemyAI : MonoBehaviour
     TechState _tech;
 
     AIPersonality _personality;
+    AIProfile     _profile;
 
     public void Init(int teamId, Color teamColor, Vector3 home, Transform unitsRoot, AIPersonality personality)
     {
@@ -78,8 +104,13 @@ public class EnemyAI : MonoBehaviour
         _home      = home;
         _unitsRoot = unitsRoot;
         _personality = personality;
+        _profile     = AIProfile.For(personality);  // AISC
         ApplyPersonality(personality);
         ApplyDifficulty();
+        // AICH: publish eco multiplier so GatherSystem/ResearchSystem can apply it.
+        var gm = GameManager.Instance;
+        if (gm != null && teamId >= 0 && teamId < 4)
+            gm.teamEcoMult[teamId] = _ecoMult;
     }
 
     /// <summary>Re-derive the tuning from personality + the current global difficulty.
@@ -88,33 +119,58 @@ public class EnemyAI : MonoBehaviour
     {
         ApplyPersonality(_personality);
         ApplyDifficulty();
+        var gm = GameManager.Instance;
+        if (gm != null && _teamId >= 0 && _teamId < 4)
+            gm.teamEcoMult[_teamId] = _ecoMult;
     }
 
     /// <summary>Scale the personality baseline by the global <see cref="Difficulty"/>:
     /// easier AI trains slower with a smaller army and pushes later; harder AI trains
     /// faster, fields more, booms harder and commits sooner.</summary>
+    // AICH: eco multiplier (applied to gather/research rates, not free resources).
+    float _ecoMult = 1f;
+
     void ApplyDifficulty()
     {
         var gm = GameManager.Instance;
         var diff = gm != null ? gm.difficulty : Difficulty.Normal;
+
+        // AIRD: use FloorToInt(x + 0.5f) for deterministic round-half-up (no banker's rounding).
+        static int Round(float v) => Mathf.FloorToInt(v + 0.5f);
+
         switch (diff)
         {
             case Difficulty.Easy:
-                _spawnInterval *= 1.6f; _armyCap = Mathf.Max(4, Mathf.RoundToInt(_armyCap * 0.6f));
-                _rushThreshold = Mathf.RoundToInt(_rushThreshold * 1.3f);
-                _villagerTarget = Mathf.Max(1, _villagerTarget - 1);
+                _spawnInterval *= 2.0f; _armyCap = Mathf.Max(3, Round(_armyCap * 0.50f));
+                _rushThreshold = Round(_rushThreshold * 1.5f);
+                _villagerTarget = Mathf.Max(1, _villagerTarget - 2);
+                _ecoMult = 0.65f;
                 break;
+            case Difficulty.Moderate:
+                _spawnInterval *= 1.4f; _armyCap = Mathf.Max(4, Round(_armyCap * 0.75f));
+                _rushThreshold = Round(_rushThreshold * 1.2f);
+                _villagerTarget = Mathf.Max(1, _villagerTarget - 1);
+                _ecoMult = 0.85f;
+                break;
+            // Normal: baseline (no change, _ecoMult stays 1).
             case Difficulty.Hard:
-                _spawnInterval *= 0.75f; _armyCap = Mathf.RoundToInt(_armyCap * 1.35f);
-                _rushThreshold = Mathf.Max(3, Mathf.RoundToInt(_rushThreshold * 0.85f));
+                _spawnInterval *= 0.80f; _armyCap = Round(_armyCap * 1.30f);
+                _rushThreshold = Mathf.Max(3, Round(_rushThreshold * 0.85f));
                 _villagerTarget += 2;
+                _ecoMult = 1.15f;
                 break;
             case Difficulty.Insane:
-                _spawnInterval *= 0.55f; _armyCap = Mathf.RoundToInt(_armyCap * 1.7f);
-                _rushThreshold = Mathf.Max(3, Mathf.RoundToInt(_rushThreshold * 0.7f));
+                _spawnInterval *= 0.60f; _armyCap = Round(_armyCap * 1.65f);
+                _rushThreshold = Mathf.Max(3, Round(_rushThreshold * 0.72f));
                 _villagerTarget += 4;
+                _ecoMult = 1.35f;
                 break;
-            // Normal: baseline (no change).
+            case Difficulty.Extreme:
+                _spawnInterval *= 0.42f; _armyCap = Round(_armyCap * 2.10f);
+                _rushThreshold = Mathf.Max(2, Round(_rushThreshold * 0.55f));
+                _villagerTarget += 6;
+                _ecoMult = 1.60f;
+                break;
         }
     }
 
@@ -290,26 +346,28 @@ public class EnemyAI : MonoBehaviour
             && _res.CanAfford(MedicCostFood, 0, 0, 0))
             return UnitType.Medic;
 
-        // Rotate Militia → Archer → Cavalry, skipping locked/unaffordable picks.
-        for (int attempt = 0; attempt < 3; attempt++)
+        // AISC: profile-weighted frontline selection.
+        // Build a weighted candidate list of affordable/unlocked unit types.
+        var candidates = new System.Collections.Generic.List<(UnitType type, float w)>(3);
+        if (_res.CanAfford(MilitiaCostFood, 0, 0, 0))
+            candidates.Add((UnitType.Militia, _profile.meleeWeight));
+        if (age >= Age.Feudal && _res.CanAfford(0, ArcherCostWood, ArcherCostGold, 0))
+            candidates.Add((UnitType.Archer, _profile.archerWeight));
+        if (age >= Age.Castle && _res.CanAfford(CavalryCostFood, 0, 0, 0))
+            candidates.Add((UnitType.Cavalry, _profile.cavalryWeight));
+
+        if (candidates.Count == 0) return null;
+
+        float total = 0f;
+        foreach (var c in candidates) total += c.w;
+        float roll = UnityEngine.Random.value * total;
+        float acc  = 0f;
+        foreach (var c in candidates)
         {
-            _trainCursor = (_trainCursor + 1) % 3;
-            switch (_trainCursor)
-            {
-                case 0:
-                    if (_res.CanAfford(MilitiaCostFood, 0, 0, 0)) return UnitType.Militia;
-                    break;
-                case 1:
-                    if (age >= Age.Feudal && _res.CanAfford(0, ArcherCostWood, ArcherCostGold, 0))
-                        return UnitType.Archer;
-                    break;
-                case 2:
-                    if (age >= Age.Castle && _res.CanAfford(CavalryCostFood, 0, 0, 0))
-                        return UnitType.Cavalry;
-                    break;
-            }
+            acc += c.w;
+            if (roll <= acc) return c.type;
         }
-        return null;
+        return candidates[candidates.Count - 1].type;
     }
 
     int CountEnemyCavalry(GameManager gm)

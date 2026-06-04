@@ -78,6 +78,10 @@ public class GameManager : MonoBehaviour
     public bool IsEnemy(int a, int b) =>
         a != b && a >= 0 && a < 4 && b >= 0 && b < 4 && diplomacy[a, b] == DiplomacyState.Enemy;
 
+    /// <summary>AICH: per-team economy speed multiplier set by EnemyAI per difficulty.
+    /// Applied to gather deposits and research time. Player (team 0) stays at 1×.</summary>
+    public float[] teamEcoMult = { 1f, 1f, 1f, 1f };
+
     /// <summary>Per-team civilization. Index 0 = player; 1-3 = AI teams.</summary>
     public Civilization[] teamCivs = { Civilization.None, Civilization.None, Civilization.None, Civilization.None };
 

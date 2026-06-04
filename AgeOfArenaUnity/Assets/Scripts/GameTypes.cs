@@ -70,7 +70,11 @@ public enum AIPersonality { Balanced, Rusher, Boomer }
 
 /// <summary>Global AI difficulty. Scales every enemy's production speed, army cap and
 /// economy on top of its <see cref="AIPersonality"/> so one slider tunes the challenge.</summary>
-public enum Difficulty { Easy, Normal, Hard, Insane }
+/// <summary>
+/// AI challenge level. 6 tiers — monotonically harder: longer spawn intervals and
+/// smaller armies at the low end; shorter intervals and higher pop caps at the top.
+/// </summary>
+public enum Difficulty { Easy, Moderate, Normal, Hard, Insane, Extreme }
 
 /// <summary>
 /// Every researchable technology. The two age advances are modelled as techs so
