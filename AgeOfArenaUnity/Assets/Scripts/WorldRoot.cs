@@ -923,7 +923,8 @@ public class WorldRoot : MonoBehaviour
         gm.minimap       = go.AddComponent<MinimapSystem>();
         gm.match         = go.AddComponent<MatchSystem>();
         gm.vfx           = go.AddComponent<VisualEffectSystem>();
-        gm.triggers      = go.AddComponent<TriggerSystem>(); // N11.trig
+        gm.triggers       = go.AddComponent<TriggerSystem>();   // N11.trig
+        gm.scenarioEditor = go.AddComponent<ScenarioEditor>(); // N12.edit
         return gm;
     }
 

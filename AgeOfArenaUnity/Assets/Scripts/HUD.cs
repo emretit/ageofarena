@@ -1410,6 +1410,8 @@ public class HUD : MonoBehaviour
         AddBtn(Loc.Get("pause.resume"),  () => ClosePauseMenu(), 130f);
         AddBtn("Teknoloji Ağacı", () => { ClosePauseMenu(); OpenTechTreePanel(gm); }, 70f);
         AddBtn(Loc.Get("pause.hotkeys"), () => OpenHotkeyPanel(), 10f);   // N9.hotkeys: remap UI
+        // N12.edit: open scenario editor
+        AddBtn("📝 Editör", () => { ClosePauseMenu(); gm.scenarioEditor?.Open(); }, -30f);
         AddBtn(Loc.Get("pause.resign"),  () => { ClosePauseMenu(); gm.match?.Resign(); }, -50f);
         AddBtn(Loc.Get("pause.restart"), () => { Time.timeScale = 1f; GameBootstrap.Restart(); }, -110f);
         // FOWD: fog toggle in pause menu
