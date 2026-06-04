@@ -587,17 +587,17 @@ M13 (UI/QoL: SUBT→AGFX, ARES→STRT) ──► M14 (ARES→SAVF, FOWD→MMTR)
 - [x] AIDF: grep `enum Difficulty` 6 değer; ApplyDifficulty 6 case (default'a düşmez); HUD 6 seviye döner; monoton.
 - [x] AICH: EnemyAI eko/üretim hızında difficulty çarpanı; bedava kaynak YOK; Easy az / Insane çok birim.
 - [x] AISC: grep `AIProfile`/yeni struct; birim karışım profilden; Rusher≠Boomer dağılımı; 3 personality regresyonsuz.
-- [ ] AGEB: TechDefs prereqBuildings+minPrereqCount; IsAvailable tamamlanmış bina sayar; Dark'ta FeudalAge butonu kilitli/2-bina ile açılır.
-- [ ] AGFX: grep AudioManager.SoundId.AgeUp; HUD.OnAgeAdvanced Play(AgeUp); çağ popup'ı görünür; yalnız team 0.
-- [ ] DARK: BuildingDefs Dark-dışı binalar requiredAge/minAge≥Feudal; Dark'ta yalnız temel aktif.
-- [ ] ARES: grep GameBootstrap static lastCivs/lastDifficulty; WorldRoot önceki seçimi tercih eder; restart aynı civ/zorluk.
-- [ ] STRT: grep SetupScreen/GameBootstrap; civ+difficulty+seed seçilir; Start→WorldRoot.Build; restart setup'ı atlar.
-- [ ] STIC: grep CommandIconFactory 4 stance ikonu; HUD seçili stance gösterir; Q+butonla değişir.
-- [ ] HKEY: grep `Hotkeys` (HotkeyAction+KeyCode+PlayerPrefs); çağrı noktaları Hotkeys.Get; rebind restart sonrası korunur.
-- [ ] HPWB: grep HealthBar/hpBar UnitEntity; billboard fill=hp/maxHp; hasarlıda görünür, full'da gizli; perf düşüşü yok.
-- [ ] CMDP: grep `page` HUD; 15+ slot sayfalama; aktif sayfa render; seçimde page=0.
-- [ ] MPNG: grep `ping` MinimapSystem; modifiyer+tık ping marker+ses; sol-pan/sağ-move bozulmaz.
-- [ ] SUBT: AudioManager birim-sınıfı seçim/onay SoundId; SelectionSystem/CommandSystem tipine göre çalar; villager≠asker.
+- [x] AGEB: TechDefs prereqBuildings+minPrereqCount; IsAvailable tamamlanmış bina sayar; Dark'ta FeudalAge butonu kilitli/2-bina ile açılır.
+- [x] AGFX: grep AudioManager.SoundId.AgeUp; HUD.OnAgeAdvanced Play(AgeUp); çağ popup'ı görünür; yalnız team 0.
+- [x] DARK: BuildingDefs Dark-dışı binalar requiredAge/minAge≥Feudal; Dark'ta yalnız temel aktif.
+- [x] ARES: grep GameBootstrap static lastCivs/lastDifficulty; WorldRoot önceki seçimi tercih eder; restart aynı civ/zorluk.
+- [x] STRT: grep SetupScreen/GameBootstrap; civ+difficulty+seed seçilir; Start→WorldRoot.Build; restart setup'ı atlar.
+- [x] STIC: grep CommandIconFactory 4 stance ikonu; HUD seçili stance gösterir; Q+butonla değişir.
+- [x] HKEY: grep `Hotkeys` (HotkeyAction+KeyCode+PlayerPrefs); çağrı noktaları Hotkeys.Get; rebind restart sonrası korunur.
+- [x] HPWB: grep HealthBar/hpBar UnitEntity; billboard fill=hp/maxHp; hasarlıda görünür, full'da gizli; perf düşüşü yok.
+- [x] CMDP: grep `page` HUD; 15+ slot sayfalama; aktif sayfa render; seçimde page=0.
+- [x] MPNG: grep `ping` MinimapSystem; modifiyer+tık ping marker+ses; sol-pan/sağ-move bozulmaz.
+- [x] SUBT: AudioManager birim-sınıfı seçim/onay SoundId; SelectionSystem/CommandSystem tipine göre çalar; villager≠asker.
 - [ ] FOWD: grep FogOfWarSystem.fogEnabled varsayılan true; UI toggle; harita başta karanlık, görüş açıldıkça lit; shader bulunur.
 - [ ] MMTR: (terrain RTT render HUD-rework'te yapıldı — diamond kamera-RTT minimap) kalan: grep `fog` MinimapSystem; fog açıkken FogOfWarSystem dokusu overlay; keşfedilmemiş siyah; fog kapalı regresyonsuz.
 - [ ] SAVF: grep SaveSystem birim+bina+teamCivs serialize; Load arenayı temizleyip yeniden kurar; F5/F9 birim sayısı/pozisyon geri gelir; NavMesh geçerli.

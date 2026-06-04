@@ -157,9 +157,13 @@ public class SelectionSystem : MonoBehaviour
         u.SetSelected(true, OwnColor);
     }
 
-    /// <summary>One selection blip per user action (not per unit) so box-selecting a
-    /// big army doesn't machine-gun the clip.</summary>
-    static void PlaySelectSound() => AudioManager.Play(AudioManager.SoundId.UnitSelect, 0.5f);
+    /// <summary>SUBT: One selection blip per user action. Plays villager sound if all
+    /// selected units are villagers, otherwise generic unit select.</summary>
+    void PlaySelectSound()
+    {
+        bool allVillagers = Selected.Count > 0 && Selected.TrueForAll(u => u.type == UnitType.Villager);
+        AudioManager.Play(allVillagers ? AudioManager.SoundId.UnitVillager : AudioManager.SoundId.UnitSelect, 0.5f);
+    }
 
     void Deselect(UnitEntity u)
     {

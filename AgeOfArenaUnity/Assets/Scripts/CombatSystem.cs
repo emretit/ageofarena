@@ -328,12 +328,18 @@ public class CombatSystem : MonoBehaviour
 
         EnsureBarTextures();
 
+        var sel = GM.selection;
         var units = GM.units;
         for (int i = 0; i < units.Count; i++)
         {
             var u = units[i];
-            if (u == null || u.hp >= u.maxHp) continue;
-            DrawBar(cam, u.transform.position + Vector3.up * 1.4f,
+            if (u == null) continue;
+            // HPWB: show when damaged OR when selected; hide at full HP unless selected.
+            bool selected = sel != null && sel.Selected.Contains(u);
+            if (u.hp >= u.maxHp && !selected) continue;
+            // KayKit animated units are ~1.5u tall; primitives scaled to ~1.25u.
+            float barY = u.GetComponentInChildren<SkinnedMeshRenderer>() != null ? 2.0f : 1.6f;
+            DrawBar(cam, u.transform.position + Vector3.up * barY,
                 u.hp / u.maxHp, u.teamId == 0, 26f);
         }
 

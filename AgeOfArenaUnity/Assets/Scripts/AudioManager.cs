@@ -10,7 +10,11 @@ public class AudioManager : MonoBehaviour
 {
     public enum SoundId
     {
-        Sword, Arrow, BuildComplete, UnitTrained, UnitDie, ButtonClick, UnitSelect
+        Sword, Arrow, BuildComplete, UnitTrained, UnitDie, ButtonClick,
+        UnitSelect,   // SUBT: generic unit selection
+        UnitMove,     // SUBT: unit move-order confirm
+        UnitVillager, // SUBT: villager-specific select
+        AgeUp         // AGFX: age advance fanfare
     }
 
     const int PoolSize = 10;
@@ -30,6 +34,9 @@ public class AudioManager : MonoBehaviour
         "Audio/unit_die",      // UnitDie
         "Audio/button_click",  // ButtonClick
         "Audio/unit_select",   // UnitSelect
+        "Audio/unit_select",   // UnitMove (reuse — swap when unique clip available)
+        "Audio/unit_select",   // UnitVillager (reuse until villager clip exists)
+        "Audio/unit_trained",  // AgeUp (reuse unit_trained as placeholder)
     };
 
     public static void Play(SoundId id, float volumeScale = 1f)

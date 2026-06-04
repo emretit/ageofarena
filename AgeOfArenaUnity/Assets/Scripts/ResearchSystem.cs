@@ -24,7 +24,7 @@ public class ResearchSystem : MonoBehaviour
     public bool IsResearching(BuildingEntity b) => b != null && _active.ContainsKey(b);
 
     /// <summary>Start researching a tech at a building. Returns false if busy,
-    /// already researched, or unaffordable.</summary>
+    /// already researched, unaffordable, or building prerequisites not met.</summary>
     public bool Enqueue(BuildingEntity b, TechDef def)
     {
         if (b == null || _active.ContainsKey(b)) return false;
@@ -32,6 +32,8 @@ public class ResearchSystem : MonoBehaviour
         if (tech.Has(def.type)) return false;
         var rm = GM.resources;
         if (!rm.CanAfford(def.food, def.wood, def.gold, def.stone)) return false;
+        // AGEB: age advance requires ≥2 non-TC buildings first (AoE2 Dark→Feudal rule).
+        if (def.type == TechType.FeudalAge && !MeetsBuildingPrereq(b.teamId, 2)) return false;
 
         rm.Deduct(def.food, def.wood, def.gold, def.stone);
         _active[b] = new ResearchItem { type = def.type, totalTime = def.researchTime };
@@ -121,5 +123,30 @@ public class ResearchSystem : MonoBehaviour
             u.RecomputeMaxHp();
             u.RecomputeSpeed();   // CAVT: Husbandry / Wheelbarrow apply to live units immediately
         }
+    }
+
+    // AGEB: count non-TC buildings owned by the team; return true if ≥ required.
+    bool MeetsBuildingPrereq(int teamId, int required)
+    {
+        var gm = GM;
+        if (gm == null) return true;
+        int count = 0;
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b == null || b.teamId != teamId || b.underConstruction) continue;
+            if (b.type == BuildingType.TownCenter) continue; // TC doesn't count toward prereq
+            if (++count >= required) return true;
+        }
+        return false;
+    }
+
+    /// <summary>AGEB: true if the player (team 0) meets the building prerequisite for
+    /// advancing to the next age. Used by HUD to enable/disable the age button.</summary>
+    public bool CanAdvanceAge()
+    {
+        var tech = GM?.tech;
+        if (tech == null) return false;
+        return tech.age != Age.Dark || MeetsBuildingPrereq(0, 2);
     }
 }

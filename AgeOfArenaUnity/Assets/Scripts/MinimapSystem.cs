@@ -202,10 +202,52 @@ public class MinimapSystem : MonoBehaviour
             if (gm.command != null && gm.selection != null && gm.selection.Selected.Count > 0)
                 gm.command.MoveSelectedTo(world);
         }
+        else if (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt))
+        {
+            // MPNG: Alt + left-click on minimap = place a ping marker in the world.
+            SpawnPing(world);
+        }
         else if (gm.cameraRig != null)
         {
             gm.cameraRig.FocusOn(world);
         }
+    }
+
+    // MPNG: spawn a brief visual ping marker at world pos.
+    static void SpawnPing(Vector3 world)
+    {
+        var go = new UnityEngine.GameObject("Ping");
+        go.transform.position = world + Vector3.up * 0.05f;
+        var mr = go.AddComponent<MeshRenderer>();
+        var mf = go.AddComponent<MeshFilter>();
+        mf.mesh = CreateQuadMesh(2.5f);
+        mr.material = new Material(Shader.Find("Sprites/Default"));
+        mr.material.color = new Color(1f, 0.9f, 0.1f, 0.85f);
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        go.AddComponent<PingDecay>();
+        AudioManager.Play(AudioManager.SoundId.ButtonClick, 0.4f);
+    }
+
+    static Mesh CreateQuadMesh(float size)
+    {
+        float h = size * 0.5f;
+        var m = new Mesh();
+        m.vertices  = new[] { new Vector3(-h,0,-h), new Vector3(-h,0,h), new Vector3(h,0,h), new Vector3(h,0,-h) };
+        m.triangles = new[] { 0,1,2, 0,2,3 };
+        m.uv        = new[] { new Vector2(0,0), new Vector2(0,1), new Vector2(1,1), new Vector2(1,0) };
+        m.RecalculateNormals();
+        return m;
+    }
+}
+
+/// <summary>MPNG: auto-destroys the ping marker after 2 seconds.</summary>
+class PingDecay : MonoBehaviour
+{
+    float _t = 2f;
+    void Update()
+    {
+        _t -= Time.deltaTime;
+        if (_t <= 0f) Destroy(gameObject);
     }
 }
 

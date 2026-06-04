@@ -149,6 +149,8 @@ public class CommandSystem : MonoBehaviour
         {
             MoveOrder(selected, hit.point);
             SpawnMarker(hit.point, MoveColor);
+            // SUBT: move-order confirm sound.
+            AudioManager.Play(AudioManager.SoundId.UnitMove, 0.5f);
         }
     }
 
@@ -240,9 +242,9 @@ public class CommandSystem : MonoBehaviour
         var sel = gm.selection != null ? gm.selection.Selected : null;
         if (sel == null || sel.Count == 0) return;
 
-        if (Input.GetKeyDown(KeyCode.S))
+        if (Hotkeys.Down(HotkeyAction.Stop))
             for (int i = 0; i < sel.Count; i++) { var u = sel[i]; if (u != null) { u.attackMove = false; u.Stop(); } }
-        else if (Input.GetKeyDown(KeyCode.A))
+        else if (Hotkeys.Down(HotkeyAction.AttackMove))
             BeginAttackMove();
         else if (Input.GetKeyDown(KeyCode.P))
             BeginPatrol(gm, sel);

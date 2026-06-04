@@ -39,9 +39,14 @@ public class CivSelectScreen : MonoBehaviour
         var bg = Panel(_canvas.transform, new Color(0.05f, 0.06f, 0.08f, 0.92f));
         Stretch(bg.rectTransform);
 
-        Label(bg.transform, "MEDENİYETİNİ SEÇ", 0, 380, 56, new Color(0.95f, 0.85f, 0.55f));
+        Label(bg.transform, "MEDENİYETİNİ SEÇ", 0, 410, 56, new Color(0.95f, 0.85f, 0.55f));
         Label(bg.transform, "Bonusu hemen etkin olur — istersen 'Yok' ile dengeli başla.",
-            0, 320, 26, new Color(0.8f, 0.82f, 0.85f));
+            0, 355, 26, new Color(0.8f, 0.82f, 0.85f));
+
+        // STRT: difficulty row
+        BuildDifficultyRow(bg.transform);
+        // STRT: game mode row
+        BuildGameModeRow(bg.transform);
 
         // None + every playable civ in a centered grid.
         var civs = new System.Collections.Generic.List<Civilization> { Civilization.None };
@@ -109,8 +114,67 @@ public class CivSelectScreen : MonoBehaviour
             }
         }
         GameBootstrap.PlayerCiv = civ;           // persist for restarts
+        // ARES: persist difficulty and game mode so restart keeps them.
+        var gm2 = GameManager.Instance;
+        if (gm2 != null) GameBootstrap.NextDifficulty = gm2.difficulty;
         Destroy(gameObject);                     // closes the overlay (canvas is a child)
     }
+
+    // STRT: difficulty row — click cycles Easy→Moderate→Normal→Hard→Insane→Extreme.
+    void BuildDifficultyRow(Transform parent)
+    {
+        Label(parent, "Zorluk:", -340, -230, 22, new Color(0.9f, 0.9f, 0.7f));
+        var btn = new GameObject("DiffBtn"); btn.transform.SetParent(parent, false);
+        var rt = btn.AddComponent<RectTransform>(); rt.sizeDelta = new Vector2(200, 40); rt.anchoredPosition = new Vector2(-100, -230);
+        var img = btn.AddComponent<Image>(); img.color = new Color(0.25f, 0.30f, 0.40f);
+        var b = btn.AddComponent<Button>();
+        var label = Label(btn.transform, DiffName(GameBootstrap.NextDifficulty), 0, 0, 20, Color.white);
+        b.onClick.AddListener(() =>
+        {
+            GameBootstrap.NextDifficulty = (Difficulty)(((int)GameBootstrap.NextDifficulty + 1) % 6);
+            label.text = DiffName(GameBootstrap.NextDifficulty);
+            // Apply immediately to live GameManager.
+            var gm = GameManager.Instance;
+            if (gm != null) { gm.difficulty = GameBootstrap.NextDifficulty; foreach (var ai in Object.FindObjectsByType<EnemyAI>(FindObjectsInactive.Exclude)) ai.SetDifficulty(); }
+        });
+    }
+
+    // STRT: game mode row.
+    void BuildGameModeRow(Transform parent)
+    {
+        Label(parent, "Mod:", -340, -280, 22, new Color(0.9f, 0.9f, 0.7f));
+        var btn = new GameObject("ModeBtn"); btn.transform.SetParent(parent, false);
+        var rt = btn.AddComponent<RectTransform>(); rt.sizeDelta = new Vector2(200, 40); rt.anchoredPosition = new Vector2(-100, -280);
+        var img = btn.AddComponent<Image>(); img.color = new Color(0.25f, 0.30f, 0.40f);
+        var b = btn.AddComponent<Button>();
+        var label = Label(btn.transform, ModeName(GameBootstrap.NextGameMode), 0, 0, 20, Color.white);
+        b.onClick.AddListener(() =>
+        {
+            GameBootstrap.NextGameMode = (GameMode)(((int)GameBootstrap.NextGameMode + 1) % 4);
+            label.text = ModeName(GameBootstrap.NextGameMode);
+            var gm = GameManager.Instance;
+            if (gm != null) gm.gameMode = GameBootstrap.NextGameMode;
+        });
+    }
+
+    static string DiffName(Difficulty d) => d switch
+    {
+        Difficulty.Easy     => "Kolay",
+        Difficulty.Moderate => "Orta",
+        Difficulty.Normal   => "Normal",
+        Difficulty.Hard     => "Zor",
+        Difficulty.Insane   => "Acımasız",
+        Difficulty.Extreme  => "Efsanevi",
+        _                   => "Normal",
+    };
+
+    static string ModeName(GameMode m) => m switch
+    {
+        GameMode.Deathmatch => "Ölüm Maçı",
+        GameMode.Regicide   => "Regicide",
+        GameMode.Nomad      => "Göçebe",
+        _                   => "Rastgele",
+    };
 
     /// <summary>One-line bonus hint per civ (kept in sync with CivilizationDefs).</summary>
     static string CivHint(Civilization c) => c switch

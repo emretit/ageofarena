@@ -54,7 +54,17 @@ public class MatchSystem : MonoBehaviour
     {
         if (_over)
         {
-            if (Input.GetKeyDown(KeyCode.R)) GameBootstrap.Restart();
+            if (Input.GetKeyDown(KeyCode.R))
+            {
+                // ARES: preserve civ & difficulty so restart drops back into the same settings.
+                var gm = GameManager.Instance;
+                if (gm != null)
+                {
+                    GameBootstrap.NextDifficulty = gm.difficulty;
+                    GameBootstrap.NextGameMode   = gm.gameMode;
+                }
+                GameBootstrap.Restart();
+            }
             return;
         }
 

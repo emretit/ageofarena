@@ -64,9 +64,11 @@ public class HUD : MonoBehaviour
     int _lastTechVer = -1;
     int _lastQueueCount = -1;
 
-    const int   Cols   = 5;
-    const int   Rows   = 3;            // fixed AoE-style slot grid (Cols×Rows)
+    const int   Cols         = 5;
+    const int   Rows         = 3;            // fixed AoE-style slot grid (Cols×Rows)
+    const int   SlotsPerPage = Cols * Rows;  // CMDP: 15 slots per page
     const float BtnW   = 60f, BtnH = 60f, Gap = 6f;
+    int         _cmdPage;                    // CMDP: current command card page (0-based)
     const float BarH   = 220f;
     const float LeftW  = 240f;         // info panel width
     const float CmdZoneW = 352f;       // left command-grid zone (14 + 5×60+4×6 + 14)
@@ -106,6 +108,8 @@ public class HUD : MonoBehaviour
     {
         if (team != 0 || _ageText == null) return;
         _ageText.text = "Çağ: " + AgeName(newAge);
+        // AGFX: play age-up sound and show popup for player only.
+        AudioManager.Play(AudioManager.SoundId.AgeUp, 1.0f);
         if (_canvasRoot != null)
             StartCoroutine(ShowAgePopup(newAge));
     }
@@ -686,9 +690,21 @@ public class HUD : MonoBehaviour
             else OpenPauseMenu(gm);
         }
 
-        // DIPL: D key toggles diplomacy panel.
-        if (Input.GetKeyDown(KeyCode.D) && !_gameOverShown)
+        // DIPL: hotkey toggles diplomacy panel.
+        if (Hotkeys.Down(HotkeyAction.Diplomacy) && !_gameOverShown)
             ToggleDiplomacyPanel();
+
+        // STIC: hotkey cycles attack stance for all selected units.
+        if (Hotkeys.Down(HotkeyAction.Stance))
+        {
+            var stanceSel = gm.selection?.Selected;
+            if (stanceSel != null && stanceSel.Count > 0 && stanceSel[0] != null)
+            {
+                var next = (AttackStance)(((int)stanceSel[0].stance + 1) % 4);
+                for (int i = 0; i < stanceSel.Count; i++)
+                    if (stanceSel[i] != null) stanceSel[i].stance = next;
+            }
+        }
 
         // Relics held readout in the top bar (replaces RelicSystem's IMGUI label).
         if (_relicText != null)
@@ -732,6 +748,7 @@ public class HUD : MonoBehaviour
         {
             _lastBld = b; _lastUnitCount = unitCount; _lastHasVillager = hasVillager;
             _lastTechVer = techVer; _lastQueueCount = -1;
+            _cmdPage = 0;  // CMDP: reset page on any selection change
             RebuildCard(gm, b, sel, unitCount, hasVillager);
         }
 
@@ -792,6 +809,25 @@ public class HUD : MonoBehaviour
         {
             _progressFill.sizeDelta = Vector2.zero;
             if (_lastQueueCount != 0) { _lastQueueCount = 0; _queueText.text = ""; }
+        }
+
+        // STIC: show stance for unit selections.
+        if (b == null && _infoSub != null)
+        {
+            var sel2 = gm.selection?.Selected;
+            if (sel2 != null && sel2.Count > 0 && sel2[0] != null)
+            {
+                string stanceName = sel2[0].stance switch
+                {
+                    AttackStance.Aggressive  => "Saldırgan",
+                    AttackStance.Defensive   => "Savunmacı",
+                    AttackStance.StandGround => "Yerinde Dur",
+                    AttackStance.NoAttack    => "Saldırma",
+                    _                        => "",
+                };
+                string stanceLine = stanceName.Length > 0 ? $"Duruş: {stanceName}  [Q]" : "";
+                if (_infoSub.text != stanceLine) _infoSub.text = stanceLine;
+            }
         }
 
         UpdateQueueStrip(gm, b);
@@ -904,6 +940,82 @@ public class HUD : MonoBehaviour
         else if (hasVillager)      BuildVillagerCard(gm, sel, unitCount);
         else if (unitCount > 0)    BuildUnitInfo(sel, unitCount);
         else { _infoName.text = ""; _infoSub.text = ""; ShowHpBar(false); }  // nothing selected → idle bar
+
+        // CMDP: rebuild page nav after slots are populated.
+        BuildPageNav();
+    }
+
+    // CMDP: page navigation arrows — shown only when total slots > SlotsPerPage.
+    void BuildPageNav()
+    {
+        if (_gridRoot == null) return;
+        // Remove previous nav buttons.
+        var old = _gridRoot.Find("PageNav");
+        if (old != null) Destroy(old.gameObject);
+
+        int total = _slots.Count;
+        int pages  = Mathf.CeilToInt(total / (float)SlotsPerPage);
+        if (pages <= 1) return;
+
+        var nav = new GameObject("PageNav");
+        nav.transform.SetParent(_gridRoot, false);
+        var navRt = nav.AddComponent<RectTransform>();
+        float gridH = Rows * (BtnH + Gap);
+        navRt.anchorMin = navRt.anchorMax = new Vector2(0, 1);
+        navRt.pivot = new Vector2(0, 1);
+        navRt.sizeDelta = new Vector2(Cols * (BtnW + Gap), 20f);
+        navRt.anchoredPosition = new Vector2(0, -(gridH + 4));
+
+        // "←" and "→" buttons
+        for (int side = 0; side < 2; side++)
+        {
+            int s = side;
+            var go = new GameObject(s == 0 ? "Prev" : "Next");
+            go.transform.SetParent(nav.transform, false);
+            var rt = go.AddComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(28, 18);
+            rt.anchoredPosition = new Vector2(s == 0 ? 2 : Cols * (BtnW + Gap) - 30, -1);
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0, 1);
+            var img = go.AddComponent<Image>(); img.color = new Color(0.3f, 0.3f, 0.4f, 0.9f);
+            var btn = go.AddComponent<Button>();
+            var lrt = NewRect("L", rt); lrt.anchorMin = Vector2.zero; lrt.anchorMax = Vector2.one; lrt.offsetMin = lrt.offsetMax = Vector2.zero;
+            AddText(lrt, s == 0 ? "◄" : "►", TextAnchor.MiddleCenter).fontSize = 11;
+            btn.onClick.AddListener(() =>
+            {
+                _cmdPage = Mathf.Clamp(_cmdPage + (s == 0 ? -1 : 1), 0, pages - 1);
+                // Refresh slot visibility.
+                RefreshSlotVisibility();
+                BuildPageNav();
+            });
+        }
+        // Page counter
+        var crt = NewRect("Count", navRt);
+        crt.anchorMin = new Vector2(0.3f, 0); crt.anchorMax = new Vector2(0.7f, 1);
+        crt.offsetMin = crt.offsetMax = Vector2.zero;
+        AddText(crt, $"{_cmdPage + 1}/{pages}", TextAnchor.MiddleCenter).fontSize = 11;
+
+        RefreshSlotVisibility();
+    }
+
+    void RefreshSlotVisibility()
+    {
+        int start = _cmdPage * SlotsPerPage;
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            bool visible = i >= start && i < start + SlotsPerPage;
+            if (_slots[i].btn != null) _slots[i].btn.gameObject.SetActive(visible);
+            // Reposition within the visible grid cell.
+            if (visible && _slots[i].btn != null)
+            {
+                int pageIdx = i - start;
+                var rt = _slots[i].btn.GetComponent<RectTransform>();
+                if (rt != null)
+                {
+                    int col = pageIdx % Cols, row = pageIdx / Cols;
+                    rt.anchoredPosition = new Vector2(col * (BtnW + Gap), -row * (BtnH + Gap));
+                }
+            }
+        }
     }
 
     void BuildBuildingCard(GameManager gm, BuildingEntity b)

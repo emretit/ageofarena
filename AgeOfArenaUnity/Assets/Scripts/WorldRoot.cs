@@ -124,7 +124,9 @@ public class WorldRoot : MonoBehaviour
         SetupPostProcessing(cam.gameObject);
 
         // CIVS: prompt the player to pick a civilization over the freshly-built arena.
-        new GameObject("CivSelect").AddComponent<CivSelectScreen>();
+        // STRT: show setup screen on first run; ARES: skip on restart (PlayerCiv persists).
+        if (GameBootstrap.PlayerCiv == Civilization.None)
+            new GameObject("CivSelect").AddComponent<CivSelectScreen>();
     }
 
     // ── Environment ──────────────────────────────────────────────────────────
