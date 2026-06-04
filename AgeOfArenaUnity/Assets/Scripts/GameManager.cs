@@ -63,6 +63,16 @@ public class GameManager : MonoBehaviour
     /// <summary>Active game mode — set by WorldRoot before gameplay begins.</summary>
     public GameMode gameMode = GameMode.Random;
 
+    // ── N14/MODES: rule-toggle flags (set by WorldRoot.SetupGameplay) ─────────
+    /// <summary>KingOfTheHill: control the centre TC to accumulate victory points.</summary>
+    public bool kothActive;
+    /// <summary>SuddenDeath: losing your TC causes immediate elimination.</summary>
+    public bool suddenDeath;
+    /// <summary>Treaty: attacks are blocked until this simulation-time (seconds) elapses.</summary>
+    public float treatyEndTime;
+    /// <summary>Turbo: multiplier on all villager gather yields (default 1 = no boost).</summary>
+    public float turboGatherMult = 1f;
+
     /// <summary>
     /// VDIPL: 4×4 diplomacy matrix. diplomacy[a,b] = team a's stance toward team b.
     /// Default: all teams are enemies; self-to-self is Allied.

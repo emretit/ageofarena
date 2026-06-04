@@ -65,7 +65,19 @@ public enum Age { Dark, Feudal, Castle, Imperial }
 /// Match setup mode. Controls starting resources, spawn layout and victory paths.
 /// Random = standard AoE2 arena. Others mirror AoE2 game modes.
 /// </summary>
-public enum GameMode { Random, Deathmatch, Regicide, Nomad }
+public enum GameMode
+{
+    Random,      // default — Conquest (last TC standing)
+    Deathmatch,  // start with lots of resources
+    Regicide,    // protect your King
+    Nomad,       // no TC at start; build your own
+    // ── N14/MODES: additional rule-toggle modes ──
+    EmpireWars,  // start at Castle Age with moderate eco (no Dark/Feudal grind)
+    KingOfTheHill, // control the centre TC to accumulate victory points
+    SuddenDeath, // lose your TC → you lose immediately (no units-only comeback)
+    Treaty,      // no attacks for the first 15 minutes (eco/boom phase)
+    Turbo,       // all gather rates ×3 (fast-paced)
+}
 
 /// <summary>
 /// A team's diplomatic stance toward another team.

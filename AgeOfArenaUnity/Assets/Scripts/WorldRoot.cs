@@ -807,6 +807,22 @@ public class WorldRoot : MonoBehaviour
             case GameMode.Nomad:
                 SpawnNomad(gm, unitsRoot.transform);
                 break;
+            // ── N14/MODES: new rule-toggle modes ──
+            case GameMode.EmpireWars:
+                ApplyEmpireWars(gm);
+                break;
+            case GameMode.KingOfTheHill:
+                gm.kothActive = true;
+                break;
+            case GameMode.SuddenDeath:
+                gm.suddenDeath = true;
+                break;
+            case GameMode.Treaty:
+                gm.treatyEndTime = 15f * 60f;   // 15 minutes of peace
+                break;
+            case GameMode.Turbo:
+                gm.turboGatherMult = 3f;
+                break;
         }
     }
 
@@ -884,6 +900,21 @@ public class WorldRoot : MonoBehaviour
             r.wood  = Mathf.Max(r.wood,  20000);
             r.gold  = Mathf.Max(r.gold,  10000);
             r.stone = Mathf.Max(r.stone,  5000);
+        }
+    }
+
+    // N14/MODES: Empire Wars — all teams start at Castle Age with a solid eco base.
+    static void ApplyEmpireWars(GameManager gm)
+    {
+        for (int t = 0; t < 4; t++)
+        {
+            ResearchSystem.Apply(TechType.FeudalAge, t);
+            ResearchSystem.Apply(TechType.CastleAge, t);
+            var r = gm.teamRes[t];
+            r.food  = Mathf.Max(r.food,  2000);
+            r.wood  = Mathf.Max(r.wood,  2000);
+            r.gold  = Mathf.Max(r.gold,  1000);
+            r.stone = Mathf.Max(r.stone,  500);
         }
     }
 

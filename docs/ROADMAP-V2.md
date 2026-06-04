@@ -331,7 +331,7 @@ Tarayıcı raw UDP/TCP yasak → WebGL MP **WebSocket relay** (yalnız komut = k
 - [ ] N8.terrain: Heightmap terrain (elevation/ramp/cliff) + ≥2 biome + su shader; NavMesh yeniden bake; minimap yansıtır.
 - [ ] N8.anim: Gather/build/carry animasyon state'leri trigger'lı; prim'lere attack swing; corpse/dissolve.
 - [ ] N14.aieco: AI gerçek Barracks/Stable/Range'den train-time ile üretir + per-team pop-cap; AI inşa/onarım/expansion; emirler command-log'dan; AI üs hasarından döner.
-- [ ] N14.modes: Empire Wars/KotH/Sudden Death/Treaty/Turbo kural-toggle'ları setup'ta seçilir + Play'de etkili.
+- [x] N14.modes: 5 yeni oyun modu eklendi — **Empire Wars** (Castle'dan başla + orta eco), **King of the Hill** (merkez TC 60sn tut = zafer), **Sudden Death** (TC yıkılınca anında eleme), **Treaty** (15dk savaş yasağı), **Turbo** (tüm toplama ×3). `GameMode` enum 4→9. CivSelectScreen döngüsü güncellendi. Her mod: `WorldRoot.SetupGameplay` switch'i → `GameManager` flag'ları → runtime sistemler (CombatSystem treaty bloğu, GatherSystem turbo çarpanı, MatchSystem KotH/SuddenDeath arbiter). Runtime: 9 mod, kothActive/sudden/treaty=900/turbo=3 doğrulandı. 0/0.
 
 ### Wave 3 — SP-Derinlik
 - [ ] N10.rms: Harita data/script format; `MapGenerator` yorumlar; ≥4 arketip (Arabia/Arena/BlackForest/Islands/Nomad) seed-deterministik; setup'tan seçilir.

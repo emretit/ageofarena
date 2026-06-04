@@ -128,6 +128,8 @@ public class GatherSystem : MonoBehaviour
                         // AICH: difficulty eco multiplier (AI teams only; player = 1×).
                         if (v.teamId > 0 && v.teamId < GM.teamEcoMult.Length)
                             mult *= GM.teamEcoMult[v.teamId];
+                        // N14/MODES Turbo: all-team gather yield boost.
+                        mult *= GM.turboGatherMult;
                         int gained = Mathf.RoundToInt(v.carrying.amount * mult);
                         GM.teamRes[v.teamId].Gain(v.carrying.kind, gained);
                     }

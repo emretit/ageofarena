@@ -150,7 +150,7 @@ public class CivSelectScreen : MonoBehaviour
         var label = Label(btn.transform, ModeName(GameBootstrap.NextGameMode), 0, 0, 20, Color.white);
         b.onClick.AddListener(() =>
         {
-            GameBootstrap.NextGameMode = (GameMode)(((int)GameBootstrap.NextGameMode + 1) % 4);
+            GameBootstrap.NextGameMode = (GameMode)(((int)GameBootstrap.NextGameMode + 1) % 9);
             label.text = ModeName(GameBootstrap.NextGameMode);
             var gm = GameManager.Instance;
             if (gm != null) gm.gameMode = GameBootstrap.NextGameMode;
@@ -170,10 +170,15 @@ public class CivSelectScreen : MonoBehaviour
 
     static string ModeName(GameMode m) => m switch
     {
-        GameMode.Deathmatch => "Ölüm Maçı",
-        GameMode.Regicide   => "Regicide",
-        GameMode.Nomad      => "Göçebe",
-        _                   => "Rastgele",
+        GameMode.Deathmatch    => "Ölüm Maçı",
+        GameMode.Regicide      => "Regicide",
+        GameMode.Nomad         => "Göçebe",
+        GameMode.EmpireWars    => "İmparatorluk Savaşları",
+        GameMode.KingOfTheHill => "Tepenin Kralı",
+        GameMode.SuddenDeath   => "Ani Ölüm",
+        GameMode.Treaty        => "Antlaşma (15dk)",
+        GameMode.Turbo         => "Turbo",
+        _                      => "Rastgele",
     };
 
     /// <summary>One-line bonus hint per civ (kept in sync with CivilizationDefs).</summary>

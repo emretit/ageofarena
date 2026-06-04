@@ -37,6 +37,8 @@ public class MatchSystem : MonoBehaviour
 
     readonly float[] _wonderTimer = new float[4];
     readonly float[] _relicTimer  = new float[4];
+    readonly float[] _kothTimer   = new float[4];  // N14/MODES: King of the Hill control time
+    const float KothHoldTime = 60f;                // seconds of unbroken control to win
 
     /// <summary>Active victory-countdown line for the HUD top bar ("" = none).</summary>
     public string VictoryStatus { get; private set; } = "";
@@ -143,6 +145,35 @@ public class MatchSystem : MonoBehaviour
             for (int t = 1; t < 4; t++)
                 if (kingAlive[t] && gm.IsEnemy(0, t)) { anyEnemyKing = true; break; }
             if (!anyEnemyKing) { End(true, "Regicide zaferi", gm); return; }
+        }
+
+        // ── N14/MODES: Sudden Death ───────────────────────────────────────────────
+        // Any team (including the player) that loses their TC is immediately out —
+        // no safe hiding behind units only.
+        if (gm.suddenDeath && !tcAlive[0]) { End(false, "Ani Ölüm (TC yıkıldı)", gm); return; }
+
+        // ── N14/MODES: King of the Hill — control the central TC (team 0 start pos) ─
+        if (gm.kothActive)
+        {
+            // Find the neutral-ish centre TC: the building closest to map centre.
+            BuildingEntity centreTc = null;
+            float bestDist = float.MaxValue;
+            for (int i = 0; i < gm.buildings.Count; i++)
+            {
+                var b = gm.buildings[i];
+                if (b == null || b.type != BuildingType.TownCenter || b.hp <= 0f) continue;
+                float d = b.transform.position.sqrMagnitude;
+                if (d < bestDist) { bestDist = d; centreTc = b; }
+            }
+            if (centreTc != null)
+            {
+                int holder = centreTc.teamId;
+                _kothTimer[holder] += CheckInterval;
+                for (int t = 0; t < 4; t++) if (t != holder) _kothTimer[t] = 0f;
+                if (_kothTimer[holder] >= KothHoldTime)
+                    { End(gm.IsAllied(0, holder), "Tepenin Kralı zaferi", gm); return; }
+                SetStatus(holder, "KotH", KothHoldTime - _kothTimer[holder]);
+            }
         }
 
         // ── Conquest (VDIPL: only counts enemy teams) ────────────────────────────

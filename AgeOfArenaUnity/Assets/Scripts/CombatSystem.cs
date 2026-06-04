@@ -76,6 +76,10 @@ public class CombatSystem : MonoBehaviour
 
     void StepCombat(UnitEntity u)
     {
+        // N14/MODES Treaty: attacks are blocked during the peace period.
+        if (GM != null && GM.treatyEndTime > 0f && Time.time < GM.treatyEndTime)
+        { u.attackTarget = null; return; }
+
         // Support units (Scout/Medic) never fight: drop any attack order and idle.
         if (u.type == UnitType.Scout || u.type == UnitType.Medic)
         {
