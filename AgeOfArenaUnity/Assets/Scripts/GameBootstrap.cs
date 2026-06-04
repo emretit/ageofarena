@@ -9,7 +9,12 @@ using UnityEngine.AI;
 public static class GameBootstrap
 {
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    static void Boot() => BuildIfNeeded();
+    static void Boot()
+    {
+        Loc.LoadSaved();                 // N9.i18n
+        AccessibilitySettings.Load();    // N9.a11y
+        BuildIfNeeded();
+    }
 
     static void BuildIfNeeded()
     {

@@ -17,6 +17,7 @@ public class HUD : MonoBehaviour
     Font _font;
     ResourceManager _res;
     Transform _canvasRoot;
+    CanvasScaler _canvasScaler;   // N9.a11y: UI scale slider drives referenceResolution
     bool _gameOverShown;
     /// <summary>N9.postgame test helper: reset game-over flag so overlay can be shown again.</summary>
     public void ResetGameOver() { _gameOverShown = false; }
@@ -172,7 +173,8 @@ public class HUD : MonoBehaviour
         var canvas = canvasGo.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = 100;
-        var scaler = canvasGo.AddComponent<CanvasScaler>();
+        _canvasScaler = canvasGo.AddComponent<CanvasScaler>();
+        var scaler = _canvasScaler;
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
         // Balance width/height matching so the bar keeps its proportions across
@@ -1352,12 +1354,12 @@ public class HUD : MonoBehaviour
         rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
         overlay.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.6f);
 
-        void AddBtn(string label, System.Action onClick, float yOffset)
+        void AddBtn(string label, System.Action onClick, float yOffset, float xOffset = 0f)
         {
             var br = NewRect(label, overlay.transform);
             br.anchorMin = br.anchorMax = new Vector2(0.5f, 0.5f);
-            br.sizeDelta = new Vector2(280, 50);
-            br.anchoredPosition = new Vector2(0, yOffset);
+            br.sizeDelta = new Vector2(xOffset != 0f ? 120 : 280, 50);
+            br.anchoredPosition = new Vector2(xOffset, yOffset);
             var img = br.gameObject.AddComponent<Image>();
             img.color = new Color(0.1f, 0.1f, 0.15f, 0.95f);
             var btn = br.gameObject.AddComponent<Button>();
@@ -1374,6 +1376,19 @@ public class HUD : MonoBehaviour
         // FOWD: fog toggle in pause menu
         AddBtn(gm.fow != null && gm.fow.fogEnabled ? Loc.Get("pause.fogOff") : Loc.Get("pause.fogOn"),
             () => { if (gm.fow != null) { gm.fow.fogEnabled = !gm.fow.fogEnabled; ClosePauseMenu(); } }, -170f);
+        // N9.a11y: colorblind palette toggle
+        AddBtn(AccessibilitySettings.ColorblindMode ? "Renk Std" : "Renk KB",
+            () => { AccessibilitySettings.SetColorblindMode(!AccessibilitySettings.ColorblindMode); ClosePauseMenu(); }, -230f);
+        // N9.a11y: UI scale +/-
+        AddBtn("UI +", () => { AccessibilitySettings.SetUiScale(AccessibilitySettings.UiScale + 0.1f); ApplyUiScale(); }, -290f, 60f);
+        AddBtn("UI -", () => { AccessibilitySettings.SetUiScale(AccessibilitySettings.UiScale - 0.1f); ApplyUiScale(); }, -290f, -60f);
+    }
+
+    void ApplyUiScale()
+    {
+        if (_canvasScaler == null) return;
+        float s = 1f / AccessibilitySettings.UiScale;
+        _canvasScaler.referenceResolution = new Vector2(1920f * s, 1080f * s);
     }
 
     void ClosePauseMenu()

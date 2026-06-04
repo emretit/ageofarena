@@ -133,13 +133,18 @@ public class MinimapSystem : MonoBehaviour
         for (int i = 0; i < units.Count; i++)
         {
             var u = units[i];
-            if (u != null) idx = Place(idx, u.transform.position, TeamColor(u.teamId), 4.5f);
+            if (u == null) continue;
+            // N9.a11y: enemies rendered as diamonds so shape ≠ just colour.
+            int shape = gm.IsEnemy(0, u.teamId) ? 1 : 0;
+            idx = Place(idx, u.transform.position, TeamColor(u.teamId), 4.5f, shape);
         }
         var blds = gm.buildings;
         for (int i = 0; i < blds.Count; i++)
         {
             var b = blds[i];
-            if (b != null) idx = Place(idx, b.transform.position, TeamColor(b.teamId), 6f);
+            if (b == null) continue;
+            int shape = gm.IsEnemy(0, b.teamId) ? 1 : 0;
+            idx = Place(idx, b.transform.position, TeamColor(b.teamId), 6f, shape);
         }
         var relics = gm.relics;
         for (int i = 0; i < relics.Count; i++)
@@ -148,24 +153,27 @@ public class MinimapSystem : MonoBehaviour
             if (r == null) continue;
             Color c = (r.controllingTeam >= 0)
                 ? TeamPalette.For(r.controllingTeam) : RelicGold;
-            idx = Place(idx, r.transform.position, c, 8f);
+            idx = Place(idx, r.transform.position, c, 8f, 2);
         }
 
         for (int i = idx; i < _blips.Count; i++)
             if (_blips[i].gameObject.activeSelf) _blips[i].gameObject.SetActive(false);
     }
 
-    int Place(int idx, Vector3 world, Color c, float size)
+    /// <param name="shape">0=square (ally/self), 1=diamond (enemy), 2=relic dot</param>
+    int Place(int idx, Vector3 world, Color c, float size, int shape = 0)
     {
         Vector3 vp = _mmCam.WorldToViewportPoint(world);
         var img = GetBlip(idx);
         var rt  = img.rectTransform;
         rt.sizeDelta = new Vector2(size, size);
-        // Local position inside the (un-rotated) RawImage; parent rotation diamonds it.
         rt.anchoredPosition = new Vector2(
             (Mathf.Clamp01(vp.x) - 0.5f) * Side,
             (Mathf.Clamp01(vp.y) - 0.5f) * Side);
         img.color = c;
+        // N9.a11y: shape-code enemies as diamonds (45°) so colour is not the only cue.
+        float angle = shape == 1 ? 45f : 0f;
+        rt.localRotation = Quaternion.Euler(0f, 0f, angle);
         if (!img.gameObject.activeSelf) img.gameObject.SetActive(true);
         return idx + 1;
     }
