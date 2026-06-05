@@ -69,6 +69,7 @@ public class HUD : MonoBehaviour
 
     // Selection signature for rebuild detection.
     BuildingEntity _lastBld;
+    ResourceNode _lastNode;
     int _lastUnitCount = -1;
     bool _lastHasVillager;
     int _lastTechVer = -1;
@@ -862,6 +863,7 @@ public class HUD : MonoBehaviour
         }
 
         var b = gm.selectedBuilding;
+        var node = gm.selectedNode;
         var sel = gm.selection != null ? gm.selection.Selected : null;
         int unitCount = sel != null ? sel.Count : 0;
         bool hasVillager = false;
@@ -871,10 +873,10 @@ public class HUD : MonoBehaviour
 
         // Bar is persistent; rebuild the card only when the selection signature changes.
         int techVer = gm.teamTech != null ? gm.teamTech[0].Version : 0;
-        if (b != _lastBld || unitCount != _lastUnitCount || hasVillager != _lastHasVillager
+        if (b != _lastBld || node != _lastNode || unitCount != _lastUnitCount || hasVillager != _lastHasVillager
             || techVer != _lastTechVer)
         {
-            _lastBld = b; _lastUnitCount = unitCount; _lastHasVillager = hasVillager;
+            _lastBld = b; _lastNode = node; _lastUnitCount = unitCount; _lastHasVillager = hasVillager;
             _lastTechVer = techVer; _lastQueueCount = -1;
             _cmdPage = 0;  // CMDP: reset page on any selection change
             RebuildCard(gm, b, sel, unitCount, hasVillager);
@@ -939,8 +941,16 @@ public class HUD : MonoBehaviour
             if (_lastQueueCount != 0) { _lastQueueCount = 0; _queueText.text = ""; }
         }
 
+        // Live resource node amount update (decreases while gatherers work).
+        var liveNode = gm.selectedNode;
+        if (liveNode != null && _infoSub != null)
+        {
+            string nodeAmt = liveNode.Depleted ? "Tükendi" : $"{liveNode.amount} / {liveNode.maxAmount}";
+            if (_infoSub.text != nodeAmt) _infoSub.text = nodeAmt;
+        }
+
         // STIC: show stance for unit selections.
-        if (b == null && _infoSub != null)
+        if (b == null && liveNode == null && _infoSub != null)
         {
             var sel2 = gm.selection?.Selected;
             if (sel2 != null && sel2.Count > 0 && sel2[0] != null)
@@ -1068,7 +1078,9 @@ public class HUD : MonoBehaviour
         _queueText.text = "";
         _progressFill.sizeDelta = Vector2.zero;
 
+        var node = gm.selectedNode;
         if (b != null)             BuildBuildingCard(gm, b);
+        else if (node != null)     BuildNodeInfo(node);
         else if (hasVillager)      BuildVillagerCard(gm, sel, unitCount);
         else if (unitCount > 0)    BuildUnitInfo(sel, unitCount);
         else { _infoName.text = ""; _infoSub.text = ""; ShowHpBar(false); }  // nothing selected → idle bar
@@ -1255,6 +1267,24 @@ public class HUD : MonoBehaviour
         }
 
         AddUnitCommands(ref idx, includeAttackMove: false);
+    }
+
+    void BuildNodeInfo(ResourceNode node)
+    {
+        ShowHpBar(false);
+        string kindName = node.kind switch
+        {
+            ResourceKind.Food  => "Yiyecek",
+            ResourceKind.Wood  => "Ahşap",
+            ResourceKind.Gold  => "Altın",
+            ResourceKind.Stone => "Taş",
+            _                  => node.kind.ToString(),
+        };
+        _infoName.text = kindName;
+        if (node.Depleted)
+            _infoSub.text = "Tükendi";
+        else
+            _infoSub.text = $"{node.amount} / {node.maxAmount}";
     }
 
     void BuildUnitInfo(List<UnitEntity> sel, int unitCount)

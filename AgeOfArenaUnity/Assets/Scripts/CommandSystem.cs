@@ -216,7 +216,9 @@ public class CommandSystem : MonoBehaviour
             return;
         }
 
-        if (hit.collider.gameObject.name == "Ground")
+        // All other cases (Ground, Ocean, Beach, …) are terrain → move order.
+        // Enemy / resource / building checks above already returned, so anything
+        // reaching here is a valid terrain hit regardless of collider name.
         {
             bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
             if (shift)

@@ -313,21 +313,20 @@ public class ScenarioEditor : MonoBehaviour
         bar.anchoredPosition = Vector2.zero;
         bar.gameObject.AddComponent<Image>().color = PanelBg;
 
-        MakeLabel(bar, "📝 Senaryo Editörü", -700, 0, 22, TextCol, FontStyle.Bold);
+        MakeLabel(bar, "Senaryo Editoru", -700, 0, 22, TextCol, FontStyle.Bold);
 
         _statusText = MakeLabel(bar, "", 0, 0, 16, LabelCol, FontStyle.Normal);
 
-        MakeBtn(bar, "🗑️ Sil", 550, 0, 90, 36, () =>
+        MakeBtn(bar, "Sil", 550, 0, 90, 36, () =>
         {
             _deleteMode = !_deleteMode;
             _selectedItem = -1;
-            SetStatus(_deleteMode ? "Silme modu — haritada tıkla." : "Silme modu kapatıldı.");
+            SetStatus(_deleteMode ? "Silme modu — haritada tikla." : "Silme modu kapatildi.");
         });
-        MakeBtn(bar, "💾 Kaydet", 660, 0, 100, 36, SaveScenario);
-        MakeBtn(bar, "📂 Yükle",  770, 0, 100, 36, LoadScenario);
-        MakeBtn(bar, "▶ Test Et", 880, 0, 110, 36, PlaytestScenario);
-        // Kapat was at x=900 (spanning 900..990), overlapping Test Et (880..990); move it clear.
-        MakeBtn(bar, "✕ Kapat",  1000, 0,  90, 36, Close);
+        MakeBtn(bar, "Kaydet", 660, 0, 100, 36, SaveScenario);
+        MakeBtn(bar, "Yukle",  770, 0, 100, 36, LoadScenario);
+        MakeBtn(bar, "Test Et", 880, 0, 110, 36, PlaytestScenario);
+        MakeBtn(bar, "Kapat",  1000, 0,  90, 36, Close);
 
         // ── Left palette panel ─────────────────────────────────────────────────
         var pal = MakeRect("Palette", cgo.transform);
@@ -482,7 +481,7 @@ public class ScenarioEditor : MonoBehaviour
         t.color     = col;
         t.fontStyle = style;
         t.alignment = TextAnchor.MiddleCenter;
-        t.font      = null;
+        t.font      = UiFonts.Default;
         return t;
     }
 

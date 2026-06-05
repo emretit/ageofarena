@@ -26,7 +26,10 @@ Bir istek "oyuna X ekle" derse hedef **her zaman Unity tarafıdır** (`AgeOfAren
   reflection ile 0→8 zorlar (hesap entitlement'ı 0 dönüyor). **Silersen MCP bağlantısı kopar.**
 - **`Prims.Spawn()` collider'ları siler** — unit root'larına `CapsuleCollider`, bina root'larına
   `BoxCollider` ayrıca eklenir.
-- `HUD.cs` → `text.font = null` (Unity 6 default; LegacyRuntime.ttf çalışmaz).
+- **UI font:** yeni `UnityEngine.UI.Text` için `font = UiFonts.Default` kullan (`UiFonts.cs` →
+  `LegacyRuntime.ttf`). Unity 6'da `font = null` **hiçbir şey render etmez** — boş menü bug'ı
+  (ScenarioEditor/CampaignScreen/ReplayViewer bundan boştu). _(Eski not yanlıştı: "font=null Unity 6
+  default" — değil.)_ UI butonlarında emoji kullanma; built-in font glyph'leri yok.
 - `ResourceManager.stone = 200` başlar (M8/STONE — AoE2-parite taş ekonomisi; Castle/University/
   kuleler taş harcar, yetersizken inşa engellenir). _Eski: stone=0 (Three.js'te stone yoktu);
   kullanıcı onayıyla 2026-06 parite için aktive edildi._

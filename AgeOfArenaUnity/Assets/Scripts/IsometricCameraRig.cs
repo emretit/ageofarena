@@ -12,7 +12,7 @@ public class IsometricCameraRig : MonoBehaviour
     public float zoomSpeed = 4f;      // orthographic units per mouse-wheel notch
     public float minSize = 6f;
     public float maxSize = 30f;
-    public float rotateSpeed = 90f;
+
     public float edgeMargin = 10f;    // px from a screen edge that triggers edge-scroll pan
     public Vector2 bounds = new Vector2(60, 60); // half-extents of pannable area
 
@@ -25,16 +25,19 @@ public class IsometricCameraRig : MonoBehaviour
     float _shakeTimer;
     float _shakeMagnitude;
 
-    /// <summary>Combined pan intent on the ground plane: WASD/arrow keys plus mouse
-    /// edge-scroll. Read directly off keys (not the "Horizontal"/"Vertical" axes) so
-    /// panning works even if the legacy InputManager axes are missing or smoothed.</summary>
+    /// <summary>Combined pan intent on the ground plane: arrow keys plus mouse edge-scroll.
+    /// NOTE: WASD is intentionally NOT a pan binding — A/S/D are command hotkeys
+    /// (AttackMove/Stop/Diplomacy in <see cref="Hotkeys"/>), so panning with them would
+    /// fire stray orders on the current selection. AoE2:DE pans via arrows + screen edge too.
+    /// Read directly off keys (not the "Horizontal"/"Vertical" axes) so panning works even
+    /// if the legacy InputManager axes are missing or smoothed.</summary>
     Vector2 ReadPanInput()
     {
         float x = 0f, z = 0f;
-        if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow))  x -= 1f;
-        if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) x += 1f;
-        if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow))  z -= 1f;
-        if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow))    z += 1f;
+        if (Input.GetKey(KeyCode.LeftArrow))  x -= 1f;
+        if (Input.GetKey(KeyCode.RightArrow)) x += 1f;
+        if (Input.GetKey(KeyCode.DownArrow))  z -= 1f;
+        if (Input.GetKey(KeyCode.UpArrow))    z += 1f;
 
         // Edge-scroll: only while the cursor is inside the game window.
         Vector3 mp = Input.mousePosition;
@@ -81,10 +84,6 @@ public class IsometricCameraRig : MonoBehaviour
         float scroll = Input.mouseScrollDelta.y;
         if (Mathf.Abs(scroll) > 0.0001f)
             _cam.orthographicSize = Mathf.Clamp(_cam.orthographicSize - scroll * zoomSpeed, minSize, maxSize);
-
-        // Rotate
-        if (Input.GetKey(KeyCode.Q)) _yaw -= rotateSpeed * Time.deltaTime;
-        if (Input.GetKey(KeyCode.E)) _yaw += rotateSpeed * Time.deltaTime;
 
         Apply();
 

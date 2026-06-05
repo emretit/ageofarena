@@ -182,7 +182,7 @@ public class CampaignScreen : MonoBehaviour
         t.color     = col;
         t.fontStyle = style;
         t.alignment = TextAnchor.MiddleLeft;
-        t.font      = null;
+        t.font      = UiFonts.Default;
         return t;
     }
 

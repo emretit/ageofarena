@@ -963,6 +963,7 @@ public class WorldRoot : MonoBehaviour
         gm.triggers       = go.AddComponent<TriggerSystem>();   // N11.trig
         gm.scenarioEditor = go.AddComponent<ScenarioEditor>(); // N12.edit
         gm.campaignScreen = go.AddComponent<CampaignScreen>(); // N13.camp
+        gm.tutorial       = go.AddComponent<TutorialSystem>(); // N13.tut
         gm.cmdRecorder    = go.AddComponent<CommandRecorder>(); // N3.cmdlog
         gm.checksum       = go.AddComponent<ChecksumSystem>(); // N15.checksum
         gm.lockstep       = go.AddComponent<LockstepSystem>(); // N16.lockstep
@@ -1086,6 +1087,10 @@ public class WorldRoot : MonoBehaviour
         ArtOfWarSystem.Setup(gm);
         // N13.camp: inject campaign mission triggers (overrides AoW if both set).
         CampaignSystem.Setup(gm);
+        // N13.tut: first-game tutorial coach-marks (self-guards via PlayerPrefs DONE_KEY;
+        // no-op on replays/scenario-test so it only fires on a fresh first match).
+        if (GameBootstrap.PendingLoad == null && GameBootstrap.ReplayBaseline == null)
+            gm.tutorial?.Init(gm, Camera.main);
     }
 
     // SAVF: restore a full game snapshot after arena rebuild (NavMesh already fresh).

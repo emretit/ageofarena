@@ -84,11 +84,14 @@ public class SelectionSystem : MonoBehaviour
 
         UnitEntity hitUnit = null;
         BuildingEntity hitBuilding = null;
+        ResourceNode hitNode = null;
         if (Physics.Raycast(ray, out var hit, 500f))
         {
             hitUnit    = hit.collider.GetComponentInParent<UnitEntity>();
             if (hitUnit == null)
                 hitBuilding = hit.collider.GetComponentInParent<BuildingEntity>();
+            if (hitUnit == null && hitBuilding == null)
+                hitNode = hit.collider.GetComponentInParent<ResourceNode>();
         }
 
         var gm = GameManager.Instance;
@@ -96,6 +99,7 @@ public class SelectionSystem : MonoBehaviour
         if (hitUnit != null && hitUnit.teamId == 0)
         {
             gm.selectedBuilding = null;
+            gm.selectedNode = null;
             float t = Time.unscaledTime;
             bool isDbl = !additive && _lastClickType == hitUnit.type && t - _lastClickTime <= DblClickWindow;
             _lastClickTime = t;
@@ -118,15 +122,23 @@ public class SelectionSystem : MonoBehaviour
             }
             PlaySelectSound();
         }
-        else if (hitBuilding != null && hitBuilding.teamId == 0 && !additive)
+        else if (hitBuilding != null && !additive)
         {
             ClearSelection();
             gm.selectedBuilding = hitBuilding;
+            gm.selectedNode = null;
+        }
+        else if (hitNode != null && !additive)
+        {
+            ClearSelection();
+            gm.selectedBuilding = null;
+            gm.selectedNode = hitNode;
         }
         else if (!additive)
         {
             ClearSelection();
             gm.selectedBuilding = null;
+            gm.selectedNode = null;
         }
     }
 

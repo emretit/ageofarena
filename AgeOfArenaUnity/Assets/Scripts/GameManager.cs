@@ -74,6 +74,7 @@ public class GameManager : MonoBehaviour
     public readonly SpatialGrid unitGrid = new SpatialGrid(8f);
 
     public BuildingEntity selectedBuilding;
+    public ResourceNode selectedNode;
 
     /// <summary>Global AI difficulty (applied by every <see cref="EnemyAI"/>).</summary>
     public Difficulty difficulty = Difficulty.Normal;

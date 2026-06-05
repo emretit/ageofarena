@@ -172,7 +172,7 @@ public class ReplayViewer : MonoBehaviour
         rt.sizeDelta = new Vector2(280, 30); rt.anchoredPosition = new Vector2(x, y);
         var t = rt.gameObject.AddComponent<Text>();
         t.text = text; t.fontSize = size; t.color = col; t.fontStyle = style;
-        t.alignment = TextAnchor.MiddleLeft; t.font = null;
+        t.alignment = TextAnchor.MiddleLeft; t.font = UiFonts.Default;
         return t;
     }
 
