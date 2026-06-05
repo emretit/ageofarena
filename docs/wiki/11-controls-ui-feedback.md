@@ -2,7 +2,7 @@
 
 > ⚙️ **Güncel HUD (2026-06-03):** Bu sayfa orijinal HUD'u anlatır. AoE2-sadık yeniden tasarım
 > (dokulu üst/alt bar + kalıcı 4-bölge alt bar + kamera-RTT **diamond minimap** + tıkla-navigasyon)
-> [docs/HUD-AOE2-REWORK.md](../HUD-AOE2-REWORK.md)'de belgelenmiştir (`UiSkin.cs` 9-slice + Kenney CC0).
+> `UiSkin.cs`'te uygulanmıştır (9-slice + Kenney CC0).
 > Aşağıdaki üst/alt bar ve minimap bölümleri o rework'le güncellenmiştir.
 
 > Age of Arena'nın **oyuncu arayüzü, girdi (input) ve geri-bildirim katmanı**: oyun-başı
@@ -362,7 +362,7 @@ içerir; sahne yeniden kurulmaz, değerler mevcut oyuna uygulanır ([SaveSystem.
 
 ## 7. AoE2 farkı (reference köprü)
 
-Detaylı QoL karşılaştırması ve backlog için: [../07-ui-ux-qol.md](../07-ui-ux-qol.md).
+Detaylı QoL backlog'u için: [docs/PLAN.md](../PLAN.md) (Açık İşler).
 
 AoA artık AoE2 hissini geniş ölçüde yakalar: oyun-başı medeniyet/zorluk/mod seçimi, dokulu üst bar +
 4-bölge alt bar + diamond minimap, sol bilgi + orta komut kartı (hotkey + buton paritesi, üretim

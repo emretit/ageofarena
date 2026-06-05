@@ -82,4 +82,4 @@ Britons, Byzantines, Celts, Chinese, Franks, Goths, Japanese, Mongols, Persians,
 
 - AoA şu an 5 civ implemente etmiş: **Franks, Britons, Mongols, Japanese, Byzantines** (`CivilizationDefs.cs`)
 - Civ bonusları `CivBonus` çarpanları aracılığıyla uygulanıyor (unique birim değil, stat çarpanları)
-- Tam civ sistemi için bkz. [docs/11-civilizations-balance.md](../11-civilizations-balance.md)
+- AoA'daki mevcut civ sistemi için bkz. [docs/wiki/06-civilizations.md](../wiki/06-civilizations.md)

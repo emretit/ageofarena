@@ -5,8 +5,7 @@
 `/Users/emreaydin/ageofarena/AgeOfArenaUnity/` — Unity **6000.4.1f1**, Built-in Render Pipeline.
 Three.js web sürümü **kaldırıldı** (git geçmişinde mevcut). Bu repo artık tamamen Unity.
 
-> 📑 **İleriye dönük roadmap:** Codebase ↔ tam AoE2 farkının kategori kategori gap-analizi
-> (kabul kriteri + MCP/Play doğrulamalı) → [docs/00-overview.md](docs/00-overview.md).
+> 📑 **Plan · backlog · DoD tek kaynağı** → [docs/PLAN.md](docs/PLAN.md).
 
 > 📚 **AoE2 wiki referans:** `docs/reference/` — 45 medeniyet, tam birim upgrade zincirleri, çağa
 > göre tüm binalar. Yeni feature kararlarında **önce bu klasöre bak.** Gap analizi buradan türetildi.
@@ -40,126 +39,11 @@ ve kalan işler için tek kaynak: **[docs/AUDIT-2026-06.md](docs/AUDIT-2026-06.m
 
 ## Roadmap & İlerleme
 
-> `docs/PROGRESS.md` bu dosyayla birleştirildi (O25, 2026-06-03). Tek kaynak HANDOFF.md.
+> **Plan · backlog · DoD tek kaynağı → [docs/PLAN.md](docs/PLAN.md)** (2026-06-05 birleştirildi).
+> Eski P0–P3b tabloları, `ROADMAP-V2` ve `PARITY-PLAN` oraya taşındı. Bu dosya artık yalnızca
+> **geçmiş oturum günlüğü + mimari kararları** tutar.
 
-### Kullanım ritüeli (her oturum)
-
-1. **"Sıradaki" işaretçisine** veya master tablodaki en yüksek öncelikli ⬜ maddeye bak.
-2. O maddenin **doc dosyasındaki spec'ini** oku (ör. `GAR` → [docs/03-buildings.md](docs/03-buildings.md)).
-3. Kodla → **MCP/Play ile doğrula.**
-4. **Bu tabloyu güncelle** (Durum + Oturum + Not/commit) ve "Sıradaki"ni değiştir.
-5. Commit at → yeni oturuma geç. Bir oturum = bir madde (mümkünse).
-
-**Durum lejantı:** ⬜ todo · 🟡 devam · ✅ kod bitti (0 error) · ✔️ runtime doğrulandı
-
-### ▶ Aktif adım: yok — ROADMAP BÜYÜK ÇOĞUNLUĞU TAMAMLANDI ✅
-
-Kalan gerçek ⬜ — büyük geliştirme (ayrı oturum) + P3 içerik genişlemesi (aşağıda):
-- **MP2/MP3**: determinizm + transport (multiplayer altyapısı)
-- **EDIT/CMP**: senaryo editörü + kampanya (Unity Editor tool)
-- **NAV** tam implementasyon: su haritası + Galley savaş mekaniği
-- **P3 içerik genişlemesi**: `docs/reference/` gap analizinden türetilen birim/bina/civ eksikleri (aşağıda)
-
-> 📖 **Oyunun A'dan Z'ye dökümü:** Mevcut tüm mekaniklerin oynanış-odaklı, her stat `file:line`
-> referanslı tam ansiklopedisi → **[docs/wiki/00-index.md](docs/wiki/00-index.md)** (O26).
-> "AoA gerçekte nasıl çalışıyor?" sorusunun tek doğru kaynağı; idealize değil, koddaki değerler.
-
-### P0
-| ID | Doc | Madde | Durum | Oturum | Not/commit |
-|---|---|---|---|---|---|
-| GAR | 03 | Garnizon (gir/iyileş/çık + savunma oku) | ✔️ | O15 | 7 kriter MCP; `8c0333e` |
-
-### P1
-| ID | Doc | Madde | Durum | Oturum | Not/commit |
-|---|---|---|---|---|---|
-| ARM | 02/04 | Zırh tipleri + counter matrisi (spear>cav>archer) | ✔️ | O16 | 6 kriter MCP; `8c0333e` |
-| MONK | 02/03 | Monk (dönüştürme + relic) | ✔️ | O21 | StepConvert 4s; `6e9ac2d` |
-| TOW | 03 | Watch/Bombard Tower | ✔️ | O21 | 6u range/7dmg; `6e9ac2d` |
-| REP | 03 | Repair (köylü tamir) | ✔️ | O15 | BuildSystem.StepRepair |
-| BLK | 03/05 | Blacksmith + askeri tech | ✔️ | O21 | Forging/Fletching/ScaleMail/Bodkin; `6e9ac2d` |
-| MON | 03 | Monastery | ✔️ | O21 | Castle Age; Monk üretir; `6e9ac2d` |
-| STN | 04/07 | Attack stance | ✔️ | O21 | Aggressive/Defensive/Stand/NoAttack; `6e9ac2d` |
-| FORM | 04 | Formasyon kohezyonu | ✔️ | O15 | MoveOrder grid 1.5u |
-| IMP | 05 | Imperial (4.) çağ | ✔️ | O17 | `8c0333e` |
-| UNI | 05 | University binası + tech | ✔️ | O21 | Masonry+Fortified; `6e9ac2d` |
-| TIER | 05 | Imperial tier birimleri | ✔️ | O21 | Champion/Arbalest/Paladin; `6e9ac2d` |
-| DIFF | 06 | AI zorluk seviyeleri (Easy→Insane) | ✔️ | O20 | çarpan katmanı + HUD cycle |
-| AIMS | 06 | AI Medic/Scout kullanımı | ✔️ | O21 | Medic ordu merkezi; Scout keşif; `6e9ac2d` |
-| CTRL | 07 | Control group (1-9) | ✔️ | O18 | FocusOn MCP doğrulandı |
-| IDLE | 01/07 | Idle-worker butonu + döngü | ✔️ | O18 | count+cycle MCP doğrulandı |
-| MMP | 07 | Minimap click-to-pan + sağ-tık komut | ✔️ | O18 | inverse+MoveSelectedTo MCP |
-| SES | 08 | Ses sistemi temeli (AudioManager) | ✔️ | O19 | 7 ses; `37c4bda` |
-| SFX | 08 | Birim/bina/UI SFX seti | ✔️ | O19+O21 | select/button_click aktif |
-| WON | 09 | Wonder zaferi | ✔️ | O18 | Imperial-gated + 60s countdown |
-| SCR | 09 | Score sistemi | ✔️ | O18 | composite skor |
-| RLW | 09 | Relic-sayısı zaferi | ✔️ | O18 | tüm relic 60s tut → zafer |
-| TRD | 01 | Trade Cart + ticaret rotası | ✔️ | O22 | TradingSystem; round-trip gold |
-| SAVE | 12 | Save / Load | ✔️ | O22 | F5/F9; PlayerPrefs JSON |
-| MAP | 12 | Prosedürel harita üretimi | ✔️ | O22 | mapSeed; RNG deterministik |
-
-### P2
-| ID | Doc | Madde | Durum | Oturum | Not/commit |
-|---|---|---|---|---|---|
-| ABIL | 02 | Özel yetenek (ability) altyapısı | ✔️ | O22 | UseAbility; Monk/Scout |
-| NAV | 02/12 | Naval katmanı (Dock/Galley) | ⬜ | — | su haritasına bağlı |
-| VET | 02 | Veterancy / rütbe | ✔️ | O22 | Veteran/Elite; +HP |
-| AURA | 03 | Bina aurası + Palisade/Stone Wall | ✔️ | O22 | Blacksmith 14u → %20 hız |
-| CBX | 04 | Balistik/flanking/morale | ✔️ | O22 | arkadan +%25 hasar |
-| RQ | 05 | Çoklu research queue + tech paneli | ✔️ | O22 | per-building kuyruk; HUD progress bar |
-| AICB | 06 | AI counter farkındalığı + build-order | ✔️ | O22 | CountEnemyCavalry → Spearman |
-| AIGS | 06 | AI garnizon/stance kullanımı | ✔️ | O22 | CheckGarrison: tehdit → TC köylü |
-| QOL | 07 | Çift-tık/patrol/oyun hızı | ✔️ | O22 | patrol(P); hız([]/Space) |
-| ANIM | 08 | Birim animasyonu | ✔️ | O22 | prosedürel bob (hareket) |
-| VFX2 | 08 | Bina hasar görseli + mekansal ses | ✔️ | O22 | TintDamage HP<%50 |
-| MKT | 01 | Dalgalı market fiyatı | ✔️ | O22 | supply/demand fiyat dalgası + drift |
-| RES | 01 | Kaynak çeşidi (berry/fish) | ✔️ | O22 | BerryBush+FishPond; 8+4 adet |
-| TRB | 01/09 | Tribute + çiftlik decay | ✔️ | O22 | decayPerSecond; FarmField 2/s |
-| VIC2 | 09 | Diplomasi/resign/maç ayarları | ✔️ | O22 | Resign; Esc pause menüsü |
-| MP1 | 10 | Mimari karar: Lockstep vs Client-Server | ✔️ | O24 | LOCKSTEP seçildi; MP2 önkoşul listesi |
-| MP2 | 10 | Determinizm ön-koşulu | ⬜ | — | PRNG + FixedUpdate + NavMesh |
-| MP3 | 10 | Transport + lobby + desync | ⬜ | — | MP2 bitince; NGO veya Mirror |
-| CIV | 11 | Civ tanım veri yapısı | ✔️ | O24 | CivilizationDefs.cs (5 civ) |
-| UNQ | 11 | Unique unit + unique tech | ✔️ | O24 | CivBonus çarpanları |
-| BAL | 11 | Civ seçim UI + balance pass | ✔️ | O24 | HUD "Medeniyet:" döngü pill |
-| EDIT | 12 | Senaryo/harita editörü + trigger | ⬜ | — | Unity Editor tool |
-| CMP | 12 | Kampanya + terrain çeşidi | ⬜ | — | EDIT'e bağlı |
-
-### P3 — AoE2 Gap (docs/reference/ kaynaklı)
-
-> `docs/reference/02` ve `docs/reference/03` wiki verilerinden türetildi.
-> Her madde tek başına oynanabilir oturum; P2 tamamlanmadan başlanabilir.
->
-> 📚 **Genişletilmiş backlog:** O26'da `docs/wiki/` oyun wiki'si üretildi; her sayfanın §8
-> "Eksikler" bölümü tek dosyada toplandı → **[docs/wiki/99-backlog.md](docs/wiki/99-backlog.md)**
-> (72 tekil madde: 7 P1 / 30 P2 / 35 P3, hepsi `file:line` referanslı). Aşağıdaki 8 madde o
-> listenin çekirdeğidir; tam liste ve yeni ID'ler (SWRK, SKIR, ECON, SPLASH, FISH, VREGI…) wiki
-> backlog'undadır. **Wiki aday önerir, bu tablo kanonik karar verir.**
-
-| ID | Ref | Madde | Durum | Not |
-|---|---|---|---|---|
-| SKI | ref/02 | Skirmisher hattı — archer counter (+ Elite Skirmisher) | ✔️ M2 | ArcheryRange/Feudal; AntiArcher 2×; Pierce ranged |
-| SPN2 | ref/02 | Spearman upgrade zinciri (Pikeman Kale, Halberdier İmparatorluk) | ✔️ M2 | TechDefs + TechState; HUD tier adı |
-| SCT2 | ref/02 | Scout → Light Cavalry → Hussar upgrade zinciri | ✔️ M4 | Scout recon→combat (tech ile); retroaktif HP |
-| SIEG | ref/02+03 | Siege Workshop binası + Ram/Mangonel hattı | ✔️ M3 | + splash (AREA) + min-range (MINR) + Ram pierce-immune |
-| CAVA | ref/02 | Cavalry Archer hattı (Kale Çağı) + Heavy Cav Archer | ✔️ M4 | CavalryArcher Stable/Castle; Pierce ranged |
-| CAML | ref/02 | Camel Rider hattı — anti-cavalry uzmanı (+ Heavy Camel) | ✔️ M2 | Stable/Castle; AntiCavalry 2× |
-| CIVX | ref/01 | Medeniyet genişletme: 5 → 10+ civ | ⬜ | ref/01'de 45 civ tablosu var |
-| BTOW | ref/03 | Bombard Tower (top mermisi; 125O+100T; İmparatorluk) | ✔️ M5 | Siege hasar 30 (≥4× WatchTower); + Outpost + Guard Tower/Keep zinciri |
-
-### P3b — Wiki denetiminde bulunan gerçek defektler (parite değil, kod bug'ı)
-
-> O26 adversarial wiki denetiminin yakaladığı **kodda tanımlı-ama-tüketilmeyen / yorum-kod
-> tutarsızlığı** kalemleri. Bunlar AoE2-parite eksiği değil; mevcut özelliklerin yarım/bozuk
-> implementasyonu — küçük, yüksek değerli düzeltmeler.
-
-| ID | Madde | Durum | Kanıt (file:line) |
-|---|---|---|---|
-| VTAT | Veterancy +%10 attack uygulanmıyor (yorum +%10 der, kod yalnız +10 HP) | ✔️ M1 | VeteranMult getter'a eklendi |
-| CIVB | Byzantines `buildingHpMult` & `healRateMult` hiç tüketilmiyor | ✔️ M1 | BuildingEntity.Start + CombatSystem.StepHeal |
-| CIVF | Franks `farmDecayMult` uygulanmıyor | ✔️ M1 | ResourceNode decay'de tüketiliyor |
-| CIVV | Süvari HP/hız civ bonusu `Start()`'ta donuyor, sonradan güncellenmiyor | ✔️ M1 | RecomputeMaxHp birleşik modeli |
-| RETR | Araştırılan HP terfisi canlı birimlere geriye dönük uygulanmıyor | ✔️ M1 | ResearchSystem → RecomputeMaxHp |
-| AIRD | `RoundToInt(6.5)=6` (round-half-to-even) türetilmiş değer doküman ile uyuşmuyor | ⬜ | `EnemyAI.cs:104` (M12) |
+> 📖 Oyunun A→Z mevcut davranışı (her stat `file:line`) → [docs/wiki/00-index.md](docs/wiki/00-index.md).
 
 ### Oturum günlüğü
 

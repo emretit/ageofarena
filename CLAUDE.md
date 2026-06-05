@@ -33,11 +33,12 @@ Bir istek "oyuna X ekle" derse hedef **her zaman Unity tarafıdır** (`AgeOfAren
 
 ## Detaylı durum
 
-Güncel mimari, eklenen sistemler ve yapılacaklar için [HANDOFF.md](HANDOFF.md) ve
-[AgeOfArenaUnity/README.md](AgeOfArenaUnity/README.md) tek doğru kaynaktır.
+**Plan · backlog · DoD tek kaynağı → [docs/PLAN.md](docs/PLAN.md).** Yeni iş buradan seçilir,
+`/goal` bunu ölçer. Geçmiş oturum günlüğü + mimari kararlar → [HANDOFF.md](HANDOFF.md);
+Unity açma/kontroller → [AgeOfArenaUnity/README.md](AgeOfArenaUnity/README.md).
 
-İleriye dönük **gap-analizi & roadmap** (codebase ↔ tam AoE2 farkı, kategori kategori, her
-madde için kabul kriteri + MCP/Play doğrulaması) için: [docs/00-overview.md](docs/00-overview.md).
+Oyunun mevcut A→Z davranışı (her stat `file:line`) → [docs/wiki/00-index.md](docs/wiki/00-index.md);
+AoE2:DE kıyas bilgisi → [docs/reference/README.md](docs/reference/README.md).
 
 ## Mimari referans alınan Unity RTS repoları (kod kopyalanmadı, lisans yok)
 

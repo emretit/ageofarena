@@ -6,10 +6,10 @@
 > SPLASH, BMBT, TWUP, RELC, FARM, ARRM, MKTT, UNIV, CIVB/CIVF/CIVX (+civ kimliği), STONE,
 > oyun modları, diplomasi vb. **hepsi yapıldı ve runtime-doğrulandı.**
 >
-> **Canlı, tek-doğru kaynak artık [docs/PARITY-PLAN.md](../PARITY-PLAN.md)** "Definition of
-> Done" bölümüdür (makine-okunur, her madde için kabul kriteri + commit referansı).
+> **Canlı, tek-doğru kaynak artık [docs/PLAN.md](../PLAN.md)** "Açık İşler" + "Definition of
+> Done" bölümleridir (makine-okunur, her madde için kabul kriteri + commit referansı).
 > Aşağıdaki tarihsel liste yalnızca arşiv/izlenebilirlik için korunuyor; bir maddenin
-> gerçekten açık olup olmadığını PARITY-PLAN DoD'dan teyit edin. Kalan gerçek açık alan
+> gerçekten açık olup olmadığını PLAN.md DoD'dan teyit edin. Kalan gerçek açık alan
 > ağırlıkla **M13 cila (HKEY/HPWB/CMDP/MPNG/SUBT/STIC/AGFX/DARK)** ve **M14 (FoW varsayılan
 > açık/MMTR/SAVF)** ile **FISH** (su ekonomisi).
 
