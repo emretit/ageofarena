@@ -391,19 +391,23 @@ public static class UnitFactory
     // ── M9/CIVU: civilization unique units (Castle) ───────────────────────────
 
     /// <summary>Teutons unique: slow, heavily armored melee infantry.</summary>
-    public static UnitEntity TeutonicKnight(Transform parent, Vector3 worldPos, Color teamColor)
+    public static UnitEntity TeutonicKnight(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
     {
         var g = NewUnit("TeutonicKnight", parent, worldPos);
-        var t = g.transform;
-        var plate = Prims.Mat(Prims.Hex(0x9a9aa2), 0.6f, 0.5f);
-        var accent = Prims.Mat(teamColor, 0.2f, 0.4f);
-        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
-        Prims.Box(t, new Vector3(0, 0.55f, 0), new Vector3(0.6f, 0.95f, 0.45f), plate);   // bulky body
-        Prims.Box(t, new Vector3(0, 0.3f, 0.02f), new Vector3(0.62f, 0.3f, 0.46f), accent);
-        Prims.Sphere(t, new Vector3(0, 1.16f, 0), 0.2f, skin);                             // head
-        Prims.Box(t, new Vector3(0, 1.24f, 0), new Vector3(0.4f, 0.24f, 0.4f), plate);     // great helm
-        Prims.Box(t, new Vector3(0.4f, 0.7f, 0.1f), new Vector3(0.08f, 1.0f, 0.08f), plate); // sword
-        var e = Finish(g, UnitType.TeutonicKnight, teamColor);
+        var visual = VisualFor(UnitType.TeutonicKnight, teamId);
+        if (visual == null)
+        {
+            var t = g.transform;
+            var plate = Prims.Mat(Prims.Hex(0x9a9aa2), 0.6f, 0.5f);
+            var accent = Prims.Mat(teamColor, 0.2f, 0.4f);
+            var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+            Prims.Box(t, new Vector3(0, 0.55f, 0), new Vector3(0.6f, 0.95f, 0.45f), plate);   // bulky body
+            Prims.Box(t, new Vector3(0, 0.3f, 0.02f), new Vector3(0.62f, 0.3f, 0.46f), accent);
+            Prims.Sphere(t, new Vector3(0, 1.16f, 0), 0.2f, skin);                             // head
+            Prims.Box(t, new Vector3(0, 1.24f, 0), new Vector3(0.4f, 0.24f, 0.4f), plate);     // great helm
+            Prims.Box(t, new Vector3(0.4f, 0.7f, 0.1f), new Vector3(0.08f, 1.0f, 0.08f), plate); // sword
+        }
+        var e = Finish(g, UnitType.TeutonicKnight, teamColor, visual, teamId);
         e.hp = e.maxHp = 100f;
         e.moveSpeed = 2.5f;      // very slow
         e.meleeArmor = 5f;
@@ -461,18 +465,22 @@ public static class UnitFactory
     }
 
     /// <summary>Japanese unique: fast-attacking infantry swordsman.</summary>
-    public static UnitEntity Samurai(Transform parent, Vector3 worldPos, Color teamColor)
+    public static UnitEntity Samurai(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
     {
         var g = NewUnit("Samurai", parent, worldPos);
-        var t = g.transform;
-        var armor = Prims.Mat(teamColor, 0.2f, 0.4f);
-        var metal = Prims.Mat(Prims.Hex(0xc0c0c8), 0.6f, 0.6f);
-        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
-        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.44f, 0.8f, 0.32f), armor);
-        Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.17f, skin);
-        Prims.Box(t, new Vector3(0, 1.12f, 0), new Vector3(0.34f, 0.22f, 0.34f), metal);   // kabuto helmet
-        Prims.Box(t, new Vector3(0.32f, 0.8f, 0.12f), new Vector3(0.05f, 0.95f, 0.05f), metal); // katana
-        var e = Finish(g, UnitType.Samurai, teamColor);
+        var visual = VisualFor(UnitType.Samurai, teamId);
+        if (visual == null)
+        {
+            var t = g.transform;
+            var armor = Prims.Mat(teamColor, 0.2f, 0.4f);
+            var metal = Prims.Mat(Prims.Hex(0xc0c0c8), 0.6f, 0.6f);
+            var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+            Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.44f, 0.8f, 0.32f), armor);
+            Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.17f, skin);
+            Prims.Box(t, new Vector3(0, 1.12f, 0), new Vector3(0.34f, 0.22f, 0.34f), metal);   // kabuto helmet
+            Prims.Box(t, new Vector3(0.32f, 0.8f, 0.12f), new Vector3(0.05f, 0.95f, 0.05f), metal); // katana
+        }
+        var e = Finish(g, UnitType.Samurai, teamColor, visual, teamId);
         e.hp = e.maxHp = 80f;
         e.moveSpeed = 4.0f;
         e.meleeArmor = 2f;
@@ -481,19 +489,23 @@ public static class UnitFactory
     }
 
     /// <summary>Aztecs unique (EAGLE): fast, lightly-armored scout-warrior.</summary>
-    public static UnitEntity Eagle(Transform parent, Vector3 worldPos, Color teamColor)
+    public static UnitEntity Eagle(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
     {
         var g = NewUnit("Eagle", parent, worldPos);
-        var t = g.transform;
-        var skin = Prims.Mat(Prims.Hex(0xc8884a));
-        var feather = Prims.Mat(teamColor, 0.1f, 0.3f);
-        var beak = Prims.Mat(Prims.Hex(0xeac24a));
-        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.38f, 0.75f, 0.28f), skin);
-        Prims.Sphere(t, new Vector3(0, 1.0f, 0), 0.17f, skin);
-        Prims.Box(t, new Vector3(0, 1.16f, 0.02f), new Vector3(0.36f, 0.22f, 0.36f), feather); // eagle headdress
-        Prims.Box(t, new Vector3(0, 1.12f, 0.18f), new Vector3(0.08f, 0.08f, 0.18f), beak);    // beak
-        Prims.Box(t, new Vector3(0.3f, 0.7f, 0.06f), new Vector3(0.05f, 0.8f, 0.05f), Prims.Mat(Prims.Hex(0x6b4a2a))); // club
-        var e = Finish(g, UnitType.Eagle, teamColor);
+        var visual = VisualFor(UnitType.Eagle, teamId);
+        if (visual == null)
+        {
+            var t = g.transform;
+            var skin = Prims.Mat(Prims.Hex(0xc8884a));
+            var feather = Prims.Mat(teamColor, 0.1f, 0.3f);
+            var beak = Prims.Mat(Prims.Hex(0xeac24a));
+            Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.38f, 0.75f, 0.28f), skin);
+            Prims.Sphere(t, new Vector3(0, 1.0f, 0), 0.17f, skin);
+            Prims.Box(t, new Vector3(0, 1.16f, 0.02f), new Vector3(0.36f, 0.22f, 0.36f), feather); // eagle headdress
+            Prims.Box(t, new Vector3(0, 1.12f, 0.18f), new Vector3(0.08f, 0.08f, 0.18f), beak);    // beak
+            Prims.Box(t, new Vector3(0.3f, 0.7f, 0.06f), new Vector3(0.05f, 0.8f, 0.05f), Prims.Mat(Prims.Hex(0x6b4a2a))); // club
+        }
+        var e = Finish(g, UnitType.Eagle, teamColor, visual, teamId);
         e.hp = e.maxHp = 55f;
         e.moveSpeed = 4.5f;      // fast
         e.pierceArmor = 2f;
@@ -503,18 +515,22 @@ public static class UnitFactory
     // ── N4/CIVU: second wave of unique units ─────────────────────────────────
 
     /// <summary>Franks unique: ranged infantry that hurls axes (short range, melee damage).</summary>
-    public static UnitEntity ThrowingAxeman(Transform parent, Vector3 worldPos, Color teamColor)
+    public static UnitEntity ThrowingAxeman(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
     {
         var g = NewUnit("ThrowingAxeman", parent, worldPos);
-        var t = g.transform;
-        var tunic = Prims.Mat(teamColor, 0.1f, 0.3f);
-        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
-        var steel = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
-        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.42f, 0.8f, 0.3f), tunic);
-        Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.17f, skin);
-        Prims.Box(t, new Vector3(0, 1.12f, 0), new Vector3(0.32f, 0.18f, 0.32f), steel);   // helmet
-        Prims.Box(t, new Vector3(0.3f, 0.85f, 0.12f), new Vector3(0.18f, 0.14f, 0.05f), steel); // axe head
-        var e = Finish(g, UnitType.ThrowingAxeman, teamColor);
+        var visual = VisualFor(UnitType.ThrowingAxeman, teamId);
+        if (visual == null)
+        {
+            var t = g.transform;
+            var tunic = Prims.Mat(teamColor, 0.1f, 0.3f);
+            var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+            var steel = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
+            Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.42f, 0.8f, 0.3f), tunic);
+            Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.17f, skin);
+            Prims.Box(t, new Vector3(0, 1.12f, 0), new Vector3(0.32f, 0.18f, 0.32f), steel);   // helmet
+            Prims.Box(t, new Vector3(0.3f, 0.85f, 0.12f), new Vector3(0.18f, 0.14f, 0.05f), steel); // axe head
+        }
+        var e = Finish(g, UnitType.ThrowingAxeman, teamColor, visual, teamId);
         e.hp = e.maxHp = 60f;
         e.moveSpeed = 4.0f;
         e.meleeArmor = 1f;
@@ -549,20 +565,24 @@ public static class UnitFactory
     }
 
     /// <summary>Vikings unique: ferocious infantry that regenerates its own HP.</summary>
-    public static UnitEntity Berserk(Transform parent, Vector3 worldPos, Color teamColor)
+    public static UnitEntity Berserk(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
     {
         var g = NewUnit("Berserk", parent, worldPos);
-        var t = g.transform;
-        var fur = Prims.Mat(Prims.Hex(0x6b4a2a));
-        var cloth = Prims.Mat(teamColor, 0.1f, 0.3f);
-        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
-        var steel = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
-        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.46f, 0.82f, 0.32f), cloth);
-        Prims.Box(t, new Vector3(0, 0.78f, 0), new Vector3(0.52f, 0.28f, 0.4f), fur);       // fur cloak
-        Prims.Sphere(t, new Vector3(0, 1.04f, 0), 0.18f, skin);
-        Prims.Box(t, new Vector3(0, 1.18f, 0), new Vector3(0.18f, 0.22f, 0.18f), fur);      // wild hair
-        Prims.Box(t, new Vector3(0.32f, 0.85f, 0.1f), new Vector3(0.06f, 0.9f, 0.12f), steel); // great axe
-        var e = Finish(g, UnitType.Berserk, teamColor);
+        var visual = VisualFor(UnitType.Berserk, teamId);
+        if (visual == null)
+        {
+            var t = g.transform;
+            var fur = Prims.Mat(Prims.Hex(0x6b4a2a));
+            var cloth = Prims.Mat(teamColor, 0.1f, 0.3f);
+            var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+            var steel = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
+            Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.46f, 0.82f, 0.32f), cloth);
+            Prims.Box(t, new Vector3(0, 0.78f, 0), new Vector3(0.52f, 0.28f, 0.4f), fur);       // fur cloak
+            Prims.Sphere(t, new Vector3(0, 1.04f, 0), 0.18f, skin);
+            Prims.Box(t, new Vector3(0, 1.18f, 0), new Vector3(0.18f, 0.22f, 0.18f), fur);      // wild hair
+            Prims.Box(t, new Vector3(0.32f, 0.85f, 0.1f), new Vector3(0.06f, 0.9f, 0.12f), steel); // great axe
+        }
+        var e = Finish(g, UnitType.Berserk, teamColor, visual, teamId);
         e.hp = e.maxHp = 65f;
         e.moveSpeed = 4.2f;
         e.meleeArmor = 1f;
@@ -599,17 +619,21 @@ public static class UnitFactory
     // ── N4/CIVC13: AoK-13 unique units ───────────────────────────────────────
 
     /// <summary>Celts unique: very fast infantry raider with a heavy blade.</summary>
-    public static UnitEntity WoadRaider(Transform parent, Vector3 worldPos, Color teamColor)
+    public static UnitEntity WoadRaider(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
     {
         var g = NewUnit("WoadRaider", parent, worldPos);
-        var t = g.transform;
-        var skin = Prims.Mat(Prims.Hex(0x6fa3c8));   // woad-blue painted skin
-        var cloth = Prims.Mat(teamColor, 0.1f, 0.3f);
-        var steel = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
-        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.42f, 0.8f, 0.3f), cloth);
-        Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.17f, skin);
-        Prims.Box(t, new Vector3(0.3f, 0.85f, 0.1f), new Vector3(0.06f, 0.85f, 0.12f), steel); // sword
-        var e = Finish(g, UnitType.WoadRaider, teamColor);
+        var visual = VisualFor(UnitType.WoadRaider, teamId);
+        if (visual == null)
+        {
+            var t = g.transform;
+            var skin = Prims.Mat(Prims.Hex(0x6fa3c8));   // woad-blue painted skin
+            var cloth = Prims.Mat(teamColor, 0.1f, 0.3f);
+            var steel = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
+            Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.42f, 0.8f, 0.3f), cloth);
+            Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.17f, skin);
+            Prims.Box(t, new Vector3(0.3f, 0.85f, 0.1f), new Vector3(0.06f, 0.85f, 0.12f), steel); // sword
+        }
+        var e = Finish(g, UnitType.WoadRaider, teamColor, visual, teamId);
         e.hp = e.maxHp = 65f;
         e.moveSpeed = 4.8f;      // very fast
         e.meleeArmor = 0f;
@@ -618,18 +642,22 @@ public static class UnitFactory
     }
 
     /// <summary>Chinese unique: rapid-fire repeating crossbow archer.</summary>
-    public static UnitEntity ChuKoNu(Transform parent, Vector3 worldPos, Color teamColor)
+    public static UnitEntity ChuKoNu(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
     {
         var g = NewUnit("ChuKoNu", parent, worldPos);
-        var t = g.transform;
-        var robe = Prims.Mat(teamColor, 0.1f, 0.3f);
-        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
-        var wood = Prims.Mat(Prims.Hex(0x6b4a2a));
-        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.4f, 0.8f, 0.3f), robe);
-        Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.16f, skin);
-        Prims.Box(t, new Vector3(0, 1.14f, 0), new Vector3(0.34f, 0.14f, 0.34f), wood);   // conical hat
-        Prims.Box(t, new Vector3(0.26f, 0.7f, 0.12f), new Vector3(0.06f, 0.4f, 0.1f), wood); // repeating crossbow
-        var e = Finish(g, UnitType.ChuKoNu, teamColor);
+        var visual = VisualFor(UnitType.ChuKoNu, teamId);
+        if (visual == null)
+        {
+            var t = g.transform;
+            var robe = Prims.Mat(teamColor, 0.1f, 0.3f);
+            var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+            var wood = Prims.Mat(Prims.Hex(0x6b4a2a));
+            Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.4f, 0.8f, 0.3f), robe);
+            Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.16f, skin);
+            Prims.Box(t, new Vector3(0, 1.14f, 0), new Vector3(0.34f, 0.14f, 0.34f), wood);   // conical hat
+            Prims.Box(t, new Vector3(0.26f, 0.7f, 0.12f), new Vector3(0.06f, 0.4f, 0.1f), wood); // repeating crossbow
+        }
+        var e = Finish(g, UnitType.ChuKoNu, teamColor, visual, teamId);
         e.hp = e.maxHp = 45f;
         e.moveSpeed = 3.6f;
         e.pierceArmor = 0f;
@@ -637,20 +665,24 @@ public static class UnitFactory
     }
 
     /// <summary>Goths unique: heavily-armoured Huskarl, high pierce armor (anti-archer).</summary>
-    public static UnitEntity Huskarl(Transform parent, Vector3 worldPos, Color teamColor)
+    public static UnitEntity Huskarl(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
     {
         var g = NewUnit("Huskarl", parent, worldPos);
-        var t = g.transform;
-        var leather = Prims.Mat(Prims.Hex(0x7a5230));
-        var cloth = Prims.Mat(teamColor, 0.1f, 0.3f);
-        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
-        var steel = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
-        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.46f, 0.82f, 0.34f), leather);
-        Prims.Box(t, new Vector3(0, 0.5f, 0.18f), new Vector3(0.5f, 0.5f, 0.06f), cloth);  // round shield
-        Prims.Sphere(t, new Vector3(0, 1.04f, 0), 0.18f, skin);
-        Prims.Box(t, new Vector3(0, 1.16f, 0), new Vector3(0.34f, 0.2f, 0.34f), leather);  // helm
-        Prims.Box(t, new Vector3(0.32f, 0.85f, 0.1f), new Vector3(0.05f, 0.8f, 0.05f), steel); // axe
-        var e = Finish(g, UnitType.Huskarl, teamColor);
+        var visual = VisualFor(UnitType.Huskarl, teamId);
+        if (visual == null)
+        {
+            var t = g.transform;
+            var leather = Prims.Mat(Prims.Hex(0x7a5230));
+            var cloth = Prims.Mat(teamColor, 0.1f, 0.3f);
+            var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+            var steel = Prims.Mat(Prims.Hex(0xb8b8c0), 0.6f, 0.6f);
+            Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.46f, 0.82f, 0.34f), leather);
+            Prims.Box(t, new Vector3(0, 0.5f, 0.18f), new Vector3(0.5f, 0.5f, 0.06f), cloth);  // round shield
+            Prims.Sphere(t, new Vector3(0, 1.04f, 0), 0.18f, skin);
+            Prims.Box(t, new Vector3(0, 1.16f, 0), new Vector3(0.34f, 0.2f, 0.34f), leather);  // helm
+            Prims.Box(t, new Vector3(0.32f, 0.85f, 0.1f), new Vector3(0.05f, 0.8f, 0.05f), steel); // axe
+        }
+        var e = Finish(g, UnitType.Huskarl, teamColor, visual, teamId);
         e.hp = e.maxHp = 70f;
         e.moveSpeed = 4.2f;
         e.meleeArmor = 0f;
@@ -659,19 +691,23 @@ public static class UnitFactory
     }
 
     /// <summary>Turks unique: gunpowder Janissary, slow but very high damage.</summary>
-    public static UnitEntity Janissary(Transform parent, Vector3 worldPos, Color teamColor)
+    public static UnitEntity Janissary(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
     {
         var g = NewUnit("Janissary", parent, worldPos);
-        var t = g.transform;
-        var robe = Prims.Mat(teamColor, 0.1f, 0.3f);
-        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
-        var iron = Prims.Mat(Prims.Hex(0x3a3a40), 0.7f, 0.5f);
-        var white = Prims.Mat(Prims.Hex(0xe8e4dc));
-        Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.42f, 0.8f, 0.3f), robe);
-        Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.16f, skin);
-        Prims.Box(t, new Vector3(0, 1.18f, 0), new Vector3(0.22f, 0.3f, 0.22f), white);   // tall cap
-        Prims.Box(t, new Vector3(0.24f, 0.78f, 0.18f), new Vector3(0.05f, 0.05f, 0.55f), iron); // hand cannon
-        var e = Finish(g, UnitType.Janissary, teamColor);
+        var visual = VisualFor(UnitType.Janissary, teamId);
+        if (visual == null)
+        {
+            var t = g.transform;
+            var robe = Prims.Mat(teamColor, 0.1f, 0.3f);
+            var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+            var iron = Prims.Mat(Prims.Hex(0x3a3a40), 0.7f, 0.5f);
+            var white = Prims.Mat(Prims.Hex(0xe8e4dc));
+            Prims.Box(t, new Vector3(0, 0.5f, 0), new Vector3(0.42f, 0.8f, 0.3f), robe);
+            Prims.Sphere(t, new Vector3(0, 1.02f, 0), 0.16f, skin);
+            Prims.Box(t, new Vector3(0, 1.18f, 0), new Vector3(0.22f, 0.3f, 0.22f), white);   // tall cap
+            Prims.Box(t, new Vector3(0.24f, 0.78f, 0.18f), new Vector3(0.05f, 0.05f, 0.55f), iron); // hand cannon
+        }
+        var e = Finish(g, UnitType.Janissary, teamColor, visual, teamId);
         e.hp = e.maxHp = 55f;
         e.moveSpeed = 3.6f;
         e.pierceArmor = 1f;
@@ -963,20 +999,20 @@ public static class UnitFactory
             UnitType.FireShip       => FireShip(parent, pos, c, navalAgentTypeId),
             UnitType.DemoShip       => DemoShip(parent, pos, c, navalAgentTypeId),
             UnitType.FishingShip    => FishingShip(parent, pos, c, navalAgentTypeId),
-            UnitType.TeutonicKnight => TeutonicKnight(parent, pos, c),
+            UnitType.TeutonicKnight => TeutonicKnight(parent, pos, c, teamId),
             UnitType.WarElephant    => WarElephant(parent, pos, c),
             UnitType.Mangudai       => Mangudai(parent, pos, c),
-            UnitType.Samurai        => Samurai(parent, pos, c),
-            UnitType.ThrowingAxeman => ThrowingAxeman(parent, pos, c),
+            UnitType.Samurai        => Samurai(parent, pos, c, teamId),
+            UnitType.ThrowingAxeman => ThrowingAxeman(parent, pos, c, teamId),
             UnitType.Cataphract     => Cataphract(parent, pos, c),
-            UnitType.Berserk        => Berserk(parent, pos, c),
+            UnitType.Berserk        => Berserk(parent, pos, c, teamId),
             UnitType.Mameluke       => Mameluke(parent, pos, c),
-            UnitType.WoadRaider     => WoadRaider(parent, pos, c),
-            UnitType.ChuKoNu        => ChuKoNu(parent, pos, c),
-            UnitType.Huskarl        => Huskarl(parent, pos, c),
-            UnitType.Janissary      => Janissary(parent, pos, c),
-            UnitType.Eagle          => Eagle(parent, pos, c),
-            UnitType.EliteEagle     => Eagle(parent, pos, c),   // Elite Eagle = Eagle visual + EliteEagle tech bonuses
+            UnitType.WoadRaider     => WoadRaider(parent, pos, c, teamId),
+            UnitType.ChuKoNu        => ChuKoNu(parent, pos, c, teamId),
+            UnitType.Huskarl        => Huskarl(parent, pos, c, teamId),
+            UnitType.Janissary      => Janissary(parent, pos, c, teamId),
+            UnitType.Eagle          => Eagle(parent, pos, c, teamId),
+            UnitType.EliteEagle     => Eagle(parent, pos, c, teamId),   // Elite Eagle = Eagle visual + EliteEagle tech bonuses
             UnitType.King           => King(parent, pos, c, teamId),
             _                       => Villager(parent, pos, c, teamId),
         };

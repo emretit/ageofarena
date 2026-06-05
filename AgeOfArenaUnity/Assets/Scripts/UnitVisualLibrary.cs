@@ -29,7 +29,10 @@ public class UnitVisualLibrary : ScriptableObject
     [Tooltip("Monk/Medic → KayKit Mage. Null = primitive fallback.")]
     public GameObject mageVisual;
 
-    [Tooltip("Villager → KayKit Barbarian. Null = primitive fallback.")]
+    [Tooltip("Villager → low-poly peasant/worker model. Null = primitive villager fallback.")]
+    public GameObject villagerVisual;
+
+    [Tooltip("KayKit Barbarian — reused by barbaric unique units (Berserk/WoadRaider/ThrowingAxeman). Null = primitive fallback.")]
     public GameObject barbarianVisual;
 
     [Header("Enemy Skeletons (teamId > 0)")]
@@ -59,7 +62,18 @@ public class UnitVisualLibrary : ScriptableObject
             UnitType.Scout      => enemy ? skeletonMinionVisual  : scoutVisual,
             UnitType.Monk       => enemy ? skeletonMageVisual    : mageVisual,
             UnitType.Medic      => enemy ? skeletonMageVisual    : mageVisual,
-            UnitType.Villager   => barbarianVisual,
+            UnitType.Villager   => villagerVisual,
+            // ── Faz 2: humanoid unique units reuse existing KayKit base models (zero new assets) ──
+            UnitType.TeutonicKnight => enemy ? skeletonWarriorVisual : militiaVisual,   // heavy infantry → Knight
+            UnitType.Samurai        => enemy ? skeletonWarriorVisual : militiaVisual,
+            UnitType.Huskarl        => enemy ? skeletonWarriorVisual : militiaVisual,
+            UnitType.Berserk        => enemy ? skeletonWarriorVisual : barbarianVisual, // barbaric → Barbarian
+            UnitType.WoadRaider     => enemy ? skeletonWarriorVisual : barbarianVisual,
+            UnitType.ThrowingAxeman => enemy ? skeletonWarriorVisual : barbarianVisual,
+            UnitType.ChuKoNu        => enemy ? skeletonRogueVisual   : archerVisual,    // ranged → Rogue
+            UnitType.Janissary      => enemy ? skeletonRogueVisual   : archerVisual,
+            UnitType.Eagle          => enemy ? skeletonMinionVisual  : scoutVisual,     // light → RogueHooded
+            UnitType.EliteEagle     => enemy ? skeletonMinionVisual  : scoutVisual,
             _                   => null,
         };
     }
