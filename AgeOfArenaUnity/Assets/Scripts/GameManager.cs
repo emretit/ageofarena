@@ -29,14 +29,16 @@ public class GameManager : MonoBehaviour
     /// <summary>N5: maximum simultaneous teams. All team-indexed arrays are sized to this.
     /// Raising it to 8 enables 8-player skirmish without touching any < 4 guard — just
     /// rebuild the world with more teams and resize these arrays accordingly.</summary>
-    public const int MaxTeams = 4;
+    /// <summary>Maximum supported team count. Arrays are pre-allocated to this size; active
+    /// teams are <see cref="TeamCount"/>. Raise to 8 for 8-player skirmish support.</summary>
+    public const int MaxTeams = 8;
 
-    public ResourceManager[] teamRes = { new(), new(), new(), new() };
-    public ResourceManager resources => teamRes[0];
-    /// <summary>Number of active teams (≤ MaxTeams). Currently fixed at MaxTeams; N5 raises this.</summary>
-    public int TeamCount => teamRes.Length;
+    public ResourceManager[] teamRes  = new ResourceManager[MaxTeams];
+    public ResourceManager resources  => teamRes[0];
+    /// <summary>Number of active teams this match (set by WorldRoot.Build).</summary>
+    public int TeamCount { get; set; } = 4;
 
-    public TechState[] teamTech = { new(), new(), new(), new() };
+    public TechState[] teamTech = new TechState[MaxTeams];
     public TechState tech => teamTech[0];
 
     public SelectionSystem selection;
@@ -115,10 +117,10 @@ public class GameManager : MonoBehaviour
 
     /// <summary>AICH: per-team economy speed multiplier set by EnemyAI per difficulty.
     /// Applied to gather deposits and research time. Player (team 0) stays at 1×.</summary>
-    public float[] teamEcoMult = { 1f, 1f, 1f, 1f };
+    public float[] teamEcoMult = new float[MaxTeams]; // all default to 0f; Awake fills 1f
 
     /// <summary>Per-team civilization. Index 0 = player; 1-3 = AI teams.</summary>
-    public Civilization[] teamCivs = { Civilization.None, Civilization.None, Civilization.None, Civilization.None };
+    public Civilization[] teamCivs = new Civilization[MaxTeams]; // defaults to Civilization.None (0)
 
     /// <summary>Player civ (team 0). Backed by teamCivs[0] for HUD/system compatibility.</summary>
     public Civilization playerCiv { get => teamCivs[0]; set => teamCivs[0] = value; }
@@ -148,6 +150,13 @@ public class GameManager : MonoBehaviour
     void Awake()
     {
         _instance = this;
+        // Pre-populate every slot so teamRes[i] / teamTech[i] are never null.
+        for (int i = 0; i < MaxTeams; i++)
+        {
+            teamRes[i]    ??= new ResourceManager();
+            teamTech[i]   ??= new TechState();
+            teamEcoMult[i]  = 1f; // default eco speed multiplier (AI may override later)
+        }
     }
 
     void OnDestroy()

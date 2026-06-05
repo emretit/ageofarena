@@ -173,7 +173,7 @@ public class CombatSystem : MonoBehaviour
                     // context as the main target (the splash loop recomputes its own base damage
                     // and would otherwise drop the attacker's high-ground bonus/penalty).
                     Projectile.Spawn(u.transform.position + Vector3.up * 1.0f, target, dmg, u.DamageKind, u.SplashRadius, u, elevMult);
-                    AudioManager.Play(AudioManager.SoundId.Arrow, 0.6f);
+                    AudioManager.PlayAt(AudioManager.SoundId.Arrow, u.transform.position, 0.6f);
                 }
                 else
                 {
@@ -187,7 +187,7 @@ public class CombatSystem : MonoBehaviour
                     bool wasAlive = target.IsAlive;
                     target.TakeDamage(dmg, u.DamageKind);
                     if (wasAlive && !target.IsAlive) u.AddKill(); // veterancy
-                    AudioManager.Play(AudioManager.SoundId.Sword, isCharge ? 1.0f : 0.7f);
+                    AudioManager.PlayAt(AudioManager.SoundId.Sword, u.transform.position, isCharge ? 1.0f : 0.7f);
                     var tgt = target as Component;
                     if (tgt != null)
                         DamagePopup.Show(tgt.transform.position + Vector3.up * 1.5f,

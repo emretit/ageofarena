@@ -579,6 +579,13 @@ public class WorldRoot : MonoBehaviour
         var archRange = BuildingFactory.ArcheryRange(baseGo.transform, center - right * 8f + backward * 6f, RoofColor);
         SetBuildingTeam(archRange, teamId);
         gm.RegisterBuilding(archRange.GetComponent<BuildingEntity>());
+
+        // Dock on the coast side of every base (backward = away from arena center, toward sea).
+        // CoastInner ≈ 76; base centers sit ~84 units out, so backward*10 ≈ 94 — just past the
+        // tree belt and onto the beach/water boundary, within NavMesh-snapping distance.
+        var dock = BuildingFactory.Dock(baseGo.transform, center + backward * 10f, teamColor);
+        SetBuildingTeam(dock, teamId);
+        gm.RegisterBuilding(dock.GetComponent<BuildingEntity>());
     }
 
     static void SetBuildingTeam(GameObject go, int teamId)
@@ -799,8 +806,10 @@ public class WorldRoot : MonoBehaviour
             gm.RegisterNode(ResourceFactory.Tree(root.transform,
                 center + backward * 10.5f + right * (k * 3.5f), ResourceFactory.TreeKind.Broadleaf));
 
-        // Fish pond outside the side wall.
-        gm.RegisterNode(ResourceFactory.FishPond(root.transform, center + right * -16f));
+        // Fish pond near the Dock (backward = toward coast) so FishingShips can reach it
+        // from the naval NavMesh. The Dock sits at backward*10; pond at backward*8 is just
+        // inside the tree belt — within FishingShip's extended gather range (4.0 for Food/naval).
+        gm.RegisterNode(ResourceFactory.FishPond(root.transform, center + backward * 8f + right * -4f));
     }
 
     // Contested deposits in the open centre — prize that pulls armies out of the walls.
@@ -999,6 +1008,16 @@ public class WorldRoot : MonoBehaviour
         Vector3[] mPos = { tcPos + forward * 4f + right * 2f, tcPos + forward * 3.2f + right * 3.3f };
         foreach (var p in mPos)
             gm.RegisterUnit(UnitFactory.Militia(unitsRoot.transform, p, teamColor));
+
+        // Islands map: give the player a starting FishingShip + Galley near the Dock.
+        if (_arch.displayName == "Adalar")
+        {
+            int navalId = _navalAgentTypeId;
+            Vector3 dockPos = tcPos + (-forward) * 10f; // matches Dock placement in BuildBase
+            Vector3 seaDir  = dockPos.sqrMagnitude > 0.01f ? dockPos.normalized : Vector3.forward;
+            gm.RegisterUnit(UnitFactory.FishingShip(unitsRoot.transform, dockPos + seaDir * 5f, teamColor, navalId));
+            gm.RegisterUnit(UnitFactory.Galley(unitsRoot.transform, dockPos + seaDir * 8f, teamColor, navalId));
+        }
 
         // Enemy garrisons (teams 1+): a starting army per base, plus an EnemyAI brain.
         for (int t = 1; t < gm.TeamCount; t++)
@@ -1278,5 +1297,14 @@ public class WorldRoot : MonoBehaviour
         };
         foreach (var p in vilPos)
             gm.RegisterUnit(UnitFactory.Villager(parent, p, color, teamId));
+
+        // Islands map: enemy teams also start with a naval patrol unit.
+        if (_arch.displayName == "Adalar")
+        {
+            int navalId = _navalAgentTypeId;
+            Vector3 dockPos = center + backward * 10f;
+            Vector3 seaDir  = dockPos.sqrMagnitude > 0.01f ? dockPos.normalized : Vector3.forward;
+            gm.RegisterUnit(UnitFactory.Galley(parent, dockPos + seaDir * 7f, color, navalId));
+        }
     }
 }

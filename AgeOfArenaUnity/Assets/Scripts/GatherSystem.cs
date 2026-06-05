@@ -58,7 +58,10 @@ public class GatherSystem : MonoBehaviour
         v.gatherTarget = node;
         v.carrying.kind = node.kind;
         _timers[v] = 0f;
-        v.MoveTo(ApproachPoint(node, v.transform.position, GatherRangeFor(node.kind) * 0.7f));
+        // FishingShips gather from water; give extra range so they reach coastal ponds
+        // from the naval NavMesh without needing to walk onto land.
+        float approachRange = v.isNaval ? 4.0f : GatherRangeFor(node.kind) * 0.7f;
+        v.MoveTo(ApproachPoint(node, v.transform.position, approachRange));
     }
 
     float _sweep;
@@ -89,7 +92,7 @@ public class GatherSystem : MonoBehaviour
     void StepUnit(UnitEntity v, float dt)
     {
         var node = v.gatherTarget;
-        float range = GatherRangeFor(node.kind);
+        float range = v.isNaval ? 4.0f : GatherRangeFor(node.kind);
         Vector3 pos = v.transform.position;
 
         switch (v.state)
@@ -135,8 +138,10 @@ public class GatherSystem : MonoBehaviour
                     v.dropoffTarget = camp;
                 }
                 if (camp == null) { v.Stop(); break; }   // no valid drop-off left
-                float reach = camp.Radius + DropoffRange;
-                if (FlatDist(pos, camp.transform.position) <= reach)
+                // FishingShips stop at the water edge; give extra deposit reach so they
+                // can unload at a coastal Dock without walking onto land.
+                float dropReach = camp.Radius + (v.isNaval ? 4.5f : DropoffRange);
+                if (FlatDist(pos, camp.transform.position) <= dropReach)
                 {
                     if (v.carrying.amount > 0)
                     {
@@ -157,14 +162,15 @@ public class GatherSystem : MonoBehaviour
                         // N11.trig: track cumulative resource gathered for trigger conditions.
                         GM.triggers?.OnResourceDeposited(v.teamId, v.carrying.kind, gained);
                         // N7.sfx: gather sound (player team only to avoid SFX spam from AI villagers).
-                        if (v.teamId == 0) AudioManager.Play(AudioManager.SoundId.Gather, 0.35f);
+                        if (v.teamId == 0) AudioManager.PlayAt(AudioManager.SoundId.Gather, v.transform.position, 0.35f);
                     }
                     v.carrying.Clear();
 
                     if (!node.Depleted && node.HasRoom)
                     {
                         _timers[v] = 0f;
-                        v.MoveTo(ApproachPoint(node, pos, range * 0.7f));
+                        float rApproach = v.isNaval ? 4.0f : range * 0.7f;
+                        v.MoveTo(ApproachPoint(node, pos, rApproach));
                     }
                     else
                     {
@@ -184,8 +190,8 @@ public class GatherSystem : MonoBehaviour
         var camp = NearestDropoff(v.transform.position, v.carrying.kind, v.teamId);
         v.dropoffTarget = camp;   // cache for the ReturningToDropoff tick (no per-tick re-scan)
         if (camp == null) { v.Stop(); return; }
-        var dest = ApproachPoint(null, v.transform.position,
-            camp.Radius + DropoffRange * 0.6f, camp.transform.position);
+        float returnRange = v.isNaval ? 4.0f : camp.Radius + DropoffRange * 0.6f;
+        var dest = ApproachPoint(null, v.transform.position, returnRange, camp.transform.position);
         v.state = UnitState.ReturningToDropoff;
         v.NavigateTo(dest);
     }

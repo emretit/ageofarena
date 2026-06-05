@@ -37,18 +37,18 @@ taşıması. Bunlar tek listede:
 
 | ID | Madde | Durum | Kanıt / Not |
 |---|---|---|---|
-| **NAVMESH** | NavMesh düz-disc'ten bake (heightmap base'i deliyordu → birimler hareket edemiyordu); off-mesh move snap; naval agent-type timing fix | ✔️ | `WorldRoot.BakeNavMesh`, `UnitEntity.Navigate`/`Start` — commit `7ae0949`+`dfb51a8` (2026-06-05) |
-| **NAV** | Naval katmanı tam: Dock üretimi + Galley savaş mekaniği + su haritası arketipi | ⬜ | Gövde mesh + naval NavMesh + agent-type var; gerçek combat/dock döngüsü eksik. `docs/reference/02` |
-| **N17.ws** | Gerçek WebSocket transport (şu an Loopback stub) + lobby + reconnect | ⬜ | `TransportLayer.cs` WebSocket dalı TODO (NativeWebSocket / Cloudflare Worker relay) |
-| **N8.siege.v** | Kenney siege modelleri + ölüm-yıkık variant Play'de görsel doğrulama | ✅→✔️ | `UnitFactory` kod bitti; runtime capture bekliyor |
-| **N10.rms.v** | 5 arketip harita (Arabistan/KaraOrman/Adalar/Göçebe) farklı yerleşim Play doğrulama | ✅→✔️ | `MapGenerator.Get` kod bitti; runtime capture bekliyor |
-| **N9.queue** | Shift-kuyruk waypoint görseli (komut kuyruğu) | ⬜ | `N3.cmdlog`'a bağlı (MP-prep); ertelendi |
-| **N7.spatial3d** | 3D spatial SFX + biome ambient loop | ⬜ | `N8.terrain`'e bağlı; ertelendi |
-| **N5.resize** | Tam N+1 takım desteği (sabit `[4]` array → dinamik resize) | ⬜ | `MaxTeams=4` single-point kuruldu; resize ayrı scope |
-| **AIRD** | `RoundToInt(6.5)=6` (round-half-to-even) türetilmiş değer doküman ile uyuşmuyor | ⬜ | `EnemyAI.cs:104` |
+| **NAVMESH** | NavMesh düz-disc'ten bake; off-mesh snap; naval agent-type timing | ✔️ | commit `7ae0949`+`dfb51a8` (2026-06-05) |
+| **AIRD** | `EnemyAI` `RoundToInt` → `FloorToInt(x+0.5f)` deterministik yuvarlama | ✔️ | `EnemyAI.cs:142` — önceki oturumda yapılmıştı |
+| **NAV.dock** | Her baza Dock binası spawn (kıyıya yakın, `backward*10`); FishPond kıyıya taşındı; FishingShip naval gather+deposit range genişletildi (4.0/4.5 birim) | ✅ | `WorldRoot.BuildBase`, `GatherSystem` — 2026-06-05 |
+| **NAV.islands** | Islands arketipinde oyuncu FishingShip+Galley; düşman Galley başlangıç birimi | ✅ | `WorldRoot.SetupGameplay`/`SpawnGarrison` — 2026-06-05 |
+| **N9.queue** | Shift+sağ-tık waypoint kuyruğu (`UnitEntity.moveQueue`) + LineRenderer görsel | ✅ | `CommandSystem.EnqueueMove`/`LateUpdate`, `UnitEntity.moveQueue` — 2026-06-05 |
+| **N7.spatial3d** | `AudioManager.PlayAt` 3D positional SFX; combat/gather/die sesleri spatial | ✅ | `AudioManager.PlayAt`, `CombatSystem`, `GatherSystem`, `UnitEntity` — 2026-06-05 |
+| **N5.resize** | `MaxTeams=8`, array'ler `new[MaxTeams]`, `TeamCount { get; set; }`, Awake init | ✅ | `GameManager.cs` — 2026-06-05 |
+| **N8.siege.v** | Kenney siege modelleri + ölüm-yıkık variant Play görsel doğrulama | ✅→✔️ | Kod bitti; MCP runtime capture bekliyor |
+| **N10.rms.v** | 5 arketip harita farklı yerleşim Play doğrulama | ✅→✔️ | Kod bitti; MCP runtime capture bekliyor |
+| **N17.ws** | Gerçek WebSocket transport (NativeWebSocket + relay) | ⬜ | `TransportLayer.cs` — MCP + paket kurulumu gerekiyor |
 
-> Üstteki **NAVMESH** maddesi 2026-06-05 oturumunun bug-fix'idir (kapandı, referans için listede).
-> Yeni gerçek iş öncelik sırası: **NAV → N17.ws → ertelenmiş alt-maddeler**.
+> **Sonraki oturum önceliği:** N17.ws (WebSocket paket kurulumu + gerçek relay) + MCP gelince N8.siege.v / N10.rms.v runtime capture kapat.
 
 ---
 

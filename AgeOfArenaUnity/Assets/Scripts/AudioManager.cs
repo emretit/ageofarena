@@ -127,7 +127,15 @@ public class AudioManager : MonoBehaviour
     public static void Play(SoundId id, float volumeScale = 1f)
     {
         if (_instance == null) return;
-        _instance.PlaySound(id, volumeScale);
+        _instance.PlaySound(id, volumeScale, null);
+    }
+
+    /// <summary>3D positional variant — attenuates with distance from the listener (Camera.main).
+    /// Use for unit combat/gather SFX so sounds come from where the action is.</summary>
+    public static void PlayAt(SoundId id, Vector3 worldPos, float volumeScale = 1f)
+    {
+        if (_instance == null) return;
+        _instance.PlaySound(id, volumeScale, worldPos);
     }
 
     public static void Init()
@@ -185,14 +193,24 @@ public class AudioManager : MonoBehaviour
         return FromData("music_" + age, data);
     }
 
-    void PlaySound(SoundId id, float vol)
+    void PlaySound(SoundId id, float vol, Vector3? worldPos)
     {
         var clip = _clips[(int)id];
         if (clip == null) return;
         var src = _pool[_poolIdx];
         _poolIdx = (_poolIdx + 1) % PoolSize;
-        // N7.sfx: pitch variation ±PitchJitter to avoid "machine gun" identical repeats.
         src.pitch = 1f + Random.Range(-PitchJitter, PitchJitter);
+        if (worldPos.HasValue)
+        {
+            src.transform.position = worldPos.Value;
+            src.spatialBlend = 1f;
+            src.maxDistance  = 60f;
+            src.rolloffMode  = AudioRolloffMode.Linear;
+        }
+        else
+        {
+            src.spatialBlend = 0f; // 2D (UI/global sounds)
+        }
         src.PlayOneShot(clip, vol * 0.65f * _masterVol * _sfxVol);
     }
 

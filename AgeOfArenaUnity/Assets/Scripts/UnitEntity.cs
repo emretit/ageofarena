@@ -47,6 +47,10 @@ public class UnitEntity : MonoBehaviour, IDamageable
     // Attack stance: controls auto-aggro and pursuit.
     public AttackStance stance = AttackStance.Aggressive;
 
+    // Shift-queue: extra waypoints appended with Shift+right-click. Processed in order;
+    // when the queue empties the unit idles. Cleared by any non-queued order (Stop included).
+    [System.NonSerialized] public readonly Queue<Vector3> moveQueue = new Queue<Vector3>();
+
     // Patrol: unit bounces between patrolA and patrolB. Cleared on any player order.
     public bool patrolActive;
     public Vector3 patrolA, patrolB;
@@ -345,6 +349,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         state = UnitState.Idle;
         patrolActive = false;
         tradeActive  = false;   // a manual order cancels an in-progress trade route
+        moveQueue.Clear();
         if (_agent.isOnNavMesh)
         {
             _agent.isStopped = true;
@@ -550,7 +555,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
             Object.Destroy(wreck, 5f);
         }
         PlayDie(); // fire death animation before Destroy
-        AudioManager.Play(AudioManager.SoundId.UnitDie, 0.8f);
+        AudioManager.PlayAt(AudioManager.SoundId.UnitDie, transform.position, 0.8f);
         // List removal is deferred to GameManager's end-of-frame compaction so we
         // don't mutate gm.units while CombatSystem is iterating it.
         var gm = GameManager.Instance;
@@ -667,6 +672,13 @@ public class UnitEntity : MonoBehaviour, IDamageable
         if (_agent.remainingDistance > _agent.stoppingDistance) return;
 
         state = UnitState.Idle;
+
+        // Shift-queue: move to the next queued waypoint if one exists.
+        if (moveQueue.Count > 0)
+        {
+            MoveTo(moveQueue.Dequeue());
+            return;
+        }
 
         // Patrol: bounce between A and B.
         if (patrolActive)

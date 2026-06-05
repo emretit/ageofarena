@@ -21,10 +21,49 @@ public class CommandSystem : MonoBehaviour
 
     Camera _cam;
 
+    // Waypoint queue visualiser: one LineRenderer per selected unit showing its pending path.
+    readonly List<LineRenderer> _waypointLines = new List<LineRenderer>();
+    static readonly Color WaypointColor = new Color(0.2f, 0.8f, 1f, 0.7f);
+
     /// <summary>True while waiting for the player to click an attack-move destination.</summary>
     public bool AttackMovePending { get; private set; }
 
     void Start() => _cam = Camera.main;
+
+    void LateUpdate()
+    {
+        var sel = GameManager.Instance?.selection?.Selected;
+
+        // Grow pool to cover all selected units.
+        while (_waypointLines.Count < (sel?.Count ?? 0))
+        {
+            var go = new GameObject("WaypointLine");
+            go.transform.SetParent(transform, false);
+            var lr = go.AddComponent<LineRenderer>();
+            lr.material = Prims.UnlitColorMat(WaypointColor);
+            lr.startWidth = lr.endWidth = 0.12f;
+            lr.useWorldSpace = true;
+            _waypointLines.Add(lr);
+        }
+
+        // Disable all first; re-enable only those that have queue points.
+        foreach (var lr in _waypointLines) lr.enabled = false;
+
+        if (sel == null) return;
+        int lineIdx = 0;
+        for (int i = 0; i < sel.Count && lineIdx < _waypointLines.Count; i++)
+        {
+            var u = sel[i];
+            if (u == null || u.moveQueue.Count == 0) continue;
+            var lr = _waypointLines[lineIdx++];
+            lr.enabled = true;
+            var pts = u.moveQueue.ToArray();
+            lr.positionCount = pts.Length + 1;
+            lr.SetPosition(0, u.transform.position + Vector3.up * 0.2f);
+            for (int k = 0; k < pts.Length; k++)
+                lr.SetPosition(k + 1, pts[k] + Vector3.up * 0.2f);
+        }
+    }
 
     /// <summary>Enter attack-move targeting: the next ground click sends every selected
     /// unit advancing to that point, engaging enemies on the way. Called by the HUD.</summary>
@@ -179,9 +218,12 @@ public class CommandSystem : MonoBehaviour
 
         if (hit.collider.gameObject.name == "Ground")
         {
-            MoveOrder(selected, hit.point);
+            bool shift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            if (shift)
+                EnqueueMove(selected, hit.point);
+            else
+                MoveOrder(selected, hit.point);
             SpawnMarker(hit.point, MoveColor);
-            // SUBT: move-order confirm sound.
             AudioManager.Play(AudioManager.SoundId.UnitMove, 0.5f);
         }
     }
@@ -396,6 +438,25 @@ public class CommandSystem : MonoBehaviour
             u.Stop();
             u.MoveTo(point + offsets[i]);
         }
+    }
+
+    /// <summary>Shift+right-click: append <paramref name="point"/> to each unit's waypoint queue
+    /// instead of issuing an immediate move order. The unit walks through queued waypoints in
+    /// order after finishing its current move. Clears on any non-queued order (Stop, attack, etc.).</summary>
+    void EnqueueMove(List<UnitEntity> selected, Vector3 point)
+    {
+        var offsets = selected.Count == 1 ? new[] { Vector3.zero } : FormationOffsets(selected.Count, CurrentFormation);
+        for (int i = 0; i < selected.Count; i++)
+        {
+            var u = selected[i];
+            if (u == null) continue;
+            u.moveQueue.Enqueue(point + offsets[i]);
+            // If already idle, start walking immediately toward the first queued point.
+            if (u.state == UnitState.Idle && u.moveQueue.Count == 1)
+                u.MoveTo(u.moveQueue.Dequeue());
+        }
+        GameManager.Instance?.cmdRecorder?.Record(
+            CommandType.Move, UnitIds(selected), x: point.x, z: point.z);
     }
 
     static int[] UnitIds(List<UnitEntity> units)
