@@ -213,6 +213,7 @@ public static class BuildingFactory
             Prims.Box(t, new Vector3(ox, 0.85f, -1.12f), new Vector3(0.7f, 1.1f, 0.06f), darkMat);
         // hay bale
         Prims.Box(t, new Vector3(1.05f, 0.55f, -1.0f), new Vector3(0.5f, 0.5f, 0.5f), Prims.Mat(Prims.Hex(0xc9a227)));
+        KenneyModels.Spawn("FantasyTown/cart", t, new Vector3(-1.1f, 0, 0.6f), 1.1f, 20f); // hay cart
 
         Prims.EnableShadows(g);
         return g;
@@ -277,6 +278,7 @@ public static class BuildingFactory
         Prims.Sphere(t, new Vector3(0.8f, 0.3f, -0.7f), 0.3f, stoneMat);
         Prims.Sphere(t, new Vector3(0.95f, 0.28f, -0.35f), 0.26f, darkMat);
         Prims.Box(t, new Vector3(0.8f, 0.25f, 0.6f), new Vector3(0.5f, 0.5f, 0.4f), Prims.Mat(Prims.Hex(0x6e4a28))); // crate
+        KenneyModels.Spawn("FantasyTown/cart-high", t, new Vector3(-0.85f, 0, 0.75f), 1.0f, 35f); // ore cart
 
         Prims.EnableShadows(g);
         return g;
@@ -496,15 +498,18 @@ public static class BuildingFactory
         var g = NewBuilding("WatchTower", parent, worldPos, BuildingType.WatchTower,
             new Vector3(0, 1.5f, 0), new Vector3(1.4f, 3.2f, 1.4f));
         var t = g.transform;
-        var stoneMat = Prims.Mat(Stone, 0.05f);
-        var roofMat  = Prims.Mat(teamColor, 0.05f, 0.3f);
 
-        Prims.Cylinder(t, new Vector3(0, 1.6f, 0), 0.65f, 3.2f, stoneMat);
-        Prims.Box(t, new Vector3(0, 3.3f, 0), new Vector3(1.5f, 0.15f, 1.5f), stoneMat);
-        foreach (var cx in new[] { -0.55f, 0.55f })
-            foreach (var cz in new[] { -0.55f, 0.55f })
-                Prims.Box(t, new Vector3(cx, 3.5f, cz), new Vector3(0.28f, 0.32f, 0.28f), stoneMat);
-        Prims.Cone(t, new Vector3(0, 3.55f, 0), 0.85f, 0.9f, 8, roofMat, 0f);
+        if (!KenneyKeep(t, 1.3f, midSections: 0, turrets: false))
+        {
+            var stoneMat = Prims.Mat(Stone, 0.05f);
+            var roofMat  = Prims.Mat(teamColor, 0.05f, 0.3f);
+            Prims.Cylinder(t, new Vector3(0, 1.6f, 0), 0.65f, 3.2f, stoneMat);
+            Prims.Box(t, new Vector3(0, 3.3f, 0), new Vector3(1.5f, 0.15f, 1.5f), stoneMat);
+            foreach (var cx in new[] { -0.55f, 0.55f })
+                foreach (var cz in new[] { -0.55f, 0.55f })
+                    Prims.Box(t, new Vector3(cx, 3.5f, cz), new Vector3(0.28f, 0.32f, 0.28f), stoneMat);
+            Prims.Cone(t, new Vector3(0, 3.55f, 0), 0.85f, 0.9f, 8, roofMat, 0f);
+        }
 
         Prims.EnableShadows(g);
         return g;
@@ -534,19 +539,22 @@ public static class BuildingFactory
         var g = NewBuilding("BombardTower", parent, worldPos, BuildingType.BombardTower,
             new Vector3(0, 1.6f, 0), new Vector3(1.6f, 3.4f, 1.6f));
         var t = g.transform;
-        var stoneMat = Prims.Mat(Stone, 0.05f);
         var darkMat  = Prims.Mat(Prims.Hex(0x33363c), 0.4f, 0.6f);
         var roofMat  = Prims.Mat(teamColor, 0.05f, 0.3f);
 
-        Prims.Cylinder(t, new Vector3(0, 1.6f, 0), 0.8f, 3.2f, stoneMat);
-        Prims.Box(t, new Vector3(0, 3.3f, 0), new Vector3(1.8f, 0.2f, 1.8f), stoneMat);
-        foreach (var cx in new[] { -0.7f, 0.7f })
-            foreach (var cz in new[] { -0.7f, 0.7f })
-                Prims.Box(t, new Vector3(cx, 3.55f, cz), new Vector3(0.32f, 0.4f, 0.32f), stoneMat);
-        // Cannon barrel poking out the top.
+        if (!KenneyKeep(t, 1.3f, midSections: 1, turrets: false))
+        {
+            var stoneMat = Prims.Mat(Stone, 0.05f);
+            Prims.Cylinder(t, new Vector3(0, 1.6f, 0), 0.8f, 3.2f, stoneMat);
+            Prims.Box(t, new Vector3(0, 3.3f, 0), new Vector3(1.8f, 0.2f, 1.8f), stoneMat);
+            foreach (var cx in new[] { -0.7f, 0.7f })
+                foreach (var cz in new[] { -0.7f, 0.7f })
+                    Prims.Box(t, new Vector3(cx, 3.55f, cz), new Vector3(0.32f, 0.4f, 0.32f), stoneMat);
+        }
+        // Cannon barrel and banner always show — they identify this as a BombardTower.
         Prims.Cylinder(t, new Vector3(0, 3.5f, 0.7f), 0.22f, 1.0f, darkMat)
             .transform.localRotation = Quaternion.Euler(70f, 0, 0);
-        Prims.Box(t, new Vector3(0, 3.0f, 0), new Vector3(1.6f, 0.2f, 1.6f), roofMat); // banner band
+        Prims.Box(t, new Vector3(0, 3.0f, 0), new Vector3(1.6f, 0.2f, 1.6f), roofMat);
 
         Prims.EnableShadows(g);
         return g;
@@ -564,7 +572,8 @@ public static class BuildingFactory
         Prims.Box(t, new Vector3(0, 0.15f, 0), new Vector3(2.2f, 0.3f, 2.2f), stoneMat);
         Prims.Box(t, new Vector3(0, 1.0f, 0), new Vector3(2.0f, 1.4f, 2.0f), darkMat);
         Prims.Box(t, new Vector3(0, 1.8f, 0), new Vector3(2.2f, 0.15f, 2.2f), roofMat);
-        Prims.Cylinder(t, new Vector3(0.6f, 2.2f, 0.3f), 0.18f, 1.0f, darkMat); // chimney
+        if (KenneyModels.Spawn("FantasyTown/chimney", t, new Vector3(0.6f, 1.95f, 0.3f), 0.9f) == null)
+            Prims.Cylinder(t, new Vector3(0.6f, 2.2f, 0.3f), 0.18f, 1.0f, darkMat); // fallback chimney
 
         Prims.EnableShadows(g);
         return g;
@@ -588,6 +597,7 @@ public static class BuildingFactory
             .transform.localRotation = Quaternion.Euler(0, 0, 90f);
         Prims.Box(t, new Vector3(0.95f, 0.5f, 0.7f), new Vector3(0.3f, 0.3f, 0.3f), metal); // ram head
         Prims.Sphere(t, new Vector3(-0.9f, 0.4f, 0.8f), 0.25f, stone);                       // boulder
+        KenneyModels.Spawn("FantasyTown/cart-high", t, new Vector3(-0.8f, 0, -0.85f), 1.0f); // supply cart
 
         Prims.EnableShadows(g);
         return g;
@@ -658,8 +668,35 @@ public static class BuildingFactory
         Prims.Cylinder(t, new Vector3(-0.7f, 2.4f, 0), 0.04f, 1.4f, mastMat);
         Prims.Box(t, new Vector3(-0.4f, 2.85f, 0), new Vector3(0.65f, 0.4f, 0.04f),
             Prims.Mat(teamColor, 0, 0.4f)).name = "Flag";
+        KenneyModels.Spawn("FantasyTown/cart", t, new Vector3(0.9f, 0, -1.0f), 1.1f, -30f); // dockside cart
 
         Prims.BlobShadow(t, 1.8f);
+        Prims.EnableShadows(g);
+        return g;
+    }
+
+    public static GameObject FishTrap(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewBuilding("FishTrap", parent, worldPos, BuildingType.FishTrap,
+            new Vector3(0, 0.15f, 0), new Vector3(1.2f, 0.3f, 1.2f));
+        var t = g.transform;
+        var wood  = Prims.Mat(Prims.Hex(0x7a5230), 0.05f);
+        var rope  = Prims.Mat(Prims.Hex(0xd9b880));
+        var water = Prims.Mat(Prims.Hex(0x4a8ab0), 0.05f, 0.6f);
+
+        // Floating platform
+        Prims.Box(t, new Vector3(0, 0.05f, 0), new Vector3(1.1f, 0.1f, 1.1f), wood);
+        // Stakes driven into the water floor
+        foreach (var px in new[] { -0.42f, 0.42f })
+            foreach (var pz in new[] { -0.42f, 0.42f })
+                Prims.Cylinder(t, new Vector3(px, -0.15f, pz), 0.06f, 0.5f, wood);
+        // Wicker basket trap
+        Prims.Cylinder(t, new Vector3(0, 0.22f, 0), 0.28f, 0.28f, rope);
+        Prims.Cylinder(t, new Vector3(0, 0.08f, 0), 0.18f, 0.06f, water); // water hole opening
+        // Small net marker pole
+        Prims.Cylinder(t, new Vector3(0.4f, 0.35f, 0), 0.03f, 0.55f, wood);
+        Prims.Box(t, new Vector3(0.55f, 0.6f, 0), new Vector3(0.3f, 0.25f, 0.02f), rope); // flag
+
         Prims.EnableShadows(g);
         return g;
     }
@@ -693,6 +730,7 @@ public static class BuildingFactory
         BuildingType.SiegeWorkshop => SiegeWorkshop(parent, worldPos, teamColor),
         BuildingType.Outpost      => Outpost(parent, worldPos, teamColor),
         BuildingType.BombardTower => BombardTower(parent, worldPos, teamColor),
+        BuildingType.FishTrap     => FishTrap(parent, worldPos, teamColor),
         _                         => House(parent, worldPos, teamColor),
     };
 
