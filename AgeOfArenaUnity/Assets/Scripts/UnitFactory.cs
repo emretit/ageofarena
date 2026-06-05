@@ -791,24 +791,21 @@ public static class UnitFactory
         g.transform.position = worldPos;
         var t = g.transform;
 
-        var wood  = Prims.Mat(Prims.Hex(0x7a5c3a));
-        var sail  = Prims.Mat(teamColor, 0f, 0.3f);
-        var dark  = Prims.Mat(Prims.Hex(0x4a3a22), 0.05f);
+        if (KenneyModels.Spawn("PirateKit/ship-medium", t, Vector3.zero, 1.0f) == null)
+        {
+            var wood  = Prims.Mat(Prims.Hex(0x7a5c3a));
+            var sail  = Prims.Mat(teamColor, 0f, 0.3f);
+            var dark  = Prims.Mat(Prims.Hex(0x4a3a22), 0.05f);
+            Prims.Box(t, new Vector3(0, 0.2f, 0),    new Vector3(1.6f, 0.5f, 3.5f), wood);
+            Prims.Box(t, new Vector3(0, 0.45f, 1.6f), new Vector3(1.3f, 0.4f, 0.4f), dark);
+            Prims.Box(t, new Vector3(0, 0.55f,-1.6f), new Vector3(1.0f, 0.3f, 0.4f), dark);
+            Prims.Cylinder(t, new Vector3(0, 1.4f, 0.3f), 0.08f, 2.0f, dark);
+            Prims.Box(t, new Vector3(0.4f, 1.7f, 0.3f), new Vector3(0.05f, 0.9f, 1.2f), sail);
+            foreach (float rx in new[] { -0.85f, 0.85f })
+                Prims.Box(t, new Vector3(rx, 0.15f, 0), new Vector3(0.06f, 0.06f, 2.8f), dark);
+            g.transform.localScale = new Vector3(1.25f, 1.25f, 1.25f);
+        }
 
-        // Boat hull
-        Prims.Box(t, new Vector3(0, 0.2f, 0),    new Vector3(1.6f, 0.5f, 3.5f), wood);
-        // Raised bow and stern
-        Prims.Box(t, new Vector3(0, 0.45f, 1.6f), new Vector3(1.3f, 0.4f, 0.4f), dark);
-        Prims.Box(t, new Vector3(0, 0.55f,-1.6f), new Vector3(1.0f, 0.3f, 0.4f), dark);
-        // Mast
-        Prims.Cylinder(t, new Vector3(0, 1.4f, 0.3f), 0.08f, 2.0f, dark);
-        // Sail
-        Prims.Box(t, new Vector3(0.4f, 1.7f, 0.3f), new Vector3(0.05f, 0.9f, 1.2f), sail);
-        // Oars
-        foreach (float rx in new[] { -0.85f, 0.85f })
-            Prims.Box(t, new Vector3(rx, 0.15f, 0), new Vector3(0.06f, 0.06f, 2.8f), dark);
-
-        g.transform.localScale = new Vector3(1.25f, 1.25f, 1.25f);
         Prims.EnableShadows(g);
         Prims.BlobShadow(t, 0.9f);
 
@@ -840,7 +837,7 @@ public static class UnitFactory
     /// Mirrors Galley's setup so Fire/Demo ships behave identically on the water mesh.</summary>
     static UnitEntity FinishBoat(GameObject g, UnitType type, int navalAgentTypeId)
     {
-        g.transform.localScale = new Vector3(1.25f, 1.25f, 1.25f);
+        // scale already set by caller (1.25f for procedural, 1.0f for Kenney model)
         Prims.EnableShadows(g);
         Prims.BlobShadow(g.transform, 0.9f);
 
@@ -872,16 +869,19 @@ public static class UnitFactory
         g.transform.position = worldPos;
         var t = g.transform;
 
-        var wood  = Prims.Mat(Prims.Hex(0x5a3a20));
-        var dark  = Prims.Mat(Prims.Hex(0x3a2a18), 0.05f);
-        var flame = Prims.Mat(Prims.Hex(0xf06010), 0.3f, 0.6f);
-        var sail  = Prims.Mat(teamColor, 0f, 0.3f);
-
-        Prims.Box(t, new Vector3(0, 0.2f, 0),     new Vector3(1.4f, 0.45f, 2.8f), wood);  // hull
-        Prims.Box(t, new Vector3(0, 0.45f, 1.3f), new Vector3(1.1f, 0.4f, 0.4f), dark);   // bow
-        Prims.Cylinder(t, new Vector3(0, 1.2f, 0.2f), 0.07f, 1.6f, dark);                 // mast
-        Prims.Box(t, new Vector3(0.35f, 1.45f, 0.2f), new Vector3(0.05f, 0.7f, 1.0f), sail);
-        Prims.Cone(t, new Vector3(0, 0.9f, 1.25f), 0.35f, 0.8f, 6, flame, 0f);            // fire pot at the bow
+        if (KenneyModels.Spawn("PirateKit/ship-pirate-small", t, Vector3.zero, 1.0f) == null)
+        {
+            var wood  = Prims.Mat(Prims.Hex(0x5a3a20));
+            var dark  = Prims.Mat(Prims.Hex(0x3a2a18), 0.05f);
+            var flame = Prims.Mat(Prims.Hex(0xf06010), 0.3f, 0.6f);
+            var sail  = Prims.Mat(teamColor, 0f, 0.3f);
+            Prims.Box(t, new Vector3(0, 0.2f, 0),     new Vector3(1.4f, 0.45f, 2.8f), wood);
+            Prims.Box(t, new Vector3(0, 0.45f, 1.3f), new Vector3(1.1f, 0.4f, 0.4f), dark);
+            Prims.Cylinder(t, new Vector3(0, 1.2f, 0.2f), 0.07f, 1.6f, dark);
+            Prims.Box(t, new Vector3(0.35f, 1.45f, 0.2f), new Vector3(0.05f, 0.7f, 1.0f), sail);
+            Prims.Cone(t, new Vector3(0, 0.9f, 1.25f), 0.35f, 0.8f, 6, flame, 0f);
+            g.transform.localScale = new Vector3(1.25f, 1.25f, 1.25f);
+        }
 
         var e = FinishBoat(g, UnitType.FireShip, navalAgentTypeId);
         e.hp = e.maxHp = 100f;
@@ -897,16 +897,18 @@ public static class UnitFactory
         g.transform.position = worldPos;
         var t = g.transform;
 
-        var wood   = Prims.Mat(Prims.Hex(0x4a3520));
-        var dark   = Prims.Mat(Prims.Hex(0x2a1e12), 0.05f);
-        var barrel = Prims.Mat(Prims.Hex(0x8a3018), 0.1f);
-
-        Prims.Box(t, new Vector3(0, 0.2f, 0),     new Vector3(1.3f, 0.45f, 2.4f), wood); // small hull
-        Prims.Box(t, new Vector3(0, 0.45f, 1.1f), new Vector3(1.0f, 0.4f, 0.4f), dark);  // bow
-        // Stacked explosive barrels.
-        Prims.Cylinder(t, new Vector3(-0.25f, 0.65f, 0), 0.22f, 0.5f, barrel);
-        Prims.Cylinder(t, new Vector3(0.25f, 0.65f, 0),  0.22f, 0.5f, barrel);
-        Prims.Cylinder(t, new Vector3(0, 0.9f, -0.3f),   0.22f, 0.5f, barrel);
+        if (KenneyModels.Spawn("PirateKit/boat-row-small", t, Vector3.zero, 1.0f) == null)
+        {
+            var wood   = Prims.Mat(Prims.Hex(0x4a3520));
+            var dark   = Prims.Mat(Prims.Hex(0x2a1e12), 0.05f);
+            var barrel = Prims.Mat(Prims.Hex(0x8a3018), 0.1f);
+            Prims.Box(t, new Vector3(0, 0.2f, 0),     new Vector3(1.3f, 0.45f, 2.4f), wood);
+            Prims.Box(t, new Vector3(0, 0.45f, 1.1f), new Vector3(1.0f, 0.4f, 0.4f), dark);
+            Prims.Cylinder(t, new Vector3(-0.25f, 0.65f, 0), 0.22f, 0.5f, barrel);
+            Prims.Cylinder(t, new Vector3(0.25f, 0.65f, 0),  0.22f, 0.5f, barrel);
+            Prims.Cylinder(t, new Vector3(0, 0.9f, -0.3f),   0.22f, 0.5f, barrel);
+            g.transform.localScale = new Vector3(1.25f, 1.25f, 1.25f);
+        }
 
         var e = FinishBoat(g, UnitType.DemoShip, navalAgentTypeId);
         e.hp = e.maxHp = 50f;
@@ -924,16 +926,19 @@ public static class UnitFactory
         g.transform.position = worldPos;
         var t = g.transform;
 
-        var wood = Prims.Mat(Prims.Hex(0x6b4a2a));
-        var deck = Prims.Mat(Prims.Hex(0x8a6b3f));
-        var sail = Prims.Mat(teamColor, 0f, 0.3f);
-        var net  = Prims.Mat(Prims.Hex(0xc8c0a0), 0f, 0.2f);
-
-        Prims.Box(t, new Vector3(0, 0.2f, 0),     new Vector3(1.1f, 0.4f, 2.2f), wood);  // small hull
-        Prims.Box(t, new Vector3(0, 0.42f, 0.9f), new Vector3(0.85f, 0.32f, 0.5f), deck); // bow deck
-        Prims.Cylinder(t, new Vector3(0, 1.0f, -0.2f), 0.06f, 1.3f, wood);                // short mast
-        Prims.Box(t, new Vector3(0.25f, 1.2f, -0.2f), new Vector3(0.04f, 0.55f, 0.8f), sail);
-        Prims.Box(t, new Vector3(0, 0.5f, -0.9f), new Vector3(0.7f, 0.5f, 0.1f), net);    // hanging net at the stern
+        if (KenneyModels.Spawn("PirateKit/boat-row-large", t, Vector3.zero, 1.0f) == null)
+        {
+            var wood = Prims.Mat(Prims.Hex(0x6b4a2a));
+            var deck = Prims.Mat(Prims.Hex(0x8a6b3f));
+            var sail = Prims.Mat(teamColor, 0f, 0.3f);
+            var net  = Prims.Mat(Prims.Hex(0xc8c0a0), 0f, 0.2f);
+            Prims.Box(t, new Vector3(0, 0.2f, 0),     new Vector3(1.1f, 0.4f, 2.2f), wood);
+            Prims.Box(t, new Vector3(0, 0.42f, 0.9f), new Vector3(0.85f, 0.32f, 0.5f), deck);
+            Prims.Cylinder(t, new Vector3(0, 1.0f, -0.2f), 0.06f, 1.3f, wood);
+            Prims.Box(t, new Vector3(0.25f, 1.2f, -0.2f), new Vector3(0.04f, 0.55f, 0.8f), sail);
+            Prims.Box(t, new Vector3(0, 0.5f, -0.9f), new Vector3(0.7f, 0.5f, 0.1f), net);
+            g.transform.localScale = new Vector3(1.25f, 1.25f, 1.25f);
+        }
 
         var e = FinishBoat(g, UnitType.FishingShip, navalAgentTypeId);
         e.hp = e.maxHp = 60f;

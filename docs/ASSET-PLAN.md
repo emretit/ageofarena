@@ -37,7 +37,7 @@ varyasyonu ile farklılaşır. Mevcut KayKit 5 karakter + silahlar çoğu insans
 | **KayKit** Adventurers+Skeletons+Weapons | **Projede var** | — | İnsansı birimler (piyade/okçu/keşiş/unique) |
 | **Kenney** Castle+FantasyTown+Nature | **Projede var** | direct curl ✓ | Kuşatma, binalar, çevre |
 | **Quaternius** Animated Animals / RPG | yok | Google Drive (manuel) ⚠️ | Atlar/deve/fil, ek karakter |
-| **Kenney** Pirate/Ships | yok | direct curl ✓ | Gemiler |
+| **Kenney PirateKit** | **Projede var** | — | Gemiler (ship-medium/pirate-small/boat-row) |
 
 **Edinme gerçeği (test edildi):** Unity `ImportExternalModel` yalnızca `.fbx`/`.zip` URL kabul
 ediyor (GLB **reddedildi**). Kenney = doğrudan curl (otomatik). Quaternius = Drive-gated (manuel
@@ -71,11 +71,11 @@ indirme gerek (hayvan/gemi) · base = kullanılacak KayKit prefab.
 | WarElephant | fil UU | fil + howdah | **T2** fil |
 | Trebuchet·Ram·Mangonel | kuşatma | Kenney Castle siege | T0 ✓ |
 | TradeCart | ticaret | Kenney FantasyTown cart (var) | **T1** |
-| Galley·FireShip·DemoShip | savaş gemisi | gemi modeli | **T2** gemi |
-| FishingShip | balıkçı | küçük tekne | **T2** gemi |
+| Galley·FireShip·DemoShip | savaş gemisi | Kenney **ship-medium/pirate-small/boat-row-small** | **T2 ✓** |
+| FishingShip | balıkçı | Kenney **boat-row-large** | **T2 ✓** |
 
 **Sonuç:** ~14 birim **T1** (sıfır indirme, sadece `UnitVisualLibrary.VisualFor` switch'ini
-genişlet). Gerçek yeni indirme yalnızca **2 kategori**: hayvanlar (at/deve/fil) + gemiler.
+genişlet). Gerçek yeni indirme yalnızca **1 kategori**: hayvanlar (at/deve/fil). Gemiler Kenney PirateKit ile tamamlandı.
 
 > Polish (T1.5): unique unit'leri ayırt etmek için KayKit silah swap (40 silah projede var) — base
 > aynı kalır, ele balta/kılıç/yay takılır. Bone-attach gerektirir; ilk dalgadan sonra.
@@ -115,7 +115,7 @@ Modlar kural; çoğu yeni asset istemez. İstisnalar:
 3. **Faz 3 — T1 binalar (sıfır indirme):** primitive binaları mevcut Kenney parçalarıyla kompoze;
    FishTrap factory ekle. Sonra Kenney trim keep-list'i üret.
 4. **Faz 4 — T2 hayvanlar:** at/deve/fil (CC0) edin → atlı/develi/filli birimler.
-5. **Faz 5 — T2 gemiler:** 2-3 gemi modeli (CC0) → donanma.
+5. **Faz 5 — T2 gemiler ✅:** Kenney PirateKit (ship-medium/pirate-small/boat-row × 2) → donanma.
 6. **Faz 6 — T1.5 polish:** unique unit silah-swap ile ayrıştırma.
 
 Her faz ayrı commit + Unity'de Play doğrulaması (0 error/warning).
