@@ -18,6 +18,9 @@ public enum HotkeyAction
     AgeAdvance,     // (none — opens TC research)
     BuildMenu,      // B
     Repair,         // H
+    Patrol,         // P
+    Formation,      // F
+    TownBell,       // H
 }
 
 public static class Hotkeys
@@ -33,7 +36,10 @@ public static class Hotkeys
         KeyCode.Period,   // SelectIdle
         KeyCode.None,     // AgeAdvance (not a global hotkey)
         KeyCode.B,        // BuildMenu
-        KeyCode.H,        // Repair
+        KeyCode.None,     // Repair (contextual right-click; no global key consumer)
+        KeyCode.P,        // Patrol
+        KeyCode.F,        // Formation
+        KeyCode.H,        // TownBell
     };
 
     static readonly KeyCode[] _bindings;
@@ -81,13 +87,34 @@ public static class Hotkeys
         return k != KeyCode.None && Input.GetKeyDown(k);
     }
 
+    /// <summary>True when this action is backed by live input code and should
+    /// participate in remap conflict detection.</summary>
+    public static bool IsBindableAction(HotkeyAction action) => action switch
+    {
+        HotkeyAction.Stop or
+        HotkeyAction.AttackMove or
+        HotkeyAction.Stance or
+        HotkeyAction.Ungarrison or
+        HotkeyAction.Diplomacy or
+        HotkeyAction.SelectIdle or
+        HotkeyAction.Patrol or
+        HotkeyAction.Formation or
+        HotkeyAction.TownBell => true,
+        _ => false,
+    };
+
     /// <summary>N9.hotkeys: which action currently holds this key (null if unbound).
-    /// Used by the remap UI to detect conflicts before assigning.</summary>
+    /// Used by the remap UI to detect conflicts before assigning. Actions with no
+    /// live input consumer are ignored so old PlayerPrefs (e.g. Repair=H) cannot
+    /// mask a real binding like TownBell=H.</summary>
     public static HotkeyAction? ActionFor(KeyCode key)
     {
         if (key == KeyCode.None) return null;
         for (int i = 0; i < _bindings.Length; i++)
-            if (_bindings[i] == key) return (HotkeyAction)i;
+        {
+            var action = (HotkeyAction)i;
+            if (IsBindableAction(action) && _bindings[i] == key) return action;
+        }
         return null;
     }
 

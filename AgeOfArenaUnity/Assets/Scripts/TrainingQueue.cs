@@ -51,7 +51,7 @@ public class TrainingQueue : MonoBehaviour
         // N3.cmdlog: record train command (player team only)
         if (b.teamId == 0)
             GM.cmdRecorder?.Record(CommandType.Train, null,
-                intParam1: (int)def.unitType, intParam2: b.GetInstanceID());
+                intParam1: (int)def.unitType, intParam2: b.GetEntityId().GetHashCode());
         // Blacksmith aura: 20% faster training for military buildings within 14u.
         float time = def.trainTime;
         if (BlacksmithNearby(b, 14f)) time *= 0.80f;
@@ -144,7 +144,7 @@ public class TrainingQueue : MonoBehaviour
 
     /// <summary>
     /// Cancel the queued item at <paramref name="index"/> and refund its cost.
-    /// Population isn't refunded because enqueue doesn't reserve it.
+    /// Queued population is implicit: removing the item lowers ReservedPop().
     /// </summary>
     public void Cancel(BuildingEntity b, int index)
     {

@@ -43,7 +43,7 @@ public class ResearchSystem : MonoBehaviour
         // N3.cmdlog: record research command (player team only)
         if (b.teamId == 0)
             GM.cmdRecorder?.Record(CommandType.Research, null,
-                intParam1: (int)def.type, intParam2: b.GetInstanceID());
+                intParam1: (int)def.type, intParam2: b.GetEntityId().GetHashCode());
         return true;
     }
 

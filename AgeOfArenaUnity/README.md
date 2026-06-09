@@ -19,9 +19,11 @@ altın/taş madenleri.
 
 | Tuş | İşlev |
 |---|---|
-| WASD / ok tuşları | Kamera pan |
+| Ok tuşları / ekran kenarı | Kamera pan |
 | Fare tekerleği | Zoom |
-| Q / E | Döndür |
+| S / A / P | Dur / saldır-yürü / devriye |
+| Q / F / H | Duruş / formasyon / kule çanı |
+| Esc | Pause menüsü |
 
 ## Yapı
 
@@ -29,17 +31,12 @@ altın/taş madenleri.
 Assets/Scripts/
   GameBootstrap.cs      Play'de otomatik çalışan giriş noktası
   WorldRoot.cs          Tüm sahneyi kurar (ışık, zemin, kamera, üs, orman, maden)
-  IsometricCameraRig.cs Ortografik izometrik kamera + pan/zoom/rotate
+  IsometricCameraRig.cs Ortografik izometrik kamera + pan/zoom
   BuildingFactory.cs    TownCenter / House / Barracks (prosedürel)
   ResourceFactory.cs    Tree / GoldMine / StoneMine
   Prims.cs              Box/Cylinder/Cone/Sphere + materyal yardımcıları
 ```
 
-## Sıradaki adımlar (port yol haritası)
+## Yol Haritası
 
-- [ ] Birim sistemi (villager/militia/archer) + seçim & sağ-tık komut
-- [ ] Kaynak toplama (GatherSystem) + kaynak HUD
-- [ ] Eğitim kuyruğu + bina inşası
-- [ ] Pathfinding (flow field)
-- [ ] Minimap + tam HUD
-- [ ] GLTF/FBX asset'leri ile gerçek modeller
+Güncel backlog ve DoD için [../docs/PLAN.md](../docs/PLAN.md) dosyasını kullan.

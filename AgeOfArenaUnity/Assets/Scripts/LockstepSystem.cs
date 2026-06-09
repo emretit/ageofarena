@@ -36,7 +36,6 @@ public class LockstepSystem : MonoBehaviour
     readonly Dictionary<int, Queue<GameCommand>> _p1Queue = new();
 
     int  _simTick;
-    bool _waitingForP1;
 
     // ── Configuration ─────────────────────────────────────────────────────────
 

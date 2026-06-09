@@ -10,8 +10,8 @@ primitive** (kutu/küre) ile çiziliyor. Mevcut durum (audit):
 
 | Kategori | Gerçek model | Primitive | Not |
 |---|---|---|---|
-| **Birimler (35)** | 10 KayKit + 3 Kenney = **13** | **22** | Tüm 14 unique unit, tüm atlı/develi/filli, tüm gemiler primitive |
-| **Binalar (23)** | ~8 kısmi Kenney | ~14 | FishTrap factory'si **yok** (enum var) |
+| **Birimler (35)** | KayKit + Kenney + Quaternius kısmi | kalan procedural | T1 insansı reuse büyük ölçüde bağlı; süvari/trade V1 Quaternius Horse/Donkey kullanır |
+| **Binalar (23)** | kısmi Kenney/procedural hibrit | kalan procedural | FishTrap factory var; bina V2/V3 polish ana primitive adaylara işlendi |
 
 **Kilit içgörü:** Projede zaten **kullanılmayan varlık var** — KayKit 5 karakter (Knight,
 Barbarian, Rogue, RogueHooded, Mage) + 40 silah FBX + 4 Skeleton + **240 Kenney bina parçası**
@@ -36,8 +36,14 @@ varyasyonu ile farklılaşır. Mevcut KayKit 5 karakter + silahlar çoğu insans
 |---|---|---|---|
 | **KayKit** Adventurers+Skeletons+Weapons | **Projede var** | — | İnsansı birimler (piyade/okçu/keşiş/unique) |
 | **Kenney** Castle+FantasyTown+Nature | **Projede var** | direct curl ✓ | Kuşatma, binalar, çevre |
-| **Quaternius** Animated Animals / RPG | yok | Google Drive (manuel) ⚠️ | Atlar/deve/fil, ek karakter |
+| **Quaternius** Animated Animals / RPG | **Horse/Horse_White/Donkey projede var** | manuel import yapıldı | At/donkey V1; deve/fil hâlâ eksik |
 | **Kenney PirateKit** | **Projede var** | — | Gemiler (ship-medium/pirate-small/boat-row) |
+
+Quaternius V1 entegrasyonu, FBX pivot/ölçek farkını factory içinde normalize eder: renderer
+bounds parent footprint'e ortalanır ve model zemine oturtulur. `VisualFactoryValidator`
+batchmode kapısı Horse/Horse_White/Donkey + Kenney cart resource yollarını, root collider/renderer
+yapısını ve aşırı büyük bounds regresyonunu pinler. `StabilizeQaValidator`, aynı hedefleri
+kamera render'ında iki zoom seviyesinde doğrular ve `Logs/stabilize-qa-*.png` kanıtlarını üretir.
 
 **Edinme gerçeği (test edildi):** Unity `ImportExternalModel` yalnızca `.fbx`/`.zip` URL kabul
 ediyor (GLB **reddedildi**). Kenney = doğrudan curl (otomatik). Quaternius = Drive-gated (manuel
@@ -63,14 +69,14 @@ indirme gerek (hayvan/gemi) · base = kullanılacak KayKit prefab.
 | Berserk·WoadRaider·ThrowingAxeman | barbar UU | **Barbarian** base (boşta!) | **T1** |
 | ChuKoNu·Janissary | ranged UU | **Rogue** base | **T1** |
 | Eagle·EliteEagle | hafif UU | **RogueHooded** base | **T1** |
-| Cavalry·Cavalier·Paladin | süvari | at + Knight binici | **T2** at |
-| Scout·LightCav·Hussar | hafif süvari | at + RogueHooded | **T2** at |
-| CavalryArcher·Mangudai | atlı okçu | at + Rogue | **T2** at |
-| Cataphract | zırhlı süvari UU | at + Knight | **T2** at |
-| Camel·Mameluke | develi | deve + binici | **T2** deve |
-| WarElephant | fil UU | fil + howdah | **T2** fil |
+| Cavalry·Cavalier·Paladin | süvari | Quaternius **Horse** + procedural binici | **T2 ✓ V1** |
+| Scout·LightCav·Hussar | hafif süvari | Quaternius **Horse** + procedural scout binici | **T2 ✓ V1** |
+| CavalryArcher·Mangudai | atlı okçu | Quaternius **Horse** + procedural okçu binici | **T2 ✓ V1** |
+| Cataphract | zırhlı süvari UU | Quaternius **Horse_White** + takım renkli barding | **T2 ✓ V1** |
+| Camel·Mameluke | develi | deve + binici | **T2 backlog** — deve asset yok, procedural kalır |
+| WarElephant | fil UU | fil + howdah | **T2 backlog** — fil asset yok, procedural kalır |
 | Trebuchet·Ram·Mangonel | kuşatma | Kenney Castle siege | T0 ✓ |
-| TradeCart | ticaret | Kenney FantasyTown cart (var) | **T1** |
+| TradeCart | ticaret | Quaternius **Donkey** + Kenney FantasyTown cart | **T1 ✓ V1** |
 | Galley·FireShip·DemoShip | savaş gemisi | Kenney **ship-medium/pirate-small/boat-row-small** | **T2 ✓** |
 | FishingShip | balıkçı | Kenney **boat-row-large** | **T2 ✓** |
 
@@ -89,8 +95,9 @@ genişlet). Gerçek yeni indirme yalnızca **1 kategori**: hayvanlar (at/deve/fi
 | Durum | Binalar | Aksiyon |
 |---|---|---|
 | Kenney bağlı ✓ | TownCenter, House, Barracks, Castle, Wall, Gate, Mill, Market, LumberCamp | korunur |
-| Primitive → **mevcut Kenney** | ArcheryRange, Stable, Farm, MiningCamp, Blacksmith, Monastery, University, Dock, SiegeWorkshop, Outpost, WatchTower, BombardTower, Wonder | **T1** — FantasyTown/Castle parçalarından kompoze et |
-| **Eksik** | FishTrap (factory yok) | **T1** — factory ekle + Kenney parça |
+| V2 polish ✓ | ArcheryRange, Stable, Market, Blacksmith, Monastery, University, Dock, SiegeWorkshop | mevcut Kenney/procedural prop katmanı eklendi |
+| V3 polish ✓ | Farm, MiningCamp, Outpost, WatchTower, BombardTower, Wonder | kalan geniş polish grubu da okunurluk/siluet prop'ları aldı |
+| Factory mevcut ✓ | FishTrap | küçük procedural trap var; daha iyi su/mesh polish sonraki dalga |
 
 Bu, **Kenney trim'i (eski Part B) revize eder:** FantasyTown/Castle'dan daha fazla parça
 kullanacağız → trim yalnızca gerçekten hiç kullanılmayanları (çoğu Nature 329) hedefler; keep-list
@@ -112,9 +119,9 @@ Modlar kural; çoğu yeni asset istemez. İstisnalar:
 1. **Faz 1 — Köylü (devam):** yeni köylü modeli (ayrı karar) + remap (kod yapıldı).
 2. **Faz 2 — T1 insansı reuse (sıfır indirme, en yüksek etki):** `UnitVisualLibrary` + `VisualFor`
    genişlet → 14 unique/insansı birim mevcut KayKit base'lere bağlanır. ~22 primitive → ~8'e iner.
-3. **Faz 3 — T1 binalar (sıfır indirme):** primitive binaları mevcut Kenney parçalarıyla kompoze;
-   FishTrap factory ekle. Sonra Kenney trim keep-list'i üret.
-4. **Faz 4 — T2 hayvanlar:** at/deve/fil (CC0) edin → atlı/develi/filli birimler.
+3. **Faz 3 — T1 binalar (sıfır indirme):** ArcheryRange/Stable/Market/Blacksmith/Monastery/
+   University/Dock/SiegeWorkshop V2 polish; Farm/MiningCamp/kuleler/Wonder V3 polish bağlı.
+4. **Faz 4 — T2 hayvanlar:** Horse/Horse_White/Donkey V1 bağlı; deve/fil için yeni CC0 kaynak gerekir.
 5. **Faz 5 — T2 gemiler ✅:** Kenney PirateKit (ship-medium/pirate-small/boat-row × 2) → donanma.
 6. **Faz 6 — T1.5 polish:** unique unit silah-swap ile ayrıştırma.
 
@@ -124,6 +131,6 @@ Her faz ayrı commit + Unity'de Play doğrulaması (0 error/warning).
 
 ## Açık kararlar
 - **D1:** Köylü modeli kaynağı (Quaternius Farmer dönüştür / Kenney / kullanıcı indirir / primitive kal).
-- **D2:** T2 hayvan kaynağı — Quaternius Animated Animals (manuel Drive indirme) vs başka CC0.
+- **D2:** T2 deve/fil kaynağı — Quaternius/başka CC0; Horse/Horse_White/Donkey kararı V1'de kapandı.
 - **D3:** T2 gemi kaynağı — Kenney Pirate Kit (direct curl) vs Quaternius.
 - **D4:** Trim agresifliği — bina kompozisyonu netleştikten sonra keep-list.

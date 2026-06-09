@@ -76,7 +76,6 @@ public class AudioManager : MonoBehaviour
 
     // N7.music: dedicated looping music source + combat duck
     AudioSource _musicSrc;
-    AudioClip   _musicClip;
     float       _duckFactor   = 1f;      // lowered during combat (duck)
     const float DuckTarget    = 0.35f;   // ducked volume fraction during combat
     const float DuckSpeed     = 2.0f;    // lerp speed for duck/unduck

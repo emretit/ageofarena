@@ -9,6 +9,7 @@ using UnityEngine;
 public static class UnitFactory
 {
     static int _nextId = 1;
+    enum MountedRole { Scout, Lancer, Archer, Mangudai, Cataphract }
 
     // Animated visual prefabs (KayKit), loaded once from Resources. Heavy FBX live outside
     // Resources/, so only prefabs referenced by this library ship in the WebGL build.
@@ -28,6 +29,168 @@ public static class UnitFactory
     }
 
     static GameObject VisualFor(UnitType type, int teamId = 0) => VisualLib != null ? VisualLib.VisualFor(type, teamId) : null;
+
+    static GameObject SpawnQuaterniusAnimal(string modelName, Transform parent, Vector3 localPos,
+        float scale = 1f, float yaw = 0f)
+    {
+        var prefab = Resources.Load<GameObject>("Quaternius/Animals/" + modelName);
+        if (prefab == null) return null;
+
+        var go = Object.Instantiate(prefab);
+        go.name = modelName;
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPos;
+        go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+        go.transform.localScale = Vector3.one * scale;
+        AlignAnimalToLocalFootprint(go.transform, parent, localPos);
+        return go;
+    }
+
+    static void AlignAnimalToLocalFootprint(Transform animal, Transform parent, Vector3 localFootprint)
+    {
+        var renderers = animal.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0) return;
+
+        Bounds bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+            bounds.Encapsulate(renderers[i].bounds);
+
+        Vector3 localCenter = parent.InverseTransformPoint(bounds.center);
+        Vector3 localBottom = parent.InverseTransformPoint(new Vector3(bounds.center.x, bounds.min.y, bounds.center.z));
+        animal.localPosition += new Vector3(
+            localFootprint.x - localCenter.x,
+            localFootprint.y - localBottom.y,
+            localFootprint.z - localCenter.z);
+    }
+
+    static bool TryLocalRendererBounds(Transform parent, out Bounds bounds)
+    {
+        var renderers = parent.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
+        {
+            bounds = new Bounds(Vector3.zero, Vector3.one);
+            return false;
+        }
+
+        var world = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+            world.Encapsulate(renderers[i].bounds);
+
+        var scale = parent.lossyScale;
+        bounds = new Bounds(parent.InverseTransformPoint(world.center), new Vector3(
+            world.size.x / Mathf.Max(Mathf.Abs(scale.x), 1e-4f),
+            world.size.y / Mathf.Max(Mathf.Abs(scale.y), 1e-4f),
+            world.size.z / Mathf.Max(Mathf.Abs(scale.z), 1e-4f)));
+        return true;
+    }
+
+    static void AddMountedRider(Transform t, Color teamColor, MountedRole role)
+    {
+        TryLocalRendererBounds(t, out var b);
+        float width = Mathf.Clamp(b.size.x, 0.45f, 0.9f);
+        float length = Mathf.Clamp(b.size.z, 0.9f, 1.6f);
+        float bodyTop = b.min.y + b.size.y * 0.58f;
+        float riderBase = bodyTop + 0.28f;
+        float riderZ = b.center.z - length * 0.10f;
+
+        var leather = Prims.Mat(Prims.Hex(0x3a2414), 0.05f, 0.2f);
+        var cloth = Prims.Mat(teamColor, 0.12f, 0.35f);
+        var metal = Prims.Mat(Prims.Hex(0xbfc2c8), 0.55f, 0.55f);
+        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
+        var wood = Prims.Mat(Prims.Hex(0x6b4a2a));
+        var hood = role == MountedRole.Mangudai
+            ? Prims.Mat(Prims.Hex(0x3a301f), 0.05f, 0.22f)
+            : Prims.Mat(Prims.Hex(0x2f5a32), 0.05f, 0.22f);
+
+        Prims.Box(t, new Vector3(0f, bodyTop, riderZ), new Vector3(width * 0.85f, 0.10f, length * 0.45f), leather);
+        if (role == MountedRole.Cataphract)
+        {
+            Prims.Box(t, new Vector3(0f, bodyTop - 0.20f, riderZ), new Vector3(width * 1.1f, 0.22f, length * 0.75f), cloth);
+            Prims.Box(t, new Vector3(0f, bodyTop + 0.05f, b.center.z + length * 0.25f), new Vector3(width * 0.65f, 0.22f, length * 0.25f), metal);
+        }
+
+        var torsoMat = role == MountedRole.Cataphract ? metal : cloth;
+        Prims.Box(t, new Vector3(0f, riderBase + 0.28f, riderZ), new Vector3(0.34f, 0.56f, 0.26f), torsoMat);
+        Prims.Sphere(t, new Vector3(0f, riderBase + 0.66f, riderZ), 0.15f, skin);
+
+        if (role == MountedRole.Archer || role == MountedRole.Mangudai || role == MountedRole.Scout)
+            Prims.Box(t, new Vector3(0f, riderBase + 0.76f, riderZ), new Vector3(0.30f, 0.16f, 0.30f), hood);
+        else
+            Prims.Box(t, new Vector3(0f, riderBase + 0.76f, riderZ), new Vector3(0.30f, 0.16f, 0.30f), metal);
+
+        if (role == MountedRole.Archer || role == MountedRole.Mangudai)
+        {
+            Prims.Box(t, new Vector3(-0.32f, riderBase + 0.34f, riderZ + 0.15f), new Vector3(0.05f, 0.80f, 0.08f), wood);
+            Prims.Box(t, new Vector3(0.15f, riderBase + 0.36f, riderZ - 0.22f), new Vector3(0.10f, 0.42f, 0.10f), wood);
+        }
+        else if (role == MountedRole.Scout)
+        {
+            Prims.Box(t, new Vector3(0.26f, riderBase + 0.25f, riderZ + 0.05f), new Vector3(0.05f, 0.05f, 1.00f), wood);
+            Prims.Box(t, new Vector3(0f, riderBase + 0.10f, riderZ - 0.20f), new Vector3(0.46f, 0.34f, 0.06f), cloth);
+        }
+        else
+        {
+            Prims.Box(t, new Vector3(0.28f, riderBase + 0.30f, riderZ + 0.28f), new Vector3(0.05f, 0.05f, 1.35f), metal);
+        }
+    }
+
+    static bool AddQuaterniusMountedVisual(Transform t, Color teamColor, string horseModel, MountedRole role)
+    {
+        if (SpawnQuaterniusAnimal(horseModel, t, Vector3.zero, 0.105f, 90f) == null)
+            return false;
+
+        AddMountedRider(t, teamColor, role);
+        return true;
+    }
+
+    static void AddPrimitiveHorse(Transform t, Material horse, float bodyY = 0.85f)
+    {
+        Prims.Box(t, new Vector3(0, bodyY, 0), new Vector3(0.5f, 0.5f, 1.2f), horse);
+        Prims.Box(t, new Vector3(0, bodyY + 0.3f, 0.6f), new Vector3(0.32f, 0.55f, 0.35f), horse);
+        Prims.Box(t, new Vector3(0, bodyY + 0.55f, 0.78f), new Vector3(0.28f, 0.3f, 0.5f), horse);
+        foreach (var lx in new[] { -0.18f, 0.18f })
+            foreach (var lz in new[] { -0.45f, 0.45f })
+                Prims.Box(t, new Vector3(lx, 0.35f, lz), new Vector3(0.12f, 0.7f, 0.12f), horse);
+    }
+
+    static void AddPrimitiveTradeCartBody(Transform t, Color teamColor, Vector3 offset)
+    {
+        var woodMat = Prims.Mat(Prims.Hex(0x7a5030), 0f, 0.2f);
+        var coverMat = Prims.Mat(teamColor, 0f, 0.3f);
+        var wheelMat = Prims.Mat(Prims.Hex(0x3a2010), 0.05f, 0.2f);
+
+        Prims.Box(t, offset + new Vector3(0, 0.25f, 0), new Vector3(0.7f, 0.3f, 0.5f), woodMat);
+        Prims.Box(t, offset + new Vector3(0, 0.45f, 0), new Vector3(0.65f, 0.2f, 0.45f), coverMat);
+        foreach (float cx in new[] { -0.35f, 0.35f })
+            foreach (float cz in new[] { -0.28f, 0.28f })
+                Prims.Cylinder(t, offset + new Vector3(cx, 0.2f, cz), 0.18f, 0.05f, wheelMat);
+    }
+
+    static bool AddTradeCartVisual(Transform t, Color teamColor)
+    {
+        bool hasDonkey = SpawnQuaterniusAnimal("Donkey", t, new Vector3(0f, 0f, 0.72f), 0.085f, 90f) != null;
+        bool hasCart = KenneyModels.Spawn("FantasyTown/cart", t, new Vector3(0f, 0f, -0.42f), 1.05f, 180f) != null;
+
+        if (!hasCart)
+            AddPrimitiveTradeCartBody(t, teamColor, new Vector3(0f, 0f, -0.42f));
+
+        if (!hasDonkey)
+        {
+            var hide = Prims.Mat(Prims.Hex(0x8a6a4a), 0.02f, 0.2f);
+            Prims.Box(t, new Vector3(0f, 0.48f, 0.72f), new Vector3(0.34f, 0.36f, 0.65f), hide);
+            Prims.Box(t, new Vector3(0f, 0.65f, 1.12f), new Vector3(0.26f, 0.28f, 0.28f), hide);
+            foreach (var lx in new[] { -0.12f, 0.12f })
+                foreach (var lz in new[] { 0.48f, 0.90f })
+                    Prims.Box(t, new Vector3(lx, 0.22f, lz), new Vector3(0.08f, 0.44f, 0.08f), hide);
+        }
+
+        var leather = Prims.Mat(Prims.Hex(0x4a2c10), 0.03f, 0.18f);
+        var accent = Prims.Mat(teamColor, 0f, 0.35f);
+        Prims.Box(t, new Vector3(-0.23f, 0.48f, 0.15f), new Vector3(0.06f, 0.06f, 1.10f), leather);
+        Prims.Box(t, new Vector3(0.23f, 0.48f, 0.15f), new Vector3(0.06f, 0.06f, 1.10f), leather);
+        Prims.Box(t, new Vector3(0f, 0.98f, -0.42f), new Vector3(0.50f, 0.28f, 0.05f), accent);
+        return hasDonkey || hasCart;
+    }
 
     public static UnitEntity Villager(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
     {
@@ -102,24 +265,11 @@ public static class UnitFactory
         var g = NewUnit("Cavalry", parent, worldPos);
         var t = g.transform;
 
-        var horse = Prims.Mat(Prims.Hex(0x5a4632));
-        var metal = Prims.Mat(Prims.Hex(0xc0c0c8), 0.6f, 0.6f);
-        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
-        var cloth = Prims.Mat(teamColor, 0.2f, 0.4f);
-
-        // Horse body + neck + head + legs.
-        Prims.Box(t, new Vector3(0, 0.85f, 0), new Vector3(0.5f, 0.5f, 1.2f), horse);       // barrel
-        Prims.Box(t, new Vector3(0, 1.15f, 0.6f), new Vector3(0.32f, 0.55f, 0.35f), horse); // neck
-        Prims.Box(t, new Vector3(0, 1.4f, 0.78f), new Vector3(0.28f, 0.3f, 0.5f), horse);   // head
-        foreach (var lx in new[] { -0.18f, 0.18f })
-            foreach (var lz in new[] { -0.45f, 0.45f })
-                Prims.Box(t, new Vector3(lx, 0.35f, lz), new Vector3(0.12f, 0.7f, 0.12f), horse); // legs
-        // Rider on top.
-        Prims.Box(t, new Vector3(0, 1.45f, -0.1f), new Vector3(0.36f, 0.6f, 0.28f), cloth); // rider torso
-        Prims.Sphere(t, new Vector3(0, 1.9f, -0.1f), 0.16f, skin);                          // rider head
-        Prims.Box(t, new Vector3(0, 1.96f, -0.1f), new Vector3(0.32f, 0.16f, 0.32f), metal); // helmet
-        // lance
-        Prims.Box(t, new Vector3(0.28f, 1.5f, 0.3f), new Vector3(0.05f, 0.05f, 1.4f), metal);
+        if (!AddQuaterniusMountedVisual(t, teamColor, "Horse", MountedRole.Lancer))
+        {
+            AddPrimitiveHorse(t, Prims.Mat(Prims.Hex(0x5a4632)));
+            AddMountedRider(t, teamColor, MountedRole.Lancer);
+        }
 
         var e = Finish(g, UnitType.Cavalry, teamColor);
         e.hp = e.maxHp = 75f;
@@ -164,20 +314,13 @@ public static class UnitFactory
     public static UnitEntity Scout(Transform parent, Vector3 worldPos, Color teamColor, int teamId = 0)
     {
         var g = NewUnit("Scout", parent, worldPos);
-        var visual = VisualFor(UnitType.Scout, teamId);
-        if (visual == null)
+        var t = g.transform;
+        if (!AddQuaterniusMountedVisual(t, teamColor, "Horse", MountedRole.Scout))
         {
-            var t = g.transform;
-            var skin  = Prims.Mat(Prims.Hex(0xe0ac69));
-            var cloak = Prims.Mat(teamColor, 0f, 0.25f);
-            var leather = Prims.Mat(Prims.Hex(0x6b4a2a));
-            Prims.Box(t, new Vector3(0, 0.48f, 0), new Vector3(0.32f, 0.66f, 0.24f), leather);
-            Prims.Sphere(t, new Vector3(0, 0.92f, 0), 0.16f, skin);
-            Prims.Box(t, new Vector3(0, 1.0f, 0), new Vector3(0.28f, 0.12f, 0.28f), cloak);
-            Prims.Box(t, new Vector3(0, 1.12f, -0.02f), new Vector3(0.05f, 0.2f, 0.05f), cloak);
-            Prims.Box(t, new Vector3(0, 0.55f, -0.16f), new Vector3(0.34f, 0.62f, 0.06f), cloak);
+            AddPrimitiveHorse(t, Prims.Mat(Prims.Hex(0x6b4a2a)));
+            AddMountedRider(t, teamColor, MountedRole.Scout);
         }
-        var e = Finish(g, UnitType.Scout, teamColor, visual, teamId);
+        var e = Finish(g, UnitType.Scout, teamColor, null, teamId);
         e.hp = e.maxHp = 40f;
         e.moveSpeed = 6.5f;
         e.pierceArmor = 2f;
@@ -361,25 +504,11 @@ public static class UnitFactory
         var g = NewUnit("CavalryArcher", parent, worldPos);
         var t = g.transform;
 
-        var horse = Prims.Mat(Prims.Hex(0x5a4632));
-        var skin  = Prims.Mat(Prims.Hex(0xe0ac69));
-        var cloth = Prims.Mat(teamColor, 0.1f, 0.3f);
-        var wood  = Prims.Mat(Prims.Hex(0x6b4a2a));
-
-        // Horse (same proportions as Cavalry).
-        Prims.Box(t, new Vector3(0, 0.85f, 0), new Vector3(0.5f, 0.5f, 1.2f), horse);       // barrel
-        Prims.Box(t, new Vector3(0, 1.15f, 0.6f), new Vector3(0.32f, 0.55f, 0.35f), horse); // neck
-        Prims.Box(t, new Vector3(0, 1.4f, 0.78f), new Vector3(0.28f, 0.3f, 0.5f), horse);   // head
-        foreach (var lx in new[] { -0.18f, 0.18f })
-            foreach (var lz in new[] { -0.45f, 0.45f })
-                Prims.Box(t, new Vector3(lx, 0.35f, lz), new Vector3(0.12f, 0.7f, 0.12f), horse); // legs
-        // Mounted archer rider.
-        Prims.Box(t, new Vector3(0, 1.45f, -0.1f), new Vector3(0.34f, 0.6f, 0.26f), cloth); // torso
-        Prims.Sphere(t, new Vector3(0, 1.9f, -0.1f), 0.16f, skin);                          // head
-        Prims.Box(t, new Vector3(0, 1.96f, -0.1f), new Vector3(0.3f, 0.16f, 0.3f), Prims.Mat(Prims.Hex(0x3a5a2a))); // hood
-        // Bow held across the body + quiver.
-        Prims.Box(t, new Vector3(-0.34f, 1.5f, 0.15f), new Vector3(0.05f, 0.9f, 0.08f), wood);
-        Prims.Box(t, new Vector3(0.16f, 1.55f, -0.22f), new Vector3(0.1f, 0.4f, 0.1f), wood);
+        if (!AddQuaterniusMountedVisual(t, teamColor, "Horse", MountedRole.Archer))
+        {
+            AddPrimitiveHorse(t, Prims.Mat(Prims.Hex(0x5a4632)));
+            AddMountedRider(t, teamColor, MountedRole.Archer);
+        }
 
         var e = Finish(g, UnitType.CavalryArcher, teamColor);
         e.hp = e.maxHp = 50f;
@@ -445,18 +574,11 @@ public static class UnitFactory
     {
         var g = NewUnit("Mangudai", parent, worldPos);
         var t = g.transform;
-        var horse = Prims.Mat(Prims.Hex(0x4a3a28));
-        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
-        var cloth = Prims.Mat(teamColor, 0.1f, 0.3f);
-        var wood = Prims.Mat(Prims.Hex(0x6b4a2a));
-        Prims.Box(t, new Vector3(0, 0.85f, 0), new Vector3(0.5f, 0.5f, 1.2f), horse);
-        Prims.Box(t, new Vector3(0, 1.15f, 0.6f), new Vector3(0.32f, 0.55f, 0.35f), horse);
-        foreach (var lx in new[] { -0.18f, 0.18f })
-            foreach (var lz in new[] { -0.45f, 0.45f })
-                Prims.Box(t, new Vector3(lx, 0.4f, lz), new Vector3(0.1f, 0.85f, 0.1f), horse);
-        Prims.Box(t, new Vector3(0, 1.5f, -0.1f), new Vector3(0.32f, 0.5f, 0.26f), cloth); // rider
-        Prims.Sphere(t, new Vector3(0, 1.85f, -0.1f), 0.15f, skin);
-        Prims.Box(t, new Vector3(-0.3f, 1.55f, 0.0f), new Vector3(0.05f, 0.6f, 0.1f), wood); // bow
+        if (!AddQuaterniusMountedVisual(t, teamColor, "Horse", MountedRole.Mangudai))
+        {
+            AddPrimitiveHorse(t, Prims.Mat(Prims.Hex(0x4a3a28)));
+            AddMountedRider(t, teamColor, MountedRole.Mangudai);
+        }
         var e = Finish(g, UnitType.Mangudai, teamColor);
         e.hp = e.maxHp = 60f;
         e.moveSpeed = 5.5f;
@@ -543,19 +665,11 @@ public static class UnitFactory
     {
         var g = NewUnit("Cataphract", parent, worldPos);
         var t = g.transform;
-        var horse = Prims.Mat(Prims.Hex(0x5a5a64), 0.4f, 0.4f);
-        var barding = Prims.Mat(teamColor, 0.2f, 0.4f);
-        var steel = Prims.Mat(Prims.Hex(0xc0c0c8), 0.7f, 0.6f);
-        var skin = Prims.Mat(Prims.Hex(0xe0ac69));
-        Prims.Box(t, new Vector3(0, 0.9f, 0), new Vector3(0.55f, 0.55f, 1.25f), horse);    // armoured horse
-        Prims.Box(t, new Vector3(0, 0.62f, 0.1f), new Vector3(0.6f, 0.25f, 1.1f), barding); // caparison
-        Prims.Box(t, new Vector3(0, 1.2f, 0.62f), new Vector3(0.34f, 0.5f, 0.36f), horse);
-        foreach (var lx in new[] { -0.2f, 0.2f })
-            foreach (var lz in new[] { -0.48f, 0.48f })
-                Prims.Box(t, new Vector3(lx, 0.38f, lz), new Vector3(0.12f, 0.78f, 0.12f), horse);
-        Prims.Box(t, new Vector3(0, 1.5f, -0.05f), new Vector3(0.36f, 0.55f, 0.3f), steel);  // mailed rider
-        Prims.Sphere(t, new Vector3(0, 1.88f, -0.05f), 0.16f, skin);
-        Prims.Box(t, new Vector3(0, 1.96f, -0.05f), new Vector3(0.3f, 0.18f, 0.3f), steel);  // helmet
+        if (!AddQuaterniusMountedVisual(t, teamColor, "Horse_White", MountedRole.Cataphract))
+        {
+            AddPrimitiveHorse(t, Prims.Mat(Prims.Hex(0x5a5a64), 0.4f, 0.4f), 0.9f);
+            AddMountedRider(t, teamColor, MountedRole.Cataphract);
+        }
         var e = Finish(g, UnitType.Cataphract, teamColor);
         e.hp = e.maxHp = 110f;
         e.moveSpeed = 4.0f;
@@ -811,7 +925,7 @@ public static class UnitFactory
 
         var ringGo = new GameObject("SelectionRing");
         ringGo.transform.SetParent(g.transform, false);
-        ringGo.AddComponent<UnityEngine.LineRenderer>();
+        ringGo.AddComponent<UnityEngine.LineRenderer>().useWorldSpace = false;
         ringGo.AddComponent<SelectionRing>();
 
         var col = g.AddComponent<UnityEngine.CapsuleCollider>();
@@ -843,7 +957,7 @@ public static class UnitFactory
 
         var ringGo = new GameObject("SelectionRing");
         ringGo.transform.SetParent(g.transform, false);
-        ringGo.AddComponent<UnityEngine.LineRenderer>();
+        ringGo.AddComponent<UnityEngine.LineRenderer>().useWorldSpace = false;
         ringGo.AddComponent<SelectionRing>();
 
         var col = g.AddComponent<UnityEngine.CapsuleCollider>();
@@ -954,15 +1068,8 @@ public static class UnitFactory
         g.transform.position = worldPos;
         var t = g.transform;
 
-        var woodMat = Prims.Mat(Prims.Hex(0x7a5030), 0f, 0.2f);
-        var coverMat = Prims.Mat(teamColor, 0f, 0.3f);
-        var wheelMat = Prims.Mat(Prims.Hex(0x3a2010), 0.05f, 0.2f);
-
-        Prims.Box(t, new Vector3(0, 0.25f, 0), new Vector3(0.7f, 0.3f, 0.5f), woodMat);   // cart body
-        Prims.Box(t, new Vector3(0, 0.45f, 0), new Vector3(0.65f, 0.2f, 0.45f), coverMat); // cover
-        foreach (float cx in new[] { -0.35f, 0.35f })
-        foreach (float cz in new[] { -0.28f, 0.28f })
-            Prims.Cylinder(t, new Vector3(cx, 0.2f, cz), 0.18f, 0.05f, wheelMat);
+        if (!AddTradeCartVisual(t, teamColor))
+            AddPrimitiveTradeCartBody(t, teamColor, Vector3.zero);
 
         var e = Finish(g, UnitType.TradeCart, teamColor);
         e.hp = e.maxHp = 25f;
@@ -1058,7 +1165,7 @@ public static class UnitFactory
 
         var ringGo = new GameObject("SelectionRing");
         ringGo.transform.SetParent(g.transform, false);
-        ringGo.AddComponent<LineRenderer>();
+        ringGo.AddComponent<LineRenderer>().useWorldSpace = false;
         ringGo.AddComponent<SelectionRing>();
 
         var col = g.AddComponent<CapsuleCollider>();

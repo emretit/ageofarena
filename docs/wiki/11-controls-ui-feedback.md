@@ -46,11 +46,12 @@ Bu katman oyuncunun oyunla konuştuğu her şeyi kapsar:
 - **Seçim** — Sol-tık tek birim, Shift toggle, sürükleme kutusu (drag-box), çift-tık ekrandaki
   aynı tip, kontrol grupları (Ctrl+1..9 / 1..9), boşta köylü döngüsü (`.`).
 - **Emirler** — Sağ-tık bağlama duyarlı (move / gather / attack / build-repair / garrison /
-  rally), attack-move (A), patrol (P), dur (S), duruş döngüsü (Q, 4 durum).
+  rally), attack-move (A), patrol (P), dur (S), duruş döngüsü (Q, 4 durum), formasyon (F) ve
+  kule çanı (H). Köylü inşa hotkey'i aynı frame'de global komut tetiklemez.
 - **Diplomasi (DIPL)** — D tuşu sol kenarda paneli açar/kapatır; her AI takımı (Kırmızı/Yeşil/Sarı)
   için Düşman↔Tarafsız↔İttifak durumu tıkla-döngü.
-- **Kamera** — Orthographic isometric rig: WASD/ok/kenar-kaydırma pan, scroll zoom, Q/E döndürme,
-  hasar sarsıntısı, gruba odaklanma.
+- **Kamera** — Orthographic isometric rig: ok tuşları/kenar-kaydırma pan, scroll zoom,
+  hasar sarsıntısı, gruba odaklanma. WASD ve Q/E kamera için kullanılmaz; komut hotkey'lerine ayrılır.
 - **Minimap** — RenderTexture top-down kamera, 45° döndürülerek **diamond** olarak çizilen RawImage
   + nokta (blip) katmanı; sol-tık/sürükle pan, sağ-tık move.
 - **Ses** — `AudioSource` havuzu üzerinden tek-atış (one-shot) SFX (kılıç, ok, inşa, eğitim,
@@ -132,7 +133,7 @@ düşürülür ([CommandSystem.cs:398](../../AgeOfArenaUnity/Assets/Scripts/Comm
 ### Kamera rig
 Sabit pitch **30°**, başlangıç yaw **45°**, mesafe **60** birim
 ([IsometricCameraRig.cs:21](../../AgeOfArenaUnity/Assets/Scripts/IsometricCameraRig.cs#L21)).
-Pan `panSpeed=25`, kenar-kaydırma marjı `edgeMargin=10` px, döndürme `rotateSpeed=90°/sn`,
+Pan `panSpeed=25`, kenar-kaydırma marjı `edgeMargin=10` px,
 zoom `zoomSpeed=4` orthographic birim/notch, ölçek `minSize=6 / maxSize=30` (başlangıç 11)
 ([IsometricCameraRig.cs:11](../../AgeOfArenaUnity/Assets/Scripts/IsometricCameraRig.cs#L11),
 [IsometricCameraRig.cs:55](../../AgeOfArenaUnity/Assets/Scripts/IsometricCameraRig.cs#L55)).
@@ -261,18 +262,20 @@ içerir; sahne yeniden kurulmaz, değerler mevcut oyuna uygulanır ([SaveSystem.
 | Sağ-tık | Bağlama duyarlı emir | [CommandSystem.cs:60](../../AgeOfArenaUnity/Assets/Scripts/CommandSystem.cs#L60) |
 | S / A / P | Dur / attack-move / patrol | [CommandSystem.cs:245](../../AgeOfArenaUnity/Assets/Scripts/CommandSystem.cs#L245) |
 | Q | Duruş döngüsü (Saldırgan→Savunmacı→Yerinde Dur→Saldırma) | [HUD.cs:698](../../AgeOfArenaUnity/Assets/Scripts/HUD.cs#L698) |
+| F | Formasyon döngüsü | [CommandSystem.cs](../../AgeOfArenaUnity/Assets/Scripts/CommandSystem.cs) |
+| H | Kule çanı; köylü seçiliyken House inşa hotkey'i önceliklidir | [CommandSystem.cs](../../AgeOfArenaUnity/Assets/Scripts/CommandSystem.cs) |
 | U | Garnizon boşalt | [CommandSystem.cs:289](../../AgeOfArenaUnity/Assets/Scripts/CommandSystem.cs#L289) |
 | D | Diplomasi panelini aç/kapat | [HUD.cs:694](../../AgeOfArenaUnity/Assets/Scripts/HUD.cs#L694) |
 | `[` / `]` / Space | Yavaşlat / hızlandır / duraklat | [CommandSystem.cs:234](../../AgeOfArenaUnity/Assets/Scripts/CommandSystem.cs#L234) |
-| WASD / Ok / kenar | Kamera pan | [IsometricCameraRig.cs:34](../../AgeOfArenaUnity/Assets/Scripts/IsometricCameraRig.cs#L34) |
-| Q / E | Kamera döndür | [IsometricCameraRig.cs:86](../../AgeOfArenaUnity/Assets/Scripts/IsometricCameraRig.cs#L86) |
+| Ok / kenar | Kamera pan | [IsometricCameraRig.cs:34](../../AgeOfArenaUnity/Assets/Scripts/IsometricCameraRig.cs#L34) |
 | Scroll | Zoom | [IsometricCameraRig.cs:81](../../AgeOfArenaUnity/Assets/Scripts/IsometricCameraRig.cs#L81) |
 | R (bina yerleştirme) | Footprint'i 90° döndür | [BuildingPlacement.cs:85](../../AgeOfArenaUnity/Assets/Scripts/BuildingPlacement.cs#L85) |
 | R (oyun bitti ekranı) | Yeniden başlat (civ/zorluk/mod korunur) | [MatchSystem.cs:57](../../AgeOfArenaUnity/Assets/Scripts/MatchSystem.cs#L57) |
 | Esc | Duraklama menüsü | [HUD.cs:637](../../AgeOfArenaUnity/Assets/Scripts/HUD.cs#L637) |
 | F5 / F9 | Quick-save / load | [SaveSystem.cs:28](../../AgeOfArenaUnity/Assets/Scripts/SaveSystem.cs#L28) |
 
-> Not: **Q tuşu iki işlev paylaşır** — birim seçiliyken duruş döngüsü, kamera için sol-döndürme.
+> Not: **WASD ve Q/E kamera hotkey'i değildir**; komut çakışmasını önlemek için kamera pan ok tuşları
+> ve ekran kenarıyla yapılır.
 > **R tuşu** bina-yerleştirme modunda footprint döndürür, oyun-bitti ekranında restart yapar; oyun
 > içinde serbest restart yalnızca duraklama menüsündeki "Yeniden Başlat" butonuyla
 > ([HUD.cs:1293](../../AgeOfArenaUnity/Assets/Scripts/HUD.cs#L1293)).
@@ -341,7 +344,7 @@ içerir; sahne yeniden kurulmaz, değerler mevcut oyuna uygulanır ([SaveSystem.
   [CommandSystem.cs:398](../../AgeOfArenaUnity/Assets/Scripts/CommandSystem.cs#L398).
 - Attack-move / patrol pick: [CommandSystem.cs:308](../../AgeOfArenaUnity/Assets/Scripts/CommandSystem.cs#L308),
   [CommandSystem.cs:259](../../AgeOfArenaUnity/Assets/Scripts/CommandSystem.cs#L259).
-- Kamera pan/zoom/rotate/shake: [IsometricCameraRig.cs:62](../../AgeOfArenaUnity/Assets/Scripts/IsometricCameraRig.cs#L62),
+- Kamera pan/zoom/shake: [IsometricCameraRig.cs:62](../../AgeOfArenaUnity/Assets/Scripts/IsometricCameraRig.cs#L62),
   [IsometricCameraRig.cs:110](../../AgeOfArenaUnity/Assets/Scripts/IsometricCameraRig.cs#L110).
 - Diamond minimap kamera + rotasyon + click-to-world: [MinimapSystem.cs:46](../../AgeOfArenaUnity/Assets/Scripts/MinimapSystem.cs#L46),
   [MinimapSystem.cs:87](../../AgeOfArenaUnity/Assets/Scripts/MinimapSystem.cs#L87),

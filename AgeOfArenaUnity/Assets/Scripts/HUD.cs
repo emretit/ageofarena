@@ -1310,7 +1310,7 @@ public class HUD : MonoBehaviour
     /// unit-info and villager cards.</summary>
     void AddUnitCommands(ref int idx, bool includeAttackMove)
     {
-        _slots.Add(MakeButton(idx++, CmdCol, "Dur", "Tüm emirleri bırak ve dur.", "", "S",
+        _slots.Add(MakeButton(idx++, CmdCol, "Dur", "Tüm emirleri bırak ve dur.", "", KeyLabel(Hotkeys.Get(HotkeyAction.Stop)),
             r => CommandIconFactory.Command(r, CommandIconFactory.CmdIcon.Stop),
             () =>
             {
@@ -1322,13 +1322,18 @@ public class HUD : MonoBehaviour
 
         if (includeAttackMove)
         {
-            _slots.Add(MakeButton(idx++, CmdCol, "Saldır-Yürü", "Bir noktaya ilerle; yoldaki düşmana saldır.", "", "A",
+            _slots.Add(MakeButton(idx++, CmdCol, "Saldır-Yürü", "Bir noktaya ilerle; yoldaki düşmana saldır.", "", KeyLabel(Hotkeys.Get(HotkeyAction.AttackMove)),
                 r => CommandIconFactory.Command(r, CommandIconFactory.CmdIcon.AttackMove),
                 () => GameManager.Instance?.command?.BeginAttackMove(),
                 () => true));
 
-            _slots.Add(MakeButton(idx++, CmdCol, "Duruş", "Saldırı duruşunu değiştir (Agresif/Savunma/Sabit/Pasif).", "", "Q",
-                r => CommandIconFactory.Command(r, CommandIconFactory.CmdIcon.Stop),
+            _slots.Add(MakeButton(idx++, CmdCol, "Devriye", "Seçili birimler iki nokta arasında devriye gezer.", "", KeyLabel(Hotkeys.Get(HotkeyAction.Patrol)),
+                r => CommandIconFactory.Command(r, CommandIconFactory.CmdIcon.Patrol),
+                () => GameManager.Instance?.command?.BeginPatrol(),
+                () => true));
+
+            _slots.Add(MakeButton(idx++, CmdCol, "Duruş", "Saldırı duruşunu değiştir (Agresif/Savunma/Sabit/Pasif).", "", KeyLabel(Hotkeys.Get(HotkeyAction.Stance)),
+                r => CommandIconFactory.Command(r, CommandIconFactory.CmdIcon.Stance),
                 () =>
                 {
                     var s = GameManager.Instance?.selection?.Selected;
@@ -1461,11 +1466,11 @@ public class HUD : MonoBehaviour
         AddBtn("Teknoloji Ağacı", () => { ClosePauseMenu(); OpenTechTreePanel(gm); }, y); y -= step;
         AddBtn(Loc.Get("pause.hotkeys"), () => OpenHotkeyPanel(), y); y -= step;   // N9.hotkeys: remap UI
         // N12.edit: open scenario editor
-        AddBtn("📝 Editör", () => { ClosePauseMenu(); gm.scenarioEditor?.Open(); }, y); y -= step;
+        AddBtn("Editör", () => { ClosePauseMenu(); gm.scenarioEditor?.Open(); }, y); y -= step;
         // N13.camp: open campaign screen
-        AddBtn("⚔ Kampanya", () => { ClosePauseMenu(); gm.campaignScreen?.Show(); }, y); y -= step;
+        AddBtn("Kampanya", () => { ClosePauseMenu(); gm.campaignScreen?.Show(); }, y); y -= step;
         // N15.checksum: save replay snapshot + trigger verify run
-        AddBtn("🔁 Replay", () =>
+        AddBtn("Replay", () =>
         {
             if (gm.checksum == null) return;
             var result = gm.checksum.ReplayVerifyResult;
@@ -1604,15 +1609,16 @@ public class HUD : MonoBehaviour
     }
 
     // ── N9.hotkeys: rebindable-key settings panel ────────────────────────────
-    // Only actions with a real consumer are remappable. Garrison (no key handler — garrison
-    // is right-click), BuildMenu (no handler), and Repair (the H key is hardcoded to the Town
-    // Bell, not a repair command — repair is right-click) were listed here but rebinding them
-    // did nothing, so they're omitted rather than mislead the player.
+    // Only actions with a real consumer are remappable. Garrison is right-click,
+    // BuildMenu has no handler, and Repair is contextual right-click.
     static readonly (HotkeyAction action, string label)[] RemapRows =
     {
         (HotkeyAction.Stop,        "Durdur"),
         (HotkeyAction.AttackMove,  "Saldır-Yürü"),
+        (HotkeyAction.Patrol,      "Devriye"),
         (HotkeyAction.Stance,      "Duruş Değiştir"),
+        (HotkeyAction.Formation,   "Formasyon"),
+        (HotkeyAction.TownBell,    "Kule Çanı"),
         (HotkeyAction.Ungarrison,  "Garnizon Boşalt"),
         (HotkeyAction.Diplomacy,   "Diplomasi"),
         (HotkeyAction.SelectIdle,  "Boşta İşçi Seç"),

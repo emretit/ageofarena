@@ -45,6 +45,9 @@ taşıması. Bunlar tek listede:
 | **N7.spatial3d** | `AudioManager.PlayAt` 3D positional SFX; combat/gather/die sesleri spatial | ✅ | `AudioManager.PlayAt`, `CombatSystem`, `GatherSystem`, `UnitEntity` — 2026-06-05 |
 | **N5.resize** | `MaxTeams=8`, array'ler `new[MaxTeams]`, `TeamCount { get; set; }`, Awake init | ✅ | `GameManager.cs` — 2026-06-05 |
 | **N8.siege.v** | Kenney siege modelleri + ölüm-yıkık variant Play görsel doğrulama | ✔️ | MCP capture 2026-06-05: Ram/Trebuchet/Mangonel KayKit modelleri render'landı |
+| **VIS.mount.v1** | Quaternius Horse/Horse_White/Donkey ile süvari + TradeCart görsel dalgası; Stable/Market düşük riskli prop polish | ✔️ | `UnitFactory`/`BuildingFactory` + `SelfTests` smoke; `VisualFactoryValidator` + `StabilizeQaValidator` batchmode geçti; PNG kamera kanıtı `Logs/stabilize-qa-*.png`; Unity compile/import temiz + dış C# compile 0 warning (2026-06-09) |
+| **VIS.building.v2** | ArcheryRange/Blacksmith/Monastery/University/Dock/SiegeWorkshop prop polish ve okunurluk iyileştirmesi | ✔️ | `BuildingFactory` + `SelfTests` smoke; `VisualFactoryValidator` + `StabilizeQaValidator` batchmode geçti; PNG kamera kanıtı `Logs/stabilize-qa-*.png`; Unity compile/import temiz + dış C# compile 0 warning (2026-06-09) |
+| **VIS.building.v3** | Farm/MiningCamp/Outpost/WatchTower/BombardTower/Wonder kalan görsel polish grubu | ✔️ | `BuildingFactory` + `SelfTests` smoke; `VisualFactoryValidator` + `StabilizeQaValidator` batchmode geçti; PNG kamera kanıtı `Logs/stabilize-qa-*.png`; Unity compile/import temiz + dış C# compile 0 warning (2026-06-09) |
 | **N10.rms.v** | 5 arketip harita farklı yerleşim Play doğrulama | ✔️ | MCP capture 2026-06-05: Arena/Arabia/BlackForest/Islands/Nomad — her biri farklı yerleşim onaylandı |
 | **N17.ws** | Gerçek WebSocket transport (NativeWebSocket + relay) | ⬜ | `TransportLayer.cs` — NativeWebSocket paket kurulumu gerekiyor |
 

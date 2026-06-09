@@ -27,6 +27,7 @@ public class CommandSystem : MonoBehaviour
 
     /// <summary>True while waiting for the player to click an attack-move destination.</summary>
     public bool AttackMovePending { get; private set; }
+    public bool PatrolPending => _patrolPending;
 
     void Start() => _cam = Camera.main;
 
@@ -93,20 +94,25 @@ public class CommandSystem : MonoBehaviour
         if (AttackMovePending) { HandleAttackMovePick(gm); return; }
         if (_patrolPending) { HandlePatrolPick(gm); return; }
 
-        HandleTrainHotkeys();
-        HandleMarketHotkeys();
-        HandleResearchHotkeys();
-        HandleBuildHotkeys();
-        HandleUnitHotkeys();
-        HandleGarrisonHotkeys();
+        bool hotkeyConsumed = false;
+        hotkeyConsumed |= HandleTrainHotkeys();
+        hotkeyConsumed |= HandleMarketHotkeys();
+        hotkeyConsumed |= HandleResearchHotkeys();
+        hotkeyConsumed |= HandleBuildHotkeys();
+        if (!hotkeyConsumed)
+        {
+            HandleUnitHotkeys();
+            HandleGarrisonHotkeys();
+        }
 
-        // N6.form: F = cycle formation type; H = Town Bell
-        if (Input.GetKeyDown(KeyCode.F))
+        // N6.form: global formation / town-bell hotkeys only run when a context
+        // hotkey did not already consume the same frame (e.g. F=Farm, H=House).
+        if (!hotkeyConsumed && Hotkeys.Down(HotkeyAction.Formation))
         {
             CurrentFormation = (FormationType)(((int)CurrentFormation + 1) % 4);
             gm.hud?.ShowSubtitle(FormationNames[(int)CurrentFormation]);
         }
-        if (Input.GetKeyDown(KeyCode.H)) TownBell(gm);
+        if (!hotkeyConsumed && Hotkeys.Down(HotkeyAction.TownBell)) TownBell(gm);
 
         if (!Input.GetMouseButtonDown(1)) return;
         // A right-click over the HUD command bar shouldn't issue a world order.
@@ -150,7 +156,7 @@ public class CommandSystem : MonoBehaviour
                 SpawnMarker(enemy.Transform.position, AttackColor);
                 // N3.cmdlog: record attack command
                 int targetId = (enemy is UnitEntity ue) ? ue.unitId
-                             : (enemy is BuildingEntity be) ? be.GetInstanceID() : 0;
+                             : (enemy is BuildingEntity be) ? be.GetEntityId().GetHashCode() : 0;
                 GameManager.Instance?.cmdRecorder?.Record(
                     CommandType.Attack, UnitIds(selected), intParam1: targetId,
                     x: enemy.Transform.position.x, z: enemy.Transform.position.z);
@@ -210,7 +216,7 @@ public class CommandSystem : MonoBehaviour
                 // N3.cmdlog: record gather command
                 GameManager.Instance?.cmdRecorder?.Record(
                     CommandType.Gather, UnitIds(selected),
-                    intParam1: node.GetInstanceID(),
+                    intParam1: node.GetEntityId().GetHashCode(),
                     x: node.transform.position.x, z: node.transform.position.z);
             }
             return;
@@ -241,16 +247,16 @@ public class CommandSystem : MonoBehaviour
     }
 
     /// <summary>When a villager is selected, a building hotkey enters placement mode.</summary>
-    void HandleBuildHotkeys()
+    bool HandleBuildHotkeys()
     {
         var gm = GameManager.Instance;
-        if (gm.placement == null || gm.selection == null) return;
+        if (gm.placement == null || gm.selection == null) return false;
 
         var sel = gm.selection.Selected;
         bool hasVillager = false;
         for (int i = 0; i < sel.Count; i++)
             if (sel[i] != null && sel[i].type == UnitType.Villager) { hasVillager = true; break; }
-        if (!hasVillager) return;
+        if (!hasVillager) return false;
 
         foreach (var d in BuildingDefs.Buildable())
         {
@@ -258,20 +264,21 @@ public class CommandSystem : MonoBehaviour
             if (Input.GetKeyDown(char.ToLower(d.hotkey).ToString()))
             {
                 gm.placement.Begin(d.type);
-                break;
+                return true;
             }
         }
+        return false;
     }
 
     /// <summary>When a building is selected, number keys research its available techs
     /// (in the order shown in the HUD). Market keeps number keys for trading.</summary>
-    void HandleResearchHotkeys()
+    bool HandleResearchHotkeys()
     {
-        if (CtrlHeld) return; // Ctrl+digit is reserved for control-group assignment
+        if (CtrlHeld) return false; // Ctrl+digit is reserved for control-group assignment
         var gm = GameManager.Instance;
         var b = gm?.selectedBuilding;
-        if (b == null || gm.research == null) return;
-        if (b.type == BuildingType.Market) return; // Market: number keys are trade
+        if (b == null || gm.research == null) return false;
+        if (b.type == BuildingType.Market) return false; // Market: number keys are trade
 
         var techs = b.GetResearchables();
         int max = Mathf.Min(techs.Count, 9);
@@ -280,24 +287,26 @@ public class CommandSystem : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.Alpha1 + i))
             {
                 gm.research.Enqueue(b, techs[i]);
-                break;
+                return true;
             }
         }
+        return false;
     }
 
     /// <summary>When a finished Market is selected, number keys trade resources.</summary>
-    void HandleMarketHotkeys()
+    bool HandleMarketHotkeys()
     {
-        if (CtrlHeld) return; // Ctrl+digit is reserved for control-group assignment
+        if (CtrlHeld) return false; // Ctrl+digit is reserved for control-group assignment
         var gm = GameManager.Instance;
         var b = gm?.selectedBuilding;
-        if (b == null || b.type != BuildingType.Market || b.underConstruction) return;
+        if (b == null || b.type != BuildingType.Market || b.underConstruction) return false;
 
         var rm = gm.resources;
-        if (Input.GetKeyDown(KeyCode.Alpha1)) MarketSystem.Sell(rm, ResourceKind.Food);
-        if (Input.GetKeyDown(KeyCode.Alpha2)) MarketSystem.Sell(rm, ResourceKind.Wood);
-        if (Input.GetKeyDown(KeyCode.Alpha3)) MarketSystem.Sell(rm, ResourceKind.Stone);
-        if (Input.GetKeyDown(KeyCode.Alpha4)) MarketSystem.Buy(rm, ResourceKind.Food);
+        if (Input.GetKeyDown(KeyCode.Alpha1)) { MarketSystem.Sell(rm, ResourceKind.Food); return true; }
+        if (Input.GetKeyDown(KeyCode.Alpha2)) { MarketSystem.Sell(rm, ResourceKind.Wood); return true; }
+        if (Input.GetKeyDown(KeyCode.Alpha3)) { MarketSystem.Sell(rm, ResourceKind.Stone); return true; }
+        if (Input.GetKeyDown(KeyCode.Alpha4)) { MarketSystem.Buy(rm, ResourceKind.Food); return true; }
+        return false;
     }
 
     /// <summary>With units (and no building) selected, S stops them and A starts an
@@ -322,13 +331,13 @@ public class CommandSystem : MonoBehaviour
             for (int i = 0; i < sel.Count; i++) { var u = sel[i]; if (u != null) { u.attackMove = false; u.Stop(); } }
         else if (Hotkeys.Down(HotkeyAction.AttackMove))
             BeginAttackMove();
-        else if (Input.GetKeyDown(KeyCode.P))
+        else if (Hotkeys.Down(HotkeyAction.Patrol))
             BeginPatrol();
     }
 
     bool _patrolPending;
 
-    void BeginPatrol() => _patrolPending = true;
+    public void BeginPatrol() => _patrolPending = true;
 
     // Called in Update when patrol is pending; next right-click becomes the patrol endpoint.
     void HandlePatrolPick(GameManager gm)
@@ -363,19 +372,23 @@ public class CommandSystem : MonoBehaviour
             gm.garrison.UngarrisonAll(b);
     }
 
-    void HandleTrainHotkeys()
+    bool HandleTrainHotkeys()
     {
         var gm = GameManager.Instance;
         var b = gm?.selectedBuilding;
-        if (b == null || gm.trainingQueue == null) return;
+        if (b == null || gm.trainingQueue == null) return false;
 
         var trainables = b.GetTrainables();
         for (int i = 0; i < trainables.Length; i++)
         {
             var def = trainables[i];
             if (def.hotkey.Length > 0 && Input.GetKeyDown(def.hotkey[0].ToString().ToLower()))
+            {
                 gm.trainingQueue.Enqueue(b, def);
+                return true;
+            }
         }
+        return false;
     }
 
     /// <summary>Consume the attack-move targeting click: send the selection advancing

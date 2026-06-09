@@ -449,7 +449,7 @@ public static class CommandIconFactory
         }
     }
 
-    public enum CmdIcon { Stop, AttackMove, Garrison }
+    public enum CmdIcon { Stop, AttackMove, Garrison, Patrol, Stance }
 
     /// <summary>Generic unit-command icons (stop, attack-move, garrison eject).</summary>
     public static void Command(RectTransform icon, CmdIcon c)
@@ -470,6 +470,18 @@ public static class CommandIconFactory
                 Add(icon, Square,   Steel, 0, -5, 24, 16);      // building
                 Add(icon, Square,   Dark,  0, -7, 8, 10);       // doorway
                 Add(icon, Triangle, Gold,  0, 10, 18, 14);      // units leaving (up)
+                break;
+            case CmdIcon.Patrol:
+                Add(icon, Ring,   Shield, -8, 0, 16, 16);
+                Add(icon, Ring,   Shield,  8, 0, 16, 16);
+                Add(icon, Square, Steel,   0, 0, 20, 4);
+                Add(icon, Triangle, Gold,  12, 0, 10, 10, -90);
+                break;
+            case CmdIcon.Stance:
+                Add(icon, Circle, Shield, 0, 0, 32, 32);
+                Add(icon, Triangle, Gold, 0, 7, 18, 14);
+                Add(icon, Square, Steel, -7, -7, 5, 16, -25);
+                Add(icon, Square, Steel,  7, -7, 5, 16,  25);
                 break;
         }
     }

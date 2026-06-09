@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using UnityEngine;
 
 /// <summary>
 /// N2.asmdef: EditMode self-tests. These pin the pure-logic behaviour of
@@ -102,5 +103,148 @@ public class SelfTests
         // range=4 → 4²=16 < 5²=25 → not in range
         var rangeSq = FP.FromInt(16);
         Assert.IsFalse(FPMath.InRangeSq(FP.Zero, FP.Zero, FP.FromInt(3), FP.FromInt(4), rangeSq));
+    }
+
+    [Test]
+    public void CommandSystem_FormationOffsets_Line_IsCentered()
+    {
+        var offsets = CommandSystem.FormationOffsets(3, CommandSystem.FormationType.Line);
+        Assert.AreEqual(3, offsets.Length);
+        Assert.AreEqual(-1.5f, offsets[0].x, 0.001f);
+        Assert.AreEqual(0f, offsets[1].x, 0.001f);
+        Assert.AreEqual(1.5f, offsets[2].x, 0.001f);
+        Assert.AreEqual(0f, offsets[0].z, 0.001f);
+        Assert.AreEqual(0f, offsets[2].z, 0.001f);
+    }
+
+    [Test]
+    public void Hotkeys_ActionFor_IgnoresUnconsumedActions()
+    {
+        try
+        {
+            Hotkeys.Set(HotkeyAction.Repair, KeyCode.H);
+            Hotkeys.Set(HotkeyAction.TownBell, KeyCode.H);
+
+            Assert.AreEqual(HotkeyAction.TownBell, Hotkeys.ActionFor(KeyCode.H));
+        }
+        finally
+        {
+            Hotkeys.Reset(HotkeyAction.Repair);
+            Hotkeys.Reset(HotkeyAction.TownBell);
+        }
+    }
+
+    [Test]
+    public void Hotkeys_StabilizeQa_DefaultGlobalBindingsStayPinned()
+    {
+        try
+        {
+            Hotkeys.Reset(HotkeyAction.Patrol);
+            Hotkeys.Reset(HotkeyAction.Formation);
+            Hotkeys.Reset(HotkeyAction.TownBell);
+            Hotkeys.Reset(HotkeyAction.Repair);
+
+            Assert.AreEqual(KeyCode.P, Hotkeys.Get(HotkeyAction.Patrol));
+            Assert.AreEqual(KeyCode.F, Hotkeys.Get(HotkeyAction.Formation));
+            Assert.AreEqual(KeyCode.H, Hotkeys.Get(HotkeyAction.TownBell));
+            Assert.AreEqual(KeyCode.None, Hotkeys.Get(HotkeyAction.Repair));
+            Assert.IsFalse(Hotkeys.IsBindableAction(HotkeyAction.Repair));
+        }
+        finally
+        {
+            Hotkeys.Reset(HotkeyAction.Patrol);
+            Hotkeys.Reset(HotkeyAction.Formation);
+            Hotkeys.Reset(HotkeyAction.TownBell);
+            Hotkeys.Reset(HotkeyAction.Repair);
+        }
+    }
+
+    [Test]
+    public void CommandSystem_BeginPatrol_ExposesPendingState()
+    {
+        var go = new GameObject("CommandSystemPatrolTestRoot");
+        try
+        {
+            var command = go.AddComponent<CommandSystem>();
+            Assert.IsFalse(command.PatrolPending);
+            command.BeginPatrol();
+            Assert.IsTrue(command.PatrolPending);
+        }
+        finally
+        {
+            Object.DestroyImmediate(go);
+        }
+    }
+
+    [Test]
+    public void VisualFactories_BuildingPolishTargets_SpawnRenderableRoots()
+    {
+        var parent = new GameObject("BuildingVisualFactoryTestRoot");
+        try
+        {
+            var targets = new[]
+            {
+                BuildingType.ArcheryRange,
+                BuildingType.Stable,
+                BuildingType.Market,
+                BuildingType.Farm,
+                BuildingType.MiningCamp,
+                BuildingType.Blacksmith,
+                BuildingType.Monastery,
+                BuildingType.University,
+                BuildingType.Dock,
+                BuildingType.SiegeWorkshop,
+                BuildingType.Outpost,
+                BuildingType.WatchTower,
+                BuildingType.BombardTower,
+                BuildingType.Wonder,
+            };
+
+            foreach (var type in targets)
+            {
+                var go = BuildingFactory.Create(type, parent.transform, Vector3.zero, Color.red);
+                Assert.IsNotNull(go.GetComponent<BuildingEntity>(), $"{type} missing BuildingEntity");
+                Assert.IsNotNull(go.GetComponent<BoxCollider>(), $"{type} missing root collider");
+                Assert.Greater(go.GetComponentsInChildren<Renderer>(true).Length, 0, $"{type} has no renderers");
+            }
+        }
+        finally
+        {
+            Object.DestroyImmediate(parent);
+        }
+    }
+
+    [Test]
+    public void VisualFactories_MountedAndTradeTargets_SpawnSelectableRenderers()
+    {
+        var parent = new GameObject("UnitVisualFactoryTestRoot");
+        try
+        {
+            var targets = new[]
+            {
+                UnitType.Scout,
+                UnitType.Cavalry,
+                UnitType.CavalryArcher,
+                UnitType.Mangudai,
+                UnitType.Cataphract,
+                UnitType.TradeCart,
+            };
+
+            foreach (var type in targets)
+            {
+                var unit = UnitFactory.Spawn(type, parent.transform, Vector3.zero, 0);
+                Assert.IsNotNull(unit, $"{type} did not spawn");
+                Assert.IsNotNull(unit.GetComponent<CapsuleCollider>(), $"{type} missing root collider");
+                Assert.IsNotNull(unit.GetComponentInChildren<SelectionRing>(true), $"{type} missing selection ring");
+                var ring = unit.GetComponentInChildren<LineRenderer>(true);
+                Assert.IsNotNull(ring, $"{type} missing selection ring renderer");
+                Assert.IsFalse(ring.useWorldSpace, $"{type} selection ring must be local-space before Play mode");
+                Assert.Greater(unit.GetComponentsInChildren<Renderer>(true).Length, 0, $"{type} has no renderers");
+            }
+        }
+        finally
+        {
+            Object.DestroyImmediate(parent);
+        }
     }
 }

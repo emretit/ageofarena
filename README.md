@@ -17,6 +17,14 @@ AoE2 Arena tarzı 3D izometrik RTS — **Unity (C#)**.
 İlk Play'de `GameBootstrap` sahneyi otomatik kurar: izometrik kamera, zemin + NavMesh,
 4 üs, orman, altın/taş madenleri, başlangıç birimleri.
 
+## Temel Kontroller
+
+- Kamera: ok tuşları veya ekran kenarı; fare tekerleği zoom.
+- Birim komutları: `S` dur, `A` saldır-yürü, `P` devriye, `Q` duruş, `F` formasyon.
+- Köylü inşa kısayolları bağlama duyarlıdır; örn. `H` ev, `F` tarla. Aynı tuşlar bu sırada global
+  komut tetiklemez.
+- `H` savaş ekranında kule çanı; `Esc` pause menüsü.
+
 ## Belgeler
 
 - [CLAUDE.md](CLAUDE.md) — proje talimatları ve teknik notlar

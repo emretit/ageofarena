@@ -2,8 +2,8 @@ using UnityEngine;
 
 /// <summary>
 /// Orthographic isometric camera matching the AoE2-style view from the
-/// Three.js version: ~30° pitch, 45° yaw, pan with WASD / arrows / edge,
-/// zoom with the scroll wheel, rotate with Q/E.
+/// Three.js version: ~30° pitch, 45° yaw, pan with arrow keys / edge-scroll,
+/// and zoom with the scroll wheel. Q/E are intentionally left for commands.
 /// </summary>
 [RequireComponent(typeof(Camera))]
 public class IsometricCameraRig : MonoBehaviour
@@ -66,7 +66,7 @@ public class IsometricCameraRig : MonoBehaviour
     {
         if (_cam == null) return;
 
-        // Pan (camera-relative on the ground plane). Combines WASD/arrow keys with
+        // Pan (camera-relative on the ground plane). Combines arrow keys with
         // AoE-style mouse edge-scroll: the cursor near a screen edge pans that way.
         var move = ReadPanInput();  // x = strafe, y = forward/back on the ground plane
         if (move.sqrMagnitude > 0.001f)

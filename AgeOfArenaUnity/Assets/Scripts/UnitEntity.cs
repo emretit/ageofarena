@@ -236,7 +236,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     void Awake()
     {
         _ring = GetComponentInChildren<SelectionRing>(true);
-        _animator = GetComponentInChildren<Animator>();   // null for primitive units
+        _animator = FindDrivenAnimator();   // null for primitive/static-model units
 
         _agent = gameObject.AddComponent<NavMeshAgent>();
         _agent.speed = moveSpeed;
@@ -349,6 +349,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     {
         state = UnitState.Idle;
         patrolActive = false;
+        attackMove   = false;   // stop cancels attack-move mode (like patrolActive)
         tradeActive  = false;   // a manual order cancels an in-progress trade route
         moveQueue.Clear();
         if (_agent.isOnNavMesh)
@@ -621,6 +622,16 @@ public class UnitEntity : MonoBehaviour, IDamageable
     static readonly int AnimIsMoving  = Animator.StringToHash("IsMoving");
     static readonly int AnimAttack    = Animator.StringToHash("Attack");
     static readonly int AnimDie       = Animator.StringToHash("Die");
+
+    Animator FindDrivenAnimator()
+    {
+        foreach (var animator in GetComponentsInChildren<Animator>())
+        {
+            if (animator.runtimeAnimatorController != null)
+                return animator;
+        }
+        return null;
+    }
 
     /// <summary>Fire the attack animation. No-op for primitive units (no Animator).</summary>
     public void PlayAttack() { if (_animator != null) _animator.SetTrigger(AnimAttack); }

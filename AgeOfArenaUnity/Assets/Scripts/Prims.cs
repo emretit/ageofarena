@@ -44,7 +44,7 @@ public static class Prims
         var go = GameObject.CreatePrimitive(type);
         // Primitive colliders aren't needed for static decoration; keep them only
         // where selection/raycast will use them later.
-        Object.Destroy(go.GetComponent<Collider>());
+        DestroyGeneratedCollider(go);
         go.transform.SetParent(parent, false);
         go.transform.localPosition = pos;
         go.transform.localScale = scale;
@@ -203,7 +203,7 @@ public static class Prims
     {
         var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
         go.name = "BlobShadow";
-        Object.Destroy(go.GetComponent<Collider>());
+        DestroyGeneratedCollider(go);
         go.transform.SetParent(parent, false);
         go.transform.localPosition = new Vector3(0f, yOffset, 0f);
         go.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);   // lie flat, textured face up
@@ -213,5 +213,16 @@ public static class Prims
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         mr.receiveShadows = false;
         return go;
+    }
+
+    static void DestroyGeneratedCollider(GameObject go)
+    {
+        var collider = go.GetComponent<Collider>();
+        if (collider == null) return;
+
+        if (Application.isPlaying)
+            Object.Destroy(collider);
+        else
+            Object.DestroyImmediate(collider);
     }
 }

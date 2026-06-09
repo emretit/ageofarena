@@ -15,6 +15,39 @@ public static class BuildingFactory
     static readonly Color Door   = Prims.Hex(0x4a2c10);
     static readonly Color Window = Prims.Hex(0x6aa0cc); // deeper window blue
 
+    static GameObject QuaterniusAnimal(string modelName, Transform parent, Vector3 localPos,
+        float scale = 1f, float yaw = 0f)
+    {
+        var prefab = Resources.Load<GameObject>("Quaternius/Animals/" + modelName);
+        if (prefab == null) return null;
+
+        var go = Object.Instantiate(prefab);
+        go.name = modelName;
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPos;
+        go.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+        go.transform.localScale = Vector3.one * scale;
+        AlignAnimalToLocalFootprint(go.transform, parent, localPos);
+        return go;
+    }
+
+    static void AlignAnimalToLocalFootprint(Transform animal, Transform parent, Vector3 localFootprint)
+    {
+        var renderers = animal.GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0) return;
+
+        Bounds bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+            bounds.Encapsulate(renderers[i].bounds);
+
+        Vector3 localCenter = parent.InverseTransformPoint(bounds.center);
+        Vector3 localBottom = parent.InverseTransformPoint(new Vector3(bounds.center.x, bounds.min.y, bounds.center.z));
+        animal.localPosition += new Vector3(
+            localFootprint.x - localCenter.x,
+            localFootprint.y - localBottom.y,
+            localFootprint.z - localCenter.z);
+    }
+
     // Compose a keep from Castle-kit square-tower pieces at the building's local
     // origin. Native heights (scale 1): base 1.01, mid 1.01, top-roof 1.0. Returns
     // false when the asset pack is missing so callers fall back to procedural meshes.
@@ -191,6 +224,11 @@ public static class BuildingFactory
             Prims.Box(t, new Vector3(0.9f, 0.7f, pz), new Vector3(0.12f, 1.4f, 0.12f), darkMat);
         Prims.Cylinder(t, new Vector3(0.95f, 0.7f, 0), 0.4f, 0.2f, Prims.Mat(Prims.Hex(0xd9c9a0)));
         Prims.Cylinder(t, new Vector3(0.97f, 0.7f, 0), 0.18f, 0.22f, Prims.Mat(Prims.Hex(0xc0392b)));
+        KenneyModels.Spawn("FantasyTown/fence", t, new Vector3(1.12f, 0, -0.92f), 0.75f, 90f);
+        KenneyModels.Spawn("FantasyTown/fence", t, new Vector3(1.12f, 0,  0.92f), 0.75f, 90f);
+        Prims.Box(t, new Vector3(0.34f, 0.52f, -0.82f), new Vector3(0.08f, 0.08f, 0.9f), Prims.Mat(Prims.Hex(0x6b4a2a)));
+        Prims.Box(t, new Vector3(0.20f, 0.78f, -0.82f), new Vector3(0.05f, 0.05f, 0.75f), Prims.Mat(Prims.Hex(0xb8b8c0), 0.4f, 0.45f));
+        Prims.Box(t, new Vector3(0.52f, 0.78f, -0.82f), new Vector3(0.05f, 0.05f, 0.75f), Prims.Mat(Prims.Hex(0xb8b8c0), 0.4f, 0.45f));
 
         Prims.EnableShadows(g);
         return g;
@@ -214,6 +252,11 @@ public static class BuildingFactory
         // hay bale
         Prims.Box(t, new Vector3(1.05f, 0.55f, -1.0f), new Vector3(0.5f, 0.5f, 0.5f), Prims.Mat(Prims.Hex(0xc9a227)));
         KenneyModels.Spawn("FantasyTown/cart", t, new Vector3(-1.1f, 0, 0.6f), 1.1f, 20f); // hay cart
+        // Low-risk visual polish: a tiny corral and animal prop beside the barn.
+        KenneyModels.Spawn("FantasyTown/fence", t, new Vector3(1.25f, 0, 0.65f), 0.85f, 90f);
+        KenneyModels.Spawn("FantasyTown/fence", t, new Vector3(0.65f, 0, 1.15f), 0.85f, 0f);
+        if (QuaterniusAnimal("Horse", t, new Vector3(0.95f, 0f, 0.82f), 0.055f, 65f) == null)
+            Prims.Box(t, new Vector3(0.95f, 0.42f, 0.82f), new Vector3(0.28f, 0.34f, 0.58f), Prims.Mat(Prims.Hex(0x5a4632)));
 
         Prims.EnableShadows(g);
         return g;
@@ -234,6 +277,12 @@ public static class BuildingFactory
         foreach (var fx in new[] { -1.45f, 1.45f })                                            // fence posts
             foreach (var fz in new[] { -1.45f, 1.45f })
                 Prims.Box(t, new Vector3(fx, 0.3f, fz), new Vector3(0.1f, 0.5f, 0.1f), fence);
+        KenneyModels.Spawn("FantasyTown/fence", t, new Vector3(0, 0, -1.55f), 1.0f, 90f);
+        KenneyModels.Spawn("FantasyTown/fence", t, new Vector3(0, 0,  1.55f), 1.0f, 90f);
+        Prims.Cylinder(t, new Vector3(-1.05f, 0.55f, 1.0f), 0.04f, 0.9f, fence);
+        Prims.Box(t, new Vector3(-1.05f, 0.82f, 1.0f), new Vector3(0.62f, 0.05f, 0.05f), fence);
+        Prims.Box(t, new Vector3(-1.05f, 0.62f, 1.0f), new Vector3(0.34f, 0.40f, 0.08f), Prims.Mat(roofColor, 0.02f, 0.22f));
+        Prims.Box(t, new Vector3(1.1f, 0.24f, 1.0f), new Vector3(0.38f, 0.28f, 0.34f), Prims.Mat(Prims.Hex(0xc9a227), 0.02f, 0.18f));
 
         Prims.EnableShadows(g);
         return g;
@@ -279,6 +328,13 @@ public static class BuildingFactory
         Prims.Sphere(t, new Vector3(0.95f, 0.28f, -0.35f), 0.26f, darkMat);
         Prims.Box(t, new Vector3(0.8f, 0.25f, 0.6f), new Vector3(0.5f, 0.5f, 0.4f), Prims.Mat(Prims.Hex(0x6e4a28))); // crate
         KenneyModels.Spawn("FantasyTown/cart-high", t, new Vector3(-0.85f, 0, 0.75f), 1.0f, 35f); // ore cart
+        Prims.Box(t, new Vector3(-0.82f, 0.58f, -0.92f), new Vector3(0.86f, 0.78f, 0.12f), darkMat);
+        Prims.Cone(t, new Vector3(-0.82f, 0.92f, -0.98f), 0.50f, 0.46f, 6, stoneMat, 0f);
+        Prims.Cylinder(t, new Vector3(-0.22f, 0.20f, 1.02f), 0.07f, 1.15f, Prims.Mat(Prims.Hex(0x4a3018), 0.05f))
+            .transform.localRotation = Quaternion.Euler(0, 0, 90f);
+        Prims.Cylinder(t, new Vector3(0.18f, 0.20f, 1.02f), 0.07f, 1.15f, Prims.Mat(Prims.Hex(0x4a3018), 0.05f))
+            .transform.localRotation = Quaternion.Euler(0, 0, 90f);
+        KenneyModels.Spawn("FantasyTown/wheel", t, new Vector3(-0.25f, 0.16f, 0.72f), 0.65f, 90f);
 
         Prims.EnableShadows(g);
         return g;
@@ -341,6 +397,11 @@ public static class BuildingFactory
             KenneyModels.Spawn("FantasyTown/stall-green", t, new Vector3( 0.9f, 0, 0), 1.8f);
             KenneyModels.Spawn("FantasyTown/cart",        t, new Vector3( 0.9f, 0, -1.4f), 1.4f);
         }
+        // Trade cue: donkey/cart traffic staged outside the stalls.
+        KenneyModels.Spawn("FantasyTown/cart-high", t, new Vector3(-1.20f, 0, -1.25f), 0.95f, -25f);
+        if (QuaterniusAnimal("Donkey", t, new Vector3(-1.65f, 0f, -1.05f), 0.055f, 135f) == null)
+            Prims.Box(t, new Vector3(-1.65f, 0.36f, -1.05f), new Vector3(0.24f, 0.30f, 0.48f), Prims.Mat(Prims.Hex(0x8a6a4a)));
+        Prims.Box(t, new Vector3(-0.68f, 0.62f, -1.20f), new Vector3(0.38f, 0.26f, 0.05f), awningMat);
 
         Prims.EnableShadows(g);
         return g;
@@ -471,6 +532,11 @@ public static class BuildingFactory
                 Prims.Cylinder(t, new Vector3(cx, 1.6f, cz), 0.45f, 3.2f, stoneMat);
                 Prims.Box(t, new Vector3(cx, 3.3f, cz), new Vector3(1.0f, 0.3f, 1.0f), goldMat);
             }
+        KenneyModels.Spawn("Castle/flag-banner-long", t, new Vector3(-1.65f, 3.2f, -0.05f), 1.2f, 90f);
+        KenneyModels.Spawn("Castle/flag-banner-long", t, new Vector3( 1.65f, 3.2f, -0.05f), 1.2f, -90f);
+        Prims.Box(t, new Vector3(0, 0.18f, -2.65f), new Vector3(2.6f, 0.22f, 0.7f), stoneMat);
+        Prims.Box(t, new Vector3(0, 0.46f, -2.35f), new Vector3(2.1f, 0.24f, 0.55f), stoneMat);
+        Prims.Box(t, new Vector3(0, 0.76f, -2.08f), new Vector3(1.5f, 0.22f, 0.45f), accent);
 
         Prims.EnableShadows(g);
         return g;
@@ -510,6 +576,11 @@ public static class BuildingFactory
                     Prims.Box(t, new Vector3(cx, 3.5f, cz), new Vector3(0.28f, 0.32f, 0.28f), stoneMat);
             Prims.Cone(t, new Vector3(0, 3.55f, 0), 0.85f, 0.9f, 8, roofMat, 0f);
         }
+        AddWindow(t, new Vector3(0, 2.05f, -0.68f), 0, Prims.Mat(Window, 0.1f, 0.4f), Prims.Mat(Timber));
+        Prims.Cylinder(t, new Vector3(0.52f, 3.9f, 0), 0.035f, 0.8f, Prims.Mat(Timber));
+        Prims.Box(t, new Vector3(0.78f, 4.12f, 0), new Vector3(0.44f, 0.26f, 0.03f), Prims.Mat(teamColor, 0.05f, 0.3f));
+        Prims.Box(t, new Vector3(-0.72f, 0.75f, -0.72f), new Vector3(0.08f, 1.1f, 0.08f), Prims.Mat(Timber))
+            .transform.localRotation = Quaternion.Euler(0, 0, -12f);
 
         Prims.EnableShadows(g);
         return g;
@@ -529,6 +600,12 @@ public static class BuildingFactory
                 Prims.Box(t, new Vector3(cx, 1.1f, cz), new Vector3(0.14f, 2.0f, 0.14f), wood); // legs
         Prims.Box(t, new Vector3(0, 2.2f, 0), new Vector3(1.0f, 0.5f, 1.0f), wood);             // platform
         Prims.Cone(t, new Vector3(0, 2.7f, 0), 0.7f, 0.5f, 4, roof, 45f);                       // small roof
+        Prims.Box(t, new Vector3(-0.52f, 1.15f, -0.52f), new Vector3(0.08f, 1.7f, 0.08f), wood)
+            .transform.localRotation = Quaternion.Euler(0, 0, -18f);
+        Prims.Box(t, new Vector3(0.52f, 1.15f, -0.52f), new Vector3(0.08f, 1.7f, 0.08f), wood)
+            .transform.localRotation = Quaternion.Euler(0, 0, 18f);
+        Prims.Cylinder(t, new Vector3(0.38f, 2.85f, 0), 0.03f, 0.65f, wood);
+        Prims.Box(t, new Vector3(0.62f, 3.02f, 0), new Vector3(0.42f, 0.26f, 0.03f), roof);
 
         Prims.EnableShadows(g);
         return g;
@@ -555,6 +632,11 @@ public static class BuildingFactory
         Prims.Cylinder(t, new Vector3(0, 3.5f, 0.7f), 0.22f, 1.0f, darkMat)
             .transform.localRotation = Quaternion.Euler(70f, 0, 0);
         Prims.Box(t, new Vector3(0, 3.0f, 0), new Vector3(1.6f, 0.2f, 1.6f), roofMat);
+        KenneyModels.Spawn("Castle/flag-wide", t, new Vector3(-0.72f, 3.25f, 0.05f), 0.75f, 90f);
+        Prims.Sphere(t, new Vector3(0.62f, 0.45f, -0.65f), 0.18f, darkMat);
+        Prims.Sphere(t, new Vector3(0.92f, 0.38f, -0.50f), 0.16f, darkMat);
+        Prims.Box(t, new Vector3(-0.65f, 0.38f, -0.70f), new Vector3(0.45f, 0.32f, 0.35f), Prims.Mat(Prims.Hex(0x6b4a2a), 0.05f, 0.18f));
+        KenneyModels.Spawn("FantasyTown/wheel", t, new Vector3(0.0f, 3.28f, 0.62f), 0.55f, 90f);
 
         Prims.EnableShadows(g);
         return g;
@@ -574,6 +656,12 @@ public static class BuildingFactory
         Prims.Box(t, new Vector3(0, 1.8f, 0), new Vector3(2.2f, 0.15f, 2.2f), roofMat);
         if (KenneyModels.Spawn("FantasyTown/chimney", t, new Vector3(0.6f, 1.95f, 0.3f), 0.9f) == null)
             Prims.Cylinder(t, new Vector3(0.6f, 2.2f, 0.3f), 0.18f, 1.0f, darkMat); // fallback chimney
+        var emberMat = Prims.Mat(Prims.Hex(0xff6a18), 0.05f, 0.8f);
+        Prims.Box(t, new Vector3(-0.72f, 0.72f, -0.88f), new Vector3(0.55f, 0.32f, 0.34f), stoneMat); // forge mouth
+        Prims.Box(t, new Vector3(-0.72f, 0.72f, -1.06f), new Vector3(0.42f, 0.20f, 0.04f), emberMat);
+        Prims.Box(t, new Vector3(0.72f, 0.46f, -0.78f), new Vector3(0.42f, 0.18f, 0.28f), Prims.Mat(Prims.Hex(0x55585e), 0.5f, 0.55f)); // anvil
+        Prims.Box(t, new Vector3(0.72f, 0.24f, -0.78f), new Vector3(0.18f, 0.28f, 0.18f), stoneMat);
+        KenneyModels.Spawn("FantasyTown/wheel", t, new Vector3(1.03f, 0.2f, 0.86f), 0.75f, 20f);
 
         Prims.EnableShadows(g);
         return g;
@@ -598,6 +686,13 @@ public static class BuildingFactory
         Prims.Box(t, new Vector3(0.95f, 0.5f, 0.7f), new Vector3(0.3f, 0.3f, 0.3f), metal); // ram head
         Prims.Sphere(t, new Vector3(-0.9f, 0.4f, 0.8f), 0.25f, stone);                       // boulder
         KenneyModels.Spawn("FantasyTown/cart-high", t, new Vector3(-0.8f, 0, -0.85f), 1.0f); // supply cart
+        KenneyModels.Spawn("FantasyTown/wheel", t, new Vector3(0.95f, 0.2f, -0.05f), 0.8f, 90f);
+        KenneyModels.Spawn("FantasyTown/wheel", t, new Vector3(1.12f, 0.2f, -0.05f), 0.8f, 90f);
+        Prims.Box(t, new Vector3(-1.05f, 0.48f, 0.18f), new Vector3(0.12f, 0.12f, 1.35f), wood)
+            .transform.localRotation = Quaternion.Euler(0, 35f, 0);
+        Prims.Box(t, new Vector3(-0.65f, 0.44f, 0.38f), new Vector3(0.12f, 0.12f, 1.05f), wood)
+            .transform.localRotation = Quaternion.Euler(0, 35f, 0);
+        Prims.Box(t, new Vector3(0.3f, 0.52f, -1.1f), new Vector3(0.75f, 0.35f, 0.32f), Prims.Mat(Prims.Hex(0x8a5a2b), 0.05f, 0.18f)); // parts crate
 
         Prims.EnableShadows(g);
         return g;
@@ -617,6 +712,12 @@ public static class BuildingFactory
         Prims.Cone(t, new Vector3(0, 2.0f, 0), 1.8f, 1.0f, 8, accent, 0f);
         Prims.Cylinder(t, new Vector3(0, 3.5f, 0), 0.07f, 0.8f, stoneMat);    // cross post
         Prims.Box(t, new Vector3(0, 3.7f, 0), new Vector3(0.5f, 0.08f, 0.08f), stoneMat); // cross bar
+        Prims.Box(t, new Vector3(0, 0.75f, -1.12f), new Vector3(0.58f, 0.9f, 0.06f), Prims.Mat(Door));
+        Prims.Cylinder(t, new Vector3(0, 1.22f, -1.15f), 0.33f, 0.08f, stoneMat)
+            .transform.localRotation = Quaternion.Euler(90f, 0, 0);
+        AddWindow(t, new Vector3(-0.85f, 1.35f, -1.12f), 0, Prims.Mat(Window, 0.1f, 0.4f), stoneMat);
+        AddWindow(t, new Vector3( 0.85f, 1.35f, -1.12f), 0, Prims.Mat(Window, 0.1f, 0.4f), stoneMat);
+        KenneyModels.Spawn("Castle/flag-pennant", t, new Vector3(0.58f, 2.85f, 0.2f), 0.8f, 0f);
 
         Prims.EnableShadows(g);
         return g;
@@ -639,6 +740,15 @@ public static class BuildingFactory
         Prims.Cone(t, new Vector3(0, 2.25f, 0), 2.0f, 1.1f, 4, roofMat, 45f);
         AddWindow(t, new Vector3(0, 1.4f, -1.22f), 0, winMat, timberMat);
         AddWindow(t, new Vector3(0, 1.4f,  1.22f), 0, winMat, timberMat);
+        foreach (var x in new[] { -1.0f, 1.0f })
+        {
+            Prims.Cylinder(t, new Vector3(x, 0.9f, -1.28f), 0.12f, 1.5f, stoneMat);
+            Prims.Box(t, new Vector3(x, 0.14f, -1.28f), new Vector3(0.34f, 0.16f, 0.34f), stoneMat);
+            Prims.Box(t, new Vector3(x, 1.68f, -1.28f), new Vector3(0.34f, 0.16f, 0.34f), stoneMat);
+        }
+        Prims.Box(t, new Vector3(-0.55f, 0.46f, -1.05f), new Vector3(0.34f, 0.22f, 0.42f), Prims.Mat(Prims.Hex(0x6e4a28), 0.04f, 0.2f)); // book chest
+        Prims.Box(t, new Vector3(-0.55f, 0.68f, -1.05f), new Vector3(0.30f, 0.04f, 0.38f), Prims.Mat(Prims.Hex(0xd8c898), 0.02f, 0.18f));
+        KenneyModels.Spawn("Castle/flag", t, new Vector3(0.9f, 2.5f, -0.2f), 0.7f, 0f);
 
         Prims.EnableShadows(g);
         return g;
@@ -669,6 +779,12 @@ public static class BuildingFactory
         Prims.Box(t, new Vector3(-0.4f, 2.85f, 0), new Vector3(0.65f, 0.4f, 0.04f),
             Prims.Mat(teamColor, 0, 0.4f)).name = "Flag";
         KenneyModels.Spawn("FantasyTown/cart", t, new Vector3(0.9f, 0, -1.0f), 1.1f, -30f); // dockside cart
+        KenneyModels.Spawn("FantasyTown/planks", t, new Vector3(0.85f, 0.34f, 0.85f), 0.9f, 90f);
+        KenneyModels.Spawn("FantasyTown/planks-half", t, new Vector3(1.25f, 0.34f, -0.35f), 0.9f, 0f);
+        Prims.Cylinder(t, new Vector3(1.05f, 0.50f, 1.05f), 0.22f, 0.08f, Prims.Mat(Prims.Hex(0xd9b880)))
+            .transform.localRotation = Quaternion.Euler(90f, 0, 0);
+        Prims.Box(t, new Vector3(0.55f, 0.56f, -1.18f), new Vector3(0.45f, 0.36f, 0.38f), Prims.Mat(Prims.Hex(0x8a5a2b), 0.05f, 0.18f));
+        Prims.Box(t, new Vector3(1.15f, 0.50f, -1.20f), new Vector3(0.36f, 0.28f, 0.30f), Prims.Mat(Prims.Hex(0xc9a227), 0.02f, 0.2f));
 
         Prims.BlobShadow(t, 1.8f);
         Prims.EnableShadows(g);

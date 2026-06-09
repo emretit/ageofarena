@@ -47,7 +47,7 @@ public class SelectionSystem : MonoBehaviour
 
         var gm = GameManager.Instance;
         if (gm != null && gm.placement != null && gm.placement.Active) return; // build mode owns the mouse
-        if (gm != null && gm.command != null && gm.command.AttackMovePending) return; // attack-move picking owns the mouse
+        if (gm != null && gm.command != null && (gm.command.AttackMovePending || gm.command.PatrolPending)) return;
 
         HandleControlGroups(gm);
         if (Hotkeys.Down(HotkeyAction.SelectIdle)) SelectNextIdleWorker();
