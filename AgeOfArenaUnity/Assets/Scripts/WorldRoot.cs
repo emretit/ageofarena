@@ -984,34 +984,37 @@ public class WorldRoot : MonoBehaviour
         gm.lockstep       = go.AddComponent<LockstepSystem>(); // N16.lockstep
         gm.desync         = go.AddComponent<DesyncHandler>();  // N17.desync
         gm.transport      = go.AddComponent<TransportLayer>(); // N17.transport
+        gm.lobbyScreen    = go.AddComponent<LobbyScreen>();    // MP-3.lobby
+        gm.lobbyScreen.SetTransport(gm.transport);
         return gm;
     }
 
     void SetupGameplay(GameManager gm)
     {
-        // CIVS: the player (team 0) keeps their chosen civ; only AI teams (1-3) are randomized.
-        // GameBootstrap.PlayerCiv is None until the player picks via CivSelectScreen.
-        var civValues = (Civilization[])System.Enum.GetValues(typeof(Civilization));
-        gm.teamCivs[0] = GameBootstrap.PlayerCiv;
-        for (int i = 1; i < gm.TeamCount; i++)
-            gm.teamCivs[i] = civValues[Random.Range(1, civValues.Length)];
+        bool isMP      = GameBootstrap.IsMultiplayer;
+        int  localTeam = isMP ? GameBootstrap.LocalTeam : 0;
+        int  mpPlayers = isMP ? GameBootstrap.OnlinePlayerCount : 1;
 
-        var tcPos     = BasePositions[0];
-        var teamColor = TeamColors[0];
+        // CIVS: local player keeps their chosen civ; AI/remote teams get random civs.
+        var civValues = (Civilization[])System.Enum.GetValues(typeof(Civilization));
+        for (int i = 0; i < gm.TeamCount; i++)
+            gm.teamCivs[i] = (i == localTeam && !isMP) ? GameBootstrap.PlayerCiv
+                             : civValues[Random.Range(1, civValues.Length)];
+        if (!isMP) gm.teamCivs[0] = GameBootstrap.PlayerCiv; // single-player: team 0 = player civ
+
+        var tcPos     = BasePositions[localTeam];
+        var teamColor = TeamColors[localTeam];
 
         // Direction from player base toward arena center.
         Vector3 forward = (-tcPos).normalized;
         Vector3 right   = Vector3.Cross(Vector3.up, forward).normalized;
 
-        // Drop-offs are now buildings: the Town Center (registered in BuildBase)
-        // accepts all resources; players can build Lumber/Mining camps & Mill closer
-        // to resources. See GatherSystem.NearestDropoff / BuildingDefs.AcceptsDropoff.
         gm.hud.Init(gm.resources);
 
         var unitsRoot = new GameObject("Units");
         unitsRoot.transform.SetParent(transform, false);
 
-        // Villagers spawn in front of TC (toward gate / arena center).
+        // Villagers spawn in front of local player's TC.
         Vector3[] vPos =
         {
             tcPos + forward * 3.5f + right * -2.5f,
@@ -1029,21 +1032,27 @@ public class WorldRoot : MonoBehaviour
         if (_arch.displayName == "Adalar")
         {
             int navalId = _navalAgentTypeId;
-            Vector3 dockPos = tcPos + (-forward) * 10f; // matches Dock placement in BuildBase
+            Vector3 dockPos = tcPos + (-forward) * 10f;
             Vector3 seaDir  = dockPos.sqrMagnitude > 0.01f ? dockPos.normalized : Vector3.forward;
             gm.RegisterUnit(UnitFactory.FishingShip(unitsRoot.transform, dockPos + seaDir * 5f, teamColor, navalId));
             gm.RegisterUnit(UnitFactory.Galley(unitsRoot.transform, dockPos + seaDir * 8f, teamColor, navalId));
         }
 
-        // Enemy garrisons (teams 1+): a starting army per base, plus an EnemyAI brain.
-        for (int t = 1; t < gm.TeamCount; t++)
+        // Enemy garrisons (teams 1+): spawn garrison for all other teams.
+        // In multiplayer, human-controlled teams get no EnemyAI brain.
+        for (int t = 0; t < gm.TeamCount; t++)
         {
+            if (t == localTeam) continue; // local player already spawned above
             SpawnGarrison(gm, unitsRoot.transform, BasePositions[t], TeamColors[t], t);
 
-            var personality = t < Personalities.Length ? Personalities[t] : Personalities[1];
-            var aiGo = new GameObject($"EnemyAI_T{t}_{personality}");
-            aiGo.transform.SetParent(transform, false);
-            aiGo.AddComponent<EnemyAI>().Init(t, TeamColors[t], BasePositions[t], unitsRoot.transform, personality, mapType);
+            bool isHumanTeam = isMP && t < mpPlayers;
+            if (!isHumanTeam)
+            {
+                var personality = t < Personalities.Length ? Personalities[t] : Personalities[1];
+                var aiGo = new GameObject($"EnemyAI_T{t}_{personality}");
+                aiGo.transform.SetParent(transform, false);
+                aiGo.AddComponent<EnemyAI>().Init(t, TeamColors[t], BasePositions[t], unitsRoot.transform, personality, mapType);
+            }
         }
 
         // popCap now derives from team-0 buildings (TC + Houses) via RecomputePop.
@@ -1095,6 +1104,17 @@ public class WorldRoot : MonoBehaviour
             {
                 uint local = gm.checksum?.LatestChecksum ?? 0u;
                 gm.desync.CheckTick(gm.cmdRecorder?.Tick ?? 0, local, remoteHash);
+            };
+        }
+
+        // MP-5: wire TransportLayer.OnCommandReceived → RemoteCommandExecutor.
+        if (gm.transport != null && GameBootstrap.IsMultiplayer)
+        {
+            gm.transport.OnCommandReceived += cmd =>
+            {
+                // Skip own commands — local player applies them immediately.
+                if (cmd.playerId != GameBootstrap.LocalTeam)
+                    RemoteCommandExecutor.Apply(cmd);
             };
         }
 

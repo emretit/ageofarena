@@ -44,6 +44,10 @@ public class ChecksumSystem : MonoBehaviour
         _history.Enqueue((tick, hash));
         if (_history.Count > HISTORY_SIZE) _history.Dequeue();
 
+        // MP-6: multiplayer'da checksum'ı sunucuya ilet → DesyncHandler karşılaştırır.
+        if (GameBootstrap.IsMultiplayer && gm.transport != null && gm.transport.IsConnected)
+            gm.transport.SendChecksum(tick, hash);
+
         // If a baseline is loaded, compare checksums tick-by-tick.
         if (_baseline != null) CompareBaseline(tick, hash);
     }

@@ -108,7 +108,7 @@ paritesi" hedefini kod tarafında başlatan temel dalga olarak kayda geçti.
 | **VIS.building.v2** | ArcheryRange/Blacksmith/Monastery/University/Dock/SiegeWorkshop prop polish ve okunurluk iyileştirmesi | ✔️ | `BuildingFactory` + `SelfTests` smoke; `VisualFactoryValidator` + `StabilizeQaValidator` batchmode geçti; PNG kamera kanıtı `Logs/stabilize-qa-*.png`; Unity compile/import temiz + dış C# compile 0 warning (2026-06-09) |
 | **VIS.building.v3** | Farm/MiningCamp/Outpost/WatchTower/BombardTower/Wonder kalan görsel polish grubu | ✔️ | `BuildingFactory` + `SelfTests` smoke; `VisualFactoryValidator` + `StabilizeQaValidator` batchmode geçti; PNG kamera kanıtı `Logs/stabilize-qa-*.png`; Unity compile/import temiz + dış C# compile 0 warning (2026-06-09) |
 | **N10.rms.v** | 5 arketip harita farklı yerleşim Play doğrulama | ✔️ | MCP capture 2026-06-05: Arena/Arabia/BlackForest/Islands/Nomad — her biri farklı yerleşim onaylandı |
-| **N17.ws** | Gerçek WebSocket transport (NativeWebSocket + relay) | ⬜ | `TransportLayer.cs` — NativeWebSocket paket kurulumu gerekiyor |
+| **N17.ws** | Gerçek WebSocket transport (NativeWebSocket + relay) | ✅ | 2026-06-10: `NativeWebSocket.cs` (WebGL jslib köprüsü + Editor ClientWebSocket), `WebSocketBridge.jslib`, `TransportLayer.cs` gerçek implementasyon |
 
 ### Oynanış Hissi + Balans dalgası (BAL/FEEL — 2026-06-10)
 
@@ -133,7 +133,19 @@ paritesi" hedefini kod tarafında başlatan temel dalga olarak kayda geçti.
 | **QA.emoji** | UI butonlarından render edilemeyen emoji (📝🗑️▶) kaldırıldı | ✔️ | `ScenarioEditor.cs` |
 | **QA.wave2** | Oynanış QA Dalga 2: builder→inşa, üretim+kuyruk+rally, unit command/control-group, pause/subscreen akışları için Editor/batchmode kapısı | ✔️ | `GameplayQaWave2Validator`; `AgeOfArenaUnity/Logs/gameplay-qa-wave2-20260610-001850.txt` 5/5 PASS; `SelfTests` 17/17 PASS; `StabilizeQaValidator` PASS; resource-rally, pause timeScale restore ve lifecycle null-slot düzeltmeleri |
 
-> **Sonraki oturum önceliği:** İsteğe bağlı gerçek Play/MCP input kanıtı; ardından N17.ws (multiplayer).
+### Multiplayer Dalgası (MP — 2026-06-10)
+
+| ID | Madde | Durum | Kanıt / Not |
+|---|---|---|---|
+| **MP-1** | Node.js ws sunucu — oda yönetimi, input buffering, checksum desync | ✅ | `server/src/index.ts`: create_room/join_room/ready/input/checksum/chat; Railway deploy config |
+| **MP-2** | Unity WebSocket istemci katmanı | ✅ | `NativeWebSocket.cs` (WebGL jslib + Editor ClientWebSocket), `WebSocketBridge.jslib`, `TransportLayer.cs` |
+| **MP-3** | Lobi ve eşleştirme ekranı | ✅ | `LobbyScreen.cs`: oda oluştur/katıl UI, oyuncu listesi, hazır/bekliyor; pause menüsünde "Cok Oyunculu" butonu |
+| **MP-4** | Oyun başlangıç senkronizasyonu | ✅ | `GameBootstrap.IsMultiplayer/LocalTeam/OnlinePlayerCount`; WorldRoot multiplayer spawn (doğru base, AI yok); SelectionSystem/CommandSystem/HUD LocalTeam farkındalığı |
+| **MP-5** | Lockstep input senkronizasyonu | ✅ | `CommandRecorder.Record()` → `TransportLayer.SendCommand()`; `RemoteCommandExecutor.Apply()` → tüm CommandType'lar; `WorldRoot` OnCommandReceived wire |
+| **MP-6** | Desync tespiti ve hata yönetimi | ✅ | `ChecksumSystem` her interval'da `transport.SendChecksum()`; `DesyncHandler.CheckTick()` + `ShowSubtitle` HUD uyarısı; sunucu desync mesajı TransportLayer'a wire |
+| **MP-7** | WebGL build + deploy | ✅ | `WebGLBuilder.cs` (mevcut); `server/railway.json`; `.github/workflows/deploy-server.yml`; server `package.json` temizlendi (Colyseus kaldırıldı) |
+
+> **Sonraki oturum önceliği:** Gerçek 2-oyunculu play-test; sunucu Railway'e deploy; GitHub Pages WebGL client yayını.
 
 ---
 

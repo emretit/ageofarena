@@ -124,7 +124,7 @@ public class CommandSystem : MonoBehaviour
         // A selected own building takes the right-click as a rally-point order:
         // trained units will walk to this spot (or the clicked resource node).
         var selBld = gm.selectedBuilding;
-        if (selBld != null && selBld.teamId == 0)
+        if (selBld != null && selBld.teamId == GameBootstrap.LocalTeam)
         {
             var rnode = hit.collider.GetComponentInParent<ResourceNode>();
             Vector3 rp = rnode != null && !rnode.Depleted ? rnode.transform.position : hit.point;
@@ -168,7 +168,7 @@ public class CommandSystem : MonoBehaviour
         // Own building that is under construction or damaged → send villagers to
         // build/repair it (BuildSystem advances construction or restores hp).
         var ownB = hit.collider.GetComponentInParent<BuildingEntity>();
-        if (ownB != null && ownB.teamId == 0 && (ownB.underConstruction || ownB.hp < ownB.maxHp))
+        if (ownB != null && ownB.teamId == GameBootstrap.LocalTeam && (ownB.underConstruction || ownB.hp < ownB.maxHp))
         {
             bool any = false;
             for (int i = 0; i < selected.Count; i++)
@@ -180,7 +180,7 @@ public class CommandSystem : MonoBehaviour
         }
 
         // Own intact building with garrison space → shelter the selected units inside.
-        if (ownB != null && ownB.teamId == 0 && !ownB.underConstruction && ownB.GarrisonCapacity > 0)
+        if (ownB != null && ownB.teamId == GameBootstrap.LocalTeam && !ownB.underConstruction && ownB.GarrisonCapacity > 0)
         {
             int free = ownB.GarrisonCapacity - ownB.GarrisonCount;
             bool any = false;
@@ -241,9 +241,9 @@ public class CommandSystem : MonoBehaviour
     static IDamageable ResolveEnemy(Collider col)
     {
         var u = col.GetComponentInParent<UnitEntity>();
-        if (u != null) return u.teamId != 0 ? u : null;
+        if (u != null) return u.teamId != GameBootstrap.LocalTeam ? u : null;
         var b = col.GetComponentInParent<BuildingEntity>();
-        if (b != null && b.teamId != 0) return b;
+        if (b != null && b.teamId != GameBootstrap.LocalTeam) return b;
         return null;
     }
 
@@ -544,7 +544,7 @@ public class CommandSystem : MonoBehaviour
             for (int i = 0; i < gm.buildings.Count; i++)
             {
                 var b = gm.buildings[i];
-                if (b != null && b.teamId == 0 && b.GarrisonCapacity > 0 && b.hp > 0f && !b.underConstruction)
+                if (b != null && b.teamId == GameBootstrap.LocalTeam && b.GarrisonCapacity > 0 && b.hp > 0f && !b.underConstruction)
                     garrisonBuildings.Add(b);
             }
             if (garrisonBuildings.Count == 0) return;
@@ -553,7 +553,7 @@ public class CommandSystem : MonoBehaviour
             for (int i = 0; i < gm.units.Count; i++)
             {
                 var u = gm.units[i];
-                if (u == null || u.teamId != 0 || u.type != UnitType.Villager || u.isGarrisoned) continue;
+                if (u == null || u.teamId != GameBootstrap.LocalTeam || u.type != UnitType.Villager || u.isGarrisoned) continue;
                 // Find nearest garrison building.
                 BuildingEntity best = null;
                 float bestDist = float.MaxValue;
@@ -572,7 +572,7 @@ public class CommandSystem : MonoBehaviour
             for (int i = 0; i < gm.buildings.Count; i++)
             {
                 var b = gm.buildings[i];
-                if (b != null && b.teamId == 0 && b.GarrisonCount > 0)
+                if (b != null && b.teamId == GameBootstrap.LocalTeam && b.GarrisonCount > 0)
                     gm.garrison?.UngarrisonAll(b);
             }
         }

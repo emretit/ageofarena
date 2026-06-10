@@ -76,16 +76,16 @@ public class CommandRecorder : MonoBehaviour
 
     // ── Recording API ─────────────────────────────────────────────────────────
 
-    /// <summary>Log a command from the current player team (0).</summary>
+    /// <summary>Log a command from the current player team.</summary>
     public void Record(CommandType type, int[] unitIds,
         int intParam1 = 0, int intParam2 = 0,
         float x = 0f, float z = 0f,
         float floatParam1 = 0f, float floatParam2 = 0f)
     {
-        _log.Add(new GameCommand
+        var cmd = new GameCommand
         {
             tick        = _tick,
-            playerId    = 0,
+            playerId    = GameBootstrap.LocalTeam,
             type        = type,
             unitIds     = unitIds,
             intParam1   = intParam1,
@@ -94,7 +94,22 @@ public class CommandRecorder : MonoBehaviour
             z           = z,
             floatParam1 = floatParam1,
             floatParam2 = floatParam2,
-        });
+        };
+        _log.Add(cmd);
+
+        // MP-5: multiplayer'da her yerel komutu sunucuya ilet.
+        if (GameBootstrap.IsMultiplayer)
+        {
+            var gm = GameManager.Instance;
+            gm?.transport?.SendCommand(cmd);
+        }
+    }
+
+    /// <summary>MP-5: uzak oyuncudan gelen komutu logla (ağa geri gönderme).</summary>
+    public void RecordRemote(GameCommand cmd)
+    {
+        cmd.tick = _tick;
+        _log.Add(cmd);
     }
 
     // ── Snapshot / Load ───────────────────────────────────────────────────────

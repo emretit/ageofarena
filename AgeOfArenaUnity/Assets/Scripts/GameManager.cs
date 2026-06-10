@@ -68,6 +68,7 @@ public class GameManager : MonoBehaviour
     public LockstepSystem  lockstep;       // N16.lockstep
     public DesyncHandler   desync;         // N17.desync
     public TransportLayer  transport;      // N17.transport
+    public LobbyScreen    lobbyScreen;    // MP-3.lobby
 
     /// <summary>N1: per-frame spatial index of all units for O(n) proximity queries
     /// (combat aggro / heal / convert / projectile splash). Rebuilt at the top of Update.</summary>

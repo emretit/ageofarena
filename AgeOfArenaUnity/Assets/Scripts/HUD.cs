@@ -1491,6 +1491,8 @@ public class HUD : MonoBehaviour
         AddBtn("Editör", () => { ClosePauseMenu(); gm.scenarioEditor?.Open(); }, y); y -= step;
         // N13.camp: open campaign screen
         AddBtn("Kampanya", () => { ClosePauseMenu(); gm.campaignScreen?.Show(); }, y); y -= step;
+        // MP-3: open online lobby
+        AddBtn("Cok Oyunculu", () => { ClosePauseMenu(); gm.lobbyScreen?.Show(); }, y); y -= step;
         // N15.checksum: save replay snapshot + trigger verify run
         AddBtn("Replay", () =>
         {
@@ -2212,7 +2214,7 @@ public class HUD : MonoBehaviour
         if (researched) return "tamamlandi";
         if (locked) return TechAvailabilityReasonText("civilization denied");
         if (gm == null) return TechAvailabilityReasonText("no game manager");
-        int teamId = 0;
+        int teamId = GameBootstrap.LocalTeam;
         BuildingEntity building = null;
         for (int i = 0; i < gm.buildings.Count; i++)
         {

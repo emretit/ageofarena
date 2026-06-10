@@ -96,7 +96,7 @@ public class SelectionSystem : MonoBehaviour
 
         var gm = GameManager.Instance;
 
-        if (hitUnit != null && hitUnit.teamId == 0)
+        if (hitUnit != null && hitUnit.teamId == GameBootstrap.LocalTeam)
         {
             gm.selectedBuilding = null;
             gm.selectedNode = null;
@@ -160,7 +160,7 @@ public class SelectionSystem : MonoBehaviour
         for (int i = 0; i < units.Count; i++)
         {
             var u = units[i];
-            if (u == null || u.teamId != 0 || u.isGarrisoned) continue;
+            if (u == null || u.teamId != GameBootstrap.LocalTeam || u.isGarrisoned) continue;
             Vector3 sp = _cam.WorldToViewportPoint(u.transform.position);
             if (sp.z < 0f) continue; // behind camera
             if (sp.x >= xMin && sp.x <= xMax && sp.y >= yMin && sp.y <= yMax && !Selected.Contains(u))
@@ -217,7 +217,7 @@ public class SelectionSystem : MonoBehaviour
     {
         var list = new List<UnitEntity>();
         for (int i = 0; i < Selected.Count; i++)
-            if (Selected[i] != null && Selected[i].teamId == 0) list.Add(Selected[i]);
+            if (Selected[i] != null && Selected[i].teamId == GameBootstrap.LocalTeam) list.Add(Selected[i]);
         if (list.Count > 0) _groups[n] = list;
     }
 
@@ -226,7 +226,7 @@ public class SelectionSystem : MonoBehaviour
     void SelectGroup(int n)
     {
         if (!_groups.TryGetValue(n, out var list)) return;
-        list.RemoveAll(u => u == null || u.teamId != 0);
+        list.RemoveAll(u => u == null || u.teamId != GameBootstrap.LocalTeam);
         if (list.Count == 0) { _groups.Remove(n); return; }
 
         ClearSelection();
@@ -249,7 +249,7 @@ public class SelectionSystem : MonoBehaviour
     int _idleCycle;
 
     static bool IsIdleWorker(UnitEntity u)
-        => u != null && u.teamId == 0 && u.type == UnitType.Villager
+        => u != null && u.teamId == GameBootstrap.LocalTeam && u.type == UnitType.Villager
            && !u.isGarrisoned && u.state == UnitState.Idle;
 
     /// <summary>Count of the player's idle villagers (drives the HUD indicator).</summary>
@@ -291,7 +291,7 @@ public class SelectionSystem : MonoBehaviour
         for (int i = 0; i < units.Count; i++)
         {
             var u = units[i];
-            if (u == null || u.teamId != 0 || u.type != targetType || u.isGarrisoned) continue;
+            if (u == null || u.teamId != GameBootstrap.LocalTeam || u.type != targetType || u.isGarrisoned) continue;
             Vector3 sp = _cam.WorldToViewportPoint(u.transform.position);
             if (sp.z > 0f && sp.x >= 0f && sp.x <= 1f && sp.y >= 0f && sp.y <= 1f)
                 Select(u);

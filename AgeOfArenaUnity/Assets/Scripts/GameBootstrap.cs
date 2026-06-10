@@ -54,6 +54,15 @@ public static class GameBootstrap
     /// <summary>N15.checksum: JSON replay baseline; set before Restart() for verify run.</summary>
     public static string ReplayBaseline;
 
+    /// <summary>MP-4: true when started from lobby (online multiplayer match).</summary>
+    public static bool IsMultiplayer;
+
+    /// <summary>MP-4: local player's team index in the current match (0 = host, 1+ = guests).</summary>
+    public static int LocalTeam;
+
+    /// <summary>MP-4: total number of human players in the online match (AI fills remaining slots).</summary>
+    public static int OnlinePlayerCount;
+
     /// <summary>Restart with a fresh random seed so the next map looks different.</summary>
     public static void Restart(int seed = 0)
     {

@@ -3,131 +3,236 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// N17.transport: WebSocket-based command transport and lobby layer (stub).
-///
-/// Architecture:
-///   - Each peer runs a Unity WebGL build (or native player).
-///   - A lightweight relay server (Node.js / Cloudflare Worker) forwards
-///     opaque command packets between peers.
-///   - Only commands cross the wire (seed + command log), never full state.
-///   - Lobby: one peer generates the seed and civ selections; broadcast via
-///     the relay; all peers call GameBootstrap.Restart(seed) simultaneously.
-///
-/// This stub provides the interface that LockstepSystem calls. Full WebSocket
-/// implementation requires a native/WebGL socket plugin (e.g. NativeWebSocket).
-///
-/// Status: interface defined + loopback (in-process) transport provided.
-/// Real WebSocket wiring = plug in NativeWebSocket in Connect() and Send().
+/// WebSocket transport için oyun mesajlaşma katmanı.
+/// JSON mesajlar NativeWebSocket üzerinden sunucuya gönderilir/alınır.
+/// WebGL + Editor/Standalone uyumlu.
 /// </summary>
 public sealed class TransportLayer : MonoBehaviour
 {
     // ── Events ────────────────────────────────────────────────────────────────
-
-    public event Action<GameCommand> OnCommandReceived;
-    public event Action<uint>        OnChecksumReceived; // remote peer checksum
-    public event Action              OnConnected;
-    public event Action<string>      OnDisconnected;
+    public event Action<GameCommand>  OnCommandReceived;
+    public event Action<uint>         OnChecksumReceived;
+    public event Action               OnConnected;
+    public event Action<string>       OnDisconnected;
+    public event Action<ServerMsg>    OnRawMessage;      // lobi UI için
 
     // ── State ─────────────────────────────────────────────────────────────────
+    public bool   IsConnected  { get; private set; }
+    public string PlayerId     { get; private set; }
+    public string RoomCode     { get; private set; }
+    public int    LocalTeam    { get; private set; } = -1;
 
-    public bool IsConnected { get; private set; }
-    public string PeerId    { get; private set; }
-    public string RemoteId  { get; private set; }
+    NativeWebSocket _ws;
+    string _serverUrl;
 
-    TransportMode _mode = TransportMode.Loopback;
-
-    public enum TransportMode
+    // ── Bağlantı ──────────────────────────────────────────────────────────────
+    public void Connect(string serverUrl)
     {
-        Loopback,   // in-process: P0 and P1 on same machine (testing)
-        WebSocket,  // real WebSocket relay (production)
+        _serverUrl = serverUrl;
+        _ws = new NativeWebSocket(serverUrl);
+        _ws.OnOpen    += HandleOpen;
+        _ws.OnMessage += HandleMessage;
+        _ws.OnError   += HandleError;
+        _ws.OnClose   += HandleClose;
     }
 
-    // ── Connection ────────────────────────────────────────────────────────────
+    void Update() => _ws?.DispatchMessageQueue();
 
-    /// <summary>
-    /// Open a connection to the relay server.
-    /// In Loopback mode, immediately fires OnConnected.
-    /// In WebSocket mode, connect to <paramref name="relayUrl"/> and wait for handshake.
-    /// </summary>
-    public void Connect(string relayUrl = null, TransportMode mode = TransportMode.Loopback)
-    {
-        _mode = mode;
-        PeerId = Guid.NewGuid().ToString("N").Substring(0, 8);
+    void OnDestroy() => _ws?.Dispose();
 
-        if (mode == TransportMode.Loopback)
-        {
-            IsConnected = true;
-            RemoteId    = "loopback";
-            OnConnected?.Invoke();
-            return;
-        }
+    // ── Lobi ──────────────────────────────────────────────────────────────────
+    public void CreateRoom(string playerName)
+        => SendJson(new { type = "create_room", playerName });
 
-        // WebSocket stub — requires NativeWebSocket or similar package.
-        // TODO: new WebSocket(relayUrl) → OnOpen/OnMessage/OnClose callbacks.
-        Debug.LogWarning("[Transport] WebSocket transport not yet implemented. Use Loopback for local testing.");
-    }
+    public void JoinRoom(string roomCode, string playerName)
+        => SendJson(new { type = "join_room", roomCode, playerName });
 
-    public void Disconnect()
-    {
-        IsConnected = false;
-        OnDisconnected?.Invoke("local disconnect");
-    }
+    public void SendReady()
+        => SendJson(new { type = "ready" });
 
-    // ── Send / Receive ────────────────────────────────────────────────────────
+    public void SendChat(string message)
+        => SendJson(new { type = "chat", message });
 
-    /// <summary>
-    /// Send a command to all remote peers.
-    /// In Loopback mode the command is echoed back to OnCommandReceived.
-    /// </summary>
+    // ── Oyun içi ──────────────────────────────────────────────────────────────
     public void SendCommand(GameCommand cmd)
     {
         if (!IsConnected) return;
-        if (_mode == TransportMode.Loopback)
-        {
-            // Echo to simulate remote player sending the same command.
-            OnCommandReceived?.Invoke(cmd);
-            return;
-        }
-        // TODO: serialize cmd to bytes and send via WebSocket.
+        SendJson(new { type = "input", tick = cmd.tick, commands = new[] { CommandToObj(cmd) } });
     }
 
-    /// <summary>
-    /// Broadcast local checksum for the given tick to all peers.
-    /// </summary>
     public void SendChecksum(int tick, uint hash)
     {
         if (!IsConnected) return;
-        if (_mode == TransportMode.Loopback)
-        {
-            // Self-echo (loopback peer has same state → no desync).
-            OnChecksumReceived?.Invoke(hash);
-            return;
-        }
-        // TODO: serialize and send via WebSocket.
+        SendJson(new { type = "checksum", tick, hash });
     }
 
-    // ── Lobby ─────────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Broadcast lobby setup (seed, civ, difficulty, map type) to all peers.
-    /// All peers call GameBootstrap.Restart(seed) on receipt.
-    /// </summary>
-    public void SendLobbySetup(int seed, int civId, int difficulty, int mapType)
+    // ── Mesaj gönder ──────────────────────────────────────────────────────────
+    void SendJson(object obj)
     {
-        if (!IsConnected) return;
-        if (_mode == TransportMode.Loopback)
-        {
-            ApplyLobbySetup(seed, civId, difficulty, mapType);
-            return;
-        }
-        // TODO: serialize and broadcast.
+        if (_ws == null || !IsConnected) return;
+        _ws.Send(Newtonsoft.Json.JsonConvert.SerializeObject(obj));
     }
 
-    void ApplyLobbySetup(int seed, int civId, int difficulty, int mapType)
+    // ── Mesaj al ─────────────────────────────────────────────────────────────
+    void HandleOpen()
     {
-        GameBootstrap.NextMapType     = (MapType)mapType;
-        GameBootstrap.NextDifficulty  = (Difficulty)difficulty;
-        GameBootstrap.PlayerCiv       = (Civilization)civId;
+        IsConnected = true;
+        Debug.Log("[Transport] bağlandı");
+        OnConnected?.Invoke();
+    }
+
+    void HandleMessage(string raw)
+    {
+        ServerMsg msg;
+        try { msg = Newtonsoft.Json.JsonConvert.DeserializeObject<ServerMsg>(raw); }
+        catch { return; }
+
+        OnRawMessage?.Invoke(msg);
+
+        switch (msg.type)
+        {
+            case "room_created":
+                PlayerId  = msg.playerId;
+                RoomCode  = msg.roomCode;
+                LocalTeam = 0;
+                break;
+
+            case "room_joined":
+                PlayerId  = msg.playerId;
+                RoomCode  = msg.roomCode;
+                LocalTeam = msg.team;
+                break;
+
+            case "game_start":
+                ApplyGameStart(msg);
+                break;
+
+            case "tick_inputs":
+                ApplyTickInputs(msg);
+                break;
+
+            case "checksum":
+                if (msg.hash != 0) OnChecksumReceived?.Invoke((uint)msg.hash);
+                break;
+
+            case "desync":
+                Debug.LogError($"[Transport] DESYNC tick={msg.tick}");
+                var gm2 = GameManager.Instance;
+                if (gm2?.desync != null)
+                    gm2.desync.CheckTick(msg.tick, 0u, 1u); // farklı hash → desync tetikle
+                break;
+        }
+    }
+
+    void HandleError()
+    {
+        Debug.LogWarning("[Transport] WebSocket hatası");
+        IsConnected = false;
+    }
+
+    void HandleClose(int code)
+    {
+        IsConnected = false;
+        Debug.Log($"[Transport] kapatıldı code={code}");
+        OnDisconnected?.Invoke($"code={code}");
+    }
+
+    // ── Oyun başlangıcı ───────────────────────────────────────────────────────
+    void ApplyGameStart(ServerMsg msg)
+    {
+        int seed = msg.seed;
+        int playerCount = msg.players?.Count ?? 2;
+        Debug.Log($"[Transport] game_start seed={seed} team={LocalTeam} players={playerCount}");
+
+        GameBootstrap.IsMultiplayer      = true;
+        GameBootstrap.LocalTeam          = LocalTeam;
+        GameBootstrap.OnlinePlayerCount  = playerCount;
+        GameBootstrap.NextMapType        = MapType.Arena;
+        GameBootstrap.NextDifficulty     = Difficulty.Normal;
         GameBootstrap.Restart(seed);
     }
+
+    // ── Tick input dağıtımı ───────────────────────────────────────────────────
+    void ApplyTickInputs(ServerMsg msg)
+    {
+        if (msg.inputs == null) return;
+        foreach (var inp in msg.inputs)
+        {
+            if (inp.commands == null) continue;
+            foreach (var cmd in inp.commands)
+            {
+                if (cmd is Newtonsoft.Json.Linq.JObject jo)
+                {
+                    var gc = ObjToCommand(jo, inp.tick);
+                    OnCommandReceived?.Invoke(gc);
+                }
+            }
+        }
+    }
+
+    // ── Serializasyon yardımcıları ────────────────────────────────────────────
+    static object CommandToObj(GameCommand cmd) => new
+    {
+        type       = (int)cmd.type,
+        playerId   = cmd.playerId,
+        unitIds    = cmd.unitIds,
+        x          = cmd.x,
+        z          = cmd.z,
+        intParam1  = cmd.intParam1,
+        intParam2  = cmd.intParam2,
+        floatParam1= cmd.floatParam1,
+        floatParam2= cmd.floatParam2,
+    };
+
+    static GameCommand ObjToCommand(Newtonsoft.Json.Linq.JObject d, int tick)
+    {
+        return new GameCommand
+        {
+            tick        = tick,
+            type        = (CommandType)(int)d["type"],
+            playerId    = (int)d["playerId"],
+            unitIds     = d["unitIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+            x           = (float)d["x"],
+            z           = (float)d["z"],
+            intParam1   = (int)d["intParam1"],
+            intParam2   = (int)d["intParam2"],
+            floatParam1 = (float)d["floatParam1"],
+            floatParam2 = (float)d["floatParam2"],
+        };
+    }
+}
+
+// ── Sunucu mesaj modeli (JSON deserialization) ─────────────────────────────
+[Serializable]
+public class ServerMsg
+{
+    public string type;
+    public string roomCode;
+    public string playerId;
+    public int    team;
+    public int    seed;
+    public int    tick;
+    public uint   hash;
+    public string name;
+    public string message;
+    public List<ServerPlayer> players;
+    public List<ServerPlayer> playerList;
+    public List<TickInput>    inputs;
+}
+
+[Serializable]
+public class ServerPlayer
+{
+    public string id;
+    public string name;
+    public int    team;
+    public bool   ready;
+}
+
+[Serializable]
+public class TickInput
+{
+    public string     playerId;
+    public int        tick;
+    public List<object> commands;
 }
