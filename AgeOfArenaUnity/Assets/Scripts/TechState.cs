@@ -348,6 +348,13 @@ public class TechState
         float bonus = 0f;
         if (IsInfantryLike(attacker) && target.ArmorClasses.HasFlag(ArmorClass.Building) && Has(TechType.Arson))
             bonus += 3f;
+        // BAL.combat: Spearman line anti-cavalry ladder follows AoE2 (+15 base on the
+        // unit row, Pikeman → +22 total, Halberdier → +32 total).
+        if (attacker == UnitType.Spearman && target.ArmorClasses.HasFlag(ArmorClass.Cavalry))
+        {
+            if (Has(TechType.Pikeman))    bonus += 7f;
+            if (Has(TechType.Halberdier)) bonus += 10f;
+        }
         return bonus;
     }
 }

@@ -2179,11 +2179,32 @@ public class HUD : MonoBehaviour
 
     static string UnitInfoSub(List<UnitEntity> sel, UnitType first)
     {
-        if (first != UnitType.Monk || sel == null || sel.Count == 0 || sel[0] == null) return "";
-        var monk = sel[0];
-        var tech = monk.TeamTech;
-        float range = tech?.MonkConvertRange ?? 2.5f;
-        return $"Faith {Mathf.RoundToInt(monk.faith)}/{Mathf.RoundToInt(UnitEntity.FaithFull)} | Donusum menzili {range:0.0}";
+        if (sel == null || sel.Count == 0 || sel[0] == null) return "";
+        if (first == UnitType.Monk)
+        {
+            var monk = sel[0];
+            var tech = monk.TeamTech;
+            float range = tech?.MonkConvertRange ?? 2.5f;
+            return $"Faith {Mathf.RoundToInt(monk.faith)}/{Mathf.RoundToInt(UnitEntity.FaithFull)} | Donusum menzili {range:0.0}";
+        }
+        // FEEL.feedback: live carry readout for a single selected villager.
+        if (first == UnitType.Villager && sel.Count == 1)
+        {
+            var v = sel[0];
+            if (v.carrying.amount > 0)
+            {
+                string kindName = v.carrying.kind switch
+                {
+                    ResourceKind.Food  => "Yiyecek",
+                    ResourceKind.Wood  => "Ahsap",
+                    ResourceKind.Gold  => "Altin",
+                    ResourceKind.Stone => "Tas",
+                    _                  => v.carrying.kind.ToString(),
+                };
+                return $"Tasiyor: {v.carrying.amount}/{GatherSystem.CarryCapacityFor(v)} {kindName}";
+            }
+        }
+        return "";
     }
 
     static string TechTreeStatus(GameManager gm, TechDef def, bool researched, bool locked)

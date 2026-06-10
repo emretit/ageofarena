@@ -190,8 +190,12 @@ public class CombatSystem : MonoBehaviour
                     AudioManager.PlayAt(AudioManager.SoundId.Sword, u.transform.position, isCharge ? 1.0f : 0.7f);
                     var tgt = target as Component;
                     if (tgt != null)
+                    {
                         DamagePopup.Show(tgt.transform.position + Vector3.up * 1.5f,
                             Mathf.RoundToInt(dmg), isCharge);
+                        GameEvents.FireHitLanded(tgt.transform.position + Vector3.up * 0.8f,
+                            u.DamageKind, isCharge);
+                    }
                 }
                 u.attackCooldown = u.AttackInterval;
             }

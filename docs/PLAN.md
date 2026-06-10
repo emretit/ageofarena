@@ -110,6 +110,16 @@ paritesi" hedefini kod tarafında başlatan temel dalga olarak kayda geçti.
 | **N10.rms.v** | 5 arketip harita farklı yerleşim Play doğrulama | ✔️ | MCP capture 2026-06-05: Arena/Arabia/BlackForest/Islands/Nomad — her biri farklı yerleşim onaylandı |
 | **N17.ws** | Gerçek WebSocket transport (NativeWebSocket + relay) | ⬜ | `TransportLayer.cs` — NativeWebSocket paket kurulumu gerekiyor |
 
+### Oynanış Hissi + Balans dalgası (BAL/FEEL — 2026-06-10)
+
+| ID | Madde | Durum | Kanıt / Not |
+|---|---|---|---|
+| **BAL.eco** | Gather interval'ları AoE2'nin ~2×'ine yavaşlatıldı (Food 0.5→1.0, Gold/Stone 0.6→1.1, Wood 0.7→1.25); Feudal hedefi ~5-6 dk | ✅ | `GatherSystem.GatherIntervalFor` public; `Gather_IntervalTable_Pinned` SelfTest |
+| **BAL.combat** | Attack interval'lar AoE2 ritmine (Militia 1.9, Archer 1.9, Cavalry 1.7, Spearman 2.6, Treb 9.0 + 10 UU); Spearman +15/Camel +9/Ram +40 counter; Pikeman/Halberdier anti-cav merdiveni (+7/+10 → 15/22/32); charge 2.5→2.0 | ✅ | `UnitRegistry`, `TechState.BonusTechDamage`, `UnitEntity.ChargeMultiplier`; 4 pin + `Balance_TTK_Bands` SelfTest (Militia düello 15.2s, Ram TC 75s, Treb TC 54s) |
+| **BAL.ai** | Easy/Moderate/Normal ilk saldırı kapısı (420/330/240s, Hard+ 0); cap dolarsa kapı kalkar; MakeAggressive sıfırlar | ✅ | `EnemyAI._minFirstPushTime` + `TickGathering` gate |
+| **FEEL.vfx** | Vuruş impact partikülü (pooled, DamageType renkli: melee kıvılcım/pierce toz/siege büyük toz) + ok görseli (başlık+yelek+trail, splash'ta gizli) + `GameEvents.OnHitLanded` sim→kozmetik seam | ✅ | `VisualEffectSystem._impactPool` (cap 32), `Projectile.CreatePooled`, trail `Clear()` on-Get |
+| **FEEL.feedback** | Tek köylü seçiminde canlı carry satırı ("Tasiyor: 7/10 Ahsap") | ✅ | `HUD.UnitInfoSub` + `GatherSystem.CarryCapacityFor` public static |
+
 ### Oynanış QA Dalga 1 (2026-06-05) — "derleniyor ≠ çalışıyor" boşluğu
 
 | ID | Madde | Durum | Kanıt / Not |

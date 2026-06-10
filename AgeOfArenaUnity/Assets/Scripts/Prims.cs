@@ -30,6 +30,31 @@ public static class Prims
     /// <summary>Clear the material cache (call on scene restart to avoid stale references).</summary>
     public static void ClearMatCache() => _matCache.Clear();
 
+    static Material _particleMat;
+    /// <summary>Shared unlit, vertex-colored, alpha-blended material with a soft radial
+    /// texture for runtime ParticleSystems and trails. AddComponent&lt;ParticleSystem&gt;
+    /// ships with NO material (renders magenta squares), so every procedural emitter must
+    /// assign this. Sprites/Default is already in Always Included Shaders (WebGL-safe).</summary>
+    public static Material ParticleMat()
+    {
+        if (_particleMat == null)
+        {
+            var tex = new Texture2D(64, 64, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+            var px = new Color[64 * 64];
+            for (int y = 0; y < 64; y++)
+                for (int x = 0; x < 64; x++)
+                {
+                    float dx = (x - 31.5f) / 30f, dy = (y - 31.5f) / 30f;
+                    float a = Mathf.Clamp01(1f - Mathf.Sqrt(dx * dx + dy * dy));
+                    px[y * 64 + x] = new Color(1f, 1f, 1f, a * a);
+                }
+            tex.SetPixels(px);
+            tex.Apply();
+            _particleMat = new Material(Shader.Find("Sprites/Default")) { mainTexture = tex };
+        }
+        return _particleMat;
+    }
+
     public static Color Hex(int rgb)
     {
         return new Color(

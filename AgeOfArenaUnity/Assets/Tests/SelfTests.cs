@@ -406,4 +406,147 @@ public class SelfTests
             Object.DestroyImmediate(parent);
         }
     }
+
+    // ── BAL: balance pins (gather economy + combat rhythm + counters) ─────────
+    // Values were tuned against AoE2:DE on the game's ×0.5 match-time scale; see
+    // docs/PLAN.md BAL.eco/BAL.combat. Retuning is fine — update the pin with it.
+
+    [Test]
+    public void Gather_IntervalTable_Pinned()
+    {
+        Assert.AreEqual(1.0f,  GatherSystem.GatherIntervalFor(ResourceKind.Food),  0.0001f);
+        Assert.AreEqual(1.1f,  GatherSystem.GatherIntervalFor(ResourceKind.Gold),  0.0001f);
+        Assert.AreEqual(1.1f,  GatherSystem.GatherIntervalFor(ResourceKind.Stone), 0.0001f);
+        Assert.AreEqual(1.25f, GatherSystem.GatherIntervalFor(ResourceKind.Wood),  0.0001f);
+        // Effective rate ordering must hold: Food fastest, Wood slowest.
+        Assert.Less(GatherSystem.GatherIntervalFor(ResourceKind.Food),
+                    GatherSystem.GatherIntervalFor(ResourceKind.Gold));
+        Assert.Less(GatherSystem.GatherIntervalFor(ResourceKind.Gold),
+                    GatherSystem.GatherIntervalFor(ResourceKind.Wood));
+    }
+
+    [Test]
+    public void UnitRegistry_AttackIntervals_Pinned()
+    {
+        Assert.AreEqual(1.9f, UnitRegistry.Get(UnitType.Militia).attackInterval,    0.0001f);
+        Assert.AreEqual(1.9f, UnitRegistry.Get(UnitType.Archer).attackInterval,     0.0001f);
+        Assert.AreEqual(1.7f, UnitRegistry.Get(UnitType.Cavalry).attackInterval,    0.0001f);
+        Assert.AreEqual(2.6f, UnitRegistry.Get(UnitType.Spearman).attackInterval,   0.0001f);
+        Assert.AreEqual(1.9f, UnitRegistry.Get(UnitType.Longbowman).attackInterval, 0.0001f);
+        Assert.AreEqual(3.0f, UnitRegistry.Get(UnitType.Galley).attackInterval,     0.0001f);
+        Assert.AreEqual(2.8f, UnitRegistry.Get(UnitType.Skirmisher).attackInterval, 0.0001f);
+        Assert.AreEqual(1.8f, UnitRegistry.Get(UnitType.Camel).attackInterval,      0.0001f);
+        Assert.AreEqual(5.0f, UnitRegistry.Get(UnitType.Ram).attackInterval,        0.0001f);
+        Assert.AreEqual(5.5f, UnitRegistry.Get(UnitType.Mangonel).attackInterval,   0.0001f);
+        Assert.AreEqual(3.6f, UnitRegistry.Get(UnitType.Scorpion).attackInterval,   0.0001f);
+        Assert.AreEqual(9.0f, UnitRegistry.Get(UnitType.Trebuchet).attackInterval,  0.0001f);
+    }
+
+    static float BonusOf(UnitType u, ArmorClass cls)
+    {
+        var bv = UnitRegistry.Get(u).bonusVs;
+        if (bv == null) return 0f;
+        float sum = 0f;
+        foreach (var e in bv)
+            if ((e.cls & cls) != 0) sum += e.bonus;
+        return sum;
+    }
+
+    [Test]
+    public void UnitRegistry_CounterBonuses_Pinned()
+    {
+        Assert.AreEqual(15f, BonusOf(UnitType.Spearman,  ArmorClass.Cavalry),  0.0001f);
+        Assert.AreEqual(9f,  BonusOf(UnitType.Camel,     ArmorClass.Cavalry),  0.0001f);
+        Assert.AreEqual(40f, BonusOf(UnitType.Ram,       ArmorClass.Building), 0.0001f);
+        Assert.AreEqual(70f, BonusOf(UnitType.Trebuchet, ArmorClass.Building), 0.0001f);
+    }
+
+    [Test]
+    public void TechState_SpearmanLine_AntiCavalryBonus()
+    {
+        var cavGo = new GameObject("SpearLadderCavTarget");
+        try
+        {
+            var cav = cavGo.AddComponent<UnitEntity>();
+            cav.type = UnitType.Cavalry;
+
+            var tech = new TechState();
+            Assert.AreEqual(0f, tech.BonusTechDamage(UnitType.Spearman, cav), 0.0001f);
+
+            tech.Mark(TechType.Pikeman);
+            Assert.AreEqual(7f, tech.BonusTechDamage(UnitType.Spearman, cav), 0.0001f);
+
+            tech.Mark(TechType.Halberdier);
+            Assert.AreEqual(17f, tech.BonusTechDamage(UnitType.Spearman, cav), 0.0001f);
+
+            // Ladder never applies against non-cavalry.
+            cav.type = UnitType.Militia;
+            Assert.AreEqual(0f, tech.BonusTechDamage(UnitType.Spearman, cav), 0.0001f);
+        }
+        finally
+        {
+            Object.DestroyImmediate(cavGo);
+        }
+    }
+
+    [Test]
+    public void UnitEntity_ChargeMultiplier_Pinned()
+    {
+        var go = new GameObject("ChargeMultTest");
+        try
+        {
+            var u = go.AddComponent<UnitEntity>();
+            u.type = UnitType.Cavalry;
+            Assert.AreEqual(2.0f, u.ChargeMultiplier, 0.0001f);
+            u.type = UnitType.Militia;
+            Assert.AreEqual(1.0f, u.ChargeMultiplier, 0.0001f);
+            u.type = UnitType.Camel;
+            Assert.AreEqual(1.0f, u.ChargeMultiplier, 0.0001f);
+        }
+        finally
+        {
+            Object.DestroyImmediate(go);
+        }
+    }
+
+    [Test]
+    public void Balance_TTK_Bands()
+    {
+        // Pure data math: TTK = shots-to-kill × attack interval, using the same
+        // CombatMath the sim runs. Bands (not exact pins) so small retunes survive.
+        var militia = UnitRegistry.Get(UnitType.Militia);
+        var spear   = UnitRegistry.Get(UnitType.Spearman);
+        var cav     = UnitRegistry.Get(UnitType.Cavalry);
+
+        // UnitFactory values (hp / melee armor): Militia 40/0, Spearman 45/0, Cavalry 75/2.
+        const float MilitiaHp = 40f, SpearHp = 45f, CavHp = 75f, CavMeleeArmor = 2f;
+
+        // Militia mirror duel: fights should last seconds, not melt instantly.
+        float milNet = CombatMath.NetDamage(militia.baseAtk, 0f);
+        float milTtk = Mathf.Ceil(MilitiaHp / milNet) * militia.attackInterval;
+        Assert.GreaterOrEqual(milTtk, 12f, $"Militia duel too fast: {milTtk:0.0}s");
+        Assert.LessOrEqual(milTtk, 20f, $"Militia duel too slow: {milTtk:0.0}s");
+
+        // AoE2 cost-counter rule: 1 Cavalry beats 1 Spearman, 2 Spearmen beat 1 Cavalry.
+        float cavKillsSpear = Mathf.Ceil(SpearHp / CombatMath.NetDamage(cav.baseAtk, 0f)) * cav.attackInterval;
+        float spearDmg      = CombatMath.NetDamage(
+            spear.baseAtk + BonusOf(UnitType.Spearman, ArmorClass.Cavalry), CavMeleeArmor);
+        float spearKillsCav = Mathf.Ceil(CavHp / spearDmg) * spear.attackInterval;
+        Assert.Less(cavKillsSpear, spearKillsCav, "1v1: Cavalry must beat Spearman");
+        Assert.Less(spearKillsCav / 2f, cavKillsSpear * 2f, "2 Spearmen must beat 1 Cavalry");
+
+        // Siege pacing vs a Town Center (600 hp, 3 melee armor; siege reads melee armor
+        // per N0.1). Ram should take ~a minute+, Trebuchet a bit under.
+        const float TcHp = 600f, TcMeleeArmor = 3f;
+        var ram  = UnitRegistry.Get(UnitType.Ram);
+        var treb = UnitRegistry.Get(UnitType.Trebuchet);
+        float ramNet  = CombatMath.NetDamage(ram.baseAtk + BonusOf(UnitType.Ram, ArmorClass.Building), TcMeleeArmor);
+        float ramTtk  = Mathf.Ceil(TcHp / ramNet) * ram.attackInterval;
+        float trebNet = CombatMath.NetDamage(treb.baseAtk + BonusOf(UnitType.Trebuchet, ArmorClass.Building), TcMeleeArmor);
+        float trebTtk = Mathf.Ceil(TcHp / trebNet) * treb.attackInterval;
+        Assert.GreaterOrEqual(ramTtk, 55f, $"Ram kills TC too fast: {ramTtk:0.0}s");
+        Assert.LessOrEqual(ramTtk, 85f, $"Ram kills TC too slowly: {ramTtk:0.0}s");
+        Assert.GreaterOrEqual(trebTtk, 40f, $"Trebuchet kills TC too fast: {trebTtk:0.0}s");
+        Assert.LessOrEqual(trebTtk, 65f, $"Trebuchet kills TC too slowly: {trebTtk:0.0}s");
+    }
 }

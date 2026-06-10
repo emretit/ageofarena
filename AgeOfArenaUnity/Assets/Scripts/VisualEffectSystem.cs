@@ -55,6 +55,7 @@ public class VisualEffectSystem : MonoBehaviour
         var go = new GameObject("DamageSmoke");
         go.transform.position = worldPos;
         var ps = go.AddComponent<ParticleSystem>();
+        go.GetComponent<ParticleSystemRenderer>().sharedMaterial = Prims.ParticleMat();
         var main = ps.main;
         main.startLifetime   = 2.5f;
         main.startSpeed      = 0.8f;
@@ -81,12 +82,14 @@ public class VisualEffectSystem : MonoBehaviour
     {
         GameEvents.OnUnitKilled        += OnUnitKilled;
         GameEvents.OnBuildingDestroyed += OnBuildingDestroyed;
+        GameEvents.OnHitLanded         += OnHitLanded;
     }
 
     void OnDisable()
     {
         GameEvents.OnUnitKilled        -= OnUnitKilled;
         GameEvents.OnBuildingDestroyed -= OnBuildingDestroyed;
+        GameEvents.OnHitLanded         -= OnHitLanded;
     }
 
     void OnUnitKilled(UnitEntity u, int team)
@@ -143,8 +146,8 @@ public class VisualEffectSystem : MonoBehaviour
         ps.Play();
 
         // Return to the pool (not Destroy) once the burst has faded.
-        var ret = go.GetComponent<DeathFXReturn>();
-        if (ret == null) ret = go.AddComponent<DeathFXReturn>();
+        var ret = go.GetComponent<FXPoolReturn>();
+        if (ret == null) ret = go.AddComponent<FXPoolReturn>();
         ret.Arm(main.startLifetime.constant + 0.2f);
     }
 
@@ -152,6 +155,7 @@ public class VisualEffectSystem : MonoBehaviour
     {
         var go = new GameObject("DeathFX");
         var ps = go.AddComponent<ParticleSystem>();
+        go.GetComponent<ParticleSystemRenderer>().sharedMaterial = Prims.ParticleMat();
         var main = ps.main;
         main.startColor      = new ParticleSystem.MinMaxGradient(
             new Color(1f, 0.6f, 0.15f, 1f),
@@ -163,22 +167,85 @@ public class VisualEffectSystem : MonoBehaviour
         return ps;
     }
 
-    internal static void ReturnToPool(ParticleSystem ps)
+    // ── FEEL.vfx: per-hit impact bursts (cosmetic; driven by GameEvents.OnHitLanded) ──
+    // Same pooled pattern as the death FX. Colors keyed by damage type:
+    // melee = pale sparks, pierce = dusty puff, siege = big dust cloud.
+    static readonly System.Collections.Generic.Stack<ParticleSystem> _impactPool = new();
+    const int ImpactPoolMax = 32; // hard cap — big battles reuse, never grow unbounded
+    static readonly ParticleSystem.Burst[] _burstHit   = { new ParticleSystem.Burst(0f, 6) };
+    static readonly ParticleSystem.Burst[] _burstHeavy = { new ParticleSystem.Burst(0f, 10) };
+
+    void OnHitLanded(Vector3 pos, DamageType type, bool heavy)
     {
-        if (ps != null) _deathPool.Push(ps);
+        ParticleSystem ps = null;
+        while (_impactPool.Count > 0 && ps == null) ps = _impactPool.Pop();
+        if (ps == null) ps = CreateImpactPS();
+
+        var go = ps.gameObject;
+        go.transform.position = pos;
+        if (!go.activeSelf) go.SetActive(true);
+
+        var main = ps.main;
+        main.startLifetime = heavy ? 0.35f : 0.22f;
+        main.startSpeed    = heavy ? 3.5f  : 2.2f;
+        main.startSize     = heavy ? 0.22f : 0.12f;
+        main.maxParticles  = 12;
+        main.startColor    = type switch
+        {
+            DamageType.Melee => new ParticleSystem.MinMaxGradient(
+                new Color(1f, 0.95f, 0.7f, 1f), new Color(1f, 0.8f, 0.3f, 1f)),
+            DamageType.Siege => new ParticleSystem.MinMaxGradient(
+                new Color(0.55f, 0.48f, 0.38f, 1f), new Color(0.4f, 0.35f, 0.28f, 1f)),
+            _ => new ParticleSystem.MinMaxGradient(
+                new Color(0.75f, 0.7f, 0.6f, 1f), new Color(0.6f, 0.55f, 0.45f, 1f)),
+        };
+
+        ps.emission.SetBursts(heavy ? _burstHeavy : _burstHit);
+        ps.Clear();
+        ps.Play();
+
+        var ret = go.GetComponent<FXPoolReturn>();
+        if (ret == null) ret = go.AddComponent<FXPoolReturn>();
+        ret.Arm(main.startLifetime.constant + 0.15f, impact: true);
+    }
+
+    static ParticleSystem CreateImpactPS()
+    {
+        var go = new GameObject("ImpactFX");
+        var ps = go.AddComponent<ParticleSystem>();
+        go.GetComponent<ParticleSystemRenderer>().sharedMaterial = Prims.ParticleMat();
+        var main = ps.main;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.playOnAwake     = false;
+        var emission = ps.emission; emission.rateOverTime = 0;
+        var shape    = ps.shape;    shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 0.15f;
+        return ps;
+    }
+
+    internal static void ReturnToPool(ParticleSystem ps, bool impact = false)
+    {
+        if (ps == null) return;
+        if (impact)
+        {
+            if (_impactPool.Count < ImpactPoolMax) _impactPool.Push(ps);
+            else Destroy(ps.gameObject);
+        }
+        else _deathPool.Push(ps);
     }
 }
 
-/// <summary>Recycles a pooled death-FX particle system back to the pool once its burst
-/// has faded, instead of destroying the GameObject (avoids per-death instantiate/GC churn).</summary>
-class DeathFXReturn : MonoBehaviour
+/// <summary>Recycles a pooled FX particle system back to its pool once its burst has
+/// faded, instead of destroying the GameObject (avoids per-hit instantiate/GC churn).</summary>
+class FXPoolReturn : MonoBehaviour
 {
     float _t;
-    public void Arm(float seconds) { _t = seconds; }
+    bool  _impact;
+    public void Arm(float seconds, bool impact = false) { _t = seconds; _impact = impact; }
     void Update()
     {
         if ((_t -= Time.deltaTime) > 0f) return;
         gameObject.SetActive(false);
-        VisualEffectSystem.ReturnToPool(GetComponent<ParticleSystem>());
+        VisualEffectSystem.ReturnToPool(GetComponent<ParticleSystem>(), _impact);
     }
 }

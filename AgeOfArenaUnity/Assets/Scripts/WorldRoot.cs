@@ -133,6 +133,7 @@ public class WorldRoot : MonoBehaviour
 
         // FoW is initialised after the full scene (units, buildings, nodes) is up.
         gm.fow = gm.gameObject.AddComponent<FogOfWarSystem>();
+        gm.fow.fogEnabled = false;   // TEMP: tüm harita açık (sis kapalı) — geri açmak için sil
         gm.fow.Init(_groundRenderer);
 
         // Post-processing: must run after camera is ready.

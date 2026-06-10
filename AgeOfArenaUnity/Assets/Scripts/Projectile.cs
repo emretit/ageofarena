@@ -31,9 +31,14 @@ public class Projectile : MonoBehaviour
     Vector3     _snapPos;
     float       _age;
     Transform   _meshChild;   // pre-built cube child; resized per shot
+    Transform   _headChild;   // FEEL.vfx: arrowhead, hidden in splash (stone) mode
+    Transform   _fletchChild; // FEEL.vfx: fletching plate, hidden in splash mode
+    TrailRenderer _trail;     // FEEL.vfx: must be Clear()ed on pool Get or it streaks
 
     static readonly System.Collections.Generic.List<UnitEntity> _splashBuf = new();
-    static readonly Color ArrowColor = Prims.Hex(0x4a3018);
+    static readonly Color ArrowColor  = Prims.Hex(0x4a3018);
+    static readonly Color HeadColor   = Prims.Hex(0x2b2b30);
+    static readonly Color FletchColor = Prims.Hex(0xd8d2c0);
 
     // N1.pool: shared pool — capacity 64, max 256 live projectiles before falling back.
     static ObjectPool<Projectile> _pool;
@@ -64,6 +69,27 @@ public class Projectile : MonoBehaviour
         var child = Prims.Box(go.transform, Vector3.zero, new Vector3(0.06f, 0.06f, 0.5f), mat);
         var p     = go.AddComponent<Projectile>();
         p._meshChild = child.transform;
+
+        // FEEL.vfx: arrowhead + fletching built once at pool-create (zero per-shot alloc);
+        // Spawn() hides them in splash (stone) mode.
+        var head = Prims.Box(go.transform, new Vector3(0f, 0f, 0.30f),
+            new Vector3(0.09f, 0.09f, 0.10f), Prims.Mat(HeadColor));
+        p._headChild = head.transform;
+        var fletch = Prims.Box(go.transform, new Vector3(0f, 0f, -0.24f),
+            new Vector3(0.16f, 0.02f, 0.12f), Prims.Mat(FletchColor));
+        p._fletchChild = fletch.transform;
+
+        var trail = go.AddComponent<TrailRenderer>();
+        trail.time          = 0.12f;
+        trail.startWidth    = 0.05f;
+        trail.endWidth      = 0f;
+        trail.material      = Prims.ParticleMat(); // alpha-blended so the tail fades out
+        trail.startColor    = new Color(1f, 1f, 0.9f, 0.45f);
+        trail.endColor      = new Color(1f, 1f, 0.9f, 0f);
+        trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        trail.receiveShadows = false;
+        p._trail = trail;
+
         go.SetActive(false);
         return p;
     }
@@ -78,12 +104,20 @@ public class Projectile : MonoBehaviour
         var p = Pool.Get();
         p.transform.position = from;
 
-        // Resize mesh child for splash vs arrow.
+        // Resize mesh child for splash vs arrow; stone shots hide the arrow dressing.
+        bool stone = splashRadius > 0f;
         if (p._meshChild != null)
         {
-            float s = splashRadius > 0f ? 0.35f : 0.06f;
-            float z = splashRadius > 0f ? 0.35f : 0.5f;
+            float s = stone ? 0.35f : 0.06f;
+            float z = stone ? 0.35f : 0.5f;
             p._meshChild.localScale = new Vector3(s, s, z);
+        }
+        if (p._headChild   != null) p._headChild.gameObject.SetActive(!stone);
+        if (p._fletchChild != null) p._fletchChild.gameObject.SetActive(!stone);
+        if (p._trail != null)
+        {
+            p._trail.Clear(); // pooled reuse: drop the previous flight's trail or it streaks
+            p._trail.startWidth = stone ? 0.12f : 0.05f;
         }
 
         p._target       = target;
@@ -144,8 +178,17 @@ public class Projectile : MonoBehaviour
                 _target.TakeDamage(_damage, _damageType);
                 var tgt = _target as Component;
                 if (tgt != null)
+                {
                     DamagePopup.Show(tgt.transform.position + Vector3.up * 1.5f,
                         Mathf.RoundToInt(_damage), isSplash);
+                    GameEvents.FireHitLanded(tgt.transform.position + Vector3.up * 0.8f,
+                        _damageType, isSplash);
+                }
+            }
+            else if (isSplash)
+            {
+                // Siege shots burst on the ground even when the primary target moved away.
+                GameEvents.FireHitLanded(_snapPos, _damageType, true);
             }
 
             if (_splashRadius > 0f)
@@ -174,6 +217,7 @@ public class Projectile : MonoBehaviour
                             : _damage) * falloff * _elevationMult;
                         o.TakeDamage(sd, _damageType);
                         DamagePopup.Show(op + Vector3.up * 1.5f, Mathf.RoundToInt(sd), true);
+                        GameEvents.FireHitLanded(op + Vector3.up * 0.8f, _damageType, false);
                     }
                 }
             }

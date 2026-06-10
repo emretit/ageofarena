@@ -135,6 +135,12 @@ public class EnemyAI : MonoBehaviour
     // AICH: eco multiplier (applied to gather/research rates, not free resources).
     float _ecoMult = 1f;
 
+    // BAL.ai: no offensive push before this match time on Easy/Moderate/Normal so the
+    // player gets a real build-up phase; Hard+ keeps the gloves off. The gate lifts
+    // early if the army cap fills (units are never parked forever).
+    float _minFirstPushTime;
+    float _matchClock;
+
     void ApplyDifficulty()
     {
         var gm = GameManager.Instance;
@@ -143,6 +149,7 @@ public class EnemyAI : MonoBehaviour
         // AIRD: use FloorToInt(x + 0.5f) for deterministic round-half-up (no banker's rounding).
         static int Round(float v) => Mathf.FloorToInt(v + 0.5f);
 
+        _minFirstPushTime = 240f; // Normal baseline; overridden per level below
         switch (diff)
         {
             case Difficulty.Easy:
@@ -150,12 +157,14 @@ public class EnemyAI : MonoBehaviour
                 _rushThreshold = Round(_rushThreshold * 1.5f);
                 _villagerTarget = Mathf.Max(1, _villagerTarget - 2);
                 _ecoMult = 0.65f;
+                _minFirstPushTime = 420f;
                 break;
             case Difficulty.Moderate:
                 _spawnInterval *= 1.4f; _armyCap = Mathf.Max(4, Round(_armyCap * 0.75f));
                 _rushThreshold = Round(_rushThreshold * 1.2f);
                 _villagerTarget = Mathf.Max(1, _villagerTarget - 1);
                 _ecoMult = 0.85f;
+                _minFirstPushTime = 330f;
                 break;
             // Normal: baseline (no change, _ecoMult stays 1).
             case Difficulty.Hard:
@@ -163,18 +172,21 @@ public class EnemyAI : MonoBehaviour
                 _rushThreshold = Mathf.Max(3, Round(_rushThreshold * 0.85f));
                 _villagerTarget += 2;
                 _ecoMult = 1.15f;
+                _minFirstPushTime = 0f;
                 break;
             case Difficulty.Insane:
                 _spawnInterval *= 0.60f; _armyCap = Round(_armyCap * 1.65f);
                 _rushThreshold = Mathf.Max(3, Round(_rushThreshold * 0.72f));
                 _villagerTarget += 4;
                 _ecoMult = 1.35f;
+                _minFirstPushTime = 0f;
                 break;
             case Difficulty.Extreme:
                 _spawnInterval *= 0.42f; _armyCap = Round(_armyCap * 2.10f);
                 _rushThreshold = Mathf.Max(2, Round(_rushThreshold * 0.55f));
                 _villagerTarget += 6;
                 _ecoMult = 1.60f;
+                _minFirstPushTime = 0f;
                 break;
         }
     }
@@ -214,6 +226,7 @@ public class EnemyAI : MonoBehaviour
     {
         _rushThreshold = 1;
         if (_spawnInterval > 0f) _spawnInterval *= 0.7f;
+        _minFirstPushTime = 0f; // BAL.ai: assault challenge ignores the first-push gate
         _assessTimer = 0f;   // re-assess (and likely push) on the next tick
     }
 
@@ -228,6 +241,7 @@ public class EnemyAI : MonoBehaviour
         var gm = GameManager.Instance;
         if (gm == null || _res == null) return;
         float dt = Time.deltaTime;
+        _matchClock += dt;
 
         if ((_spawnTimer  -= dt) <= 0f) { _spawnTimer  = _spawnInterval;       TrySpawn(gm); }
         if ((_assessTimer -= dt) <= 0f) { _assessTimer = AssessInterval;       Assess(gm); }
@@ -649,6 +663,9 @@ public class EnemyAI : MonoBehaviour
     void TickGathering(GameManager gm, List<UnitEntity> army)
     {
         if (army.Count < _rushThreshold) return;
+        // BAL.ai: hold the first push until the difficulty's grace window passes,
+        // unless the army cap is already full (then attack anyway).
+        if (_matchClock < _minFirstPushTime && army.Count < _armyCap) return;
 
         var target = FindBestTarget(gm, army);
         if (target == null) return;

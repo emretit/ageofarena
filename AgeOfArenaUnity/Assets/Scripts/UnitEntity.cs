@@ -202,8 +202,9 @@ public class UnitEntity : MonoBehaviour, IDamageable
     /// the blast and 50% in the outer half (AoE2 "blast level" rings, simplified).</summary>
     public float SplashFalloffAt(float t)
         => type == UnitType.DemoShip ? 1f : (t <= 0.5f ? 1f : 0.5f);
-    /// <summary>First melee charge hit by a Cavalry unit deals 2.5× damage.</summary>
-    public float ChargeMultiplier => type == UnitType.Cavalry ? 2.5f : 1f;
+    /// <summary>First melee charge hit by a Cavalry unit deals 2.0× damage (BAL.combat:
+    /// was 2.5×; with slower attack intervals the alpha spike weighed too much).</summary>
+    public float ChargeMultiplier => type == UnitType.Cavalry ? 2.0f : 1f;
     /// <summary>Damage class this unit deals.</summary>
     public DamageType DamageKind => UnitRegistry.Get(type).damageKind;
     /// <summary>Ranged units attack via projectiles instead of melee contact.</summary>

@@ -62,6 +62,7 @@ ve kalan işler için tek kaynak: **[docs/AUDIT-2026-06.md](docs/AUDIT-2026-06.m
 | O25 | 2026-06-03 | AoE2 referans docs + HANDOFF+PROGRESS birleştirme | ✔️ docs/reference/ |
 | O26 | 2026-06-03 | Oyun wiki'si (`docs/wiki/`) — workflow ile 11 sayfa + backlog | ✔️ 13 dosya; 49 ajan; 72 eksik; adversarial denetim |
 | O27 | 2026-06-05 | NavMesh hareket bug + doküman konsolidasyonu + 10-adım plan | ✔️ commits `7ae0949`+`dfb51a8`+`16f304a`+`4be8a39` |
+| O28 | 2026-06-10 | BAL/FEEL dalgası: eko ~×0.5 nerf, attack interval AoE2 ritmi, Spearman/Pikeman/Halberdier anti-cav merdiveni, AI ilk-saldırı kapısı (Easy 420/Mod 330/Normal 240s), impact FX + ok görseli (`Prims.ParticleMat` — AddComponent ParticleSystem materyalsiz=magenta fix), carry göstergesi | ✔️ SelfTests 32/32; ContentParity+Wave2 PASS; Play: Militia düello ~15s, Cav>Spear 1v1, 2 Spear>Cav, impact FX görsel |
 
 ---
 

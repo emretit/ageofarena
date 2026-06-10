@@ -29,20 +29,23 @@ public class GatherSystem : MonoBehaviour
     static int GatherRateFor(ResourceKind kind) => 1;
 
     /// <summary>Seconds between gather ticks by resource kind (GRATE): Food fastest,
-    /// then Gold/Stone, Wood slowest → effective rate Wood &lt; Gold/Stone &lt; Food.</summary>
-    static float GatherIntervalFor(ResourceKind kind) => kind switch
+    /// then Gold/Stone, Wood slowest → effective rate Wood &lt; Gold/Stone &lt; Food.
+    /// BAL.eco: tuned to ~2× AoE2 rates (match runs on a ×0.5 time scale) so Feudal
+    /// lands ~5-6 min instead of ~3.</summary>
+    public static float GatherIntervalFor(ResourceKind kind) => kind switch
     {
-        ResourceKind.Food  => 0.5f,
-        ResourceKind.Gold  => 0.6f,
-        ResourceKind.Stone => 0.6f,
-        ResourceKind.Wood  => 0.7f,
-        _                  => 0.6f,
+        ResourceKind.Food  => 1.0f,
+        ResourceKind.Gold  => 1.1f,
+        ResourceKind.Stone => 1.1f,
+        ResourceKind.Wood  => 1.25f,
+        _                  => 1.1f,
     };
 
-    /// <summary>Per-trip carry capacity (RPCT): base × Wheelbarrow multiplier + flat bonus.</summary>
-    int CarryCapacityFor(UnitEntity v)
+    /// <summary>Per-trip carry capacity (RPCT): base × Wheelbarrow multiplier + flat bonus.
+    /// Public static so the HUD carry indicator shows the same cap the sim uses.</summary>
+    public static int CarryCapacityFor(UnitEntity v)
     {
-        var tech = GM != null ? GM.teamTech[v.teamId] : null;
+        var tech = GameManager.Instance != null ? GameManager.Instance.teamTech[v.teamId] : null;
         if (tech == null) return CarryCapacity;
         return Mathf.RoundToInt(CarryCapacity * tech.CarryCapacityMult) + tech.CarryBonus;
     }
