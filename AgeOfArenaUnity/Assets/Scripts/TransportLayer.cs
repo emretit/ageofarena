@@ -186,18 +186,20 @@ public sealed class TransportLayer : MonoBehaviour
 
     static GameCommand ObjToCommand(Newtonsoft.Json.Linq.JObject d, int tick)
     {
+        static int    I(Newtonsoft.Json.Linq.JToken t) => t != null ? (int)t   : 0;
+        static float  F(Newtonsoft.Json.Linq.JToken t) => t != null ? (float)t : 0f;
         return new GameCommand
         {
             tick        = tick,
-            type        = (CommandType)(int)d["type"],
-            playerId    = (int)d["playerId"],
+            type        = (CommandType)I(d["type"]),
+            playerId    = I(d["playerId"]),
             unitIds     = d["unitIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
-            x           = (float)d["x"],
-            z           = (float)d["z"],
-            intParam1   = (int)d["intParam1"],
-            intParam2   = (int)d["intParam2"],
-            floatParam1 = (float)d["floatParam1"],
-            floatParam2 = (float)d["floatParam2"],
+            x           = F(d["x"]),
+            z           = F(d["z"]),
+            intParam1   = I(d["intParam1"]),
+            intParam2   = I(d["intParam2"]),
+            floatParam1 = F(d["floatParam1"]),
+            floatParam2 = F(d["floatParam2"]),
         };
     }
 }

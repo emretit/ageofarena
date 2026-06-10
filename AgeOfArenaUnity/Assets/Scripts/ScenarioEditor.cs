@@ -50,12 +50,12 @@ public class ScenarioEditor : MonoBehaviour
 
     static readonly (string label, System.Action<Vector3, Color, int> spawn)[] BuildingItems =
     {
-        ("Şehir Merkezi", (p,c,t) => RegBGo(BuildingFactory.TownCenter(Root(), p, c), t)),
-        ("Kışla",         (p,c,t) => RegBGo(BuildingFactory.Barracks(Root(), p, c), t)),
-        ("Maden Kampı",   (p,c,t) => RegBGo(BuildingFactory.MiningCamp(Root(), p, c), t)),
-        ("Ev",            (p,c,t) => RegBGo(BuildingFactory.House(Root(), p, c), t)),
-        ("Kule",          (p,c,t) => RegBGo(BuildingFactory.WatchTower(Root(), p, c), t)),
-        ("Kale",          (p,c,t) => RegBGo(BuildingFactory.Castle(Root(), p, c), t)),
+        ("Şehir Merkezi", (p,c,t) => RegBGo(BuildingFactory.Create(BuildingType.TownCenter, Root(), p, c), t)),
+        ("Kışla",         (p,c,t) => RegBGo(BuildingFactory.Create(BuildingType.Barracks, Root(), p, c), t)),
+        ("Maden Kampı",   (p,c,t) => RegBGo(BuildingFactory.Create(BuildingType.MiningCamp, Root(), p, c), t)),
+        ("Ev",            (p,c,t) => RegBGo(BuildingFactory.Create(BuildingType.House, Root(), p, c), t)),
+        ("Kule",          (p,c,t) => RegBGo(BuildingFactory.Create(BuildingType.WatchTower, Root(), p, c), t)),
+        ("Kale",          (p,c,t) => RegBGo(BuildingFactory.Create(BuildingType.Castle, Root(), p, c), t)),
     };
 
     static readonly (string label, System.Action<Vector3> spawn)[] ResourceItems =

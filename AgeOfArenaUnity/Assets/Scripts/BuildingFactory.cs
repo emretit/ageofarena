@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -14,6 +15,88 @@ public static class BuildingFactory
     static readonly Color Timber = Prims.Hex(0x3a2414); // rich dark timber
     static readonly Color Door   = Prims.Hex(0x4a2c10);
     static readonly Color Window = Prims.Hex(0x6aa0cc); // deeper window blue
+
+    // ── Quaternius "Ultimate Fantasy RTS" building models ──────────────────
+    // Purpose-built, visually distinct model per building type (CC0). Replaces
+    // the old Kenney-keep reuse that made TownCenter/House/Barracks/towers look
+    // identical. Missing-model and uncovered types fall through to the bespoke
+    // procedural/Kenney factories below.
+    struct QSpec
+    {
+        public string model;     // Resources/Quaternius/RTS/<model>
+        public float width;      // target ground footprint (auto-scaled)
+        public float height;     // when >0, fit by height instead (tall towers)
+        public float yaw;        // model facing correction
+        public float pitch;      // X-rotation to fix models authored lying down (Z-up)
+        public bool flag;        // add a team-colour banner on top
+        public Vector3 colCenter, colSize; // selection collider
+    }
+
+    static readonly Dictionary<BuildingType, QSpec> QSpecs = new()
+    {
+        [BuildingType.TownCenter]   = new QSpec { model = "TownCenter_SecondAge_Level1", width = 3.4f, flag = true,  colCenter = new(0, 1.5f, 0), colSize = new(3.2f, 3.2f, 3.2f) },
+        [BuildingType.House]        = new QSpec { model = "Houses_FirstAge_1_Level1",    width = 1.8f, flag = false, colCenter = new(0, 0.9f, 0), colSize = new(1.8f, 1.8f, 1.8f) },
+        [BuildingType.Barracks]     = new QSpec { model = "Barracks_FirstAge_Level1",    width = 2.6f, flag = true,  colCenter = new(0, 1.3f, 0), colSize = new(2.7f, 2.8f, 2.2f) },
+        [BuildingType.ArcheryRange] = new QSpec { model = "Archery_FirstAge_Level1",     width = 2.6f, flag = true,  colCenter = new(0, 1.2f, 0), colSize = new(2.6f, 2.4f, 2.2f) },
+        [BuildingType.Stable]       = new QSpec { model = "Houses_SecondAge_2_Level1",   width = 2.6f, flag = true,  colCenter = new(0, 1.2f, 0), colSize = new(2.8f, 2.4f, 2.4f) },
+        [BuildingType.Farm]         = new QSpec { model = "Farm_FirstAge_Level1_Wheat",  width = 3.0f, flag = false, colCenter = new(0, 0.25f, 0), colSize = new(3.0f, 0.5f, 3.0f) },
+        [BuildingType.LumberCamp]   = new QSpec { model = "Storage_FirstAge_Level1",     width = 2.2f, flag = false, colCenter = new(0, 0.7f, 0), colSize = new(2.2f, 1.4f, 2.2f) },
+        [BuildingType.MiningCamp]   = new QSpec { model = "Mine",                        width = 2.4f, flag = false, colCenter = new(0, 0.7f, 0), colSize = new(2.2f, 1.4f, 2.2f) },
+        [BuildingType.Mill]         = new QSpec { model = "Windmill_SecondAge",          height = 3.0f, pitch = -90f, flag = false, colCenter = new(0, 1.0f, 0), colSize = new(2.0f, 2.0f, 2.0f) },
+        [BuildingType.Market]       = new QSpec { model = "Market_SecondAge_Level1",     width = 2.8f, flag = true,  colCenter = new(0, 1.0f, 0), colSize = new(2.8f, 2.0f, 2.6f) },
+        [BuildingType.Monastery]    = new QSpec { model = "Temple_FirstAge_Level1",      width = 2.6f, flag = true,  colCenter = new(0, 1.2f, 0), colSize = new(2.4f, 2.4f, 2.4f) },
+        [BuildingType.University]   = new QSpec { model = "Temple_SecondAge_Level1",     width = 2.8f, flag = true,  colCenter = new(0, 1.3f, 0), colSize = new(2.6f, 2.6f, 2.6f) },
+        [BuildingType.Dock]         = new QSpec { model = "Port_SecondAge_Level1",        height = 3.2f, flag = true,  colCenter = new(0, 0.7f, 0), colSize = new(3.0f, 1.4f, 3.0f) },
+        [BuildingType.Blacksmith]   = new QSpec { model = "Storage_SecondAge_Level1",    width = 2.4f, flag = true,  colCenter = new(0, 1.0f, 0), colSize = new(2.2f, 2.0f, 2.2f) },
+        [BuildingType.SiegeWorkshop]= new QSpec { model = "Storage_SecondAge_Level2",    width = 2.8f, flag = true,  colCenter = new(0, 1.0f, 0), colSize = new(2.6f, 2.0f, 2.6f) },
+        [BuildingType.Wonder]       = new QSpec { model = "Wonder_SecondAge_Level3",     width = 4.8f, flag = true,  colCenter = new(0, 3.0f, 0), colSize = new(5.0f, 6.0f, 5.0f) },
+        [BuildingType.WatchTower]   = new QSpec { model = "WatchTower_SecondAge_Level1", height = 3.0f, flag = true,  colCenter = new(0, 1.5f, 0), colSize = new(1.4f, 3.2f, 1.4f) },
+        [BuildingType.Outpost]      = new QSpec { model = "WatchTower_FirstAge_Level1",  height = 2.4f, flag = true,  colCenter = new(0, 1.2f, 0), colSize = new(1.0f, 2.6f, 1.0f) },
+        [BuildingType.BombardTower] = new QSpec { model = "WatchTower_SecondAge_Level3", height = 3.4f, flag = true,  colCenter = new(0, 1.6f, 0), colSize = new(1.6f, 3.4f, 1.6f) },
+        [BuildingType.Castle]       = new QSpec { model = "TowerHouse_SecondAge",        width = 3.8f, flag = true,  colCenter = new(0, 2.5f, 0), colSize = new(4.5f, 5.0f, 4.5f) },
+    };
+
+    /// <summary>
+    /// Build a building from its Quaternius model when one is mapped. Returns
+    /// <c>null</c> for unmapped types or a missing model so <see cref="Create"/>
+    /// falls back to the procedural / Kenney factories.
+    /// </summary>
+    static GameObject TryQuaternius(BuildingType type, Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        if (!QSpecs.TryGetValue(type, out var spec)) return null;
+
+        string model = spec.model;
+        if (type == BuildingType.House)
+        {
+            // Deterministic visual variety: pick one of three house meshes from
+            // the plot position so saves/replays stay stable.
+            int v = Mathf.Abs(Mathf.RoundToInt(worldPos.x * 7.3f + worldPos.z * 13.1f)) % 3;
+            model = $"Houses_FirstAge_{v + 1}_Level1";
+        }
+        if (!QuaterniusBuildings.Has(model)) return null;
+
+        var g = NewBuilding(type.ToString(), parent, worldPos, type, spec.colCenter, spec.colSize);
+        var t = g.transform;
+        bool byHeight = spec.height > 0f;
+        float target = byHeight ? spec.height : spec.width;
+        var built = QuaterniusBuildings.Spawn(model, t, target, spec.yaw, default, byHeight, spec.pitch);
+        if (spec.flag && built != null)
+            AddTeamFlag(t, QuaterniusBuildings.Height(built, t), teamColor);
+
+        Prims.EnableShadows(g);
+        return g;
+    }
+
+    /// <summary>A team-colour banner on a pole rising just above the roof.</summary>
+    static void AddTeamFlag(Transform t, float roofTop, Color teamColor)
+    {
+        float poleH = Mathf.Clamp(roofTop * 0.3f, 0.7f, 1.3f);
+        float baseY = roofTop;
+        Prims.Cylinder(t, new Vector3(0f, baseY + poleH * 0.5f, 0f), 0.045f, poleH,
+            Prims.Mat(Prims.Hex(0x4a3a2a), 0.15f));
+        Prims.Box(t, new Vector3(0.33f, baseY + poleH * 0.78f, 0f), new Vector3(0.6f, 0.42f, 0.03f),
+            Prims.Mat(teamColor, 0f, 0.4f)).name = "Flag";
+    }
 
     static GameObject QuaterniusAnimal(string modelName, Transform parent, Vector3 localPos,
         float scale = 1f, float yaw = 0f)
@@ -822,7 +905,17 @@ public static class BuildingFactory
     /// type by enum. Uses <paramref name="teamColor"/> for the roof so buildings
     /// read as team-owned.
     /// </summary>
-    public static GameObject Create(BuildingType type, Transform parent, Vector3 worldPos, Color teamColor) => type switch
+    public static GameObject Create(BuildingType type, Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        // Prefer the purpose-built Quaternius model; fall back to the bespoke
+        // procedural / Kenney factories for unmapped types (Wall, Gate,
+        // Blacksmith, SiegeWorkshop, FishTrap).
+        var q = TryQuaternius(type, parent, worldPos, teamColor);
+        if (q != null) return q;
+        return CreateProcedural(type, parent, worldPos, teamColor);
+    }
+
+    static GameObject CreateProcedural(BuildingType type, Transform parent, Vector3 worldPos, Color teamColor) => type switch
     {
         BuildingType.TownCenter   => TownCenter(parent, worldPos, teamColor),
         BuildingType.House        => House(parent, worldPos, teamColor),

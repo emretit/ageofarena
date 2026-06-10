@@ -1000,7 +1000,6 @@ public class WorldRoot : MonoBehaviour
         for (int i = 0; i < gm.TeamCount; i++)
             gm.teamCivs[i] = (i == localTeam && !isMP) ? GameBootstrap.PlayerCiv
                              : civValues[Random.Range(1, civValues.Length)];
-        if (!isMP) gm.teamCivs[0] = GameBootstrap.PlayerCiv; // single-player: team 0 = player civ
 
         var tcPos     = BasePositions[localTeam];
         var teamColor = TeamColors[localTeam];

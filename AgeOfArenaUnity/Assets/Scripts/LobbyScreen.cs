@@ -35,6 +35,8 @@ public class LobbyScreen : MonoBehaviour
     TransportLayer _transport;
     bool _isHost;
     bool _isReady;
+    bool _subscribed;
+    System.Action _pendingLobbyAction; // Connect sonrası gönderilecek lobi mesajı
     readonly List<ServerPlayer> _players = new();
 
     // ── Acik/Kapali ──────────────────────────────────────────────────────────
@@ -45,14 +47,17 @@ public class LobbyScreen : MonoBehaviour
 
         if (_transport == null)
         {
-            _transport = GetComponent<TransportLayer>();
-            if (_transport == null)
-                _transport = gameObject.AddComponent<TransportLayer>();
+            Debug.LogError("[LobbyScreen] SetTransport cagrilmadan Show() cagrildi.");
+            return;
         }
 
-        _transport.OnConnected       += HandleConnected;
-        _transport.OnDisconnected    += HandleDisconnected;
-        _transport.OnRawMessage      += HandleRawMessage;
+        if (!_subscribed)
+        {
+            _transport.OnConnected    += HandleConnected;
+            _transport.OnDisconnected += HandleDisconnected;
+            _transport.OnRawMessage   += HandleRawMessage;
+            _subscribed = true;
+        }
     }
 
     /// <summary>WorldRoot tarafindan gm.transport atanir; Show()'dan once cagirilmali.</summary>
@@ -60,12 +65,14 @@ public class LobbyScreen : MonoBehaviour
 
     public void Hide()
     {
-        if (_transport != null)
+        if (_transport != null && _subscribed)
         {
             _transport.OnConnected    -= HandleConnected;
             _transport.OnDisconnected -= HandleDisconnected;
             _transport.OnRawMessage   -= HandleRawMessage;
+            _subscribed = false;
         }
+        _pendingLobbyAction = null;
         if (_canvas != null) _canvas.gameObject.SetActive(false);
     }
 
@@ -116,16 +123,16 @@ public class LobbyScreen : MonoBehaviour
         _codeField = AddInputField(leftPanel, "XXXXX", -5, 44, 380, 34);
         _codeField.characterLimit = 5;
 
-        // Oda olustur
+        // Oda olustur — Connect async; asil mesaj HandleConnected'ta gonderilir.
         var createBtn = AddBtn(leftPanel, "Oda Olustur", -5, -20, 380, 44, GreenCol, () =>
         {
             string url  = _urlField.text.Trim();
             string name = _nameField.text.Trim();
             if (string.IsNullOrEmpty(name)) name = "Oyuncu1";
             SetStatus("Baglaniliyor...");
-            _transport.Connect(url);
-            _transport.CreateRoom(name);
             _isHost = true;
+            _pendingLobbyAction = () => _transport.CreateRoom(name);
+            _transport.Connect(url);
         });
 
         // Oda kodla katil
@@ -137,9 +144,9 @@ public class LobbyScreen : MonoBehaviour
             if (string.IsNullOrEmpty(name)) name = "Oyuncu1";
             if (string.IsNullOrEmpty(code)) { SetStatus("Oda kodu girin."); return; }
             SetStatus("Baglaniliyor...");
-            _transport.Connect(url);
-            _transport.JoinRoom(code, name);
             _isHost = false;
+            _pendingLobbyAction = () => _transport.JoinRoom(code, name);
+            _transport.Connect(url);
         });
 
         // ── Sag panel: Oda bilgisi + oyuncular ───────────────────────────────
@@ -179,6 +186,9 @@ public class LobbyScreen : MonoBehaviour
     void HandleConnected()
     {
         SetStatus("Baglandi. Oda bekleniyor...");
+        var action = _pendingLobbyAction;
+        _pendingLobbyAction = null;
+        action?.Invoke();
     }
 
     void HandleDisconnected(string reason)
