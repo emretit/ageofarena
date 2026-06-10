@@ -880,7 +880,7 @@ public class HUD : MonoBehaviour
                 if (sel[i] != null && sel[i].type == UnitType.Villager) { hasVillager = true; break; }
 
         // Bar is persistent; rebuild the card only when the selection signature changes.
-        int techVer = gm.teamTech != null ? gm.teamTech[0].Version : 0;
+        int techVer = (gm.teamTech != null && gm.teamTech.Length > 0) ? gm.teamTech[0].Version : 0;
         if (b != _lastBld || node != _lastNode || unitCount != _lastUnitCount || hasVillager != _lastHasVillager
             || techVer != _lastTechVer)
         {

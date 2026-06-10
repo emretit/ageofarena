@@ -87,6 +87,7 @@ public class EnemyAI : MonoBehaviour
     float _assessTimer = 2f;
     float _gatherTimer = 3f;
     float _techTimer;
+    float _rebalanceTimer = 15f; // how often to rebalance ALL gatherers (not just idle)
 
     // ── Army state machine ──────────────────────────────────────────────────
     Stance _stance = Stance.Gathering;
@@ -198,17 +199,17 @@ public class EnemyAI : MonoBehaviour
         {
             case AIPersonality.Rusher: // early pressure, lean economy, committed pushes
                 _spawnInterval = 11f; _armyCap = 10; _rushThreshold = 5;
-                _villagerTarget = 2;  _retreatLoss = 0.6f;
+                _villagerTarget = 4;  _retreatLoss = 0.6f;
                 _spawnTimer = 8f;     _techTimer = 16f;
                 break;
             case AIPersonality.Boomer: // economy first, big cautious army, upgrade-heavy
                 _spawnInterval = 13f; _armyCap = 18; _rushThreshold = 12;
-                _villagerTarget = 6;  _retreatLoss = 0.3f;
+                _villagerTarget = 8;  _retreatLoss = 0.3f;
                 _spawnTimer = 22f;    _techTimer = 8f;
                 break;
             default: // Balanced — the original behaviour
                 _spawnInterval = 15f; _armyCap = 12; _rushThreshold = 8;
-                _villagerTarget = 3;  _retreatLoss = 0.4f;
+                _villagerTarget = 5;  _retreatLoss = 0.4f;
                 _spawnTimer = 15f;    _techTimer = 12f;
                 break;
         }
@@ -790,7 +791,10 @@ public class EnemyAI : MonoBehaviour
 
     void EconomyTick(GameManager gm)
     {
-        AssignVillagersToGather(gm);
+        _rebalanceTimer -= GatherCheckInterval;
+        bool fullRebalance = _rebalanceTimer <= 0f;
+        if (fullRebalance) _rebalanceTimer = 60f; // full rebalance every ~60s
+        AssignVillagersToGather(gm, fullRebalance);
         TryTrainVillager(gm);
         TryRepairBuildings(gm);     // N14.aieco: idle villagers repair damaged buildings
         CheckTcRecovery(gm);        // N14.aieco: retreat if TC is critically damaged
@@ -832,23 +836,91 @@ public class EnemyAI : MonoBehaviour
         }
     }
 
-    void AssignVillagersToGather(GameManager gm)
+    // Desired stock targets per resource — gatherers reassign away from oversupplied resources.
+    const int TargetFood  = 400;
+    const int TargetWood  = 300;
+    const int TargetGold  = 200;
+    const int TargetStone = 150;
+
+    void AssignVillagersToGather(GameManager gm, bool rebalanceAll = false)
     {
         var gather = gm.gather;
         if (gather == null) return;
 
+        // On full-rebalance ticks, redirect gatherers sitting on a massively oversupplied
+        // resource to the most-needed resource.
+        if (rebalanceAll)
+        {
+            for (int i = 0; i < gm.units.Count; i++)
+            {
+                var u = gm.units[i];
+                if (u == null || u.teamId != _teamId || u.type != UnitType.Villager) continue;
+                if (u.gatherTarget == null) continue;
+                int stock  = StockFor(u.gatherTarget.kind);
+                int target = TargetFor(u.gatherTarget.kind);
+                // Redirect if this resource is >2× target AND some other resource is <50% target.
+                if (stock > target * 2 && HasUndersupplied(target / 2))
+                {
+                    ResourceKind needed = MostNeededResource();
+                    if (needed != u.gatherTarget.kind)
+                    {
+                        var newNode = FindNearestNode(gm, u.transform.position, needed);
+                        if (newNode != null) gather.AssignGather(u, newNode);
+                    }
+                }
+            }
+        }
+
+        // Assign idle villagers to whichever resource is most undersupplied.
         for (int i = 0; i < gm.units.Count; i++)
         {
             var u = gm.units[i];
             if (u == null || u.teamId != _teamId || u.type != UnitType.Villager) continue;
             if (u.state != UnitState.Idle) continue;
 
-            // Prefer wood for military production, then food, then gold
-            var node = FindNearestNode(gm, u.transform.position, ResourceKind.Wood)
+            ResourceKind best = MostNeededResource();
+            var node = FindNearestNode(gm, u.transform.position, best)
                     ?? FindNearestNode(gm, u.transform.position, ResourceKind.Food)
+                    ?? FindNearestNode(gm, u.transform.position, ResourceKind.Wood)
                     ?? FindNearestNode(gm, u.transform.position, ResourceKind.Gold);
             if (node != null) gather.AssignGather(u, node);
         }
+    }
+
+    int StockFor(ResourceKind kind) => kind switch
+    {
+        ResourceKind.Food  => _res.food,
+        ResourceKind.Wood  => _res.wood,
+        ResourceKind.Gold  => _res.gold,
+        ResourceKind.Stone => _res.stone,
+        _                  => 0,
+    };
+
+    static int TargetFor(ResourceKind kind) => kind switch
+    {
+        ResourceKind.Food  => TargetFood,
+        ResourceKind.Wood  => TargetWood,
+        ResourceKind.Gold  => TargetGold,
+        ResourceKind.Stone => TargetStone,
+        _                  => TargetWood,
+    };
+
+    bool HasUndersupplied(int threshold)
+        => _res.food < threshold || _res.wood < threshold || _res.gold < threshold;
+
+    // Pick the resource with the highest (target - stock) ratio — most in need.
+    // Food has a hard priority floor: if stock < 80 it always beats gold/stone.
+    ResourceKind MostNeededResource()
+    {
+        if (_res.food < 80) return ResourceKind.Food; // emergency floor
+
+        float foodNeed  = Mathf.Max(0, TargetFood  - _res.food)  / (float)TargetFood;
+        float woodNeed  = Mathf.Max(0, TargetWood  - _res.wood)  / (float)TargetWood;
+        float goldNeed  = Mathf.Max(0, TargetGold  - _res.gold)  / (float)TargetGold;
+
+        if (foodNeed >= woodNeed && foodNeed >= goldNeed) return ResourceKind.Food;
+        if (woodNeed >= goldNeed)                         return ResourceKind.Wood;
+        return ResourceKind.Gold;
     }
 
     void TryTrainVillager(GameManager gm)
