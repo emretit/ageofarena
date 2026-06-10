@@ -265,7 +265,8 @@ public class EnemyAI : MonoBehaviour
             Age.Feudal => new[]
             {
                 TechType.DoubleBitAxe, TechType.GoldMining, TechType.StoneMining, TechType.Wheelbarrow,
-                TechType.Forging, TechType.Fletching, TechType.TownWatch,
+                TechType.Forging, TechType.Fletching, TechType.ScaleBarding,
+                TechType.PaddedArcherArmor, TechType.TownWatch,
                 TechType.Supplies, TechType.ManAtArms, TechType.Squires,
                 TechType.CastleAge
             },

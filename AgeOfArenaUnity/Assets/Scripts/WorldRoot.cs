@@ -545,7 +545,7 @@ public class WorldRoot : MonoBehaviour
 
         var gm = GameManager.Instance;
 
-        var tc = BuildingFactory.TownCenter(baseGo.transform, center, teamColor);
+        var tc = BuildingFactory.Create(BuildingType.TownCenter, baseGo.transform, center, teamColor);
         SetBuildingTeam(tc, teamId);
         gm.RegisterBuilding(tc.GetComponent<BuildingEntity>());
 
@@ -556,10 +556,10 @@ public class WorldRoot : MonoBehaviour
         // Houses on the sides and behind the TC (provide population cap).
         var houses = new[]
         {
-            BuildingFactory.House(baseGo.transform, center + right * 5f,  RoofColor),
-            BuildingFactory.House(baseGo.transform, center - right * 5f,  RoofColor),
-            BuildingFactory.House(baseGo.transform, center + backward * 6f, RoofColor),
-            BuildingFactory.House(baseGo.transform, center + right * 5f + backward * 6f, RoofColor),
+            BuildingFactory.Create(BuildingType.House, baseGo.transform, center + right * 5f,  RoofColor),
+            BuildingFactory.Create(BuildingType.House, baseGo.transform, center - right * 5f,  RoofColor),
+            BuildingFactory.Create(BuildingType.House, baseGo.transform, center + backward * 6f, RoofColor),
+            BuildingFactory.Create(BuildingType.House, baseGo.transform, center + right * 5f + backward * 6f, RoofColor),
         };
         foreach (var h in houses)
         {
@@ -568,23 +568,37 @@ public class WorldRoot : MonoBehaviour
         }
 
         // Barracks behind the houses.
-        var barracks = BuildingFactory.Barracks(baseGo.transform, center + backward * 8.5f, RoofColor);
+        var barracks = BuildingFactory.Create(BuildingType.Barracks, baseGo.transform, center + backward * 8.5f, RoofColor);
         SetBuildingTeam(barracks, teamId);
         gm.RegisterBuilding(barracks.GetComponent<BuildingEntity>());
 
         // N14.aieco: Stable + ArcheryRange so AI has production buildings for cavalry/archers.
-        var stable = BuildingFactory.Stable(baseGo.transform, center + right * 8f + backward * 6f, RoofColor);
+        var stable = BuildingFactory.Create(BuildingType.Stable, baseGo.transform, center + right * 8f + backward * 6f, RoofColor);
         SetBuildingTeam(stable, teamId);
         gm.RegisterBuilding(stable.GetComponent<BuildingEntity>());
 
-        var archRange = BuildingFactory.ArcheryRange(baseGo.transform, center - right * 8f + backward * 6f, RoofColor);
+        var archRange = BuildingFactory.Create(BuildingType.ArcheryRange, baseGo.transform, center - right * 8f + backward * 6f, RoofColor);
         SetBuildingTeam(archRange, teamId);
         gm.RegisterBuilding(archRange.GetComponent<BuildingEntity>());
+
+        // Blacksmith: required for AI to research weapon/armor upgrades (Feudal+).
+        var blacksmith = BuildingFactory.Create(BuildingType.Blacksmith, baseGo.transform, center + right * 4f + backward * 11f, RoofColor);
+        SetBuildingTeam(blacksmith, teamId);
+        gm.RegisterBuilding(blacksmith.GetComponent<BuildingEntity>());
+
+        // Market + SiegeWorkshop: unlocks Castle-age trade and siege production.
+        var market = BuildingFactory.Create(BuildingType.Market, baseGo.transform, center - right * 4f + backward * 11f, RoofColor);
+        SetBuildingTeam(market, teamId);
+        gm.RegisterBuilding(market.GetComponent<BuildingEntity>());
+
+        var siege = BuildingFactory.Create(BuildingType.SiegeWorkshop, baseGo.transform, center + right * 12f + backward * 10f, RoofColor);
+        SetBuildingTeam(siege, teamId);
+        gm.RegisterBuilding(siege.GetComponent<BuildingEntity>());
 
         // Dock on the coast side of every base (backward = away from arena center, toward sea).
         // CoastInner ≈ 76; base centers sit ~84 units out, so backward*10 ≈ 94 — just past the
         // tree belt and onto the beach/water boundary, within NavMesh-snapping distance.
-        var dock = BuildingFactory.Dock(baseGo.transform, center + backward * 10f, teamColor);
+        var dock = BuildingFactory.Create(BuildingType.Dock, baseGo.transform, center + backward * 10f, teamColor);
         SetBuildingTeam(dock, teamId);
         gm.RegisterBuilding(dock.GetComponent<BuildingEntity>());
     }
