@@ -499,6 +499,31 @@ public static class UnitFactory
         return e;
     }
 
+    public static UnitEntity Scorpion(Transform parent, Vector3 worldPos, Color teamColor)
+    {
+        var g = NewUnit("Scorpion", parent, worldPos);
+        var t = g.transform;
+
+        var wood  = Prims.Mat(Prims.Hex(0x6f4f2a));
+        var metal = Prims.Mat(Prims.Hex(0xb0b4bb), 0.35f, 0.6f);
+        var dark  = Prims.Mat(Prims.Hex(0x3c2a18));
+        var cloth = Prims.Mat(teamColor, 0.05f, 0.25f);
+        Prims.Box(t, new Vector3(0, 0.35f, 0), new Vector3(1.0f, 0.22f, 1.2f), wood);
+        Prims.Box(t, new Vector3(0, 0.75f, 0), new Vector3(1.1f, 0.14f, 0.22f), metal);
+        Prims.Box(t, new Vector3(0, 0.95f, 0), new Vector3(0.18f, 0.6f, 0.18f), wood);
+        Prims.Box(t, new Vector3(0, 1.18f, 0.52f), new Vector3(0.12f, 0.12f, 1.0f), dark);
+        Prims.Box(t, new Vector3(0, 1.05f, 0.55f), new Vector3(0.6f, 0.08f, 0.08f), cloth);
+        foreach (var x in new[] { -0.42f, 0.42f })
+            foreach (var z in new[] { -0.45f, 0.45f })
+                Prims.Cylinder(t, new Vector3(x, 0.18f, z), 0.18f, 0.10f, dark);
+
+        var e = Finish(g, UnitType.Scorpion, teamColor);
+        e.hp = e.maxHp = 60f;
+        e.moveSpeed = 2.8f;
+        e.pierceArmor = 2f;
+        return e;
+    }
+
     public static UnitEntity CavalryArcher(Transform parent, Vector3 worldPos, Color teamColor)
     {
         var g = NewUnit("CavalryArcher", parent, worldPos);
@@ -1106,6 +1131,7 @@ public static class UnitFactory
             UnitType.Camel          => Camel(parent, pos, c),
             UnitType.Ram            => Ram(parent, pos, c),
             UnitType.Mangonel       => Mangonel(parent, pos, c),
+            UnitType.Scorpion       => Scorpion(parent, pos, c),
             UnitType.CavalryArcher  => CavalryArcher(parent, pos, c),
             UnitType.Galley         => Galley(parent, pos, c, navalAgentTypeId),
             UnitType.FireShip       => FireShip(parent, pos, c, navalAgentTypeId),

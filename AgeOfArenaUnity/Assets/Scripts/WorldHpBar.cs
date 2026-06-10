@@ -88,7 +88,11 @@ public class WorldHpBar : MonoBehaviour
         go.transform.localScale    = localScale;
         // Destroy the MeshCollider that CreatePrimitive adds — no physics needed.
         var col = go.GetComponent<Collider>();
-        if (col != null) Destroy(col);
+        if (col != null)
+        {
+            if (Application.isPlaying) Destroy(col);
+            else DestroyImmediate(col);
+        }
         var mr  = go.GetComponent<MeshRenderer>();
         mr.sharedMaterial = Prims.Mat(color);
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

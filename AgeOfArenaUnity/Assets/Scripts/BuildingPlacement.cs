@@ -54,11 +54,11 @@ public class BuildingPlacement : MonoBehaviour
 
         _ghost = BuildingFactory.Create(type, null, Vector3.zero, TeamColor);
         var be = _ghost.GetComponent<BuildingEntity>();
-        if (be != null) Destroy(be);                                  // ghost isn't a real building
+        if (be != null) DestroyForMode(be);                           // ghost isn't a real building
         foreach (var c in _ghost.GetComponentsInChildren<Collider>()) c.enabled = false;
         // A Wall ghost carries a carving NavMeshObstacle; strip it so the preview
         // doesn't punch holes in the NavMesh while it's still just a ghost.
-        foreach (var o in _ghost.GetComponentsInChildren<UnityEngine.AI.NavMeshObstacle>()) Destroy(o);
+        foreach (var o in _ghost.GetComponentsInChildren<UnityEngine.AI.NavMeshObstacle>()) DestroyForMode(o);
         _ghostMat = GhostMat(Color.green);
         foreach (var r in _ghost.GetComponentsInChildren<MeshRenderer>()) r.sharedMaterial = _ghostMat;
 
@@ -69,10 +69,17 @@ public class BuildingPlacement : MonoBehaviour
 
     public void Cancel()
     {
-        if (_ghost != null) Destroy(_ghost);
+        if (_ghost != null) DestroyForMode(_ghost);
         _ghost = null;
         _dragging = false;
         Active = false;
+    }
+
+    static void DestroyForMode(Object obj)
+    {
+        if (obj == null) return;
+        if (Application.isPlaying) Destroy(obj);
+        else DestroyImmediate(obj);
     }
 
     void Update()

@@ -12,6 +12,19 @@ public static class TributeSystem
     /// <summary>Fraction skimmed when the sender lacks Coinage.</summary>
     public const float TaxRate = 0.30f;
 
+    public static float TaxFor(TechState senderTech)
+    {
+        if (senderTech != null)
+        {
+            if (senderTech.Has(TechType.Banking)) return 0f;
+            if (senderTech.Has(TechType.Coinage)) return 0.20f;
+        }
+        return TaxRate;
+    }
+
+    public static int ReceivedAmount(int amount, TechState senderTech)
+        => Mathf.RoundToInt(amount * (1f - TaxFor(senderTech)));
+
     /// <summary>
     /// Send <paramref name="amount"/> of <paramref name="kind"/> from one team to
     /// another. Returns false (no-op) on invalid teams, non-positive amount, or if
@@ -29,15 +42,7 @@ public static class TributeSystem
         var to   = gm.teamRes[toTeam];
         if (from == null || to == null || from.Get(kind) < amount) return false;
 
-        // AoE2 tiering: base 30% tax → Coinage reduces it to 20% → Banking removes it entirely.
-        var senderTech = gm.teamTech[fromTeam];
-        float tax = TaxRate;
-        if (senderTech != null)
-        {
-            if (senderTech.Has(TechType.Banking))      tax = 0f;
-            else if (senderTech.Has(TechType.Coinage)) tax = 0.20f;
-        }
-        int received = Mathf.RoundToInt(amount * (1f - tax));
+        int received = ReceivedAmount(amount, gm.teamTech[fromTeam]);
 
         from.Gain(kind, -amount);
         to.Gain(kind, received);

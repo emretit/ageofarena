@@ -1028,7 +1028,7 @@ public class WorldRoot : MonoBehaviour
             var personality = t < Personalities.Length ? Personalities[t] : Personalities[1];
             var aiGo = new GameObject($"EnemyAI_T{t}_{personality}");
             aiGo.transform.SetParent(transform, false);
-            aiGo.AddComponent<EnemyAI>().Init(t, TeamColors[t], BasePositions[t], unitsRoot.transform, personality);
+            aiGo.AddComponent<EnemyAI>().Init(t, TeamColors[t], BasePositions[t], unitsRoot.transform, personality, mapType);
         }
 
         // popCap now derives from team-0 buildings (TC + Houses) via RecomputePop.

@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -156,6 +157,164 @@ public class SelfTests
             Hotkeys.Reset(HotkeyAction.Formation);
             Hotkeys.Reset(HotkeyAction.TownBell);
             Hotkeys.Reset(HotkeyAction.Repair);
+        }
+    }
+
+    [Test]
+    public void TechState_NewEconomyTechs_AffectVillager()
+    {
+        var tech = new TechState();
+        Assert.AreEqual(1f, tech.CarryCapacityMult, 0.0001f);
+        Assert.AreEqual(1f, tech.MoveSpeedMult(UnitType.Villager), 0.0001f);
+
+        tech.Mark(TechType.Wheelbarrow);
+        Assert.AreEqual(1.25f, tech.CarryCapacityMult, 0.0001f);
+        Assert.AreEqual(1.1f, tech.MoveSpeedMult(UnitType.Villager), 0.0001f);
+
+        tech.Mark(TechType.HandCart);
+        Assert.AreEqual(1.5f, tech.CarryCapacityMult, 0.0001f);
+        Assert.AreEqual(1.2f, tech.MoveSpeedMult(UnitType.Villager), 0.0001f);
+
+        tech.Mark(TechType.DoubleBitAxe);
+        tech.Mark(TechType.BowSaw);
+        tech.Mark(TechType.TwoManSaw);
+        Assert.Greater(tech.GatherMult(ResourceKind.Wood), 1.4f);
+    }
+
+    [Test]
+    public void TechState_NewMilitaryTechs_AffectCombat()
+    {
+        var tech = new TechState();
+        Assert.AreEqual(0f, tech.PierceArmorBonus(UnitType.Militia), 0.0001f);
+        Assert.AreEqual(1f, tech.AttackIntervalMult(UnitType.Archer), 0.0001f);
+
+        tech.Mark(TechType.Squires);
+        tech.Mark(TechType.Gambesons);
+        tech.Mark(TechType.ThumbRing);
+
+        Assert.Greater(tech.MoveSpeedMult(UnitType.Militia), 1f);
+        Assert.Greater(tech.PierceArmorBonus(UnitType.Militia), 0f);
+        Assert.Less(tech.AttackIntervalMult(UnitType.Archer), 1f);
+    }
+
+    [Test]
+    public void Hud_AgeAdvanceReasonText_MapsBuildingRequirement()
+    {
+        Assert.AreEqual("2 tamamlanmis ana bina gerekli",
+            HUD.AgeAdvanceReasonText("needs 2 substantial buildings"));
+        Assert.AreEqual("medeniyet bu arastirmayi acamaz",
+            HUD.TechAvailabilityReasonText("civilization denied"));
+    }
+
+    [Test]
+    public void Hud_ShouldShowCivDeniedTech_ForProductionBuildings()
+    {
+        var tech = new TechState { age = Age.Imperial };
+        Assert.IsTrue(HUD.ShouldShowCivDeniedTech(BuildingType.Barracks,
+            Civilization.Franks, TechDefs.Get(TechType.Halberdier), tech));
+        Assert.IsTrue(HUD.ShouldShowCivDeniedTech(BuildingType.ArcheryRange,
+            Civilization.Franks, TechDefs.Get(TechType.Arbalest), tech));
+        Assert.IsTrue(HUD.ShouldShowCivDeniedTech(BuildingType.Stable,
+            Civilization.Britons, TechDefs.Get(TechType.Paladin), tech));
+        Assert.IsFalse(HUD.ShouldShowCivDeniedTech(BuildingType.Blacksmith,
+            Civilization.Franks, TechDefs.Get(TechType.Arbalest), tech));
+    }
+
+    [Test]
+    public void Hud_MonasteryTechDetails_ShowFaithAndConversionState()
+    {
+        var tech = new TechState { age = Age.Castle };
+        string blockPrinting = HUD.MonasteryTechDetails(tech, TechType.BlockPrinting);
+        Assert.IsTrue(blockPrinting.Contains("Donusum menzili: 2.5 -> 4.0"));
+        Assert.IsTrue(blockPrinting.Contains("Faith: 100"));
+
+        string redemption = HUD.MonasteryTechDetails(tech, TechType.Redemption);
+        Assert.IsTrue(redemption.Contains("Redemption: bina/kusatma donusumu acik"));
+    }
+
+    [Test]
+    public void TributeSystem_TaxTiers_MatchHudLine()
+    {
+        var tech = new TechState();
+        Assert.AreEqual(0.30f, TributeSystem.TaxFor(tech), 0.0001f);
+        Assert.AreEqual(70, TributeSystem.ReceivedAmount(100, tech));
+        Assert.IsTrue(HUD.TributeInfoLine(tech).Contains("%30"));
+
+        tech.Mark(TechType.Coinage);
+        Assert.AreEqual(0.20f, TributeSystem.TaxFor(tech), 0.0001f);
+        Assert.AreEqual(80, TributeSystem.ReceivedAmount(100, tech));
+        Assert.IsTrue(HUD.TributeInfoLine(tech).Contains("Coinage"));
+
+        tech.Mark(TechType.Banking);
+        Assert.AreEqual(0f, TributeSystem.TaxFor(tech), 0.0001f);
+        Assert.AreEqual(100, TributeSystem.ReceivedAmount(100, tech));
+        Assert.IsTrue(HUD.TributeInfoLine(tech).Contains("Banking"));
+    }
+
+    [Test]
+    public void Hud_MarketSpreadLine_ShowsSellBuyDifference()
+    {
+        MarketSystem.Reset();
+        string line = HUD.MarketSpreadLine();
+        Assert.IsTrue(line.Contains("Fark"));
+        Assert.IsTrue(line.Contains("Y 70/130 (+60)"));
+    }
+
+    [Test]
+    public void Hud_ResourceNodeInfoLine_ShowsFarmReseedAndCapacity()
+    {
+        var go = new GameObject("FarmInfoTest");
+        try
+        {
+            var node = go.AddComponent<ResourceNode>();
+            node.Init(ResourceKind.Food, 300);
+            node.renewable = true;
+            node.reseedWoodCost = 60;
+
+            var tech = new TechState();
+            tech.Mark(TechType.HorseCollar);
+
+            string line = HUD.ResourceNodeInfoLine(node, tech);
+            Assert.IsTrue(line.Contains("300 / 375"));
+            Assert.IsTrue(line.Contains("Reseed 60O"));
+            Assert.IsTrue(line.Contains("Kapasite 375 (+75)"));
+        }
+        finally
+        {
+            Object.DestroyImmediate(go);
+        }
+    }
+
+    [Test]
+    public void Hud_RelicHudLine_SplitsControlledDepositedAndCarried()
+    {
+        var controlledGo = new GameObject("RelicControlledTest");
+        var depositedGo = new GameObject("RelicDepositedTest");
+        var carriedGo = new GameObject("RelicCarriedTest");
+        var monkGo = new GameObject("RelicCarrierTest");
+        try
+        {
+            var controlled = controlledGo.AddComponent<RelicEntity>();
+            controlled.controllingTeam = 0;
+
+            var deposited = depositedGo.AddComponent<RelicEntity>();
+            deposited.controllingTeam = 0;
+            deposited.heldInMonastery = true;
+
+            var carried = carriedGo.AddComponent<RelicEntity>();
+            var monk = monkGo.AddComponent<UnitEntity>();
+            monk.teamId = 0;
+            carried.carrier = monk;
+
+            string line = HUD.RelicHudLine(new List<RelicEntity> { controlled, deposited, carried }, 0);
+            Assert.AreEqual("Kontrol 2/3 | Man 1 | Tas 1", line);
+        }
+        finally
+        {
+            Object.DestroyImmediate(controlledGo);
+            Object.DestroyImmediate(depositedGo);
+            Object.DestroyImmediate(carriedGo);
+            Object.DestroyImmediate(monkGo);
         }
     }
 

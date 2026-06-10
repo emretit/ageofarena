@@ -32,6 +32,7 @@ public enum UnitType
     King,            // Regicide — each team's royal unit; losing it = eliminated
     // ── M14/FISH: naval economy ──
     FishingShip,     // gathers food from Fish ponds / Fish Traps, deposits at the Dock
+    Scorpion,        // siege anti-infantry line unit
 }
 
 /// <summary>Damage class for the armor counter matrix. Siege bypasses both armor types.</summary>
@@ -179,6 +180,24 @@ public enum TechType
     Coinage,        // tribute sent tax-free (Castle)
     Banking,        // +trade cart gold (stacks with Caravan) (Imperial)
     Guilds,         // narrows market sell/buy spread (Imperial)
+    // ── N content: missing AoE2 core techs ─────────────────────────────────
+    HandCart,       // upgrade from Wheelbarrow (Castle Town Center)
+    TownWatch,      // +4 building sight (Town Center)
+    TownPatrol,     // +4 building sight again (Town Center)
+    TwoManSaw,      // +wood gather (Castle Lumber Camp)
+    GoldShaftMining,// +gold gather (Castle Mining Camp)
+    StoneShaftMining,// +stone gather (Castle Mining Camp)
+    Squires,        // infantry move speed (Barracks)
+    Arson,          // infantry bonus vs buildings (Barracks)
+    Supplies,       // militia line cost reduction (Barracks)
+    Gambesons,      // militia line pierce armor (Barracks)
+    ThumbRing,      // archer fire-rate/accuracy (Archery Range)
+    ParthianTactics,// cavalry archer pierce armor (Archery Range)
+    CappedRam,      // ram hp/damage upgrade (Siege Workshop)
+    SiegeRam,       // ram hp/damage upgrade (Siege Workshop)
+    Onager,         // mangonel upgrade (Siege Workshop)
+    SiegeOnager,    // mangonel upgrade (Siege Workshop)
+    HeavyScorpion,  // scorpion upgrade (Siege Workshop)
     // ── M9 (EAGLE): Eagle Warrior upgrade ──
     EliteEagle,     // Eagle → Elite Eagle: +hp/+atk (Aztecs, Imperial)
     // ── M9 (CIVT): civilization unique techs (researched at the Castle) ──

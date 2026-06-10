@@ -34,12 +34,12 @@ public class GameManager : MonoBehaviour
     public const int MaxTeams = 8;
 
     public ResourceManager[] teamRes  = new ResourceManager[MaxTeams];
-    public ResourceManager resources  => teamRes[0];
+    public ResourceManager resources  => teamRes[0] ??= new ResourceManager();
     /// <summary>Number of active teams this match (set by WorldRoot.Build).</summary>
     public int TeamCount { get; set; } = 4;
 
     public TechState[] teamTech = new TechState[MaxTeams];
-    public TechState tech => teamTech[0];
+    public TechState tech => teamTech[0] ??= new TechState();
 
     public SelectionSystem selection;
     public CommandSystem command;
@@ -294,7 +294,7 @@ public class GameManager : MonoBehaviour
         for (int t = 0; t < n; t++)
         {
             cap[t] = Mathf.Clamp(cap[t], 0, 200);
-            var res = teamRes[t];
+            var res = teamRes[t] ??= new ResourceManager();
             if (pop[t] != res.pop || cap[t] != res.popCap)
                 res.SetPop(pop[t], cap[t]);
         }

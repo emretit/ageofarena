@@ -116,6 +116,12 @@ public static class CommandIconFactory
                 Add(icon, Square, Wood, 0, 2, 4, 22, 35);          // throwing arm
                 Add(icon, Circle, Stone, 7, 11, 9, 9);             // boulder
                 break;
+            case UnitType.Scorpion:
+                Add(icon, Square, Wood, 0, -4, 28, 6);             // frame
+                Add(icon, Square, Dark, 0, 8, 20, 4);              // bolt rail
+                Add(icon, Square, Steel, 0, 4, 4, 18);             // striker
+                Add(icon, Triangle, Red, 11, 4, 10, 10, 90);       // bolt head
+                break;
             case UnitType.CavalryArcher:
                 Add(icon, Square, Wood, 0, -2, 26, 11);            // horse body
                 Add(icon, Square, Wood, 11, 7, 7, 13, 20);         // neck/head
@@ -385,11 +391,13 @@ public static class CommandIconFactory
             case TechType.LightCavalry:
             case TechType.Hussar:
             case TechType.Husbandry:
+            case TechType.HandCart:
                 Add(icon, Circle, Shield, 0, 2, 22, 22);           // shield
                 Add(icon, Ring,   Steel, 0, 2, 22, 22);
                 break;
             case TechType.DoubleBitAxe:
             case TechType.BowSaw:
+            case TechType.TwoManSaw:
                 Add(icon, Square,   Dark,  0, -4, 4, 22);          // axe handle
                 Add(icon, Triangle, Steel, 6, 6, 14, 12, 90);      // axe head
                 break;
@@ -401,10 +409,12 @@ public static class CommandIconFactory
                 Add(icon, Triangle, Steel, 6, 12, 10, 8);          // blade
                 break;
             case TechType.GoldMining:
+            case TechType.GoldShaftMining:
                 Add(icon, Circle, Gold, -5, 4, 14, 14);            // gold nugget
                 Add(icon, Square, Steel, 6, -3, 4, 16, 45);        // pick
                 break;
             case TechType.StoneMining:
+            case TechType.StoneShaftMining:
                 Add(icon, Circle, Stone, -5, 4, 14, 14);           // stone
                 Add(icon, Square, Steel, 6, -3, 4, 16, 45);        // pick
                 break;
@@ -437,6 +447,48 @@ public static class CommandIconFactory
             case TechType.Wheelbarrow:
                 Add(icon, Ring,   Dark, 0, -2, 20, 20);            // wheel
                 Add(icon, Circle, Dark, 0, -2, 6, 6);
+                break;
+            case TechType.TownWatch:
+            case TechType.TownPatrol:
+                Add(icon, Square, Stone, 0, -4, 18, 18);           // tower
+                Add(icon, Triangle, Gold, 0, 8, 14, 12);           // watch cone
+                break;
+            case TechType.Squires:
+                Add(icon, Square, Steel, 0, 0, 10, 24);            // lance/sword
+                Add(icon, Triangle, Gold, 0, 10, 16, 10);
+                break;
+            case TechType.Arson:
+                Add(icon, Square, Dark, 0, -2, 18, 18);            // flame base
+                Add(icon, Triangle, Red, 0, 8, 16, 16);
+                break;
+            case TechType.Supplies:
+                Add(icon, Circle, Gold, 0, 0, 18, 18);
+                Add(icon, Square, Dark, 0, 0, 6, 18);
+                break;
+            case TechType.Gambesons:
+                Add(icon, Circle, Shield, 0, 2, 22, 22);
+                Add(icon, Square, Steel, 0, 0, 14, 4);
+                break;
+            case TechType.ThumbRing:
+            case TechType.ParthianTactics:
+                Add(icon, Ring, Gold, 0, 0, 22, 22);
+                Add(icon, Square, Steel, 0, 0, 4, 18);
+                break;
+            case TechType.CappedRam:
+            case TechType.SiegeRam:
+                Add(icon, Square, Wood, 0, -4, 30, 18);
+                Add(icon, Triangle, Dark, 0, 10, 28, 10);
+                break;
+            case TechType.Onager:
+            case TechType.SiegeOnager:
+                Add(icon, Square, Wood, 0, -6, 26, 8);
+                Add(icon, Square, Steel, 0, 6, 4, 18);
+                Add(icon, Circle, Stone, 8, 10, 10, 10);
+                break;
+            case TechType.HeavyScorpion:
+                Add(icon, Square, Wood, 0, -4, 26, 6);
+                Add(icon, Triangle, Red, 10, 4, 10, 10, 90);
+                Add(icon, Square, Steel, 0, 8, 4, 16);
                 break;
             case TechType.Sanctity:
             case TechType.BlockPrinting:

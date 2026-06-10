@@ -73,6 +73,7 @@ public static class UnitRegistry
         [UnitType.Camel]         = new UnitRow(7f,  1.4f, 1.1f, 8f,  ArmorClass.Cavalry | ArmorClass.Camel, DamageType.Melee, false, bonusVs: BV(ArmorClass.Cavalry, 7f)),
         [UnitType.Ram]           = new UnitRow(4f,  1.3f, 3.0f, 4f,  ArmorClass.Siege,    DamageType.Siege,  false, bonusVs: BV(ArmorClass.Building, 16f)),
         [UnitType.Mangonel]      = new UnitRow(25f, 9f,   4.0f, 11f, ArmorClass.Siege,    DamageType.Siege,  true,  minAttackRange: 2f, splashRadius: 1.8f),
+        [UnitType.Scorpion]      = new UnitRow(4f,  5.5f, 2.6f, 9f,  ArmorClass.Siege,    DamageType.Pierce, true,  minAttackRange: 1.5f, splashRadius: 1.2f, bonusVs: BV(ArmorClass.Infantry, 6f)),
         [UnitType.CavalryArcher] = new UnitRow(5f,  4f,   2.0f, 10f, ArmorClass.Archer | ArmorClass.Cavalry, DamageType.Pierce, true),
         [UnitType.FireShip]      = new UnitRow(6f,  3f,   0.8f, 8f,  ArmorClass.Ship,     DamageType.Pierce, true),
         [UnitType.DemoShip]      = new UnitRow(40f, 1.5f, 2.0f, 6f,  ArmorClass.Ship,     DamageType.Siege,  true,  splashRadius: 2.5f),

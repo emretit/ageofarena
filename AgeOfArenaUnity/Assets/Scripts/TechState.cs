@@ -63,6 +63,27 @@ public class TechState
     float GalleyLineAtk     => (Has(TechType.WarGalley) ? 2f : 0f)
                              + (Has(TechType.Galleon) ? 2f : 0f)
                              + ChemistryBonus;
+    float SiegeLineAtk      => (Has(TechType.CappedRam) ? 2f : 0f)
+                             + (Has(TechType.SiegeRam) ? 3f : 0f)
+                             + (Has(TechType.Onager) ? 4f : 0f)
+                             + (Has(TechType.SiegeOnager) ? 5f : 0f)
+                             + (Has(TechType.HeavyScorpion) ? 2f : 0f);
+    bool IsInfantryLike(UnitType t) => t == UnitType.Militia
+                                    || t == UnitType.Spearman
+                                    || t == UnitType.Eagle
+                                    || t == UnitType.Samurai
+                                    || t == UnitType.WoadRaider
+                                    || t == UnitType.Berserk
+                                    || t == UnitType.ThrowingAxeman
+                                    || t == UnitType.Huskarl
+                                    || t == UnitType.TeutonicKnight;
+    bool IsArcherLike(UnitType t) => t == UnitType.Archer
+                                  || t == UnitType.Longbowman
+                                  || t == UnitType.Skirmisher
+                                  || t == UnitType.CavalryArcher
+                                  || t == UnitType.Mangudai
+                                  || t == UnitType.ChuKoNu
+                                  || t == UnitType.Janissary;
 
     /// <summary>Additive attack bonus for a unit type (read live by CombatSystem).</summary>
     public float AttackBonus(UnitType t) => t switch
@@ -76,11 +97,15 @@ public class TechState
         UnitType.Scout      => ScoutLineAtk,
         UnitType.CavalryArcher => ArcherAttackBonus + CavArcherLineAtk,
         UnitType.Galley     => GalleyLineAtk,
+        UnitType.Ram        => SiegeLineAtk + (Has(TechType.FurorCeltica) ? 40f : 0f),
+        UnitType.Mangonel   => SiegeLineAtk + (Has(TechType.FurorCeltica) ? 40f : 0f),
+        UnitType.Scorpion   => SiegeLineAtk,
         UnitType.Eagle      => (Has(TechType.EliteEagle) ? 3f : 0f)   // EAGLE upgrade
                              + (Has(TechType.GarlandWars) ? 4f : 0f), // N4/CIVT Aztecs
         // ── N4/CIVT: civ-gated unique-tech attack bonuses for UU/siege ──
         UnitType.Trebuchet  => (Has(TechType.Warwolf) ? 12f : 0f)     // Britons
-                             + (Has(TechType.Kataparuto) ? 6f : 0f),  // Japanese
+                             + (Has(TechType.Kataparuto) ? 6f : 0f)
+                             + (Has(TechType.FurorCeltica) ? 40f : 0f), // Celts
         UnitType.Mangudai   => Has(TechType.Nomads) ? 3f : 0f,        // Mongols
         UnitType.Cataphract => Has(TechType.Logistica) ? 6f : 0f,     // Byzantines
         UnitType.FireShip   => Has(TechType.GreekFire) ? 2f : 0f,     // Byzantines
@@ -139,10 +164,17 @@ public class TechState
                           + (Has(TechType.Bloodlines) ? 20f : 0f),
         UnitType.CavalryArcher => (Has(TechType.Bloodlines) ? 20f : 0f)
                           + (Has(TechType.HeavyCavalryArcher) ? 20f : 0f)
-                          + (Has(TechType.Sipahi) ? 20f : 0f),     // N4/CIVC13 Turks
+                          + (Has(TechType.Sipahi) ? 20f : 0f)       // N4/CIVC13 Turks
+                          + (Has(TechType.ParthianTactics) ? 10f : 0f),
         UnitType.Huskarl => Has(TechType.Anarchy) ? 20f : 0f,      // N4/CIVC13 Goths
-        UnitType.Ram or UnitType.Mangonel or UnitType.Trebuchet =>
-                            Has(TechType.FurorCeltica) ? 40f : 0f, // N4/CIVC13 Celts
+        UnitType.Ram => (Has(TechType.CappedRam) ? 40f : 0f)
+                      + (Has(TechType.SiegeRam) ? 80f : 0f)
+                      + (Has(TechType.FurorCeltica) ? 40f : 0f),  // N4/CIVC13 Celts
+        UnitType.Mangonel => (Has(TechType.Onager) ? 20f : 0f)
+                           + (Has(TechType.SiegeOnager) ? 40f : 0f)
+                           + (Has(TechType.FurorCeltica) ? 40f : 0f),
+        UnitType.Trebuchet => Has(TechType.FurorCeltica) ? 40f : 0f,
+        UnitType.Scorpion => Has(TechType.HeavyScorpion) ? 20f : 0f,
         UnitType.Galley  => (Has(TechType.WarGalley) ? 20f : 0f)
                           + (Has(TechType.Galleon) ? 30f : 0f),
         UnitType.Villager => Has(TechType.Loom) ? 15f : 0f,   // ECON: Loom +15 hp
@@ -202,6 +234,8 @@ public class TechState
     {
         float a = BlacksmithArmor(t);
         if (t == UnitType.Archer) a += (Has(TechType.Crossbowman) ? 1f : 0f) + (Has(TechType.Arbalest) ? 1f : 0f);
+        if (t == UnitType.CavalryArcher && Has(TechType.ParthianTactics)) a += 1f;
+        if (IsInfantryLike(t) && Has(TechType.Gambesons)) a += 1f;
         return a;
     }
 
@@ -221,9 +255,14 @@ public class TechState
         bool cav = t == UnitType.Cavalry || t == UnitType.Camel
                 || t == UnitType.Scout || t == UnitType.CavalryArcher;
         if (cav && Has(TechType.Husbandry)) m *= 1.1f;
-        if (t == UnitType.Villager && Has(TechType.Wheelbarrow)) m *= 1.1f;
+        if (t == UnitType.Villager)
+        {
+            if (Has(TechType.HandCart)) m *= 1.2f;
+            else if (Has(TechType.Wheelbarrow)) m *= 1.1f;
+        }
+        if (IsInfantryLike(t) && Has(TechType.Squires)) m *= 1.1f;
         // N4/CIVT Mongols (Drill): siege units move 50% faster.
-        bool siege = t == UnitType.Ram || t == UnitType.Mangonel || t == UnitType.Trebuchet;
+        bool siege = t == UnitType.Ram || t == UnitType.Mangonel || t == UnitType.Trebuchet || t == UnitType.Scorpion;
         if (siege && Has(TechType.Drill)) m *= 1.5f;
         // N4/CIVT Persians (Mahouts): War Elephant moves 30% faster.
         if (t == UnitType.WarElephant && Has(TechType.Mahouts)) m *= 1.3f;
@@ -233,8 +272,8 @@ public class TechState
     }
 
     /// <summary>Villager carry-capacity multiplier (Wheelbarrow ×1.25) — more per trip.</summary>
-    public float CarryCapacityMult => Has(TechType.Wheelbarrow) ? 1.25f : 1f;
-    /// <summary>Flat carry bonus (reserved for a future Hand Cart tier).</summary>
+    public float CarryCapacityMult => Has(TechType.HandCart) ? 1.5f : (Has(TechType.Wheelbarrow) ? 1.25f : 1f);
+    /// <summary>Flat carry bonus (reserved for civ/tech exceptions).</summary>
     public int CarryBonus => 0;
 
     /// <summary>Trade-cart gold multiplier: Caravan ×1.5, Banking ×1.2 (stack) — read by TradingSystem.</summary>
@@ -277,14 +316,38 @@ public class TechState
             case ResourceKind.Wood:
                 if (Has(TechType.DoubleBitAxe)) m += 0.25f;
                 if (Has(TechType.BowSaw))       m += 0.2f;
+                if (Has(TechType.TwoManSaw))    m += 0.2f;
                 break;
             case ResourceKind.Gold:
                 if (Has(TechType.GoldMining))   m += 0.15f;
+                if (Has(TechType.GoldShaftMining)) m += 0.15f;
                 break;
             case ResourceKind.Stone:
                 if (Has(TechType.StoneMining))  m += 0.15f;
+                if (Has(TechType.StoneShaftMining)) m += 0.15f;
                 break;
         }
         return m;
+    }
+
+    /// <summary>Attack interval multiplier from firing-rate techs (lower is faster).</summary>
+    public float AttackIntervalMult(UnitType t)
+    {
+        float m = 1f;
+        if (IsArcherLike(t) && Has(TechType.ThumbRing)) m *= 0.85f;
+        if (t == UnitType.Scorpion && Has(TechType.HeavyScorpion)) m *= 0.9f;
+        if (t == UnitType.Mangonel && (Has(TechType.Onager) || Has(TechType.SiegeOnager))) m *= 0.9f;
+        if (t == UnitType.Ram && (Has(TechType.CappedRam) || Has(TechType.SiegeRam))) m *= 0.9f;
+        return m;
+    }
+
+    /// <summary>Bonus damage from economy/military techs that don't fit the add-on attack buckets.</summary>
+    public float BonusTechDamage(UnitType attacker, IDamageable target)
+    {
+        if (target == null) return 0f;
+        float bonus = 0f;
+        if (IsInfantryLike(attacker) && target.ArmorClasses.HasFlag(ArmorClass.Building) && Has(TechType.Arson))
+            bonus += 3f;
+        return bonus;
     }
 }

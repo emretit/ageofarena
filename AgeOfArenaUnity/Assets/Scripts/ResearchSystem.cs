@@ -28,15 +28,11 @@ public class ResearchSystem : MonoBehaviour
     public bool Enqueue(BuildingEntity b, TechDef def)
     {
         if (b == null || _active.ContainsKey(b)) return false;
-        var tech = GM.tech;                 // player = team 0
-        if (tech.Has(def.type)) return false;
-        // N0.7: this civ may be denied the tech (tech-tree subtraction).
-        if (CivilizationDefs.IsTechDenied(GM.teamCivs[b.teamId], def.type)) return false;
-        var rm = GM.resources;
+        var tech = GM.teamTech[b.teamId];   // queue is per-building / per-team
+        var avail = TechDefs.Check(b, def, tech, GM.teamCivs[b.teamId], GM);
+        if (!avail.canResearch) return false;
+        var rm = GM.teamRes[b.teamId];
         if (!rm.CanAfford(def.food, def.wood, def.gold, def.stone)) return false;
-        // AGEB/N0.3: every age advance (Feudal/Castle/Imperial) requires ≥2 substantial
-        // buildings first — not just Dark→Feudal, and Houses/Farms/Walls don't count.
-        if (IsAgeTech(def.type) && !MeetsBuildingPrereq(b.teamId, 2)) return false;
 
         rm.Deduct(def.food, def.wood, def.gold, def.stone);
         _active[b] = new ResearchItem { type = def.type, totalTime = def.researchTime };
@@ -161,43 +157,21 @@ public class ResearchSystem : MonoBehaviour
         }
     }
 
-    // N0.3: the three age-advance techs share the building prerequisite.
-    static bool IsAgeTech(TechType t) =>
-        t == TechType.FeudalAge || t == TechType.CastleAge || t == TechType.ImperialAge;
-
-    // N0.3: trivial structures (TC, House, Farm, Wall/Gate, Outpost, FishTrap) don't satisfy the
-    // age requirement — only real economic/military buildings count (AoE2 "2 buildings of your age").
-    static bool CountsTowardAge(BuildingType t) => t switch
-    {
-        BuildingType.TownCenter or BuildingType.House or BuildingType.Farm
-            or BuildingType.Wall or BuildingType.Gate or BuildingType.Outpost
-            or BuildingType.FishTrap => false,
-        _ => true,
-    };
-
-    // AGEB/N0.3: count substantial completed buildings owned by the team; true if ≥ required.
-    bool MeetsBuildingPrereq(int teamId, int required)
-    {
-        var gm = GM;
-        if (gm == null) return true;
-        int count = 0;
-        for (int i = 0; i < gm.buildings.Count; i++)
-        {
-            var b = gm.buildings[i];
-            if (b == null || b.teamId != teamId || b.underConstruction) continue;
-            if (!CountsTowardAge(b.type)) continue;
-            if (++count >= required) return true;
-        }
-        return false;
-    }
-
     /// <summary>AGEB: true if the player (team 0) meets the building prerequisite for
     /// advancing to the next age. Used by HUD to enable/disable the age button.</summary>
     public bool CanAdvanceAge()
     {
         var tech = GM?.tech;
         if (tech == null) return false;
-        // N0.3: prereq now applies at every age transition, not only Dark→Feudal.
-        return MeetsBuildingPrereq(0, 2);
+        var tc = GM.buildings.Find(b => b != null && b.teamId == 0 && b.type == BuildingType.TownCenter);
+        if (tc == null) return false;
+        TechType next = tech.age switch
+        {
+            Age.Dark   => TechType.FeudalAge,
+            Age.Feudal => TechType.CastleAge,
+            Age.Castle => TechType.ImperialAge,
+            _          => TechType.ImperialAge,
+        };
+        return TechDefs.Check(tc, TechDefs.Get(next), tech, GM.teamCivs[0], GM).canResearch;
     }
 }

@@ -157,7 +157,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
             return isArcher ? range + TeamCivBonus.archerRangeBonus : range;
         }
     }
-    public float AttackInterval => UnitRegistry.Get(type).attackInterval;
+    public float AttackInterval => UnitRegistry.Get(type).attackInterval * (TeamTech?.AttackIntervalMult(type) ?? 1f);
     /// <summary>Idle auto-acquire radius; 0 means the unit never picks fights on its own.
     /// Scout is passive recon until upgraded to Light Cavalry (then it becomes combat-capable).</summary>
     public float AggroRadius
@@ -189,6 +189,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         if (entries != null)
             foreach (var e in entries)
                 if ((tc & e.cls) != 0) sum += e.bonus;
+        sum += TeamTech?.BonusTechDamage(type, target) ?? 0f;
         return sum;
     }
     /// <summary>Minimum attack range: siege weapons can't fire at point-blank targets.</summary>
@@ -352,7 +353,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
         attackMove   = false;   // stop cancels attack-move mode (like patrolActive)
         tradeActive  = false;   // a manual order cancels an in-progress trade route
         moveQueue.Clear();
-        if (_agent.isOnNavMesh)
+        if (_agent != null && _agent.isOnNavMesh)
         {
             _agent.isStopped = true;
             _agent.ResetPath();
@@ -453,7 +454,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
     /// <summary>Halt the agent in place without leaving the current (combat) state.</summary>
     public void HaltAgent()
     {
-        if (!_agent.isOnNavMesh) return;
+        if (_agent == null || !_agent.isOnNavMesh) return;
         _agent.isStopped = true;
         _agent.ResetPath();
     }
@@ -680,7 +681,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
 
         // Only auto-idle for plain move orders; gather/build transitions are their systems' job.
         if (state != UnitState.Moving || gatherTarget != null || constructTarget != null) return;
-        if (!_agent.isOnNavMesh || _agent.pathPending) return;
+        if (_agent == null || !_agent.isOnNavMesh || _agent.pathPending) return;
         if (_agent.remainingDistance > _agent.stoppingDistance) return;
 
         state = UnitState.Idle;
@@ -711,7 +712,7 @@ public class UnitEntity : MonoBehaviour, IDamageable
 
     void Navigate(Vector3 pos)
     {
-        if (!_agent.isOnNavMesh) return;
+        if (_agent == null || !_agent.isOnNavMesh) return;
         // Snap the destination onto THIS agent's NavMesh (areaMask keeps land units off the
         // naval mesh) so off-mesh clicks resolve to the nearest reachable point.
         if (NavMesh.SamplePosition(pos, out var navHit, NavSampleRadius, _agent.areaMask))

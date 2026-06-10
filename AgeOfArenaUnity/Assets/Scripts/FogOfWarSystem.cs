@@ -144,7 +144,7 @@ public class FogOfWarSystem : MonoBehaviour
         {
             var b = gm.buildings[i];
             if (b == null || !gm.IsAllied(0, b.teamId)) continue;
-            PaintCircle(b.transform.position, BuildingSight(b.type));
+            PaintCircle(b.transform.position, BuildingSight(b.type) + BuildingSightBonus(gm.teamTech[b.teamId]));
         }
 
         // 4. Update persistent explored map
@@ -265,4 +265,13 @@ public class FogOfWarSystem : MonoBehaviour
         BuildingType.Barracks or BuildingType.ArcheryRange or BuildingType.Stable => 7f,
         _                                                                     => 5f,
     };
+
+    static float BuildingSightBonus(TechState tech)
+    {
+        if (tech == null) return 0f;
+        float bonus = 0f;
+        if (tech.Has(TechType.TownWatch)) bonus += 4f;
+        if (tech.Has(TechType.TownPatrol)) bonus += 4f;
+        return bonus;
+    }
 }

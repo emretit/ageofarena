@@ -29,6 +29,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     // on spawn instead of idling at the gate. Set via right-click while selected.
     public bool hasRally;
     public Vector3 rallyPoint;
+    [System.NonSerialized] public ResourceNode rallyNode;
 
     // Cached HP-bar reference (set at RegisterBuilding) so CombatSystem's LateUpdate
     // doesn't GetComponent<WorldHpBar>() for every building every frame.
@@ -146,7 +147,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
 
     static readonly UnitTrainable[] BarracksTrainables =
     {
-        new(UnitType.Militia,   21f,  0, 60, 20, "M"),
+        new(UnitType.Militia,   21f, 60,  0, 20, "M"),
         new(UnitType.Spearman,  18f, 35, 25,  0, "P"), // anti-cavalry; food 35 wood 25
         new(UnitType.Scout,     14f, 30,  0,  0, "S"), // fast, no-damage recon
     };
@@ -201,7 +202,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     // Aztecs unique (EAGLE): Eagle Warrior available at the Barracks (Castle Age+).
     static readonly UnitTrainable[] BarracksTrainablesAztec =
     {
-        new(UnitType.Militia,   21f,  0, 60, 20, "M"),
+        new(UnitType.Militia,   21f, 60,  0, 20, "M"),
         new(UnitType.Spearman,  18f, 35, 25,  0, "P"),
         new(UnitType.Scout,     14f, 30,  0,  0, "S"),
         new(UnitType.Eagle,     20f, 20,  0, 50, "E"),
@@ -229,6 +230,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
     {
         new(UnitType.Ram,      40f, 0, 160,  75, "R"), // anti-structure, pierce-immune
         new(UnitType.Mangonel, 45f, 0, 160, 135, "M"), // area-damage siege
+        new(UnitType.Scorpion,  36f, 0, 120,  80, "S"), // anti-infantry siege
     };
 
     static readonly UnitTrainable[] Empty = System.Array.Empty<UnitTrainable>();
@@ -239,7 +241,9 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         get
         {
             var gm = GameManager.Instance;
-            return gm != null ? gm.teamTech[teamId].age : Age.Dark;
+            if (gm == null || teamId < 0 || teamId >= gm.teamTech.Length) return Age.Dark;
+            gm.teamTech[teamId] ??= new TechState();
+            return gm.teamTech[teamId].age;
         }
     }
 
@@ -282,6 +286,7 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         UnitType.Camel       => Age.Castle,
         UnitType.Ram         => Age.Castle,
         UnitType.Mangonel    => Age.Castle,
+        UnitType.Scorpion    => Age.Castle,
         UnitType.CavalryArcher => Age.Castle,
         UnitType.FireShip    => Age.Feudal,
         UnitType.DemoShip    => Age.Castle,
@@ -322,6 +327,21 @@ public class BuildingEntity : MonoBehaviour, IDamageable
             _                         => Empty,
         };
 
+        var tech = GameManager.Instance != null && teamId >= 0 && teamId < GameManager.Instance.teamTech.Length
+            ? GameManager.Instance.teamTech[teamId]
+            : null;
+        if (tech != null && tech.Has(TechType.Supplies) && type == BuildingType.Barracks)
+        {
+            var adjusted = new UnitTrainable[all.Length];
+            for (int i = 0; i < all.Length; i++)
+            {
+                adjusted[i] = all[i];
+                if (adjusted[i].unitType == UnitType.Militia)
+                    adjusted[i].food = Mathf.Max(0, adjusted[i].food - 15);
+            }
+            all = adjusted;
+        }
+
         // Filter out units the team hasn't unlocked by age (Archer→Feudal, Cavalry→Castle)
         // OR that this civ is denied (N0.7 tech-tree subtraction, e.g. Aztecs have no cavalry).
         Age age = TeamAge;
@@ -345,7 +365,6 @@ public class BuildingEntity : MonoBehaviour, IDamageable
         var gm = GameManager.Instance;
         if (underConstruction || gm == null)
             return new System.Collections.Generic.List<TechDef>();
-        var tech = gm.teamTech[teamId];
-        return TechDefs.ForBuilding(type, tech.age, tech, TeamCiv);
+        return TechDefs.ForBuilding(this);
     }
 }

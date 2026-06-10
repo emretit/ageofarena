@@ -24,6 +24,7 @@ public class HUD : MonoBehaviour
     /// <summary>Diagnostic: returns whether the canvas root is initialised.</summary>
     public bool HasCanvasRoot => _canvasRoot != null;
     GameObject _pauseMenu;
+    float _prePauseTimeScale = 1f;
     // N9.hotkeys: remap panel state
     GameObject _hotkeyPanel;
     HotkeyAction? _listeningAction;          // action awaiting its next key press
@@ -97,6 +98,7 @@ public class HUD : MonoBehaviour
     static readonly Color MarketCol = Prims.Hex(0x2e8b8b);
     static readonly Color CmdCol    = Prims.Hex(0x5a6270);
     static readonly Color GarrisonCol = Prims.Hex(0x9a6b3f);
+    static readonly Color DeniedCol = Prims.Hex(0x6a2f35);
 
     public void Init(ResourceManager res)
     {
@@ -224,6 +226,8 @@ public class HUD : MonoBehaviour
         _stoneText = AddEntry(bar, ref x, Prims.Hex(0xb9b9b9), Loc.Get("res.stone"));
         _popText   = AddEntry(bar, ref x, Prims.Hex(0x6fa8dc), Loc.Get("res.pop"));
         _relicText = AddEntry(bar, ref x, Prims.Hex(0xe0b84b), Loc.Get("res.relic"));
+        _relicText.rectTransform.sizeDelta = new Vector2(230, 30);
+        _relicText.fontSize = 16;
         _relicText.color = Prims.Hex(0xf2d59b);
 
         var ageRect = NewRect("AgeText", bar);
@@ -655,21 +659,24 @@ public class HUD : MonoBehaviour
     }
 
     void AttachTooltip(GameObject button, string title, string cost, string desc)
+        => AttachTooltip(button, title, () => string.IsNullOrEmpty(cost) ? desc : cost + "\n" + desc);
+
+    void AttachTooltip(GameObject button, string title, System.Func<string> body)
     {
         var trig = button.AddComponent<EventTrigger>();
         var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
-        enter.callback.AddListener(_ => ShowTooltip(title, cost, desc));
+        enter.callback.AddListener(_ => ShowTooltip(title, body != null ? body() : ""));
         trig.triggers.Add(enter);
         var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
         exit.callback.AddListener(_ => HideTooltip());
         trig.triggers.Add(exit);
     }
 
-    void ShowTooltip(string title, string cost, string desc)
+    void ShowTooltip(string title, string body)
     {
         if (_tooltip == null) return;
         _tipTitle.text = title;
-        _tipBody.text  = string.IsNullOrEmpty(cost) ? desc : cost + "\n" + desc;
+        _tipBody.text  = body;
         _tooltip.gameObject.SetActive(true);
     }
 
@@ -681,7 +688,8 @@ public class HUD : MonoBehaviour
     // ── Command button factory ─────────────────────────────────────────────
 
     CommandSlot MakeButton(int index, Color color, string title, string desc, string cost, string hotkey,
-        System.Action<RectTransform> icon, System.Action onClick, System.Func<bool> affordable)
+        System.Action<RectTransform> icon, System.Action onClick, System.Func<bool> affordable,
+        System.Func<string> tooltipBody = null)
     {
         int col = index % Cols;
         int row = index / Cols;
@@ -730,7 +738,8 @@ public class HUD : MonoBehaviour
         }
 
         // Hover tooltip with the full name + cost + description.
-        AttachTooltip(rt.gameObject, title, cost, desc);
+        if (tooltipBody != null) AttachTooltip(rt.gameObject, title, tooltipBody);
+        else AttachTooltip(rt.gameObject, title, cost, desc);
 
         // Cost (bottom)
         if (!string.IsNullOrEmpty(cost))
@@ -804,6 +813,7 @@ public class HUD : MonoBehaviour
         // DIPL: hotkey toggles diplomacy panel.
         if (Hotkeys.Down(HotkeyAction.Diplomacy) && !_gameOverShown)
             ToggleDiplomacyPanel();
+        UpdateTributeInfo(gm);
 
         // STIC: hotkey cycles attack stance for all selected units.
         if (Hotkeys.Down(HotkeyAction.Stance))
@@ -820,9 +830,7 @@ public class HUD : MonoBehaviour
         // Relics held readout in the top bar (replaces RelicSystem's IMGUI label).
         if (_relicText != null)
         {
-            int total = gm.relics != null ? gm.relics.Count : 0;
-            int mine  = total > 0 && gm.relicSystem != null ? gm.relicSystem.CountControlled(0) : 0;
-            string rs = mine + "/" + total;
+            string rs = RelicHudLine(gm.relics, 0);
             if (_relicText.text != rs) _relicText.text = rs;
         }
 
@@ -913,7 +921,9 @@ public class HUD : MonoBehaviour
 
         // Live garrison count (updates as units enter/leave without reselecting).
         if (b != null && b.GarrisonCapacity > 0)
-            _infoSub.text = string.Format(Loc.Get("misc.garrisonFmt"), b.GarrisonCount, b.GarrisonCapacity);
+            _infoSub.text = BuildingStatusLine(gm, b);
+        else if (b != null && b.type == BuildingType.Market)
+            _infoSub.text = MarketSpreadLine();
 
         // Training / research progress (buildings only).
         float prog = -1f; bool isResearch = false; int qCount = 0;
@@ -945,7 +955,7 @@ public class HUD : MonoBehaviour
         var liveNode = gm.selectedNode;
         if (liveNode != null && _infoSub != null)
         {
-            string nodeAmt = liveNode.Depleted ? "Tükendi" : $"{liveNode.amount} / {liveNode.maxAmount}";
+            string nodeAmt = ResourceNodeInfoLine(liveNode, NodeOwnerTech(liveNode));
             if (_infoSub.text != nodeAmt) _infoSub.text = nodeAmt;
         }
 
@@ -963,8 +973,10 @@ public class HUD : MonoBehaviour
                     AttackStance.NoAttack    => Loc.Get("stance.noattack"),
                     _                        => "",
                 };
+                string unitLine = UnitInfoSub(sel2, sel2[0].type);
                 string stanceLine = stanceName.Length > 0 ? string.Format(Loc.Get("misc.stanceFmt"), stanceName) : "";
-                if (_infoSub.text != stanceLine) _infoSub.text = stanceLine;
+                string line = string.IsNullOrEmpty(unitLine) ? stanceLine : unitLine + " | " + stanceLine;
+                if (_infoSub.text != line) _infoSub.text = line;
             }
         }
 
@@ -1165,7 +1177,7 @@ public class HUD : MonoBehaviour
     void BuildBuildingCard(GameManager gm, BuildingEntity b)
     {
         _infoName.text = BuildingTr(b.type) + (b.underConstruction ? "  (inşa)" : "");
-        _infoSub.text  = b.GarrisonCapacity > 0 ? $"Garnizon {b.GarrisonCount}/{b.GarrisonCapacity}" : "";
+        _infoSub.text  = BuildingStatusLine(gm, b);
         ShowHpBar(true);
 
         int idx = 0;
@@ -1194,22 +1206,33 @@ public class HUD : MonoBehaviour
 
         // Research / age-advance buttons
         var techs = b.GetResearchables();
+        bool ageButtonAdded = false;
         for (int i = 0; i < techs.Count && idx < Cols * 2; i++)
         {
             var d = techs[i];
+            if (IsAgeTech(d.type))
+            {
+                AddAgeResearchButton(gm, b, d, ref idx);
+                ageButtonAdded = true;
+                continue;
+            }
             var bb = b;
             int hk = i + 1;
-            bool isAge = d.type == TechType.FeudalAge || d.type == TechType.CastleAge
-                      || d.type == TechType.ImperialAge;
-            _slots.Add(MakeButton(idx++, isAge ? AgeCol : UpgCol, d.display, TechDesc(d.type),
+            bool monasteryTech = b.type == BuildingType.Monastery;
+            _slots.Add(MakeButton(idx++, UpgCol, d.display, TechDesc(d.type),
                 CostLine(d.food, d.wood, d.gold, d.stone), hk.ToString(),
                 r => CommandIconFactory.Tech(r, d.type),
                 () => { var g = GameManager.Instance; if (g != null && bb != null) g.research.Enqueue(bb, d); },
                 () => {
                     var g = GameManager.Instance; if (g == null) return false;
                     return !g.research.IsResearching(bb) && g.resources.CanAfford(d.food, d.wood, d.gold, d.stone);
-                }));
+                },
+                monasteryTech ? () => MonasteryTechTooltip(gm, d) : null));
         }
+        AddCivDeniedTechButtons(gm, b, ref idx);
+
+        if (!ageButtonAdded && TryGetNextAgeDef(gm, b, out var nextAge))
+            AddAgeResearchButton(gm, b, nextAge, ref idx);
 
         // Ungarrison: shown for any garrison-capable building, enabled while it shelters units.
         if (b.GarrisonCapacity > 0 && !b.underConstruction)
@@ -1225,6 +1248,7 @@ public class HUD : MonoBehaviour
 
     void BuildMarketButtons(GameManager gm, ref int idx)
     {
+        _infoSub.text = MarketSpreadLine();
         int batch = MarketSystem.Batch;
         AddMarket(ref idx, ResourceKind.Food,  "Yiyecek Sat",  batch + "Y → " + MarketSystem.SellGold(ResourceKind.Food)  + "A", "1");
         AddMarket(ref idx, ResourceKind.Wood,  "Odun Sat",     batch + "O → " + MarketSystem.SellGold(ResourceKind.Wood)  + "A", "2");
@@ -1281,10 +1305,7 @@ public class HUD : MonoBehaviour
             _                  => node.kind.ToString(),
         };
         _infoName.text = kindName;
-        if (node.Depleted)
-            _infoSub.text = "Tükendi";
-        else
-            _infoSub.text = $"{node.amount} / {node.maxAmount}";
+        _infoSub.text = ResourceNodeInfoLine(node, NodeOwnerTech(node));
     }
 
     void BuildUnitInfo(List<UnitEntity> sel, int unitCount)
@@ -1299,7 +1320,7 @@ public class HUD : MonoBehaviour
             if (sel[i].type != first) { homogeneous = false; break; }
         }
         _infoName.text = homogeneous ? unitCount + " " + UnitTr(first, GameManager.Instance?.tech) : unitCount + " birim";
-        _infoSub.text  = "";
+        _infoSub.text  = UnitInfoSub(sel, homogeneous ? first : UnitType.Villager);
         ShowHpBar(false);
 
         int idx = 0;
@@ -1429,6 +1450,7 @@ public class HUD : MonoBehaviour
     void OpenPauseMenu(GameManager gm)
     {
         if (_canvasRoot == null) return;
+        if (Time.timeScale > 0.01f) _prePauseTimeScale = Time.timeScale;
         Time.timeScale = 0f;
         if (_pauseMenu != null) { _pauseMenu.SetActive(true); return; }
 
@@ -1597,6 +1619,8 @@ public class HUD : MonoBehaviour
             txt.color = researched ? new Color(0.5f, 1f, 0.55f)
                       : locked     ? new Color(0.6f, 0.35f, 0.35f)
                       :              new Color(0.85f, 0.88f, 0.95f);
+
+            AttachTooltip(rowR.gameObject, def.display, () => TechTreeTooltip(gm, def, researched, locked));
         }
     }
 
@@ -1605,7 +1629,7 @@ public class HUD : MonoBehaviour
         if (_pauseMenu != null) _pauseMenu.SetActive(false);
         if (_hotkeyPanel != null) _hotkeyPanel.SetActive(false);
         _listeningAction = null;
-        if (Time.timeScale == 0f) Time.timeScale = 1f;
+        if (Time.timeScale == 0f) Time.timeScale = Mathf.Max(0.01f, _prePauseTimeScale);
     }
 
     // ── N9.hotkeys: rebindable-key settings panel ────────────────────────────
@@ -1627,6 +1651,7 @@ public class HUD : MonoBehaviour
     void OpenHotkeyPanel()
     {
         if (_canvasRoot == null) return;
+        if (Time.timeScale > 0.01f) _prePauseTimeScale = Time.timeScale;
         Time.timeScale = 0f;
         if (_pauseMenu != null) _pauseMenu.SetActive(false);
         if (_hotkeyPanel != null) { _hotkeyPanel.SetActive(true); RefreshHotkeyLabels(); return; }
@@ -1905,6 +1930,17 @@ public class HUD : MonoBehaviour
                 case UnitType.Camel:
                     if (tech.Has(TechType.HeavyCamel))    return "Ağır Deve";
                     break;
+                case UnitType.Ram:
+                    if (tech.Has(TechType.SiegeRam))      return "Kuşatma Koçbaşı";
+                    if (tech.Has(TechType.CappedRam))     return "Gelişmiş Koçbaşı";
+                    break;
+                case UnitType.Mangonel:
+                    if (tech.Has(TechType.SiegeOnager))   return "Kuşatma Onager";
+                    if (tech.Has(TechType.Onager))        return "Onager";
+                    break;
+                case UnitType.Scorpion:
+                    if (tech.Has(TechType.HeavyScorpion)) return "Ağır Akrep";
+                    break;
                 case UnitType.Eagle:
                     if (tech.Has(TechType.EliteEagle))    return "Seçkin Kartal Savaşçı";
                     break;
@@ -1950,6 +1986,9 @@ public class HUD : MonoBehaviour
         UnitType.Spearman    => "Süvariye karşı uzman. Mızraklı piyade.",
         UnitType.Longbowman  => "Britanyalılar özgün birimi. Çok uzun menzil, delik zırh.",
         UnitType.Galley      => "Su birimi. Göldeki düşman gemilerine saldırır.",
+        UnitType.Ram         => "Binaları yıkan kuşatma aracı.",
+        UnitType.Mangonel    => "Alan hasarlı kuşatma silahı.",
+        UnitType.Scorpion    => "Piyadeye karşı kuşatma silahı.",
         _                    => "",
     };
 
@@ -1991,6 +2030,7 @@ public class HUD : MonoBehaviour
         TechType.Cavalier      => "Süvari yükseltmesi: Ağır Süvari.",
         TechType.DoubleBitAxe  => "Odun toplama hızı +.",
         TechType.Wheelbarrow   => "Köylü taşıma kapasitesi ve hızı +.",
+        TechType.HandCart      => "Köylü taşıma kapasitesi ve hızı daha da +.",
         // ── M6 Blacksmith ──
         TechType.IronCasting   => "Yakın dövüş saldırısı + (asker & süvari).",
         TechType.BlastFurnace  => "Yakın dövüş saldırısı ++ (asker & süvari).",
@@ -2006,8 +2046,11 @@ public class HUD : MonoBehaviour
         // ── M6 Ekonomi ──
         TechType.Loom          => "Köylü canı ve zırhı +.",
         TechType.BowSaw        => "Odun toplama hızı +.",
+        TechType.TwoManSaw     => "Odun toplama hızı +.",
         TechType.GoldMining    => "Altın toplama hızı +.",
+        TechType.GoldShaftMining => "Altın toplama hızı +.",
         TechType.StoneMining   => "Taş toplama hızı +.",
+        TechType.StoneShaftMining => "Taş toplama hızı +.",
         TechType.CropRotation  => "Tarla yiyecek kapasitesi +.",
         TechType.Husbandry     => "Süvari hareket hızı +.",
         TechType.Caravan       => "Ticaret arabası geliri +.",
@@ -2024,6 +2067,19 @@ public class HUD : MonoBehaviour
         TechType.Coinage       => "Haraç vergisiz gönderilir.",
         TechType.Banking       => "Ticaret arabası geliri +.",
         TechType.Guilds        => "Pazar alış-satış farkı daralır.",
+        TechType.TownWatch     => "Bina görüş mesafesi +.",
+        TechType.TownPatrol    => "Bina görüş mesafesi daha da +.",
+        TechType.Squires       => "Piyade hareket hızı +.",
+        TechType.Arson         => "Piyade binalara daha fazla hasar verir.",
+        TechType.Supplies      => "Asker serisi yiyecek maliyeti düşer.",
+        TechType.Gambesons     => "Piyade delici zırhı +.",
+        TechType.ThumbRing     => "Okçu ateş hızı +.",
+        TechType.ParthianTactics => "Atlı okçu zırhı +.",
+        TechType.CappedRam     => "Koçbaşı geliştirmesi.",
+        TechType.SiegeRam      => "Kuşatma koçbaşı geliştirmesi.",
+        TechType.Onager        => "Manganel geliştirmesi.",
+        TechType.SiegeOnager   => "Kuşatma manganel geliştirmesi.",
+        TechType.HeavyScorpion => "Akrep geliştirmesi.",
         TechType.EliteEagle    => "Kartal Savaşçı → Seçkin: can ve saldırı +.",
         // ── M9 civ-özel unique tech ──
         TechType.Chivalry      => "Frank: süvari canı +20.",
@@ -2033,16 +2089,204 @@ public class HUD : MonoBehaviour
         _                      => "",
     };
 
+    static bool IsAgeTech(TechType t) => t == TechType.FeudalAge || t == TechType.CastleAge || t == TechType.ImperialAge;
+
+    static bool TryGetNextAgeDef(GameManager gm, BuildingEntity b, out TechDef def)
+    {
+        def = default;
+        if (gm == null || b == null || b.type != BuildingType.TownCenter) return false;
+        var tech = gm.teamTech[b.teamId];
+        if (tech == null) return false;
+        TechType next = tech.age switch
+        {
+            Age.Dark => TechType.FeudalAge,
+            Age.Feudal => TechType.CastleAge,
+            Age.Castle => TechType.ImperialAge,
+            _ => default,
+        };
+        if (!IsAgeTech(next)) return false;
+        def = TechDefs.Get(next);
+        return true;
+    }
+
+    static string BuildingStatusLine(GameManager gm, BuildingEntity b)
+    {
+        string garrison = b.GarrisonCapacity > 0 ? $"Garnizon {b.GarrisonCount}/{b.GarrisonCapacity}" : "";
+        if (!TryGetNextAgeDef(gm, b, out var nextAge)) return garrison;
+        var avail = TechDefs.Check(b, nextAge, gm.teamTech[b.teamId], gm.teamCivs[b.teamId], gm);
+        string age = avail.canResearch ? "Cag: Hazir" : "Cag: " + TechAvailabilityReasonText(avail.reason);
+        return string.IsNullOrEmpty(garrison) ? age : garrison + " | " + age;
+    }
+
+    static string AgeAdvanceTooltip(TechDef def, TechDefs.TechAvailability avail)
+    {
+        string desc = TechDesc(def.type);
+        if (avail.canResearch) return CostLine(def.food, def.wood, def.gold, def.stone) + "\n" + desc;
+        return CostLine(def.food, def.wood, def.gold, def.stone) + "\n" + desc + "\n" + "Durum: " + TechAvailabilityReasonText(avail.reason);
+    }
+
+    public static string AgeAdvanceReasonText(string reason) => TechAvailabilityReasonText(reason);
+
+    public static string TechAvailabilityReasonText(string reason) => reason switch
+    {
+        "needs 2 substantial buildings" => "2 tamamlanmis ana bina gerekli",
+        "age locked" => "onceki cag kosulu eksik",
+        "building incomplete" => "bina insa halinde",
+        "already researched" => "zaten tamamlandi",
+        "missing prerequisite" => "on kosul eksik",
+        "civilization locked" => "medeniyet kilidi var",
+        "civilization denied" => "medeniyet bu arastirmayi acamaz",
+        _ => "su an arastirilamiyor",
+    };
+
+    static string TechTreeTooltip(GameManager gm, TechDef def, bool researched, bool locked)
+    {
+        string body = CostLine(def.food, def.wood, def.gold, def.stone)
+            + "\nBina: " + BuildingTr(def.building)
+            + " | Cag: " + AgeName(def.requiredAge);
+        if (def.hasRequires) body += "\nOn kosul: " + TechDefs.Get(def.requires).display;
+        string desc = TechDesc(def.type);
+        if (!string.IsNullOrEmpty(desc)) body += "\n" + desc;
+        if (def.building == BuildingType.Monastery && def.type is TechType.Sanctity or TechType.BlockPrinting or TechType.Redemption or TechType.Theocracy)
+            body += "\n" + MonasteryTechDetails(gm?.teamTech?[0], def.type);
+        body += "\nDurum: " + TechTreeStatus(gm, def, researched, locked);
+        return body;
+    }
+
+    static string MonasteryTechTooltip(GameManager gm, TechDef def)
+    {
+        string body = CostLine(def.food, def.wood, def.gold, def.stone) + "\n" + TechDesc(def.type);
+        body += "\n" + MonasteryTechDetails(gm?.teamTech?[0], def.type);
+        return body;
+    }
+
+    public static string MonasteryTechDetails(TechState tech, TechType focus)
+    {
+        bool hasBlock = tech != null && tech.Has(TechType.BlockPrinting);
+        bool hasTheo = tech != null && tech.Has(TechType.Theocracy);
+        bool hasRedemption = tech != null && tech.Has(TechType.Redemption);
+        bool hasSanctity = tech != null && tech.Has(TechType.Sanctity);
+        float currentRange = tech?.MonkConvertRange ?? 2.5f;
+        float nextRange = focus == TechType.BlockPrinting && !hasBlock ? currentRange + 1.5f : currentRange;
+        string spend = (hasTheo || focus == TechType.Theocracy) ? "50" : "100";
+        string redemption = (hasRedemption || focus == TechType.Redemption) ? "acik" : "kapali";
+        string sanctity = (hasSanctity || focus == TechType.Sanctity) ? "+15 aktif" : "+15 degil";
+        return $"Donusum menzili: {currentRange:0.0} -> {nextRange:0.0}"
+            + $"\nFaith: {UnitEntity.FaithFull:0} tam, {UnitEntity.FaithRegenPerSec:0.0}/sn yenilenir, donusum sonrasi %{spend} harcanir"
+            + "\nRedemption: bina/kusatma donusumu " + redemption
+            + "\nSanctity: Monk can bonusu " + sanctity;
+    }
+
+    static string UnitInfoSub(List<UnitEntity> sel, UnitType first)
+    {
+        if (first != UnitType.Monk || sel == null || sel.Count == 0 || sel[0] == null) return "";
+        var monk = sel[0];
+        var tech = monk.TeamTech;
+        float range = tech?.MonkConvertRange ?? 2.5f;
+        return $"Faith {Mathf.RoundToInt(monk.faith)}/{Mathf.RoundToInt(UnitEntity.FaithFull)} | Donusum menzili {range:0.0}";
+    }
+
+    static string TechTreeStatus(GameManager gm, TechDef def, bool researched, bool locked)
+    {
+        if (researched) return "tamamlandi";
+        if (locked) return TechAvailabilityReasonText("civilization denied");
+        if (gm == null) return TechAvailabilityReasonText("no game manager");
+        int teamId = 0;
+        BuildingEntity building = null;
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b != null && b.teamId == teamId && b.type == def.building && !b.underConstruction && b.hp > 0f)
+            {
+                building = b;
+                break;
+            }
+        }
+        if (building == null) return "gerekli bina yok: " + BuildingTr(def.building);
+        var avail = TechDefs.Check(building, def, gm.teamTech[teamId], gm.teamCivs[teamId], gm);
+        return avail.canResearch ? "arastirilabilir" : TechAvailabilityReasonText(avail.reason);
+    }
+
+    static bool ShowsCivDeniedTechs(BuildingType type) => type == BuildingType.Barracks
+        || type == BuildingType.ArcheryRange || type == BuildingType.Stable
+        || type == BuildingType.SiegeWorkshop;
+
+    public static bool ShouldShowCivDeniedTech(BuildingType building, Civilization civ, TechDef def, TechState tech)
+    {
+        return ShowsCivDeniedTechs(building)
+            && def.building == building
+            && !IsAgeTech(def.type)
+            && (tech == null || !tech.Has(def.type))
+            && CivilizationDefs.IsTechDenied(civ, def.type);
+    }
+
+    void AddCivDeniedTechButtons(GameManager gm, BuildingEntity b, ref int idx)
+    {
+        if (gm == null || b == null || idx >= Cols * 2 || !ShowsCivDeniedTechs(b.type)) return;
+        var civ = gm.teamCivs[b.teamId];
+        var tech = gm.teamTech[b.teamId];
+        var all = TechDefs.All();
+        for (int i = 0; i < all.Length && idx < Cols * 2; i++)
+        {
+            var d = all[i];
+            if (!ShouldShowCivDeniedTech(b.type, civ, d, tech)) continue;
+            _slots.Add(MakeButton(idx++, DeniedCol, d.display, TechDesc(d.type),
+                CostLine(d.food, d.wood, d.gold, d.stone), "",
+                r => CommandIconFactory.Tech(r, d.type),
+                () => { },
+                () => false,
+                () => CivDeniedTechTooltip(d)));
+        }
+    }
+
+    static string CivDeniedTechTooltip(TechDef def)
+    {
+        string body = CostLine(def.food, def.wood, def.gold, def.stone)
+            + "\nBina: " + BuildingTr(def.building)
+            + " | Cag: " + AgeName(def.requiredAge);
+        if (def.hasRequires) body += "\nOn kosul: " + TechDefs.Get(def.requires).display;
+        string desc = TechDesc(def.type);
+        if (!string.IsNullOrEmpty(desc)) body += "\n" + desc;
+        body += "\nDurum: " + TechAvailabilityReasonText("civilization denied");
+        return body;
+    }
+
+    void AddAgeResearchButton(GameManager gm, BuildingEntity b, TechDef d, ref int idx)
+    {
+        if (idx >= Cols * 2) return;
+        var bb = b;
+        int teamId = b.teamId;
+        int hk = idx + 1;
+        _slots.Add(MakeButton(idx++, AgeCol, d.display, TechDesc(d.type),
+            CostLine(d.food, d.wood, d.gold, d.stone), hk.ToString(),
+            r => CommandIconFactory.Tech(r, d.type),
+            () => { var g = GameManager.Instance; if (g != null && bb != null) g.research.Enqueue(bb, d); },
+            () => {
+                var g = GameManager.Instance; if (g == null || bb == null) return false;
+                var avail = TechDefs.Check(bb, d, g.teamTech[teamId], g.teamCivs[teamId], g);
+                return avail.canResearch && !g.research.IsResearching(bb)
+                    && g.teamRes[teamId].CanAfford(d.food, d.wood, d.gold, d.stone);
+            },
+            () => {
+                var g = GameManager.Instance;
+                var avail = g != null && bb != null
+                    ? TechDefs.Check(bb, d, g.teamTech[teamId], g.teamCivs[teamId], g)
+                    : new TechDefs.TechAvailability(false, "no game manager");
+                return AgeAdvanceTooltip(d, avail);
+            }));
+    }
+
     // ── DIPL: Diplomacy panel ────────────────────────────────────────────────
 
     bool _diplPanelOpen;
     GameObject _diplPanel;
+    Text _tributeInfoText;
 
     /// <summary>Toggle the diplomacy panel (called from a HUD button or hotkey).</summary>
     public void ToggleDiplomacyPanel()
     {
         _diplPanelOpen = !_diplPanelOpen;
-        if (_diplPanel != null) { Object.Destroy(_diplPanel); _diplPanel = null; }
+        if (_diplPanel != null) { Object.Destroy(_diplPanel); _diplPanel = null; _tributeInfoText = null; }
         if (!_diplPanelOpen) return;
         BuildDiplomacyPanel();
     }
@@ -2058,7 +2302,7 @@ public class HUD : MonoBehaviour
         rt.SetParent(_canvasRoot, false);
         rt.anchorMin = new Vector2(0f, 0.5f); rt.anchorMax = new Vector2(0f, 0.5f);
         rt.pivot = new Vector2(0f, 0.5f);
-        rt.sizeDelta = new Vector2(220, 160);
+        rt.sizeDelta = new Vector2(260, 198);
         rt.anchoredPosition = new Vector2(8, 0);
         var bg = _diplPanel.AddComponent<Image>();
         bg.color = new Color(0f, 0f, 0f, 0.78f);
@@ -2109,6 +2353,15 @@ public class HUD : MonoBehaviour
             btnLabel.color = DiplStateColor(gm.diplomacy[0, team]);
         }
 
+        var tribRect = NewRect("TributeInfo", rt);
+        tribRect.anchorMin = new Vector2(0, 0); tribRect.anchorMax = new Vector2(1, 0);
+        tribRect.pivot = new Vector2(0.5f, 0);
+        tribRect.sizeDelta = new Vector2(-16, 38);
+        tribRect.anchoredPosition = new Vector2(0, 36);
+        _tributeInfoText = AddText(tribRect, TributeInfoLine(gm.tech), TextAnchor.MiddleLeft);
+        _tributeInfoText.fontSize = 12;
+        _tributeInfoText.color = Prims.Hex(0xf2d59b);
+
         var closeRect = NewRect("DiplClose", rt);
         closeRect.anchorMin = new Vector2(0.7f, 0); closeRect.anchorMax = new Vector2(1, 0);
         closeRect.pivot = new Vector2(1, 0);
@@ -2137,6 +2390,81 @@ public class HUD : MonoBehaviour
         DiplomacyState.Neutral => Prims.Hex(0xf0d050),
         _                      => Prims.Hex(0xff5555),
     };
+
+    void UpdateTributeInfo(GameManager gm)
+    {
+        if (_tributeInfoText == null || _diplPanel == null || !_diplPanel.activeSelf || gm == null) return;
+        string line = TributeInfoLine(gm.tech);
+        if (_tributeInfoText.text != line) _tributeInfoText.text = line;
+    }
+
+    public static string TributeInfoLine(TechState tech)
+    {
+        const int sample = 100;
+        float tax = TributeSystem.TaxFor(tech);
+        int received = TributeSystem.ReceivedAmount(sample, tech);
+        string tier = tech != null && tech.Has(TechType.Banking) ? "Banking"
+            : tech != null && tech.Has(TechType.Coinage) ? "Coinage"
+            : "Standart";
+        return $"Harac vergisi: %{Mathf.RoundToInt(tax * 100f)} ({tier}) | {sample} -> {received}";
+    }
+
+    public static string MarketSpreadLine()
+    {
+        return "Fark "
+            + MarketSpreadPart("Y", ResourceKind.Food) + " | "
+            + MarketSpreadPart("O", ResourceKind.Wood) + " | "
+            + MarketSpreadPart("T", ResourceKind.Stone);
+    }
+
+    static string MarketSpreadPart(string label, ResourceKind kind)
+    {
+        var (sell, buy) = MarketSystem.Rates(kind);
+        return $"{label} {sell}/{buy} (+{buy - sell})";
+    }
+
+    static TechState NodeOwnerTech(ResourceNode node)
+    {
+        var gm = GameManager.Instance;
+        if (node == null || gm == null || gm.teamTech == null) return null;
+        if (node.ownerTeamId < 0 || node.ownerTeamId >= gm.teamTech.Length) return null;
+        return gm.teamTech[node.ownerTeamId];
+    }
+
+    public static string ResourceNodeInfoLine(ResourceNode node, TechState ownerTech = null)
+    {
+        if (node == null) return "";
+        if (!node.renewable)
+            return node.Depleted ? "Tükendi" : $"{node.amount} / {node.maxAmount}";
+
+        int bonus = ownerTech != null ? ownerTech.FarmCapacityBonus : 0;
+        int capacity = node.maxAmount + bonus;
+        string amount = node.Depleted ? "Tükendi" : $"{node.amount} / {capacity}";
+        return $"{amount} | Reseed {node.reseedWoodCost}O | Kapasite {capacity} (+{bonus})";
+    }
+
+    public static string RelicHudLine(IList<RelicEntity> relics, int teamId)
+    {
+        int total = relics != null ? relics.Count : 0;
+        int controlled = 0;
+        int deposited = 0;
+        int carried = 0;
+        if (relics != null)
+        {
+            for (int i = 0; i < relics.Count; i++)
+            {
+                var r = relics[i];
+                if (r == null) continue;
+                if (r.controllingTeam == teamId)
+                {
+                    controlled++;
+                    if (r.heldInMonastery) deposited++;
+                }
+                if (r.carrier != null && r.carrier.teamId == teamId) carried++;
+            }
+        }
+        return $"Kontrol {controlled}/{total} | Man {deposited} | Tas {carried}";
+    }
 
     /// <summary>Compact cost string, e.g. "60O 20A" (Y=food, O=wood, A=gold, T=stone).</summary>
     static string CostLine(int f, int w, int g, int s)

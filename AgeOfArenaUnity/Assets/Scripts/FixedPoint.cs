@@ -74,21 +74,34 @@ public struct FP : IEquatable<FP>, IComparable<FP>
     public static FP Min(FP a, FP b) => a.raw <= b.raw ? a : b;
     public static FP Clamp(FP v, FP lo, FP hi) => v < lo ? lo : v > hi ? hi : v;
 
-    /// <summary>Integer square root via Newton–Raphson (no floating-point).</summary>
+    /// <summary>Integer square root (no floating-point).</summary>
     public static FP Sqrt(FP v)
     {
         if (v.raw <= 0) return Zero;
-        long n = v.raw << SHIFT; // scale up before root so we recover fractional part
-        long x = n;
-        // Up to 32 Newton steps — converges in <16 for typical game values.
-        for (int i = 0; i < 16; i++)
+        ulong n = (ulong)v.raw << SHIFT; // scale up before root so we recover fractional part
+        return new FP((long)IntSqrt(n));
+    }
+
+    static ulong IntSqrt(ulong n)
+    {
+        ulong root = 0;
+        ulong bit = 1UL << 62;
+        while (bit > n) bit >>= 2;
+
+        while (bit != 0)
         {
-            if (x == 0) break;
-            long xn = (x + n / x) >> 1;
-            if (xn == x) break;
-            x = xn;
+            if (n >= root + bit)
+            {
+                n -= root + bit;
+                root = (root >> 1) + bit;
+            }
+            else
+            {
+                root >>= 1;
+            }
+            bit >>= 2;
         }
-        return new FP(x);
+        return root;
     }
 
     /// <summary>

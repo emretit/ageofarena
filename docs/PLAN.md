@@ -28,6 +28,65 @@
 bekleyen birkaç madde + bilinçli ertelenmiş alt-maddeler + gerçek (stub olmayan) multiplayer
 taşıması. Bunlar tek listede:
 
+**2026-06-10 içerik paritesi notu:** AoK içerik derinliği için yeni ortak tech-gate, çağ-atlama
+önkoşulu, eksik ekonomi/siege tech satırları, Scorpion üretimi, AI tech seçimi ve
+`ContentParityQaValidator` akışı kodlandı; tribute / market / farm reseed / relic deposit
+smoke'larıyla birlikte Unity batch QA PASS alındı. Bu tranche, planın "3 aylık AoE2 içerik
+paritesi" hedefini kod tarafında başlatan temel dalga olarak kayda geçti.
+
+### 50 TODO Başlatıcı Listesi
+
+1. ✔️ Feudal/Castle/Imperial age-up için HUD'da canlı "needs 2 substantial buildings" mesajını netleştir.
+2. ✔️ Age gate helper sonuçlarını tech-tree viewer tooltip'lerine bağla.
+3. ✔️ Barracks, Archery Range, Stable ve Siege Workshop için civ-denied tech satırlarını tooltip'te göster.
+4. ✔️ Monastery tech'lerinde Monk conversion range ve faith state açıklamasını görünür kıl.
+5. ✔️ Tribute paneline Coinage ve Banking vergi farkını canlı yaz.
+6. ✔️ Market buy/sell spread'ini HUD'da sayısal olarak göster.
+7. ✔️ Farm reseed maliyetini ve kalan farm food'u node info paneline ekle.
+8. ✔️ Relic HUD satırında carried / controlled / monastery-deposited ayrımını açık göster.
+9. ✔️ AI tech planner'a Castle-age monk tech tercihleri ekle.
+10. ✔️ AI tech planner'a Imperial-age market tech tercihleri ekle.
+11. ✔️ AI tech planner'a imperial siege tech öncelikleri ekle.
+12. ✔️ AI tech planner'a navy tech öncelikleri ekle.
+13. ✔️ Islands haritasında Fire Ship / Demo Ship kompozisyonunu güçlendir.
+14. ✔️ Dock tech zincirinde Galley → War Galley → Galleon geçişini smoke test'e bağla.
+15. ✔️ Fishing Ship gather loop'unu FishTrap ve FishPond için ayrı doğrula.
+16. ✔️ Monastery gold trickle'ını relic deposit sonrası uzun süreli testle ölç.
+17. 🟡 Monk conversion başarısızlık durumlarında faith reset davranışını test et.
+18. ⬜ Theocracy etkisinin grup convert sırasında faith tüketimini ölç.
+19. ⬜ Redemption ile siege/building conversion iznini negatif/pozitif senaryolarda doğrula.
+20. ⬜ Sanctity'nin Monk HP artışını UI ve stat testinde sabitle.
+21. ⬜ Squires'in infantry hareket hızını sprint/retreat akışında gözlemlenebilir yap.
+22. ⬜ Gambesons'un infantry pierce armor etkisini archer-heavy testte doğrula.
+23. ⬜ Thumb Ring'in archer attack interval etkisini combat timing testiyle sabitle.
+24. ⬜ Parthian Tactics'in cavalry archer armor etkisini damage log ile doğrula.
+25. ⬜ Capped Ram ve Siege Ram için HP ve damage artışlarını ayrı ayrı test et.
+26. ⬜ Onager ve Siege Onager için splash ve attack interval farkını doğrula.
+27. ⬜ Heavy Scorpion için HP, rate ve anti-infantry bonusunu smoke test'e bağla.
+28. ⬜ Arson'un building damage bonusunu infantry vs wall/building senaryosunda ölç.
+29. ⬜ Supplies sonrası Militia maliyeti düşüşünü AI affordability testine bağla.
+30. ⬜ Hand Cart sonrası villager carry/speed değişimini labor testiyle doğrula.
+31. ⬜ Two Man Saw sonrası wood gather rate artışını uzun tick testinde ölç.
+32. ⬜ Gold Shaft Mining sonrası gold gather rate artışını node testine bağla.
+33. ⬜ Stone Shaft Mining sonrası stone gather rate artışını node testine bağla.
+34. ⬜ Town Watch ve Town Patrol building sight artışını fog-of-war görsel testine bağla.
+35. ⬜ EnemyAI'nin Naval / Siege / Monk / Market tech seçimini her yaşta raporla.
+36. ⬜ EnemyAI'nin pop cap'e takılmadan üretim döngüsünü 30 dakikalık simde doğrula.
+37. ⬜ EnemyAI'nin build order'ını Blacksmith önceliğiyle yeniden dengele.
+38. ⬜ EnemyAI'nin harita tipine göre Dock öncelik skorunu ayarla.
+39. ⬜ Civilization denied tech setlerini tek bir QA tablosunda topla.
+40. ⬜ Unique unit trainability için civ bazlı eğitim matrisi oluştur.
+41. ⬜ Unique tech çiftlerinin civ tooltip'lerini otomatik ürettir.
+42. ⬜ Tech availability sonuçlarını HUD, AI ve research queue için tek cache ile paylaş.
+43. ⬜ ResourceManager ledger değişimlerini ekonomide olay tabanlı log ile kaydet.
+44. ⬜ Tribute / market / trade / relic gold akışlarını tek kaynaklı ekonomi raporuna bağla.
+45. ⬜ Farm reseed ile decay arasındaki dengeyi 20 dakikalık simde ölç.
+46. ⬜ Islands, Arena ve Arabia için farklı AI kompozisyonlarını karşılaştırmalı validator'a ekle.
+47. ⬜ New content için content-parity QA raporunu CSV olarak da dışa aktar.
+48. ⬜ `docs/wiki/00-index.md` ile bu plan arasındaki çelişkileri otomatik işaretle.
+49. ⬜ Obsolete backlog maddelerini her milestone sonunda tarih damgasıyla kapat.
+50. ⬜ Bu 50 maddeden ilkini seçip sırayla kapat, her kapanışta validator kanıtı ekle.
+
 ---
 
 ## Açık İşler (kanonik backlog — canlı odak)
@@ -62,10 +121,9 @@ taşıması. Bunlar tek listede:
 | **QA.font** | `font=null` → boş menü bug class'ı: ortak `UiFonts.Default` helper; ScenarioEditor+CampaignScreen+ReplayViewer düzeltildi | ✔️ | MCP sweep: 84 UI Text, **0 null-font** |
 | **QA.tutorial** | TutorialSystem WorldRoot'a bağlandı (dead code'du — hiç instantiate edilmiyordu) | ✔️ | MCP: TutorialCanvas SHOWING, "Adım 1/7" |
 | **QA.emoji** | UI butonlarından render edilemeyen emoji (📝🗑️▶) kaldırıldı | ✔️ | `ScenarioEditor.cs` |
+| **QA.wave2** | Oynanış QA Dalga 2: builder→inşa, üretim+kuyruk+rally, unit command/control-group, pause/subscreen akışları için Editor/batchmode kapısı | ✔️ | `GameplayQaWave2Validator`; `AgeOfArenaUnity/Logs/gameplay-qa-wave2-20260610-001850.txt` 5/5 PASS; `SelfTests` 17/17 PASS; `StabilizeQaValidator` PASS; resource-rally, pause timeScale restore ve lifecycle null-slot düzeltmeleri |
 
-> **Sonraki oturum önceliği:** Oynanış QA Dalga 2 — gerçek input ile uçtan-uca akış testi
-> (villager→bina yerleştir→inşa; bina→train→kuyruk; attack-move/patrol/control-group;
-> pause menü alt-ekranları). Sonra N17.ws (multiplayer).
+> **Sonraki oturum önceliği:** İsteğe bağlı gerçek Play/MCP input kanıtı; ardından N17.ws (multiplayer).
 
 ---
 

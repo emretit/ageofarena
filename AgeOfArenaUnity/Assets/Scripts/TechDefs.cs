@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 /// <summary>
 /// Static definition of a researchable technology: where it's researched, the age
@@ -46,6 +47,18 @@ public struct TechDef
 
 public static class TechDefs
 {
+    public readonly struct TechAvailability
+    {
+        public readonly bool canResearch;
+        public readonly string reason;
+
+        public TechAvailability(bool canResearch, string reason)
+        {
+            this.canResearch = canResearch;
+            this.reason = reason;
+        }
+    }
+
     static readonly TechDef[] Table =
     {
         //   type                 building                   reqAge       f    w    g  s  time  name
@@ -165,6 +178,25 @@ public static class TechDefs
         new(TechType.Perfusion,     BuildingType.Castle,       Age.Imperial,  0,   0, 450, 0, 40f, "Perfüzyon",      Civilization.Goths),
         new(TechType.Sipahi,        BuildingType.Castle,       Age.Castle,  350,   0, 150, 0, 40f, "Sipahi",         Civilization.Turks),
         new(TechType.Artillery,     BuildingType.Castle,       Age.Imperial,500,   0, 450, 0, 40f, "Topçuluk",       Civilization.Turks),
+
+        // ── N content: core AoE2 techs added for parity ──────────────────────
+        new(TechType.HandCart,      BuildingType.TownCenter,   Age.Castle,  300, 200, 0, 0, 35f, "Gelişmiş El Arabası", TechType.Wheelbarrow),
+        new(TechType.TownWatch,     BuildingType.TownCenter,   Age.Feudal,   75,   0,  0, 0, 20f, "Kasaba Gözcülüğü"),
+        new(TechType.TownPatrol,    BuildingType.TownCenter,   Age.Castle,  300,   0,  0, 0, 30f, "Kasaba Devriyesi", TechType.TownWatch),
+        new(TechType.TwoManSaw,     BuildingType.LumberCamp,   Age.Castle,   300, 200, 0, 0, 35f, "İki Kişilik Testere", TechType.BowSaw),
+        new(TechType.GoldShaftMining, BuildingType.MiningCamp, Age.Castle,   200, 100, 0, 0, 28f, "Altın Şaft Madenciliği", TechType.GoldMining),
+        new(TechType.StoneShaftMining, BuildingType.MiningCamp, Age.Castle,  200, 100, 0, 0, 28f, "Taş Şaft Madenciliği", TechType.StoneMining),
+        new(TechType.Squires,       BuildingType.Barracks,     Age.Castle,   200,   0, 0, 0, 28f, "Yaverler"),
+        new(TechType.Arson,         BuildingType.Barracks,     Age.Castle,   150,  50, 0, 0, 28f, "Ateşe Verme", TechType.ManAtArms),
+        new(TechType.Supplies,      BuildingType.Barracks,     Age.Feudal,   150,   0, 0, 0, 25f, "Erzak"),
+        new(TechType.Gambesons,     BuildingType.Barracks,     Age.Castle,   100, 100, 0, 0, 28f, "Göğüslük", TechType.Supplies),
+        new(TechType.ThumbRing,     BuildingType.ArcheryRange, Age.Castle,   300, 250, 0, 0, 35f, "Başparmak Halkası"),
+        new(TechType.ParthianTactics, BuildingType.ArcheryRange, Age.Imperial,200, 300, 0, 0, 40f, "Part Taktikleri"),
+        new(TechType.CappedRam,     BuildingType.SiegeWorkshop, Age.Castle,  300,   0, 225, 0, 35f, "Gelişmiş Koçbaşı"),
+        new(TechType.SiegeRam,      BuildingType.SiegeWorkshop, Age.Imperial, 500,   0, 400, 0, 40f, "Kuşatma Koçbaşı", TechType.CappedRam),
+        new(TechType.Onager,        BuildingType.SiegeWorkshop, Age.Imperial, 750,   0, 400, 0, 40f, "Onager"),
+        new(TechType.SiegeOnager,   BuildingType.SiegeWorkshop, Age.Imperial,1500,   0,1000, 0, 50f, "Kuşatma Onager", TechType.Onager),
+        new(TechType.HeavyScorpion, BuildingType.SiegeWorkshop, Age.Imperial, 750,   0, 400, 0, 40f, "Ağır Akrep"),
     };
 
     public static TechDef Get(TechType t)
@@ -202,11 +234,93 @@ public static class TechDefs
         return list;
     }
 
+    /// <summary>All researchables for a specific building, applying the full shared
+    /// availability gate (age, prerequisites, civ denials and age-up building count).</summary>
+    public static List<TechDef> ForBuilding(BuildingEntity building)
+    {
+        var list = new List<TechDef>();
+        if (building == null || building.underConstruction) return list;
+
+        var gm = GameManager.Instance;
+        if (gm == null || building.teamId < 0 || building.teamId >= gm.teamTech.Length)
+            return list;
+
+        var tech = gm.teamTech[building.teamId] ??= new TechState();
+        Civilization civ = gm.teamCivs[building.teamId];
+        for (int i = 0; i < Table.Length; i++)
+        {
+            var d = Table[i];
+            if (d.building != building.type) continue;
+            var avail = Check(building, d, tech, civ, gm);
+            if (avail.canResearch) list.Add(d);
+        }
+        return list;
+    }
+
+    /// <summary>Shared availability gate used by HUD, ResearchSystem and AI.</summary>
+    public static TechAvailability Check(BuildingEntity building, TechDef def,
+        TechState tech = null, Civilization civ = Civilization.None, GameManager gm = null)
+    {
+        if (building == null) return new TechAvailability(false, "no building");
+        if (building.underConstruction) return new TechAvailability(false, "building incomplete");
+        if (def.building != building.type) return new TechAvailability(false, "wrong building");
+
+        gm ??= GameManager.Instance;
+        if (gm == null) return new TechAvailability(false, "no game manager");
+        if (building.teamId < 0 || building.teamId >= gm.teamTech.Length)
+            return new TechAvailability(false, "invalid team");
+
+        tech ??= gm.teamTech[building.teamId] ??= new TechState();
+        civ = civ != Civilization.None ? civ : gm.teamCivs[building.teamId];
+
+        if (tech.Has(def.type)) return new TechAvailability(false, "already researched");
+        if (def.hasRequires && !tech.Has(def.requires))
+            return new TechAvailability(false, "missing prerequisite");
+        if (def.requiredCiv != Civilization.None && def.requiredCiv != civ)
+            return new TechAvailability(false, "civilization locked");
+        if (CivilizationDefs.IsTechDenied(civ, def.type))
+            return new TechAvailability(false, "civilization denied");
+        if (!IsAvailable(def, tech.age))
+            return new TechAvailability(false, "age locked");
+        if (IsAgeTech(def.type) && !MeetsBuildingPrereq(gm, building.teamId, 2))
+            return new TechAvailability(false, "needs 2 substantial buildings");
+
+        return new TechAvailability(true, "");
+    }
+
+    public static bool CanResearch(BuildingEntity building, TechDef def)
+        => Check(building, def).canResearch;
+
     static bool IsAvailable(TechDef d, Age age)
     {
         if (d.type == TechType.FeudalAge) return age == Age.Dark;
         if (d.type == TechType.CastleAge) return age == Age.Feudal;
         if (d.type == TechType.ImperialAge) return age == Age.Castle;
         return age >= d.requiredAge;
+    }
+
+    static bool IsAgeTech(TechType t) =>
+        t == TechType.FeudalAge || t == TechType.CastleAge || t == TechType.ImperialAge;
+
+    static bool CountsTowardAge(BuildingType t) => t switch
+    {
+        BuildingType.TownCenter or BuildingType.House or BuildingType.Farm
+            or BuildingType.Wall or BuildingType.Gate or BuildingType.Outpost
+            or BuildingType.FishTrap => false,
+        _ => true,
+    };
+
+    static bool MeetsBuildingPrereq(GameManager gm, int teamId, int required)
+    {
+        if (gm == null) return true;
+        int count = 0;
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b == null || b.teamId != teamId || b.underConstruction) continue;
+            if (!CountsTowardAge(b.type)) continue;
+            if (++count >= required) return true;
+        }
+        return false;
     }
 }

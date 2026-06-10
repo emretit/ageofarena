@@ -142,7 +142,7 @@ public class AudioManager : MonoBehaviour
         if (_instance != null) return;
         LoadVolumes();
         var go = new GameObject("AudioManager");
-        DontDestroyOnLoad(go);
+        if (Application.isPlaying) DontDestroyOnLoad(go);
         _instance = go.AddComponent<AudioManager>();
         _instance.Bootstrap();
     }

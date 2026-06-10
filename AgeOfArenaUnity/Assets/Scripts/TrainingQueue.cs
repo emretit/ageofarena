@@ -27,7 +27,7 @@ public class TrainingQueue : MonoBehaviour
     // multi-team bug (masked only because the AI bypasses the queue). N5 adds per-team pop cap.
     ResourceManager Res(BuildingEntity b)
         => GM.teamRes != null && b != null && b.teamId >= 0 && b.teamId < GM.teamRes.Length
-            ? GM.teamRes[b.teamId] : GM.resources;
+            ? GM.teamRes[b.teamId] ??= new ResourceManager() : GM.resources;
 
     /// <summary>
     /// Attempt to enqueue a unit. Returns false if resources are insufficient or
@@ -218,10 +218,27 @@ public class TrainingQueue : MonoBehaviour
         gm.RecomputePop();
         AudioManager.Play(AudioManager.SoundId.UnitTrained, 0.8f);
 
-        // If the building has a rally point, the fresh unit walks there instead of
-        // idling at the gate (AoE behaviour).
-        if (b.hasRally && unit != null) unit.MoveTo(b.rallyPoint);
+        ApplyRally(b, unit, gm);
     }
+
+    static void ApplyRally(BuildingEntity b, UnitEntity unit, GameManager gm)
+    {
+        if (b == null || unit == null || !b.hasRally) return;
+
+        var node = b.rallyNode;
+        if (node != null && !node.Depleted && CanGather(unit, node))
+        {
+            gm.gather?.AssignGather(unit, node);
+            return;
+        }
+
+        unit.MoveTo(b.rallyPoint);
+    }
+
+    static bool CanGather(UnitEntity unit, ResourceNode node)
+        => unit != null && node != null
+           && (unit.type == UnitType.Villager
+               || (unit.type == UnitType.FishingShip && node.kind == ResourceKind.Food));
 
     static bool BlacksmithNearby(BuildingEntity b, float radius)
     {

@@ -109,7 +109,8 @@ public static class ResourceFactory
     {
         var first = KenneyModels.Spawn(RockModels[0], null, Vector3.zero);
         if (first == null) return null;
-        Object.Destroy(first);
+        if (Application.isPlaying) Object.Destroy(first);
+        else Object.DestroyImmediate(first);
 
         var g = new GameObject(name);
         g.transform.SetParent(parent, false);

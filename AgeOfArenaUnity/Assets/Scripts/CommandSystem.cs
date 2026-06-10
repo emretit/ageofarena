@@ -130,6 +130,7 @@ public class CommandSystem : MonoBehaviour
             Vector3 rp = rnode != null && !rnode.Depleted ? rnode.transform.position : hit.point;
             selBld.hasRally = true;
             selBld.rallyPoint = rp;
+            selBld.rallyNode = rnode != null && !rnode.Depleted ? rnode : null;
             SpawnMarker(rp, MoveColor);
             return;
         }

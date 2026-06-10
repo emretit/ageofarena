@@ -47,9 +47,9 @@ public class EnemyAI : MonoBehaviour
     // Unit costs — these MUST mirror the real UnitTrainable costs the AI enqueues
     // (BuildingEntity), otherwise the affordability gate tests the wrong resource:
     // the AI would "pick" a unit it can't actually pay for, Enqueue rejects it, and the
-    // spawn tick is wasted. (Old bug: Militia was gated on food=60 though Militia costs
-    // wood 60 / gold 20; Archer was gated on wood 35 / gold 25 though it costs wood 25 / gold 45.)
-    const int MilitiaCostWood    = 60;   // Militia: wood 60, gold 20
+    // spawn tick is wasted. (Old bug: Militia was gated on wood=60 though Militia now
+    // costs food 60 / gold 20; Archer was gated on wood 35 / gold 25 though it costs wood 25 / gold 45.)
+    const int MilitiaCostFood    = 60;   // Militia: food 60, gold 20
     const int MilitiaCostGold    = 20;
     const int ArcherCostWood     = 25;   // Archer: wood 25, gold 45
     const int ArcherCostGold     = 45;
@@ -74,6 +74,7 @@ public class EnemyAI : MonoBehaviour
     Color _teamColor;
     Vector3 _home;
     Transform _unitsRoot;
+    MapType _mapType = MapType.Arena;
 
     // Personality-tuned parameters (set in ApplyPersonality)
     float _spawnInterval;
@@ -100,12 +101,13 @@ public class EnemyAI : MonoBehaviour
     AIPersonality _personality;
     AIProfile     _profile;
 
-    public void Init(int teamId, Color teamColor, Vector3 home, Transform unitsRoot, AIPersonality personality)
+    public void Init(int teamId, Color teamColor, Vector3 home, Transform unitsRoot, AIPersonality personality, MapType mapType = MapType.Arena)
     {
         _teamId    = teamId;
         _teamColor = teamColor;
         _home      = home;
         _unitsRoot = unitsRoot;
+        _mapType   = mapType;
         _personality = personality;
         _profile     = AIProfile.For(personality);  // AISC
         ApplyPersonality(personality);
@@ -241,49 +243,159 @@ public class EnemyAI : MonoBehaviour
     void TryAdvanceTech()
     {
         if (_tech == null) return;
-        switch (_tech.age)
+
+        TechType[] order = _tech.age switch
         {
-            case Age.Dark:
-                TryResearch(TechType.FeudalAge);
-                break;
-            case Age.Feudal:
-                if (!TryResearch(TechType.Forging)         // cheap blacksmith bonus first
-                    && !TryResearch(TechType.ManAtArms))   // then the infantry tier-up
-                    TryResearch(TechType.CastleAge);       // else save for the next age
-                break;
-            case Age.Castle:
-                // Blacksmith bonuses, then tier promotions (Longswordsman needs ManAtArms
-                // first), then save for the final age once the Castle tree is exhausted.
-                if (!TryResearch(TechType.ScaleMail))
-                {
-                    bool did = _tech.Has(TechType.ManAtArms) && TryResearch(TechType.Longswordsman);
-                    if (!did) did = TryResearch(TechType.Cavalier);
-                    if (!did) did = TryResearch(TechType.Crossbowman);
-                    if (!did) did = TryResearch(TechType.Bloodlines);
-                    if (!did) TryResearch(TechType.ImperialAge);
-                }
-                break;
-            case Age.Imperial:
-                // Mop up any Castle-age upgrades not yet finished before the rush.
-                if (!TryResearch(TechType.ScaleMail))
-                {
-                    bool did = _tech.Has(TechType.ManAtArms) && TryResearch(TechType.Longswordsman);
-                    if (!did) did = TryResearch(TechType.Cavalier);
-                    if (!did) did = TryResearch(TechType.Crossbowman);
-                    if (!did) TryResearch(TechType.Bloodlines);
-                }
-                break;
+            Age.Dark => new[] { TechType.FeudalAge },
+            Age.Feudal => new[]
+            {
+                TechType.DoubleBitAxe, TechType.GoldMining, TechType.StoneMining, TechType.Wheelbarrow,
+                TechType.Forging, TechType.Fletching, TechType.TownWatch,
+                TechType.Supplies, TechType.ManAtArms, TechType.Squires,
+                TechType.CastleAge
+            },
+            Age.Castle => CastleTechOrder(),
+            _ => ImperialTechOrder()
+        };
+
+        for (int i = 0; i < order.Length; i++)
+            if (TryResearch(order[i])) return;
+    }
+
+    TechType[] CastleTechOrder()
+    {
+        var gm = GameManager.Instance;
+        bool monkReady = gm != null
+            && (OwnsProduction(gm, BuildingType.Monastery) || CountType(gm, UnitType.Monk) > 0);
+        bool navyReady = gm != null && _mapType == MapType.Islands && OwnsProduction(gm, BuildingType.Dock);
+
+        if (navyReady)
+        {
+            return new[]
+            {
+                TechType.WarGalley,
+                TechType.Sanctity, TechType.BlockPrinting, TechType.Redemption,
+                TechType.ScaleMail, TechType.Bloodlines, TechType.Bodkin, TechType.Pikeman,
+                TechType.LightCavalry, TechType.Caravan, TechType.Coinage,
+                TechType.ThumbRing, TechType.CappedRam, TechType.Onager,
+                TechType.TwoManSaw, TechType.GoldShaftMining, TechType.StoneShaftMining,
+                TechType.HandCart, TechType.ImperialAge
+            };
         }
+
+        if (monkReady)
+        {
+            return new[]
+            {
+                TechType.Sanctity, TechType.BlockPrinting, TechType.Redemption,
+                TechType.ScaleMail, TechType.Bloodlines, TechType.Bodkin, TechType.Pikeman,
+                TechType.LightCavalry, TechType.WarGalley, TechType.Caravan, TechType.Coinage,
+                TechType.ThumbRing, TechType.CappedRam, TechType.Onager,
+                TechType.TwoManSaw, TechType.GoldShaftMining, TechType.StoneShaftMining,
+                TechType.HandCart, TechType.ImperialAge
+            };
+        }
+
+        return new[]
+        {
+            TechType.ScaleMail, TechType.Bloodlines, TechType.Bodkin, TechType.Pikeman,
+            TechType.LightCavalry, TechType.WarGalley, TechType.Caravan, TechType.Coinage,
+            TechType.Sanctity, TechType.BlockPrinting, TechType.Redemption,
+            TechType.ThumbRing, TechType.CappedRam, TechType.Onager,
+            TechType.TwoManSaw, TechType.GoldShaftMining, TechType.StoneShaftMining,
+            TechType.HandCart, TechType.ImperialAge
+        };
+    }
+
+    TechType[] ImperialTechOrder()
+    {
+        var gm = GameManager.Instance;
+        bool navyReady = gm != null && _mapType == MapType.Islands && OwnsProduction(gm, BuildingType.Dock);
+        bool marketReady = gm != null && OwnsProduction(gm, BuildingType.Market);
+        bool siegeReady = gm != null && OwnsProduction(gm, BuildingType.SiegeWorkshop);
+
+        if (navyReady && marketReady && siegeReady)
+        {
+            return new[]
+            {
+                TechType.Galleon,
+                TechType.Guilds, TechType.Banking,
+                TechType.CappedRam, TechType.SiegeRam, TechType.Onager, TechType.SiegeOnager, TechType.HeavyScorpion,
+                TechType.BlastFurnace, TechType.ChainMail, TechType.PlateMail, TechType.Bracer,
+                TechType.Arbalest, TechType.Paladin, TechType.Hussar, TechType.HeavyCamel,
+                TechType.Theocracy
+            };
+        }
+
+        if (marketReady && siegeReady)
+        {
+            return new[]
+            {
+                TechType.Guilds, TechType.Banking,
+                TechType.CappedRam, TechType.SiegeRam, TechType.Onager, TechType.SiegeOnager, TechType.HeavyScorpion,
+                TechType.BlastFurnace, TechType.ChainMail, TechType.PlateMail, TechType.Bracer,
+                TechType.Arbalest, TechType.Paladin, TechType.Hussar, TechType.HeavyCamel,
+                TechType.Theocracy
+            };
+        }
+
+        if (marketReady)
+        {
+            return new[]
+            {
+                TechType.Guilds, TechType.Banking,
+                TechType.BlastFurnace, TechType.ChainMail, TechType.PlateMail, TechType.Bracer,
+                TechType.Arbalest, TechType.Paladin, TechType.Hussar, TechType.HeavyCamel,
+                TechType.Theocracy, TechType.SiegeRam, TechType.SiegeOnager, TechType.HeavyScorpion
+            };
+        }
+
+        if (siegeReady)
+        {
+            return new[]
+            {
+                TechType.CappedRam, TechType.SiegeRam, TechType.Onager, TechType.SiegeOnager, TechType.HeavyScorpion,
+                TechType.BlastFurnace, TechType.ChainMail, TechType.PlateMail, TechType.Bracer,
+                TechType.Arbalest, TechType.Paladin, TechType.Hussar, TechType.HeavyCamel,
+                TechType.Guilds, TechType.Banking, TechType.Theocracy
+            };
+        }
+
+        return new[]
+        {
+            TechType.BlastFurnace, TechType.ChainMail, TechType.PlateMail, TechType.Bracer,
+            TechType.Arbalest, TechType.Paladin, TechType.Hussar, TechType.HeavyCamel,
+            TechType.Guilds, TechType.Banking, TechType.Theocracy,
+            TechType.SiegeRam, TechType.SiegeOnager, TechType.HeavyScorpion
+        };
     }
 
     bool TryResearch(TechType type)
     {
-        if (_tech.Has(type)) return false;
         var d = TechDefs.Get(type);
+        var gm = GameManager.Instance;
+        if (_tech == null || gm == null) return false;
+        var building = FindResearchBuilding(d.building);
+        if (building == null) return false;
+        var avail = TechDefs.Check(building, d, _tech, gm.teamCivs[_teamId], gm);
+        if (!avail.canResearch) return false;
         if (!_res.CanAfford(d.food, d.wood, d.gold, d.stone)) return false;
         _res.Deduct(d.food, d.wood, d.gold, d.stone);
         ResearchSystem.Apply(type, _teamId);
         return true;
+    }
+
+    BuildingEntity FindResearchBuilding(BuildingType type)
+    {
+        var gm = GameManager.Instance;
+        if (gm == null) return null;
+        for (int i = 0; i < gm.buildings.Count; i++)
+        {
+            var b = gm.buildings[i];
+            if (b != null && b.teamId == _teamId && b.type == type && !b.underConstruction && b.hp > 0f)
+                return b;
+        }
+        return null;
     }
 
     // ── Military: reinforcement ────────────────────────────────────────────────
@@ -297,9 +409,10 @@ public class EnemyAI : MonoBehaviour
         UnitType.Cavalry or UnitType.Camel or
         UnitType.Cataphract or UnitType.Mameluke or UnitType.WarElephant => BuildingType.Stable,
 
-        UnitType.Trebuchet or UnitType.Mangonel or UnitType.Ram => BuildingType.SiegeWorkshop,
+        UnitType.Trebuchet or UnitType.Mangonel or UnitType.Ram or UnitType.Scorpion => BuildingType.SiegeWorkshop,
 
         UnitType.Medic => BuildingType.Castle,
+        UnitType.FishingShip or UnitType.Galley or UnitType.FireShip or UnitType.DemoShip => BuildingType.Dock,
 
         UnitType.Villager => BuildingType.TownCenter,
 
@@ -351,6 +464,28 @@ public class EnemyAI : MonoBehaviour
     {
         Age age = _tech != null ? _tech.age : Age.Dark;
 
+        if (_mapType == MapType.Islands && OwnsProduction(gm, BuildingType.Dock))
+        {
+            int fishers = CountType(gm, UnitType.FishingShip);
+            if (fishers < 2 && _res.CanAfford(0, 75, 0, 0))
+                return UnitType.FishingShip;
+
+            int enemyShips = CountEnemyShips(gm);
+            int demos = CountType(gm, UnitType.DemoShip);
+            if (age >= Age.Castle && enemyShips >= 3 && demos < 1 + enemyShips / 4
+                && _res.CanAfford(0, 70, 50, 0))
+                return UnitType.DemoShip;
+
+            int fire = CountType(gm, UnitType.FireShip);
+            if (age >= Age.Feudal && fire < Mathf.Max(1, enemyShips / 2 + CountArmy(gm) / 10)
+                && _res.CanAfford(0, 100, 45, 0))
+                return UnitType.FireShip;
+
+            int galleys = CountType(gm, UnitType.Galley);
+            if (age >= Age.Feudal && galleys < 2 + CountArmy(gm) / 6 && _res.CanAfford(0, 120, 60, 0))
+                return UnitType.Galley;
+        }
+
         // Siege: aim for ~1 Trebuchet per 6 army to demolish structures. GATED on the AI
         // actually owning a Siege Workshop — otherwise BuildingFor(Trebuchet) finds no
         // production building, TrySpawn returns without training, and since `treb` can never
@@ -361,6 +496,9 @@ public class EnemyAI : MonoBehaviour
             int treb = CountType(gm, UnitType.Trebuchet);
             if (treb < 1 + CountArmy(gm) / 6 && _res.CanAfford(0, TrebuchetCostWood, TrebuchetCostGold, 0))
                 return UnitType.Trebuchet;
+            int scorp = CountType(gm, UnitType.Scorpion);
+            if (scorp < 1 + CountArmy(gm) / 8 && _res.CanAfford(0, 120, 80, 0))
+                return UnitType.Scorpion;
         }
 
         // Counter-awareness: if the enemy army has many Cavalry, add Spearmen.
@@ -380,12 +518,15 @@ public class EnemyAI : MonoBehaviour
         // AISC: profile-weighted frontline selection.
         // Build a weighted candidate list of affordable/unlocked unit types.
         var candidates = new System.Collections.Generic.List<(UnitType type, float w)>(3);
-        if (_res.CanAfford(0, MilitiaCostWood, MilitiaCostGold, 0))
+        if (_res.CanAfford(MilitiaCostFood, 0, MilitiaCostGold, 0))
             candidates.Add((UnitType.Militia, _profile.meleeWeight));
         if (age >= Age.Feudal && _res.CanAfford(0, ArcherCostWood, ArcherCostGold, 0))
             candidates.Add((UnitType.Archer, _profile.archerWeight));
         if (age >= Age.Castle && _res.CanAfford(CavalryCostFood, 0, 0, 0))
             candidates.Add((UnitType.Cavalry, _profile.cavalryWeight));
+        if (age >= Age.Castle && OwnsProduction(gm, BuildingType.SiegeWorkshop)
+            && _res.CanAfford(0, 120, 80, 0))
+            candidates.Add((UnitType.Scorpion, _profile.siegeWeight));
 
         if (candidates.Count == 0) return null;
 
@@ -408,6 +549,21 @@ public class EnemyAI : MonoBehaviour
         {
             var u = gm.units[i];
             if (u != null && u.teamId != _teamId && u.type == UnitType.Cavalry) n++;
+        }
+        return n;
+    }
+
+    int CountEnemyShips(GameManager gm)
+    {
+        int n = 0;
+        for (int i = 0; i < gm.units.Count; i++)
+        {
+            var u = gm.units[i];
+            if (u == null || u.teamId == _teamId) continue;
+            if (!(GameManager.Instance?.IsEnemy(_teamId, u.teamId) ?? true)) continue;
+            if (u.type == UnitType.Galley || u.type == UnitType.FireShip
+                || u.type == UnitType.DemoShip || u.type == UnitType.FishingShip)
+                n++;
         }
         return n;
     }
