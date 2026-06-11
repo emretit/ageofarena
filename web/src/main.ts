@@ -143,6 +143,8 @@ function startGame(mapType: MapType): void {
   // ── Damage popups ─────────────────────────────────────────────────────────
   const damagePopup = new DamagePopup(app);
   combat.onHit = (pos, dmg) => { damagePopup.show(pos, dmg); play(SoundId.UnitAttack); };
+  combat.onUnitKilled = () => play(SoundId.UnitDie);
+  combat.onBuildingDestroyed = () => play(SoundId.BuildingDie);
 
   // ── Audio hooks (cosmetic seam: sim → sound) ──────────────────────────────
   ageSystem.onAgeUp = () => play(SoundId.AgeUp);

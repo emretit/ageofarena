@@ -43,6 +43,12 @@ export class CombatSystem {
   /** Called when a ranged unit fires — (fromPos, toPos, isSplash). */
   onRangedFire: ((from: THREE.Vector3, to: THREE.Vector3, splash: boolean) => void) | null = null;
 
+  /** Called when a unit is killed (hp → 0). */
+  onUnitKilled: ((u: import("./Unit").Unit) => void) | null = null;
+
+  /** Called when a building is destroyed (hp → 0). */
+  onBuildingDestroyed: ((b: import("./Building").Building) => void) | null = null;
+
   private readonly _bldTimers = new Map<Building, number>();
 
   tick(units: Unit[], buildings: Building[], dt: number) {
@@ -156,6 +162,7 @@ export class CombatSystem {
       );
       target.takeDamage(dmg);
       this.onHit?.(target.pos, dmg);
+      if (!target.alive) this.onUnitKilled?.(target);
       if (attacker.isRanged) {
         this.onRangedFire?.(attacker.pos.clone(), target.pos.clone(), attacker.splashRadius > 0);
       }
@@ -172,6 +179,7 @@ export class CombatSystem {
       );
       targetB.takeDamage(dmg);
       this.onHit?.(targetB.pos, dmg);
+      if (!targetB.alive) this.onBuildingDestroyed?.(targetB);
       if (attacker.isRanged) {
         this.onRangedFire?.(attacker.pos.clone(), targetB.pos.clone(), attacker.splashRadius > 0);
       }
