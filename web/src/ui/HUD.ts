@@ -16,16 +16,19 @@ import type { GarrisonSystem } from "../game/GarrisonSystem";
 
 /** Minimum age required to construct each building type. */
 const BUILDING_MIN_AGE: Partial<Record<BuildingType, Age>> = {
-  [BuildingType.Barracks]:    Age.Feudal,
-  [BuildingType.ArcheryRange]:Age.Feudal,
-  [BuildingType.Stable]:      Age.Feudal,
-  [BuildingType.Market]:      Age.Feudal,
-  [BuildingType.Blacksmith]:  Age.Feudal,
-  [BuildingType.LumberCamp]:  Age.Feudal,
-  [BuildingType.MiningCamp]:  Age.Feudal,
-  [BuildingType.Mill]:        Age.Feudal,
-  [BuildingType.Monastery]:   Age.Castle,
-  [BuildingType.Castle]:      Age.Castle,
+  [BuildingType.Barracks]:     Age.Feudal,
+  [BuildingType.ArcheryRange]: Age.Feudal,
+  [BuildingType.Stable]:       Age.Feudal,
+  [BuildingType.Market]:       Age.Feudal,
+  [BuildingType.Blacksmith]:   Age.Feudal,
+  [BuildingType.LumberCamp]:   Age.Feudal,
+  [BuildingType.MiningCamp]:   Age.Feudal,
+  [BuildingType.Mill]:         Age.Feudal,
+  [BuildingType.Monastery]:    Age.Castle,
+  [BuildingType.University]:   Age.Castle,
+  [BuildingType.SiegeWorkshop]:Age.Castle,
+  [BuildingType.WatchTower]:   Age.Feudal,
+  [BuildingType.Castle]:       Age.Castle,
 };
 
 /** Buildings the player can construct (ordered by tech progression). */
@@ -39,7 +42,10 @@ export const BUILDABLE: BuildingType[] = [
   BuildingType.Mill,
   BuildingType.Market,
   BuildingType.Blacksmith,
+  BuildingType.WatchTower,
   BuildingType.Monastery,
+  BuildingType.University,
+  BuildingType.SiegeWorkshop,
   BuildingType.Castle,
 ];
 

@@ -1,6 +1,6 @@
 /**
  * ResearchSystem.ts — Port of ResearchSystem.cs + TechDefs.cs (core subset).
- * Blacksmith/LumberCamp/Mill/Barracks/Stable/TC research queue.
+ * Blacksmith/LumberCamp/Mill/Barracks/Stable/TC/University/Monastery/Market research queue.
  * Costs from TechDefs.cs (Unity source of truth).
  */
 import { Age, ArmorClass, BuildingType, UnitType } from "../core/GameTypes";
@@ -14,27 +14,34 @@ export const enum TechId {
   Forging             = "Forging",
   PaddedArcherArmor   = "PaddedArcherArmor",
   ScaleMail           = "ScaleMail",
+  ScaleBarding        = "ScaleBarding",
   // Blacksmith — Castle
   IronCasting         = "IronCasting",
   ChainMail           = "ChainMail",
   LeatherArcherArmor  = "LeatherArcherArmor",
   Bodkin              = "Bodkin",
+  ChainBarding        = "ChainBarding",
   // Blacksmith — Imperial
   BlastFurnace        = "BlastFurnace",
   PlateMail           = "PlateMail",
   RingArcherArmor     = "RingArcherArmor",
-  ScaleBarding        = "ScaleBarding",
-  ChainBarding        = "ChainBarding",
   PlateBarding        = "PlateBarding",
+  Bracer              = "Bracer",
   // Gather — Feudal
   DoubleBitAxe        = "DoubleBitAxe",
   Wheelbarrow         = "Wheelbarrow",
   HorseCollar         = "HorseCollar",
   Loom                = "Loom",
+  GoldMining          = "GoldMining",
+  StoneMining         = "StoneMining",
   // Gather — Castle
   BowSaw              = "BowSaw",
   HandCart            = "HandCart",
   HeavyPlow           = "HeavyPlow",
+  GoldShaftMining     = "GoldShaftMining",
+  StoneMiningUpgrade  = "StoneMiningUpgrade",
+  // Gather — Imperial
+  CropRotation        = "CropRotation",
   // Military — Feudal
   ManAtArms           = "ManAtArms",
   // Military — Castle
@@ -43,6 +50,8 @@ export const enum TechId {
   Crossbowman         = "Crossbowman",
   Cavalier            = "Cavalier",
   Pikeman             = "Pikeman",
+  LightCavalry        = "LightCavalry",
+  Husbandry           = "Husbandry",
   // Military — Imperial
   TwoHandedSwordsman  = "TwoHandedSwordsman",
   Champion            = "Champion",
@@ -50,6 +59,26 @@ export const enum TechId {
   Paladin             = "Paladin",
   Halberdier          = "Halberdier",
   EliteSkirmisher     = "EliteSkirmisher",
+  Hussar              = "Hussar",
+  // Market
+  Caravan             = "Caravan",
+  Coinage             = "Coinage",
+  Banking             = "Banking",
+  // University — Castle
+  Ballistics          = "Ballistics",
+  Masonry             = "Masonry",
+  Architecture        = "Architecture",
+  GuardTower          = "GuardTower",
+  // University — Imperial
+  Chemistry           = "Chemistry",
+  Keep                = "Keep",
+  Fortified           = "Fortified",
+  // Monastery — Castle
+  Sanctity            = "Sanctity",
+  BlockPrinting       = "BlockPrinting",
+  Redemption          = "Redemption",
+  // Monastery — Imperial
+  Theocracy           = "Theocracy",
 }
 
 export interface TechDef {
@@ -65,46 +94,75 @@ export interface TechDef {
 
 export const TECH_DEFS: Record<TechId, TechDef> = {
   // ── Blacksmith Feudal ────────────────────────────────────────────────────
-  [TechId.Fletching]:          { label: "Fletching",           host: BuildingType.Blacksmith, minAge: Age.Feudal,   food: 100, wood:  0, gold:  50, time: 20 },
-  [TechId.Forging]:            { label: "Forging",             host: BuildingType.Blacksmith, minAge: Age.Feudal,   food: 150, wood:  0, gold:   0, time: 20 },
-  [TechId.PaddedArcherArmor]:  { label: "Padded Arch. Armor",  host: BuildingType.Blacksmith, minAge: Age.Feudal,   food: 100, wood:  0, gold:  50, time: 22 },
-  [TechId.ScaleMail]:          { label: "Scale Mail Armor",    host: BuildingType.Blacksmith, minAge: Age.Feudal,   food: 100, wood:  0, gold:  50, time: 22 },
-  [TechId.ScaleBarding]:       { label: "Scale Barding",       host: BuildingType.Blacksmith, minAge: Age.Feudal,   food: 150, wood:  0, gold:   0, time: 22 },
+  [TechId.Fletching]:          { label: "Fletching",           host: BuildingType.Blacksmith,  minAge: Age.Feudal,   food: 100, wood:  0, gold:  50, time: 20 },
+  [TechId.Forging]:            { label: "Forging",             host: BuildingType.Blacksmith,  minAge: Age.Feudal,   food: 150, wood:  0, gold:   0, time: 20 },
+  [TechId.PaddedArcherArmor]:  { label: "Padded Arch. Armor",  host: BuildingType.Blacksmith,  minAge: Age.Feudal,   food: 100, wood:  0, gold:  50, time: 22 },
+  [TechId.ScaleMail]:          { label: "Scale Mail Armor",    host: BuildingType.Blacksmith,  minAge: Age.Feudal,   food: 100, wood:  0, gold:  50, time: 22 },
+  [TechId.ScaleBarding]:       { label: "Scale Barding",       host: BuildingType.Blacksmith,  minAge: Age.Feudal,   food: 150, wood:  0, gold:   0, time: 22 },
   // ── Blacksmith Castle ────────────────────────────────────────────────────
-  [TechId.IronCasting]:        { label: "Iron Casting",        host: BuildingType.Blacksmith, minAge: Age.Castle,   food: 220, wood:  0, gold: 120, time: 28, prereq: TechId.Forging },
-  [TechId.ChainMail]:          { label: "Chain Mail Armor",    host: BuildingType.Blacksmith, minAge: Age.Castle,   food: 200, wood:  0, gold: 100, time: 28, prereq: TechId.ScaleMail },
-  [TechId.LeatherArcherArmor]: { label: "Leather Arch. Armor", host: BuildingType.Blacksmith, minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 28, prereq: TechId.PaddedArcherArmor },
-  [TechId.Bodkin]:             { label: "Bodkin Arrow",        host: BuildingType.Blacksmith, minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 25, prereq: TechId.Fletching },
-  [TechId.ChainBarding]:       { label: "Chain Barding",       host: BuildingType.Blacksmith, minAge: Age.Castle,   food: 250, wood:  0, gold: 150, time: 28, prereq: TechId.ScaleBarding },
+  [TechId.IronCasting]:        { label: "Iron Casting",        host: BuildingType.Blacksmith,  minAge: Age.Castle,   food: 220, wood:  0, gold: 120, time: 28, prereq: TechId.Forging },
+  [TechId.ChainMail]:          { label: "Chain Mail Armor",    host: BuildingType.Blacksmith,  minAge: Age.Castle,   food: 200, wood:  0, gold: 100, time: 28, prereq: TechId.ScaleMail },
+  [TechId.LeatherArcherArmor]: { label: "Leather Arch. Armor", host: BuildingType.Blacksmith,  minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 28, prereq: TechId.PaddedArcherArmor },
+  [TechId.Bodkin]:             { label: "Bodkin Arrow",        host: BuildingType.Blacksmith,  minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 25, prereq: TechId.Fletching },
+  [TechId.ChainBarding]:       { label: "Chain Barding",       host: BuildingType.Blacksmith,  minAge: Age.Castle,   food: 250, wood:  0, gold: 150, time: 28, prereq: TechId.ScaleBarding },
   // ── Blacksmith Imperial ──────────────────────────────────────────────────
-  [TechId.BlastFurnace]:       { label: "Blast Furnace",       host: BuildingType.Blacksmith, minAge: Age.Imperial, food: 275, wood:  0, gold: 225, time: 32, prereq: TechId.IronCasting },
-  [TechId.PlateMail]:          { label: "Plate Mail Armor",    host: BuildingType.Blacksmith, minAge: Age.Imperial, food: 300, wood:  0, gold: 150, time: 32, prereq: TechId.ChainMail },
-  [TechId.RingArcherArmor]:    { label: "Ring Archer Armor",   host: BuildingType.Blacksmith, minAge: Age.Imperial, food: 250, wood:  0, gold: 200, time: 32, prereq: TechId.LeatherArcherArmor },
-  [TechId.PlateBarding]:       { label: "Plate Barding",       host: BuildingType.Blacksmith, minAge: Age.Imperial, food: 350, wood:  0, gold: 200, time: 32, prereq: TechId.ChainBarding },
+  [TechId.BlastFurnace]:       { label: "Blast Furnace",       host: BuildingType.Blacksmith,  minAge: Age.Imperial, food: 275, wood:  0, gold: 225, time: 32, prereq: TechId.IronCasting },
+  [TechId.PlateMail]:          { label: "Plate Mail Armor",    host: BuildingType.Blacksmith,  minAge: Age.Imperial, food: 300, wood:  0, gold: 150, time: 32, prereq: TechId.ChainMail },
+  [TechId.RingArcherArmor]:    { label: "Ring Archer Armor",   host: BuildingType.Blacksmith,  minAge: Age.Imperial, food: 250, wood:  0, gold: 200, time: 32, prereq: TechId.LeatherArcherArmor },
+  [TechId.PlateBarding]:       { label: "Plate Barding",       host: BuildingType.Blacksmith,  minAge: Age.Imperial, food: 350, wood:  0, gold: 200, time: 32, prereq: TechId.ChainBarding },
+  [TechId.Bracer]:             { label: "Bracer",              host: BuildingType.Blacksmith,  minAge: Age.Imperial, food: 200, wood:  0, gold: 175, time: 30, prereq: TechId.Bodkin },
   // ── Gather Feudal ────────────────────────────────────────────────────────
-  [TechId.DoubleBitAxe]:       { label: "Double-Bit Axe",      host: BuildingType.LumberCamp, minAge: Age.Feudal,   food: 100, wood:  0, gold:   0, time: 18 },
-  [TechId.Wheelbarrow]:        { label: "Wheelbarrow",          host: BuildingType.TownCenter, minAge: Age.Feudal,   food: 150, wood: 50, gold:   0, time: 22 },
-  [TechId.HorseCollar]:        { label: "Horse Collar",         host: BuildingType.Mill,       minAge: Age.Feudal,   food:  75, wood:  0, gold:   0, time: 20 },
-  [TechId.Loom]:               { label: "Loom",                 host: BuildingType.TownCenter, minAge: Age.Dark,     food:   0, wood:  0, gold:  50, time: 25 },
+  [TechId.DoubleBitAxe]:       { label: "Double-Bit Axe",      host: BuildingType.LumberCamp,  minAge: Age.Feudal,   food: 100, wood:  0, gold:   0, time: 18 },
+  [TechId.Wheelbarrow]:        { label: "Wheelbarrow",          host: BuildingType.TownCenter,  minAge: Age.Feudal,   food: 150, wood: 50, gold:   0, time: 22 },
+  [TechId.HorseCollar]:        { label: "Horse Collar",         host: BuildingType.Mill,        minAge: Age.Feudal,   food:  75, wood:  0, gold:   0, time: 20 },
+  [TechId.Loom]:               { label: "Loom",                 host: BuildingType.TownCenter,  minAge: Age.Dark,     food:   0, wood:  0, gold:  50, time: 25 },
+  [TechId.GoldMining]:         { label: "Gold Mining",          host: BuildingType.MiningCamp,  minAge: Age.Feudal,   food: 100, wood:  0, gold:  75, time: 22 },
+  [TechId.StoneMining]:        { label: "Stone Mining",         host: BuildingType.MiningCamp,  minAge: Age.Feudal,   food: 100, wood:  0, gold:  75, time: 22 },
   // ── Gather Castle ────────────────────────────────────────────────────────
-  [TechId.BowSaw]:             { label: "Bow Saw",              host: BuildingType.LumberCamp, minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 25, prereq: TechId.DoubleBitAxe },
-  [TechId.HandCart]:           { label: "Hand Cart",            host: BuildingType.TownCenter, minAge: Age.Castle,   food: 300, wood:200, gold:   0, time: 35, prereq: TechId.Wheelbarrow },
-  [TechId.HeavyPlow]:          { label: "Heavy Plow",           host: BuildingType.Mill,       minAge: Age.Castle,   food: 125, wood:  0, gold:   0, time: 25, prereq: TechId.HorseCollar },
+  [TechId.BowSaw]:             { label: "Bow Saw",              host: BuildingType.LumberCamp,  minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 25, prereq: TechId.DoubleBitAxe },
+  [TechId.HandCart]:           { label: "Hand Cart",            host: BuildingType.TownCenter,  minAge: Age.Castle,   food: 300, wood:200, gold:   0, time: 35, prereq: TechId.Wheelbarrow },
+  [TechId.HeavyPlow]:          { label: "Heavy Plow",           host: BuildingType.Mill,        minAge: Age.Castle,   food: 125, wood:  0, gold:   0, time: 25, prereq: TechId.HorseCollar },
+  [TechId.GoldShaftMining]:    { label: "Gold Shaft Mining",    host: BuildingType.MiningCamp,  minAge: Age.Castle,   food: 200, wood:  0, gold: 100, time: 28, prereq: TechId.GoldMining },
+  [TechId.StoneMiningUpgrade]: { label: "Stone Shaft Mining",   host: BuildingType.MiningCamp,  minAge: Age.Castle,   food: 200, wood:  0, gold: 100, time: 28, prereq: TechId.StoneMining },
+  // ── Gather Imperial ──────────────────────────────────────────────────────
+  [TechId.CropRotation]:       { label: "Crop Rotation",        host: BuildingType.Mill,        minAge: Age.Imperial, food: 250, wood:  0, gold: 100, time: 28, prereq: TechId.HeavyPlow },
   // ── Military Feudal ──────────────────────────────────────────────────────
-  [TechId.ManAtArms]:          { label: "Man-at-Arms",          host: BuildingType.Barracks,   minAge: Age.Feudal,   food: 100, wood:  0, gold:  40, time: 25 },
+  [TechId.ManAtArms]:          { label: "Man-at-Arms",          host: BuildingType.Barracks,    minAge: Age.Feudal,   food: 100, wood:  0, gold:  40, time: 25 },
   // ── Military Castle ──────────────────────────────────────────────────────
-  [TechId.Longswordsman]:      { label: "Long Swordsman",       host: BuildingType.Barracks,   minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 30, prereq: TechId.ManAtArms },
-  [TechId.Bloodlines]:         { label: "Bloodlines",           host: BuildingType.Stable,     minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 25 },
-  [TechId.Crossbowman]:        { label: "Crossbowman",          host: BuildingType.ArcheryRange,minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 30 },
-  [TechId.Cavalier]:           { label: "Cavalier",             host: BuildingType.Stable,     minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 30 },
-  [TechId.Pikeman]:            { label: "Pikeman",              host: BuildingType.Barracks,   minAge: Age.Castle,   food: 100, wood:  0, gold:  50, time: 28 },
+  [TechId.Longswordsman]:      { label: "Long Swordsman",       host: BuildingType.Barracks,    minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 30, prereq: TechId.ManAtArms },
+  [TechId.Bloodlines]:         { label: "Bloodlines",           host: BuildingType.Stable,      minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 25 },
+  [TechId.Crossbowman]:        { label: "Crossbowman",          host: BuildingType.ArcheryRange, minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 30 },
+  [TechId.Cavalier]:           { label: "Cavalier",             host: BuildingType.Stable,      minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 30 },
+  [TechId.Pikeman]:            { label: "Pikeman",              host: BuildingType.Barracks,    minAge: Age.Castle,   food: 100, wood:  0, gold:  50, time: 28 },
+  [TechId.LightCavalry]:       { label: "Light Cavalry",        host: BuildingType.Stable,      minAge: Age.Castle,   food: 150, wood:  0, gold:  50, time: 25 },
+  [TechId.Husbandry]:          { label: "Husbandry",            host: BuildingType.Stable,      minAge: Age.Castle,   food: 150, wood:  0, gold:   0, time: 22 },
   // ── Military Imperial ────────────────────────────────────────────────────
-  [TechId.TwoHandedSwordsman]: { label: "Two-Handed Swordsman", host: BuildingType.Barracks,   minAge: Age.Imperial, food: 150, wood:  0, gold: 120, time: 32, prereq: TechId.Longswordsman },
-  [TechId.Champion]:           { label: "Champion",             host: BuildingType.Barracks,   minAge: Age.Imperial, food: 200, wood:  0, gold: 150, time: 35, prereq: TechId.TwoHandedSwordsman },
-  [TechId.Arbalest]:           { label: "Arbalest",             host: BuildingType.ArcheryRange,minAge: Age.Imperial, food: 200, wood:  0, gold: 150, time: 35, prereq: TechId.Crossbowman },
-  [TechId.Paladin]:            { label: "Paladin",              host: BuildingType.Stable,     minAge: Age.Imperial, food: 200, wood:  0, gold: 150, time: 35, prereq: TechId.Cavalier },
-  [TechId.Halberdier]:         { label: "Halberdier",           host: BuildingType.Barracks,   minAge: Age.Imperial, food: 150, wood:  0, gold: 100, time: 32, prereq: TechId.Pikeman },
-  [TechId.EliteSkirmisher]:    { label: "Elite Skirmisher",     host: BuildingType.ArcheryRange,minAge: Age.Imperial, food: 150, wood:  0, gold: 100, time: 30 },
+  [TechId.TwoHandedSwordsman]: { label: "Two-Handed Swordsman", host: BuildingType.Barracks,    minAge: Age.Imperial, food: 150, wood:  0, gold: 120, time: 32, prereq: TechId.Longswordsman },
+  [TechId.Champion]:           { label: "Champion",             host: BuildingType.Barracks,    minAge: Age.Imperial, food: 200, wood:  0, gold: 150, time: 35, prereq: TechId.TwoHandedSwordsman },
+  [TechId.Arbalest]:           { label: "Arbalest",             host: BuildingType.ArcheryRange, minAge: Age.Imperial, food: 200, wood:  0, gold: 150, time: 35, prereq: TechId.Crossbowman },
+  [TechId.Paladin]:            { label: "Paladin",              host: BuildingType.Stable,      minAge: Age.Imperial, food: 200, wood:  0, gold: 150, time: 35, prereq: TechId.Cavalier },
+  [TechId.Halberdier]:         { label: "Halberdier",           host: BuildingType.Barracks,    minAge: Age.Imperial, food: 150, wood:  0, gold: 100, time: 32, prereq: TechId.Pikeman },
+  [TechId.EliteSkirmisher]:    { label: "Elite Skirmisher",     host: BuildingType.ArcheryRange, minAge: Age.Imperial, food: 150, wood:  0, gold: 100, time: 30 },
+  [TechId.Hussar]:             { label: "Hussar",               host: BuildingType.Stable,      minAge: Age.Imperial, food: 150, wood:  0, gold: 100, time: 30, prereq: TechId.LightCavalry },
+  // ── Market ───────────────────────────────────────────────────────────────
+  [TechId.Caravan]:            { label: "Caravan",              host: BuildingType.Market,      minAge: Age.Castle,   food:   0, wood:  0, gold: 200, time: 28 },
+  [TechId.Coinage]:            { label: "Coinage",              host: BuildingType.Market,      minAge: Age.Castle,   food:   0, wood:  0, gold: 200, time: 30 },
+  [TechId.Banking]:            { label: "Banking",              host: BuildingType.Market,      minAge: Age.Imperial, food:   0, wood:  0, gold: 300, time: 35, prereq: TechId.Coinage },
+  // ── University Castle ────────────────────────────────────────────────────
+  [TechId.Ballistics]:         { label: "Ballistics",           host: BuildingType.University,  minAge: Age.Castle,   food: 300, wood:  0, gold: 175, time: 35 },
+  [TechId.Masonry]:            { label: "Masonry",              host: BuildingType.University,  minAge: Age.Castle,   food: 150, wood:  0, gold:   0, time: 22 },
+  [TechId.Architecture]:       { label: "Architecture",         host: BuildingType.University,  minAge: Age.Castle,   food: 300, wood:  0, gold:   0, time: 35, prereq: TechId.Masonry },
+  [TechId.GuardTower]:         { label: "Guard Tower",          host: BuildingType.University,  minAge: Age.Castle,   food: 100, wood:  0, gold:  50, time: 22 },
+  // ── University Imperial ──────────────────────────────────────────────────
+  [TechId.Chemistry]:          { label: "Chemistry",            host: BuildingType.University,  minAge: Age.Imperial, food: 300, wood:  0, gold: 200, time: 40 },
+  [TechId.Keep]:               { label: "Keep",                 host: BuildingType.University,  minAge: Age.Imperial, food: 150, wood:  0, gold: 100, time: 28, prereq: TechId.GuardTower },
+  [TechId.Fortified]:          { label: "Fortified Wall",       host: BuildingType.University,  minAge: Age.Imperial, food: 200, wood:  0, gold: 150, time: 30 },
+  // ── Monastery Castle ─────────────────────────────────────────────────────
+  [TechId.Sanctity]:           { label: "Sanctity",             host: BuildingType.Monastery,   minAge: Age.Castle,   food: 120, wood:  0, gold:   0, time: 30 },
+  [TechId.BlockPrinting]:      { label: "Block Printing",       host: BuildingType.Monastery,   minAge: Age.Castle,   food:   0, wood:  0, gold: 200, time: 32 },
+  [TechId.Redemption]:         { label: "Redemption",           host: BuildingType.Monastery,   minAge: Age.Castle,   food:   0, wood:  0, gold: 475, time: 35 },
+  // ── Monastery Imperial ───────────────────────────────────────────────────
+  [TechId.Theocracy]:          { label: "Theocracy",            host: BuildingType.Monastery,   minAge: Age.Imperial, food:   0, wood:  0, gold: 200, time: 40 },
 };
 
 /** Techs available per building type (player-facing order). */
@@ -112,14 +170,18 @@ export const BUILDING_TECHS: Partial<Record<BuildingType, TechId[]>> = {
   [BuildingType.Blacksmith]:  [
     TechId.Fletching, TechId.Forging, TechId.PaddedArcherArmor, TechId.ScaleMail, TechId.ScaleBarding,
     TechId.IronCasting, TechId.ChainMail, TechId.LeatherArcherArmor, TechId.Bodkin, TechId.ChainBarding,
-    TechId.BlastFurnace, TechId.PlateMail, TechId.RingArcherArmor, TechId.PlateBarding,
+    TechId.BlastFurnace, TechId.PlateMail, TechId.RingArcherArmor, TechId.PlateBarding, TechId.Bracer,
   ],
   [BuildingType.LumberCamp]:  [TechId.DoubleBitAxe, TechId.BowSaw],
-  [BuildingType.Mill]:        [TechId.HorseCollar, TechId.HeavyPlow],
+  [BuildingType.MiningCamp]:  [TechId.GoldMining, TechId.StoneMining, TechId.GoldShaftMining, TechId.StoneMiningUpgrade],
+  [BuildingType.Mill]:        [TechId.HorseCollar, TechId.HeavyPlow, TechId.CropRotation],
   [BuildingType.TownCenter]:  [TechId.Loom, TechId.Wheelbarrow, TechId.HandCart],
   [BuildingType.Barracks]:    [TechId.ManAtArms, TechId.Longswordsman, TechId.Pikeman, TechId.TwoHandedSwordsman, TechId.Champion, TechId.Halberdier],
-  [BuildingType.Stable]:      [TechId.Bloodlines, TechId.Cavalier, TechId.Paladin],
+  [BuildingType.Stable]:      [TechId.Bloodlines, TechId.Husbandry, TechId.LightCavalry, TechId.Cavalier, TechId.Paladin, TechId.Hussar],
   [BuildingType.ArcheryRange]:[TechId.Crossbowman, TechId.Arbalest, TechId.EliteSkirmisher],
+  [BuildingType.Market]:      [TechId.Caravan, TechId.Coinage, TechId.Banking],
+  [BuildingType.University]:  [TechId.Ballistics, TechId.Masonry, TechId.Architecture, TechId.GuardTower, TechId.Chemistry, TechId.Keep, TechId.Fortified],
+  [BuildingType.Monastery]:   [TechId.Sanctity, TechId.BlockPrinting, TechId.Redemption, TechId.Theocracy],
 };
 
 interface QueueEntry { tech: TechId; timer: number; total: number; }
@@ -161,17 +223,24 @@ export class ResearchSystem {
     return true;
   }
 
-  tick(units: Unit[], teamRes: ResourceManager[], dt: number) {
+  tick(units: Unit[], buildings: Building[], teamRes: ResourceManager[], dt: number) {
     for (const [b, entry] of this.queues) {
       entry.timer -= dt;
       if (entry.timer <= 0) {
         this.queues.delete(b);
-        this._complete(b.teamId, entry.tech, units, teamRes);
+        this._complete(b.teamId, entry.tech, units, buildings, teamRes);
       }
     }
   }
 
-  private _complete(teamId: number, tech: TechId, units: Unit[], teamRes: ResourceManager[]) {
+  /** Apply all completed techs for a team to a single newly-spawned unit. */
+  applyCompletedResearchTo(u: Unit, teamId: number) {
+    const techs = this.done.get(teamId);
+    if (!techs) return;
+    for (const tech of techs) applyTechBonus(u, tech);
+  }
+
+  private _complete(teamId: number, tech: TechId, units: Unit[], buildings: Building[], teamRes: ResourceManager[]) {
     let set = this.done.get(teamId);
     if (!set) { set = new Set(); this.done.set(teamId, set); }
     set.add(tech);
@@ -180,6 +249,7 @@ export class ResearchSystem {
       applyTechBonus(u, tech);
     }
     applyGatherBonus(tech, teamRes[teamId]);
+    applyBuildingBonus(tech, buildings.filter(b => b.teamId === teamId && b.alive));
   }
 }
 
@@ -339,6 +409,61 @@ export function applyTechBonus(u: Unit, tech: TechId) {
         u.hp = Math.min(u.hp + 10, u.maxHp);
       }
       break;
+    // ── Bracer (archer attack + range) ────────────────────────────────────
+    case TechId.Bracer:
+      if (u.armorClass & ArmorClass.Archer) {
+        (u as { baseAtk: number }).baseAtk += 1;
+        (u as { attackRange: number }).attackRange += 1;
+      }
+      break;
+    // ── Light Cavalry / Hussar (Scout line) ───────────────────────────────
+    case TechId.LightCavalry:
+      if (u.unitType === UnitType.Scout) {
+        (u as { maxHp: number }).maxHp += 10;
+        u.hp = Math.min(u.hp + 10, u.maxHp);
+        (u as { baseAtk: number }).baseAtk += 2;
+      }
+      break;
+    case TechId.Hussar:
+      if (u.unitType === UnitType.Scout) {
+        (u as { maxHp: number }).maxHp += 20;
+        u.hp = Math.min(u.hp + 20, u.maxHp);
+        (u as { baseAtk: number }).baseAtk += 2;
+      }
+      break;
+    // ── Husbandry (cavalry speed) ──────────────────────────────────────────
+    case TechId.Husbandry:
+      if (u.armorClass & ArmorClass.Cavalry) {
+        (u as { moveSpeed: number }).moveSpeed *= 1.1;
+      }
+      break;
+    // ── Ballistics (archer accuracy → simplified as +1 attack) ────────────
+    case TechId.Ballistics:
+      if (u.isRanged) (u as { baseAtk: number }).baseAtk += 1;
+      break;
+    // ── Chemistry (ranged +1 attack) ──────────────────────────────────────
+    case TechId.Chemistry:
+      if (u.isRanged) (u as { baseAtk: number }).baseAtk += 1;
+      break;
+    // ── Sanctity (Monk +50 HP) ────────────────────────────────────────────
+    case TechId.Sanctity:
+      if (u.unitType === UnitType.Monk) {
+        (u as { maxHp: number }).maxHp += 50;
+        u.hp = Math.min(u.hp + 50, u.maxHp);
+      }
+      break;
+    // ── BlockPrinting (Monk +1 range) ────────────────────────────────────
+    case TechId.BlockPrinting:
+      if (u.unitType === UnitType.Monk) {
+        (u as { attackRange: number }).attackRange += 1;
+      }
+      break;
+    // ── Theocracy (Monk +10% speed) ───────────────────────────────────────
+    case TechId.Theocracy:
+      if (u.unitType === UnitType.Monk) {
+        (u as { moveSpeed: number }).moveSpeed *= 1.1;
+      }
+      break;
   }
 }
 
@@ -346,9 +471,31 @@ export function applyTechBonus(u: Unit, tech: TechId) {
 function applyGatherBonus(tech: TechId, rm: ResourceManager | undefined) {
   if (!rm) return;
   switch (tech) {
-    case TechId.HorseCollar:  rm.techGatherFoodMult += 0.15; break;
-    case TechId.HeavyPlow:    rm.techGatherFoodMult += 0.15; break;
-    case TechId.DoubleBitAxe: rm.techGatherWoodMult += 0.20; break;
-    case TechId.BowSaw:       rm.techGatherWoodMult += 0.20; break;
+    case TechId.HorseCollar:        rm.techGatherFoodMult  += 0.15; break;
+    case TechId.HeavyPlow:          rm.techGatherFoodMult  += 0.15; break;
+    case TechId.CropRotation:       rm.techGatherFoodMult  += 0.15; break;
+    case TechId.DoubleBitAxe:       rm.techGatherWoodMult  += 0.20; break;
+    case TechId.BowSaw:             rm.techGatherWoodMult  += 0.20; break;
+    case TechId.GoldMining:         rm.techGatherGoldMult  += 0.15; break;
+    case TechId.GoldShaftMining:    rm.techGatherGoldMult  += 0.15; break;
+    case TechId.StoneMining:        rm.techGatherStoneMult += 0.15; break;
+    case TechId.StoneMiningUpgrade: rm.techGatherStoneMult += 0.15; break;
+    case TechId.Caravan:            rm.techTradeCartSpeedMult = 1.5; break;
+  }
+}
+
+/** Apply research bonuses that affect buildings retroactively. */
+function applyBuildingBonus(tech: TechId, buildings: Building[]) {
+  for (const b of buildings) {
+    switch (tech) {
+      case TechId.Masonry:
+        (b as { maxHp: number }).maxHp = Math.round(b.maxHp * 1.1);
+        b.hp = Math.min(b.hp, b.maxHp);
+        break;
+      case TechId.Architecture:
+        (b as { maxHp: number }).maxHp = Math.round(b.maxHp * 1.1);
+        b.hp = Math.min(b.hp, b.maxHp);
+        break;
+    }
   }
 }

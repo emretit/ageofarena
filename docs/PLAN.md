@@ -12,6 +12,27 @@
 
 ---
 
+## Web Port Parite — Faz 5 (2026-06-11) ✅
+
+**35 → 57 tech + building HP bar + University + 4 yeni bina tipi + post-research unit fix.**
+
+| ID | Madde | Unity Karşılığı |
+|---|---|---|
+| WEB5.hpbar | `Building.refreshHpBarCamera()` — binalara world-space billboard HP barı | WorldHpBar.cs |
+| WEB5.university | `BuildingType.University` + DEFS/DIMS/renk + HUD inşa listesi + Feudal age gate | BuildingDefs.cs University |
+| WEB5.newbld | `SiegeWorkshop`, `Dock`, `WatchTower` bina tipleri eklendi | BuildingDefs.cs |
+| WEB5.bracer | Bracer → okçu +1 saldırı +1 menzil | TechDefs.cs Bracer |
+| WEB5.cav | LightCavalry/Hussar → Scout hattı +HP +saldırı; Husbandry → süvari +%10 hız | TechDefs.cs LightCavalry/Hussar |
+| WEB5.mining | GoldMining/GoldShaftMining → `techGatherGoldMult`; StoneMining/StoneMiningUpgrade → `techGatherStoneMult` | GatherSystem.cs |
+| WEB5.eco2 | CropRotation → yiyecek +%15; Caravan → `techTradeCartSpeedMult=1.5` | TechDefs.cs |
+| WEB5.univ | Ballistics/Chemistry → menzilli +1 saldırı; Masonry/Architecture → bina HP +%10 (retroaktif); GuardTower/Keep/Fortified | TechDefs.cs University |
+| WEB5.monastery | Sanctity → Monk +50 HP; BlockPrinting → Monk +1 menzil; Theocracy → Monk +%10 hız; Redemption | TechDefs.cs Monastery |
+| WEB5.market | Caravan/Coinage/Banking Market techleri | TechDefs.cs Market |
+| WEB5.postresearch | `ResearchSystem.applyCompletedResearchTo()` — TrainingQueue spawn sırasında tüm tamamlanan tech'leri yeni birime uygular | TrainingQueue.cs |
+| WEB5.buildingparam | `research.tick(units, buildings, teamRes, dt)` — Masonry/Architecture retroaktif bina HP için `buildings` parametresi eklendi | — |
+
+---
+
 ## Web Port Parite — Faz 4 (2026-06-11) ✅
 
 **Tech tree tamamlandı: 15 → 35 tech (unit tier zinciri + eco + Blacksmith tam zincir + FocusPause).**

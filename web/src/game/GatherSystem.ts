@@ -113,8 +113,9 @@ export class GatherSystem {
     const rm = teamRes[v.teamId];
     const gatherMult = node.kind === ResourceKind.Food
       ? (civBonus.gatherFoodMult + civBonus.teamGatherFoodBonus) * (rm?.techGatherFoodMult ?? 1)
-      : node.kind === ResourceKind.Wood ? civBonus.gatherWoodMult * (rm?.techGatherWoodMult ?? 1)
-      : node.kind === ResourceKind.Gold ? civBonus.gatherGoldMult
+      : node.kind === ResourceKind.Wood  ? civBonus.gatherWoodMult  * (rm?.techGatherWoodMult  ?? 1)
+      : node.kind === ResourceKind.Gold  ? civBonus.gatherGoldMult  * (rm?.techGatherGoldMult  ?? 1)
+      : node.kind === ResourceKind.Stone ? 1                        * (rm?.techGatherStoneMult ?? 1)
       : 1;
     const interval = gatherIntervalFor(node.kind) / gatherMult;
     if (timer >= interval) {

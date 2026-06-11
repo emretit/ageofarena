@@ -9,6 +9,7 @@ import { getUnitRow } from "../core/UnitRegistry";
 import { getTeamBonus } from "../core/CivState";
 import type { Building } from "./Building";
 import { Unit } from "./Unit";
+import type { ResearchSystem } from "./ResearchSystem";
 
 /** Minimum age required to train each unit type (Age.Dark = no gate). */
 const UNIT_MIN_AGE: Partial<Record<UnitType, Age>> = {
@@ -62,6 +63,7 @@ export class TrainingQueue {
     buildings: Building[],
     units: Unit[],
     scene: THREE.Scene,
+    research: ResearchSystem,
     dt: number,
   ) {
     for (const b of buildings) {
@@ -73,7 +75,6 @@ export class TrainingQueue {
       entry.timer -= dt;
       if (entry.timer <= 0) {
         queue.shift();
-        // Spawn unit near the building
         const offset = new THREE.Vector3(
           (Math.random() - 0.5) * 4,
           0,
@@ -81,6 +82,8 @@ export class TrainingQueue {
         );
         const spawnPos = b.pos.clone().add(offset);
         const spawned = new Unit(scene, spawnPos, b.teamId, entry.type);
+        // Apply all already-completed techs so new units match upgraded veterans
+        research.applyCompletedResearchTo(spawned, b.teamId);
         units.push(spawned);
         if (b.rallyPoint) spawned.moveTo(b.rallyPoint.clone());
       }

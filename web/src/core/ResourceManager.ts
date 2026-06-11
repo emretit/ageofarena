@@ -14,8 +14,13 @@ export class ResourceManager {
   age: Age = Age.Dark;
 
   // Research-based gather rate multipliers (start at 1.0, bumped by techs)
-  techGatherFoodMult = 1.0;
-  techGatherWoodMult = 1.0;
+  techGatherFoodMult  = 1.0;
+  techGatherWoodMult  = 1.0;
+  techGatherGoldMult  = 1.0;
+  techGatherStoneMult = 1.0;
+  // Research-based unit multipliers
+  techCavalrySpeedMult    = 1.0;
+  techTradeCartSpeedMult  = 1.0;
 
   onChange: (() => void) | null = null;
 

@@ -258,11 +258,11 @@ function startGame(mapType: MapType): void {
         gather.tick(units, buildings, teamRes, scene, step);
         combat.tick(units, buildings, step);
         combat.tickBuildings(buildings, units, step);
-        training.tick(buildings, units, scene, step);
+        training.tick(buildings, units, scene, research, step);
         trading.tick(units, buildings, teamRes, step);
         garrison.tick(units, buildings, step);
         relicSys.tick(units, relics, buildings, teamRes, step);
-        research.tick(units, teamRes, step);
+        research.tick(units, buildings, teamRes, step);
         market.tick(step);
         enemyAI.tick(units, buildings, nodes, scene, step);
         fog.tick(units, buildings, step);
@@ -302,6 +302,7 @@ function startGame(mapType: MapType): void {
     }
 
     for (const u of units) u.tick(0, rig.camera);
+    for (const b of buildings) b.refreshHpBarCamera(rig.camera);
 
     if (selection.selected.length > 1) hud.showMultiUnit(selection.selected);
     else if (selection.selected.length === 1) hud.showUnit(selection.selected[0], teamRes[0], onBuild);
