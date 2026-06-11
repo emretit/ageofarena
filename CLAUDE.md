@@ -8,12 +8,17 @@ Aktif geliştirme **tamamen Unity (C#)** tarafında. AoE2-tarzı izometrik RTS.
 - **Kod:** [AgeOfArenaUnity/Assets/Scripts/](AgeOfArenaUnity/Assets/Scripts/) — tüm C# scriptler burada
 - **Durum:** Unity Roslyn ile **0 error, 0 warning** derleniyor; Unity MCP bağlı
 
-### Eski Three.js web sürümü kaldırıldı
+### Eski Three.js web sürümü kaldırıldı; YENİ web portu `web/`'de
 
 Proje Three.js/TypeScript web prototipinden Unity'ye taşındı ve **eski web kaynağı
-silindi** (`src/`, `index.html`, `vite.config.ts`, `package.json`, `dist/`, `node_modules/`
-vb.). Bu dosyalar yalnızca **git geçmişinde** mevcut — geri getirme, yeniden oluşturma.
-Bir istek "oyuna X ekle" derse hedef **her zaman Unity tarafıdır** (`AgeOfArenaUnity/`).
+silindi** (yalnızca git geçmişinde — geri getirme). Bir istek "oyuna X ekle" derse hedef
+**varsayılan olarak Unity tarafıdır** (`AgeOfArenaUnity/`).
+
+**2026-06: [web/](web/) klasöründe SIFIRDAN yeni bir Three.js portu başladı** (eski
+prototipin dirilmesi DEĞİL). Vite + TS + Three.js; Unity mimari adları ve denge verileri
+1:1 port ediliyor (`web/src/core/Config.ts` ↔ WorldRoot sabitleri, `CameraRig` ↔
+IsometricCameraRig…). Çalıştırma: `npm run dev --prefix web` (port 5173; `.claude/launch.json`
+→ "web"). Kullanıcı "web" derse hedef burasıdır.
 
 ## Unity teknik notları
 

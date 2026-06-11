@@ -47,9 +47,10 @@ public class CivSelectScreen : MonoBehaviour
         scaler.referenceResolution = new Vector2(1920, 1080);
         canvasGo.AddComponent<GraphicRaycaster>();
 
-        // Full-screen dark backdrop
+        // Full-screen backdrop — painterly castle artwork when present, dark panel otherwise.
         var bg = MakePanel(_canvas.transform, PanelBg);
         Stretch(bg.rectTransform);
+        UiArt.ApplyBackground(bg, "menu_bg", 0.42f);
 
         // ── Header ─────────────────────────────────────────────────────────
         Label(bg.transform, "MEDENİYETİNİ SEÇ", 0, 448, 58, Gold, FontStyle.Bold);

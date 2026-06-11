@@ -44,6 +44,7 @@ public class HUD : MonoBehaviour
     Text _infoName, _infoSub, _hpText;
     RectTransform _hpBarBg, _hpBarFill;
     Image _hpBarFillImg;
+    Image _portraitImg;   // painterly building portrait (UI/Art/Portraits)
     // Right command card
     RectTransform _cardRoot, _gridRoot, _progressFill;
     Image _progressFillImg;
@@ -529,6 +530,16 @@ public class HUD : MonoBehaviour
 
         _hpText = AddText(_hpBarBg, "", TextAnchor.MiddleCenter);
         _hpText.fontSize = 12; _hpText.fontStyle = FontStyle.Bold;
+
+        // Painterly portrait of the selected building (bottom-left of the info panel).
+        var portRect = NewRect("Portrait", left);
+        portRect.anchorMin = new Vector2(0, 0); portRect.anchorMax = new Vector2(0, 0);
+        portRect.pivot = new Vector2(0, 0);
+        portRect.sizeDelta = new Vector2(92, 92);
+        portRect.anchoredPosition = new Vector2(10, 8);
+        _portraitImg = portRect.gameObject.AddComponent<Image>();
+        _portraitImg.preserveAspect = true;
+        _portraitImg.enabled = false;
 
         // Training / research progress lives in the info panel (below the HP bar)
         // so the command card can be a clean, fixed slot grid.
@@ -1085,6 +1096,7 @@ public class HUD : MonoBehaviour
         for (int i = 0; i < _slots.Count; i++)
             if (_slots[i].btn != null) Destroy(_slots[i].btn.gameObject);
         _slots.Clear();
+        if (_portraitImg != null) _portraitImg.enabled = false;  // re-shown by BuildBuildingCard
         HideTooltip();              // a hovered button may have just been destroyed
         _lastQueueCount = -1;
         _queueText.text = "";
@@ -1176,6 +1188,7 @@ public class HUD : MonoBehaviour
 
     void BuildBuildingCard(GameManager gm, BuildingEntity b)
     {
+        SetPortrait(b.type);
         _infoName.text = BuildingTr(b.type) + (b.underConstruction ? "  (inşa)" : "");
         _infoSub.text  = BuildingStatusLine(gm, b);
         ShowHpBar(true);
@@ -1773,7 +1786,10 @@ public class HUD : MonoBehaviour
         var overlay = NewRect("GameOverOverlay", _canvasRoot);
         overlay.anchorMin = Vector2.zero; overlay.anchorMax = Vector2.one;
         overlay.offsetMin = Vector2.zero; overlay.offsetMax = Vector2.zero;
-        overlay.gameObject.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.78f);
+        var overlayImg = overlay.gameObject.AddComponent<Image>();
+        overlayImg.color = new Color(0f, 0f, 0f, 0.78f);
+        // Painterly end-screen artwork (victory knights / burning village) when present.
+        UiArt.ApplyBackground(overlayImg, playerWon ? "victory_bg" : "defeat_bg", 0.42f);
 
         // ── Title ──────────────────────────────────────────────────────────
         var titleRect = NewRect("GameOverTitle", overlay);
@@ -1949,6 +1965,16 @@ public class HUD : MonoBehaviour
             }
         }
         return UnitTr(t);
+    }
+
+    /// <summary>Show the painterly portrait for <paramref name="type"/> if its art
+    /// exists under Resources/UI/Art/Portraits (bp_&lt;Type&gt;.png); hidden otherwise.</summary>
+    void SetPortrait(BuildingType type)
+    {
+        if (_portraitImg == null) return;
+        var s = UiArt.Load("Portraits/bp_" + type);
+        _portraitImg.sprite = s;
+        _portraitImg.enabled = s != null;
     }
 
     static string BuildingTr(BuildingType t) => t switch

@@ -12,6 +12,93 @@
 
 ---
 
+## Web Port Parite — Faz 4 (2026-06-11) ✅
+
+**Tech tree tamamlandı: 15 → 35 tech (unit tier zinciri + eco + Blacksmith tam zincir + FocusPause).**
+
+| ID | Madde | Unity Karşılığı |
+|---|---|---|
+| WEB4.tier | 11 unit tier upgrade: Crossbowman/Arbalest, Cavalier/Paladin, Pikeman/Halberdier, TwoHandedSwordsman/Champion, EliteSkirmisher | ResearchSystem.cs TechType |
+| WEB4.blacksmith | Bodkin + BlastFurnace + PlateMail + ScaleBarding/ChainBarding/PlateBarding + RingArcherArmor | TechState.cs armor chain |
+| WEB4.eco | HorseCollar/HeavyPlow food mult + DoubleBitAxe/BowSaw wood mult → ResourceManager.techGatherFoodMult/techGatherWoodMult | GatherSystem.cs tech rate |
+| WEB4.loom | Loom → Villager +15 HP +1 armor | TechDefs.cs Loom |
+| WEB4.wheel | Wheelbarrow/HandCart → Villager +0.1 moveSpeed | TechDefs.cs Wheelbarrow/HandCart |
+| WEB4.focus | FocusPause — visibilitychange → sim duraklar | FocusPause.cs |
+| WEB4.bugfix7 | 7 code-review bug düzeltildi (ageSystemEnemy.tick, Longswordsman HP order, isArcher Skirmisher, teamGatherFoodBonus, TrainingQueue/GarrisonSystem dead building cleanup, villager auto-assign) | — |
+
+## Web Port Parite — Faz 1 (2026-06-11) ✔️
+
+Vite + TS + Three.js web portu (`web/`) sıfırdan başladı; Unity mimari adları 1:1 korundu.
+**12 audit item → 0 gap.** Runtime doğrulaması: gathering loop +60 gold üretti.
+
+| ID | Madde | Kanıt |
+|---|---|---|
+| WEB.types | `core/GameTypes.ts` — ResourceKind/UnitType/DamageType/ArmorClass/BuildingType | derleme |
+| WEB.registry | `core/UnitRegistry.ts` — 11 unit type, Unity stats 1:1 | derleme |
+| WEB.rm | `core/ResourceManager.ts` — food/wood/gold/stone, onChange event | derleme |
+| WEB.nodes | `world/World.ts` — altın/yiyecek/taş/odun kaynakları her üste | ekran görüntüsü |
+| WEB.building | `game/Building.ts` — TC+Barracks+diğerleri, HP, takım rengi | ekran görüntüsü |
+| WEB.gather | `game/GatherSystem.ts` — walk→gather→deposit→resume döngüsü | +60 gold doğrulandı |
+| WEB.hud | `ui/HUD.ts` — kaynak barı + seçim bilgi paneli | ekran görüntüsü (HUD 160 gold) |
+| WEB.combat | `game/CombatSystem.ts` — saldırı menzili, hasar, aggro | derleme |
+| WEB.train | `game/TrainingQueue.ts` — birim üretim kuyruğu | derleme |
+| WEB.ai | `game/EnemyAI.ts` — toplayıcı→eğit→saldır döngüsü | derleme |
+| WEB.selection | `game/Selection.ts` — birim/bina/topla/saldır emirleri | derleme |
+| WEB.spawn | `main.ts` — oyuncu TC + düşman TC + köylüler + kaynaklar | ekran görüntüsü |
+
+## Web Port Parite — Faz 3 (2026-06-11) ✅
+
+**9 yeni sistem/wiring eklendi (0 TS error, tüm build geçiyor).**
+
+| ID | Madde | Unity Karşılığı |
+|---|---|---|
+| WEB3.civstate | `core/CivState.ts` — per-team civ bonuses module singleton | CivilizationDefs.cs + GameManager.teamCiv |
+| WEB3.civwire | Unit/Building/GatherSystem/TrainingQueue/GarrisonSystem'a civ bonus uygulaması | CivilizationDefs.cs multiplier wiring |
+| WEB3.prescreen | `ui/PreGameScreen.ts` — civ + harita seçim ekranı | CivSelectScreen.cs |
+| WEB3.mapgen | MapGenerator `startGame`'e bağlandı, harita tipine göre forest+kaynaklar | MapGenerator.cs WorldRoot bağlantısı |
+| WEB3.trading | `game/TradingSystem.ts` — Trade Cart round-trip altın kazanımı | TradingSystem.cs |
+| WEB3.tradecart | `UnitType.TradeCart` + kayıt + görsel (araba gövde+çark) + Market'ten eğitim | UnitFactory.cs + TradingSystem.cs |
+| WEB3.bugfix8 | 8 gameplay bug düzeltildi (garrison, projectile pool, relic, HUD) | — |
+| WEB3.buildterrain | `World.buildTerrain` — terrain+forest ayrıştırıldı | WorldRoot.Build 2-fazlı |
+| WEB3.basepos | TC/kaynak pozisyonları harita arketipinden alınıyor (MapType per base) | WorldRoot.BuildBase |
+
+## Web Port Parite — Faz 2 (2026-06-11) ✅
+
+**20 yeni sistem eklendi (0 TS error, tüm build geçiyor).**
+
+| ID | Madde | Unity Karşılığı |
+|---|---|---|
+| WEB2.fog | `game/FogOfWarSystem.ts` — fog of war, görüş mesafesi | FogOfWarSystem.cs |
+| WEB2.age | `game/AgeSystem.ts` — Dark/Feudal/Castle/Imperial çağ geçişi | (GameManager.cs) |
+| WEB2.research | `game/ResearchSystem.ts` — 15 tech (Fletching→Bloodlines), retroaktif | ResearchSystem.cs + TechDefs.cs |
+| WEB2.market | `game/MarketSystem.ts` — kaynak↔gold alım/satım, fiyat kayması | MarketSystem.cs |
+| WEB2.rally | `game/Building.ts rallyPoint` — üretilen birimler rally noktasına yürür | (TrainingQueue.cs) |
+| WEB2.aiage | `game/EnemyAI.ts` — AI çağ geçişi + inşa sırası + ArcheryRange/Stable | EnemyAI.cs |
+| WEB2.bldcmb | `game/CombatSystem.ts tickBuildings` — TC/Castle otomatik ok atar | BuildingCombatSystem.cs |
+| WEB2.popup | `ui/DamagePopup.ts` — pool 24 hasar numarası | DamagePopup.cs |
+| WEB2.minimap | `ui/Minimap.ts` — küçük harita | MinimapSystem.cs |
+| WEB2.proj | `game/ProjectileSystem.ts` — pool 64 görsel ok/taş | Projectile.cs |
+| WEB2.garrison | `game/GarrisonSystem.ts` — binalara garrison (TC/Castle), iyileşme | GarrisonSystem.cs |
+| WEB2.mapgen | `world/MapGenerator.ts` — Arena/Arabia/BlackForest/Islands/Nomad | MapGenerator.cs |
+| WEB2.civ | `core/CivilizationDefs.ts` — 14 medeniyet, bonus verileri | CivilizationDefs.cs |
+| WEB2.tribute | `game/TributeSystem.ts` — ekipler arası kaynak tribütü | TributeSystem.cs |
+| WEB2.place | `game/BuildingPlacement.ts` — hayalet önizleme, ızgara snap | BuildingPlacement.cs |
+| WEB2.relic | `game/RelicSystem.ts` + `RelicEntity` — Monk toplar, Monastery'e depozit, passif gold | RelicSystem.cs + RelicEntity.cs |
+| WEB2.vfx | `game/VisualEffectSystem.ts` — %50 altı HP'de bina dumanı | VisualEffectSystem.cs |
+| WEB2.monk | `UnitType.Monk` + kayıt + görsel — Monastery'den eğitilir | UnitFactory.cs |
+| WEB2.hotkeys | `main.ts` S/G/U/./Escape hotkeys — stop/garrison/ungarrison | Hotkeys.cs |
+| WEB2.multisel | `ui/HUD.ts showMultiUnit` — sürükleme kutusu çoklu seçim özeti | HUD.cs |
+
+**Kalan Unity sistemleri (web'de yok — bilinçli erteleme):**
+- `CampaignSystem`, `CampaignScreen`, `TutorialSystem` — SP kampanya modu (ayrı kapsam)
+- `SaveSystem` — kayıt/yükleme (backlog)
+- `LockstepSystem`, `ChecksumSystem`, `CommandRecorder` — multiplayer altyapı (ayrı kapsam)
+- `NativeWebSocket`, `TransportLayer`, `RemoteCommandExecutor` — ağ katmanı (ayrı kapsam)
+- `SpatialGrid` — optimizasyon (gerektiğinde eklenecek)
+- `GridPathfinder` — web düz hareket kullanıyor (yeterli)
+
+---
+
 ## Durum (2026-06-05)
 
 İki büyük plan **kod olarak tamamlandı ve büyük ölçüde runtime-doğrulandı:**
