@@ -1,6 +1,6 @@
 /**
  * EnemyAI.ts — simplified port of EnemyAI.cs.
- * Gather → build → train → attack loop for team 1 (AI opponent).
+ * Gather → build → train → research → attack loop for team 1 (AI opponent).
  */
 import * as THREE from "three";
 import { Age, BuildingType, ResourceKind, UnitState, UnitType } from "../core/GameTypes";
@@ -11,15 +11,17 @@ import { TrainingQueue } from "./TrainingQueue";
 import type { Unit } from "./Unit";
 import { Building, DEFS } from "./Building";
 import type { ResourceNode } from "./ResourceNode";
+import { type ResearchSystem, TECH_DEFS, TechId } from "./ResearchSystem";
 
 /** BAL.ai: first attack gates by difficulty (Normal = 240s). */
 const FIRST_PUSH_TIME = 240;
 const BUILD_CHECK_INTERVAL = 20;
 const TRAIN_CHECK_INTERVAL = 10;
+const RESEARCH_CHECK_INTERVAL = 30;
 
 /**
  * Ordered build priority. AI attempts to build each type in order as
- * resources allow. Each entry maps to { maxOwned, minWood, minElapsed }.
+ * resources allow.
  */
 const BUILD_ORDER: Array<{
   type: BuildingType;
@@ -29,9 +31,56 @@ const BUILD_ORDER: Array<{
 }> = [
   { type: BuildingType.House,       maxOwned: 6,  minElapsed: 30,  minAge: Age.Dark   },
   { type: BuildingType.Barracks,    maxOwned: 1,  minElapsed: 60,  minAge: Age.Dark   },
+  { type: BuildingType.LumberCamp,  maxOwned: 1,  minElapsed: 90,  minAge: Age.Feudal },
+  { type: BuildingType.Mill,        maxOwned: 1,  minElapsed: 90,  minAge: Age.Feudal },
+  { type: BuildingType.MiningCamp,  maxOwned: 1,  minElapsed: 100, minAge: Age.Feudal },
+  { type: BuildingType.Blacksmith,  maxOwned: 1,  minElapsed: 110, minAge: Age.Feudal },
   { type: BuildingType.ArcheryRange,maxOwned: 1,  minElapsed: 120, minAge: Age.Feudal },
-  { type: BuildingType.Stable,      maxOwned: 1,  minElapsed: 200, minAge: Age.Castle },
   { type: BuildingType.House,       maxOwned: 10, minElapsed: 180, minAge: Age.Dark   },
+  { type: BuildingType.Stable,      maxOwned: 1,  minElapsed: 200, minAge: Age.Castle },
+  { type: BuildingType.University,  maxOwned: 1,  minElapsed: 250, minAge: Age.Castle },
+  { type: BuildingType.Monastery,   maxOwned: 1,  minElapsed: 300, minAge: Age.Castle },
+  { type: BuildingType.Castle,      maxOwned: 1,  minElapsed: 350, minAge: Age.Castle },
+];
+
+/**
+ * AI tech research priority — ordered by desirability.
+ * AI picks the first unresearched tech it can afford from a building it owns.
+ */
+const TECH_PRIORITY: TechId[] = [
+  // Dark Age eco
+  TechId.Loom,
+  // Feudal eco
+  TechId.HorseCollar, TechId.DoubleBitAxe, TechId.Wheelbarrow,
+  TechId.GoldMining, TechId.StoneMining,
+  // Feudal military
+  TechId.Fletching, TechId.Forging, TechId.ScaleMail, TechId.PaddedArcherArmor,
+  TechId.ManAtArms,
+  // Castle eco
+  TechId.HeavyPlow, TechId.BowSaw, TechId.HandCart,
+  TechId.GoldShaftMining, TechId.StoneMiningUpgrade,
+  // Castle military
+  TechId.IronCasting, TechId.ChainMail, TechId.Bodkin, TechId.LeatherArcherArmor,
+  TechId.Bloodlines, TechId.Longswordsman, TechId.Crossbowman, TechId.Cavalier, TechId.Pikeman,
+  TechId.LightCavalry, TechId.Husbandry,
+  // Castle university
+  TechId.Masonry, TechId.Ballistics,
+  // Imperial eco
+  TechId.CropRotation,
+  // Imperial military
+  TechId.BlastFurnace, TechId.PlateMail, TechId.RingArcherArmor, TechId.Bracer,
+  TechId.TwoHandedSwordsman, TechId.Arbalest, TechId.Paladin, TechId.Halberdier,
+  TechId.EliteSkirmisher, TechId.Hussar,
+  // Imperial university
+  TechId.Chemistry, TechId.Architecture,
+  // Castle civ unique (Castle Age) — start() filters by civGate
+  TechId.Chivalry, TechId.Ironclad, TechId.Yeomen, TechId.Nomads, TechId.Yasama,
+  TechId.Kamandaran, TechId.Atlatl, TechId.GreekFire, TechId.Chieftains, TechId.Madrasah,
+  TechId.Stronghold, TechId.GreatWall, TechId.Anarchy, TechId.Sipahi,
+  // Castle civ unique (Imperial Age)
+  TechId.BeardedAxe, TechId.Crenellations, TechId.Warwolf, TechId.Drill, TechId.Kataparuto,
+  TechId.Mahouts, TechId.GarlandWars, TechId.Logistica, TechId.Berserkergang, TechId.Zealotry,
+  TechId.FurorCeltica, TechId.Rocketry, TechId.Perfusion, TechId.Artillery,
 ];
 
 export class EnemyAI {
@@ -40,6 +89,7 @@ export class EnemyAI {
   private lastTrainCheck = 0;
   private lastBuildCheck = 0;
   private lastAgeCheck = 0;
+  private lastResearchCheck = 0;
 
   constructor(
     private readonly teamId: number,
@@ -47,6 +97,7 @@ export class EnemyAI {
     private readonly ageSystem: AgeSystem,
     private readonly gather: GatherSystem,
     private readonly training: TrainingQueue,
+    private readonly research: ResearchSystem,
   ) {}
 
   tick(
@@ -97,6 +148,12 @@ export class EnemyAI {
       }
     }
 
+    // ── Research techs ────────────────────────────────────────────────────
+    if (this.elapsed - this.lastResearchCheck >= RESEARCH_CHECK_INTERVAL) {
+      this.lastResearchCheck = this.elapsed;
+      this._tryResearch(myBuildings);
+    }
+
     // ── Attack when gate lifts ─────────────────────────────────────────────
     if (!this.gateLifted && this.elapsed >= FIRST_PUSH_TIME) {
       this.gateLifted = true;
@@ -141,6 +198,18 @@ export class EnemyAI {
       );
       allBuildings.push(new Building(scene, pos, this.teamId, entry.type));
       break; // one building per check interval
+    }
+  }
+
+  private _tryResearch(myBuildings: Building[]) {
+    for (const techId of TECH_PRIORITY) {
+      if (this.research.isResearched(this.teamId, techId)) continue;
+      const def = TECH_DEFS[techId];
+      // Find an idle owned building of the correct host type
+      const host = myBuildings.find(
+        b => b.buildingType === def.host && b.alive && !this.research.active(b)
+      );
+      if (host) this.research.start(host, techId, this.rm);
     }
   }
 

@@ -12,6 +12,24 @@
 
 ---
 
+## Web Port Parite — Faz 6 (2026-06-11) ✅
+
+**EnemyAI Research + 28 Civ Unique Tech + AudioManager + AI genişletilmiş build order.**
+
+| ID | Madde | Unity Karşılığı |
+|---|---|---|
+| WEB6.airesearch | `EnemyAI._tryResearch()` — TECH_PRIORITY listesi, her 30s'de `research.start()` çağrısı; AI artık eco+military+university techleri araştırıyor | EnemyAI.cs CastleTechOrder |
+| WEB6.aibuild | AI BUILD_ORDER genişletildi: LumberCamp+Mill+MiningCamp+Blacksmith+University+Monastery+Castle eklendi | EnemyAI.cs BuildOrder |
+| WEB6.civunique | 28 civ unique tech (Castle başına 2 per civ × 14 civ): Chivalry/BeardedAxe (Franks), Ironclad/Crenellations (Teutons), Yeomen/Warwolf (Britons), Nomads/Drill (Mongols), Yasama/Kataparuto (Japanese), Kamandaran/Mahouts (Persians), Atlatl/GarlandWars (Aztecs), GreekFire/Logistica (Byzantines), Chieftains/Berserkergang (Vikings), Madrasah/Zealotry (Saracens), Stronghold/FurorCeltica (Celts), GreatWall/Rocketry (Chinese), Anarchy/Perfusion (Goths), Sipahi/Artillery (Turks) | TechDefs.cs CIVT block |
+| WEB6.civgate | `TechDef.civGate?: Civilization` — `available()` + `start()` civ filtresi; `getTeamCiv(b.teamId)` ile doğrulama | ResearchSystem.cs IsTechDenied |
+| WEB6.castletechs | `BUILDING_TECHS[Castle]` — 28 civ unique tech tüm Castle binalarına bağlandı | TechDefs.cs BuildingType.Castle |
+| WEB6.applyunique | `applyTechBonus()` 14 yeni case: Chivalry/BeardedAxe/Ironclad/Crenellations/Yeomen/Atlatl/Chieftains/Warwolf/Drill/Kataparuto/GarlandWars/Zealotry/FurorCeltica/Rocketry/Artillery/Sipahi | TechState.cs CIVT effects |
+| WEB6.start_validation | `start()` artık minAge + prereq + civGate doğrulayıp deduct ediyor (AI için güvenli) | ResearchSystem.cs Start |
+| WEB6.audio | `AudioManager.ts` — Web Audio API prosedürel sentez, 10 SoundId (UnitAttack/UnitDie/BuildingDie/GatherHit/TrainStart/ResearchDone/AgeUp/ButtonClick/Victory/Defeat) | AudioManager.cs N7.sfx subset |
+| WEB6.audiohook | `ageSystem.onAgeUp`, `research.onComplete` callback'leri; HUD train/research butonu sesleri | GameEvents.cs OnHitLanded pattern |
+
+---
+
 ## Web Port Parite — Faz 5 (2026-06-11) ✅
 
 **35 → 57 tech + building HP bar + University + 4 yeni bina tipi + post-research unit fix.**

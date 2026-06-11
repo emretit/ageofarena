@@ -3,6 +3,7 @@
  * Resource bar + selected entity info panel + training card.
  */
 import { Age, BuildingType, ResourceKind, UnitType } from "../core/GameTypes";
+import { play, SoundId } from "../game/AudioManager";
 import { ResourceManager } from "../core/ResourceManager";
 import { getUnitRow } from "../core/UnitRegistry";
 import { TRAINABLE } from "../game/TrainingQueue";
@@ -347,7 +348,7 @@ export class HUD {
       this.infoPanel.querySelectorAll<HTMLButtonElement>("[data-train]").forEach(btn => {
         btn.addEventListener("click", () => {
           const type = parseInt(btn.dataset.train ?? "0") as UnitType;
-          training.train(b, type, rm);
+          if (training.train(b, type, rm)) play(SoundId.TrainStart);
         });
       });
     }
@@ -357,7 +358,7 @@ export class HUD {
       this.infoPanel.querySelectorAll<HTMLButtonElement>("[data-research]").forEach(btn => {
         btn.addEventListener("click", () => {
           const tech = btn.dataset.research!;
-          research.start(b, tech as import("../game/ResearchSystem").TechId, rm);
+          if (research.start(b, tech as import("../game/ResearchSystem").TechId, rm)) play(SoundId.ButtonClick);
         });
       });
     }

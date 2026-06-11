@@ -37,6 +37,7 @@ import { GarrisonSystem } from "./game/GarrisonSystem";
 import { BuildingPlacement } from "./game/BuildingPlacement";
 import { RelicSystem } from "./game/RelicSystem";
 import { VisualEffectSystem } from "./game/VisualEffectSystem";
+import { play, SoundId } from "./game/AudioManager";
 
 // ── Renderer (eager — shows while PreGameScreen is up) ───────────────────────
 const app = document.getElementById("app")!;
@@ -125,7 +126,7 @@ function startGame(mapType: MapType): void {
   const ageSystemEnemy = new AgeSystem();
   const research    = new ResearchSystem();
   const market      = new MarketSystem();
-  const enemyAI     = new EnemyAI(1, teamRes[1], ageSystemEnemy, gather, training);
+  const enemyAI     = new EnemyAI(1, teamRes[1], ageSystemEnemy, gather, training, research);
   const projectiles = new ProjectileSystem(scene);
   const garrison    = new GarrisonSystem();
   const placement   = new BuildingPlacement(scene, rig.camera, renderer.domElement);
@@ -141,7 +142,11 @@ function startGame(mapType: MapType): void {
 
   // ── Damage popups ─────────────────────────────────────────────────────────
   const damagePopup = new DamagePopup(app);
-  combat.onHit = (pos, dmg) => damagePopup.show(pos, dmg);
+  combat.onHit = (pos, dmg) => { damagePopup.show(pos, dmg); play(SoundId.UnitAttack); };
+
+  // ── Audio hooks (cosmetic seam: sim → sound) ──────────────────────────────
+  ageSystem.onAgeUp = () => play(SoundId.AgeUp);
+  research.onComplete = (teamId) => { if (teamId === 0) play(SoundId.ResearchDone); };
   combat.onRangedFire = (from, to, splash) => projectiles.fire(from, to, splash);
 
   // ── Minimap ───────────────────────────────────────────────────────────────
@@ -291,10 +296,12 @@ function startGame(mapType: MapType): void {
         if (!enemyTC.alive && !gameOver) {
           gameOver = true;
           hud.showVictory(0);
+          play(SoundId.Victory);
         }
         if (!playerTC.alive && !gameOver) {
           gameOver = true;
           hud.showVictory(1);
+          play(SoundId.Defeat);
         }
 
         acc -= step;

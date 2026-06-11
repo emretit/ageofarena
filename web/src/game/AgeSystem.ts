@@ -34,6 +34,8 @@ export class AgeSystem {
   /** -1 = not researching; >=0 = seconds remaining. */
   ageUpTimer = -1;
   private totalTime = 0;
+  /** Called when age-up completes (cosmetic seam). */
+  onAgeUp: (() => void) | null = null;
 
   /** Returns the definition for advancing FROM the current age, or null if at Imperial. */
   nextAgeDef(rm: ResourceManager): AgeUpDef | null {
@@ -68,6 +70,7 @@ export class AgeSystem {
       this.ageUpTimer = -1;
       rm.age = Math.min(Age.Imperial, rm.age + 1) as Age;
       rm.onChange?.();
+      this.onAgeUp?.();
     }
   }
 }

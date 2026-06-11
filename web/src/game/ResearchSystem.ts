@@ -1,9 +1,11 @@
 /**
  * ResearchSystem.ts — Port of ResearchSystem.cs + TechDefs.cs (core subset).
- * Blacksmith/LumberCamp/Mill/Barracks/Stable/TC/University/Monastery/Market research queue.
+ * Blacksmith/LumberCamp/Mill/Barracks/Stable/TC/University/Monastery/Market/Castle research queue.
  * Costs from TechDefs.cs (Unity source of truth).
  */
 import { Age, ArmorClass, BuildingType, UnitType } from "../core/GameTypes";
+import { Civilization } from "../core/CivilizationDefs";
+import { getTeamCiv } from "../core/CivState";
 import type { ResourceManager } from "../core/ResourceManager";
 import type { Unit } from "./Unit";
 import type { Building } from "./Building";
@@ -79,6 +81,36 @@ export const enum TechId {
   Redemption          = "Redemption",
   // Monastery — Imperial
   Theocracy           = "Theocracy",
+  // Castle — Civ Unique (Castle Age)
+  Chivalry            = "Chivalry",       // Franks
+  Ironclad            = "Ironclad",       // Teutons
+  Yeomen              = "Yeomen",         // Britons
+  Nomads              = "Nomads",         // Mongols
+  Yasama              = "Yasama",         // Japanese
+  Kamandaran          = "Kamandaran",     // Persians
+  Atlatl              = "Atlatl",         // Aztecs
+  GreekFire           = "GreekFire",      // Byzantines
+  Chieftains          = "Chieftains",     // Vikings
+  Madrasah            = "Madrasah",       // Saracens
+  Stronghold          = "Stronghold",     // Celts
+  GreatWall           = "GreatWall",      // Chinese
+  Anarchy             = "Anarchy",        // Goths
+  Sipahi              = "Sipahi",         // Turks
+  // Castle — Civ Unique (Imperial Age)
+  BeardedAxe          = "BeardedAxe",     // Franks
+  Crenellations       = "Crenellations",  // Teutons
+  Warwolf             = "Warwolf",        // Britons
+  Drill               = "Drill",          // Mongols
+  Kataparuto          = "Kataparuto",     // Japanese
+  Mahouts             = "Mahouts",        // Persians
+  GarlandWars         = "GarlandWars",    // Aztecs
+  Logistica           = "Logistica",      // Byzantines
+  Berserkergang       = "Berserkergang",  // Vikings
+  Zealotry            = "Zealotry",       // Saracens
+  FurorCeltica        = "FurorCeltica",   // Celts
+  Rocketry            = "Rocketry",       // Chinese
+  Perfusion           = "Perfusion",      // Goths
+  Artillery           = "Artillery",      // Turks
 }
 
 export interface TechDef {
@@ -90,6 +122,8 @@ export interface TechDef {
   gold: number;
   time: number;
   prereq?: TechId;
+  /** If set, only available for this civilization. */
+  civGate?: Civilization;
 }
 
 export const TECH_DEFS: Record<TechId, TechDef> = {
@@ -163,6 +197,36 @@ export const TECH_DEFS: Record<TechId, TechDef> = {
   [TechId.Redemption]:         { label: "Redemption",           host: BuildingType.Monastery,   minAge: Age.Castle,   food:   0, wood:  0, gold: 475, time: 35 },
   // ── Monastery Imperial ───────────────────────────────────────────────────
   [TechId.Theocracy]:          { label: "Theocracy",            host: BuildingType.Monastery,   minAge: Age.Imperial, food:   0, wood:  0, gold: 200, time: 40 },
+  // ── Castle Unique — Feudal Castle Age ────────────────────────────────────
+  [TechId.Chivalry]:      { label: "Şövalyelik",     host: BuildingType.Castle, minAge: Age.Castle,   food:   0, wood: 0, gold: 400, time: 40, civGate: Civilization.Franks },
+  [TechId.Ironclad]:      { label: "Zırhlı",          host: BuildingType.Castle, minAge: Age.Castle,   food:   0, wood: 0, gold: 400, time: 40, civGate: Civilization.Teutons },
+  [TechId.Yeomen]:        { label: "Yeomen",           host: BuildingType.Castle, minAge: Age.Castle,   food:   0, wood: 0, gold: 350, time: 40, civGate: Civilization.Britons },
+  [TechId.Nomads]:        { label: "Göçebeler",        host: BuildingType.Castle, minAge: Age.Castle,   food:   0, wood: 0, gold: 300, time: 40, civGate: Civilization.Mongols },
+  [TechId.Yasama]:        { label: "Yasama",           host: BuildingType.Castle, minAge: Age.Castle,   food: 100, wood: 0, gold: 100, time: 40, civGate: Civilization.Japanese },
+  [TechId.Kamandaran]:    { label: "Kamandaran",       host: BuildingType.Castle, minAge: Age.Castle,   food:   0, wood: 0, gold: 300, time: 40, civGate: Civilization.Persians },
+  [TechId.Atlatl]:        { label: "Atlatl",           host: BuildingType.Castle, minAge: Age.Castle,   food: 400, wood: 0, gold: 350, time: 40, civGate: Civilization.Aztecs },
+  [TechId.GreekFire]:     { label: "Rum Ateşi",        host: BuildingType.Castle, minAge: Age.Castle,   food: 300, wood: 0, gold: 100, time: 40, civGate: Civilization.Byzantines },
+  [TechId.Chieftains]:    { label: "Reisler",          host: BuildingType.Castle, minAge: Age.Castle,   food: 400, wood: 0, gold: 200, time: 40, civGate: Civilization.Vikings },
+  [TechId.Madrasah]:      { label: "Medrese",          host: BuildingType.Castle, minAge: Age.Castle,   food:   0, wood: 0, gold: 200, time: 40, civGate: Civilization.Saracens },
+  [TechId.Stronghold]:    { label: "Müstahkem Mevki",  host: BuildingType.Castle, minAge: Age.Castle,   food:   0, wood: 0, gold: 300, time: 40, civGate: Civilization.Celts },
+  [TechId.GreatWall]:     { label: "Çin Seddi",        host: BuildingType.Castle, minAge: Age.Castle,   food: 400, wood: 0, gold: 200, time: 40, civGate: Civilization.Chinese },
+  [TechId.Anarchy]:       { label: "Anarşi",           host: BuildingType.Castle, minAge: Age.Castle,   food:   0, wood: 0, gold: 350, time: 40, civGate: Civilization.Goths },
+  [TechId.Sipahi]:        { label: "Sipahi",           host: BuildingType.Castle, minAge: Age.Castle,   food: 350, wood: 0, gold: 150, time: 40, civGate: Civilization.Turks },
+  // ── Castle Unique — Imperial Age ─────────────────────────────────────────
+  [TechId.BeardedAxe]:    { label: "Sakallı Balta",    host: BuildingType.Castle, minAge: Age.Imperial, food:   0, wood: 0, gold: 400, time: 40, civGate: Civilization.Franks },
+  [TechId.Crenellations]: { label: "Mazgallar",        host: BuildingType.Castle, minAge: Age.Imperial, food:   0, wood: 0, gold: 400, time: 40, civGate: Civilization.Teutons },
+  [TechId.Warwolf]:       { label: "Warwolf",          host: BuildingType.Castle, minAge: Age.Imperial, food:   0, wood: 0, gold: 800, time: 40, civGate: Civilization.Britons },
+  [TechId.Drill]:         { label: "Talim",            host: BuildingType.Castle, minAge: Age.Imperial, food:   0, wood: 0, gold: 500, time: 40, civGate: Civilization.Mongols },
+  [TechId.Kataparuto]:    { label: "Kataparuto",       host: BuildingType.Castle, minAge: Age.Imperial, food:   0, wood: 0, gold: 750, time: 40, civGate: Civilization.Japanese },
+  [TechId.Mahouts]:       { label: "Mahut",            host: BuildingType.Castle, minAge: Age.Imperial, food:   0, wood: 0, gold: 300, time: 40, civGate: Civilization.Persians },
+  [TechId.GarlandWars]:   { label: "Çiçek Savaşları",  host: BuildingType.Castle, minAge: Age.Imperial, food: 450, wood: 0, gold: 750, time: 40, civGate: Civilization.Aztecs },
+  [TechId.Logistica]:     { label: "Lojistika",        host: BuildingType.Castle, minAge: Age.Imperial, food: 500, wood: 0, gold: 600, time: 40, civGate: Civilization.Byzantines },
+  [TechId.Berserkergang]: { label: "Berserkergang",    host: BuildingType.Castle, minAge: Age.Imperial, food: 300, wood: 0, gold: 350, time: 40, civGate: Civilization.Vikings },
+  [TechId.Zealotry]:      { label: "Bağnazlık",        host: BuildingType.Castle, minAge: Age.Imperial, food: 750, wood: 0, gold: 800, time: 40, civGate: Civilization.Saracens },
+  [TechId.FurorCeltica]:  { label: "Furor Celtica",    host: BuildingType.Castle, minAge: Age.Imperial, food: 750, wood: 0, gold: 450, time: 40, civGate: Civilization.Celts },
+  [TechId.Rocketry]:      { label: "Roket",            host: BuildingType.Castle, minAge: Age.Imperial, food: 600, wood: 0, gold: 600, time: 40, civGate: Civilization.Chinese },
+  [TechId.Perfusion]:     { label: "Perfüzyon",        host: BuildingType.Castle, minAge: Age.Imperial, food:   0, wood: 0, gold: 450, time: 40, civGate: Civilization.Goths },
+  [TechId.Artillery]:     { label: "Topçuluk",         host: BuildingType.Castle, minAge: Age.Imperial, food: 500, wood: 0, gold: 450, time: 40, civGate: Civilization.Turks },
 };
 
 /** Techs available per building type (player-facing order). */
@@ -182,6 +246,17 @@ export const BUILDING_TECHS: Partial<Record<BuildingType, TechId[]>> = {
   [BuildingType.Market]:      [TechId.Caravan, TechId.Coinage, TechId.Banking],
   [BuildingType.University]:  [TechId.Ballistics, TechId.Masonry, TechId.Architecture, TechId.GuardTower, TechId.Chemistry, TechId.Keep, TechId.Fortified],
   [BuildingType.Monastery]:   [TechId.Sanctity, TechId.BlockPrinting, TechId.Redemption, TechId.Theocracy],
+  // Castle techs — civ-gated; available() filters by civGate
+  [BuildingType.Castle]: [
+    // Castle Age unique techs
+    TechId.Chivalry, TechId.Ironclad, TechId.Yeomen, TechId.Nomads, TechId.Yasama,
+    TechId.Kamandaran, TechId.Atlatl, TechId.GreekFire, TechId.Chieftains, TechId.Madrasah,
+    TechId.Stronghold, TechId.GreatWall, TechId.Anarchy, TechId.Sipahi,
+    // Imperial Age unique techs
+    TechId.BeardedAxe, TechId.Crenellations, TechId.Warwolf, TechId.Drill, TechId.Kataparuto,
+    TechId.Mahouts, TechId.GarlandWars, TechId.Logistica, TechId.Berserkergang, TechId.Zealotry,
+    TechId.FurorCeltica, TechId.Rocketry, TechId.Perfusion, TechId.Artillery,
+  ],
 };
 
 interface QueueEntry { tech: TechId; timer: number; total: number; }
@@ -191,6 +266,8 @@ export class ResearchSystem {
   private readonly done = new Map<number, Set<TechId>>();
   /** Per-building active research queue (max 1 at a time). */
   private readonly queues = new Map<Building, QueueEntry>();
+  /** Called when a tech completes — cosmetic seam for SFX/UI. */
+  onComplete: ((teamId: number, tech: TechId) => void) | null = null;
 
   isResearched(teamId: number, tech: TechId): boolean {
     return this.done.get(teamId)?.has(tech) ?? false;
@@ -201,14 +278,16 @@ export class ResearchSystem {
     return this.queues.get(b);
   }
 
-  /** Returns all available (not yet researched, prereqs met, age ok) techs for a building. */
+  /** Returns all available (not yet researched, prereqs met, age ok, civ allowed) techs for a building. */
   available(b: Building, rm: ResourceManager): TechId[] {
     const list = BUILDING_TECHS[b.buildingType] ?? [];
+    const teamCiv = getTeamCiv(b.teamId);
     return list.filter(t => {
       if (this.isResearched(b.teamId, t)) return false;
       const def = TECH_DEFS[t];
       if (rm.age < def.minAge) return false;
       if (def.prereq && !this.isResearched(b.teamId, def.prereq)) return false;
+      if (def.civGate !== undefined && def.civGate !== teamCiv) return false;
       return true;
     });
   }
@@ -217,6 +296,9 @@ export class ResearchSystem {
     if (this.queues.has(b)) return false; // already busy
     if (this.isResearched(b.teamId, tech)) return false;
     const def = TECH_DEFS[tech];
+    if (rm.age < def.minAge) return false;
+    if (def.prereq && !this.isResearched(b.teamId, def.prereq)) return false;
+    if (def.civGate !== undefined && def.civGate !== getTeamCiv(b.teamId)) return false;
     if (!rm.canAfford(def.food, def.wood, def.gold)) return false;
     rm.deduct(def.food, def.wood, def.gold);
     this.queues.set(b, { tech, timer: def.time, total: def.time });
@@ -250,6 +332,7 @@ export class ResearchSystem {
     }
     applyGatherBonus(tech, teamRes[teamId]);
     applyBuildingBonus(tech, buildings.filter(b => b.teamId === teamId && b.alive));
+    this.onComplete?.(teamId, tech);
   }
 }
 
@@ -463,6 +546,84 @@ export function applyTechBonus(u: Unit, tech: TechId) {
       if (u.unitType === UnitType.Monk) {
         (u as { moveSpeed: number }).moveSpeed *= 1.1;
       }
+      break;
+    // ── Civ unique techs (Castle) ─────────────────────────────────────────
+    case TechId.Chivalry:       // Franks: cavalry +1 melee armor
+      if (u.armorClass & ArmorClass.Cavalry) (u as { armorMelee: number }).armorMelee += 1;
+      break;
+    case TechId.Yeomen:         // Britons: archers +1 attack, +2 range
+      if (u.armorClass & ArmorClass.Archer) {
+        (u as { baseAtk: number }).baseAtk += 1;
+        (u as { attackRange: number }).attackRange += 2;
+      }
+      break;
+    case TechId.Atlatl:         // Aztecs: archers/skirmishers +1 attack +1 range
+      if (u.armorClass & ArmorClass.Archer) {
+        (u as { baseAtk: number }).baseAtk += 1;
+        (u as { attackRange: number }).attackRange += 1;
+      }
+      break;
+    case TechId.Chieftains:     // Vikings: infantry +6 bonus vs cavalry
+      if (u.armorClass & ArmorClass.Infantry) {
+        const bvEntry = u.bonusVs.find(e => e.cls === ArmorClass.Cavalry);
+        if (bvEntry) bvEntry.bonus += 6;
+        else u.bonusVs.push({ cls: ArmorClass.Cavalry, bonus: 6 });
+      }
+      break;
+    case TechId.Ironclad:       // Teutons: siege +4 melee armor
+      if (u.armorClass & ArmorClass.Siege) (u as { armorMelee: number }).armorMelee += 4;
+      break;
+    case TechId.Sipahi:         // Turks: cavalry +20 HP
+      if (u.armorClass & ArmorClass.Cavalry) {
+        (u as { maxHp: number }).maxHp += 20;
+        u.hp = Math.min(u.hp + 20, u.maxHp);
+      }
+      break;
+    // ── Civ unique techs (Imperial) ───────────────────────────────────────
+    case TechId.BeardedAxe:     // Franks: infantry +2 attack
+      if (u.armorClass & ArmorClass.Infantry) (u as { baseAtk: number }).baseAtk += 2;
+      break;
+    case TechId.Crenellations:  // Teutons: infantry +1 melee armor
+      if (u.armorClass & ArmorClass.Infantry) (u as { armorMelee: number }).armorMelee += 1;
+      break;
+    case TechId.Warwolf:        // Britons: Trebuchet +2 attack
+      if (u.unitType === UnitType.Trebuchet) (u as { baseAtk: number }).baseAtk += 2;
+      break;
+    case TechId.Drill:          // Mongols: siege +50% speed
+      if (u.armorClass & ArmorClass.Siege) (u as { moveSpeed: number }).moveSpeed *= 1.5;
+      break;
+    case TechId.Kataparuto:     // Japanese: Trebuchet fires faster
+      if (u.unitType === UnitType.Trebuchet) {
+        (u as { attackInterval: number }).attackInterval *= 0.8;
+      }
+      break;
+    case TechId.GarlandWars:    // Aztecs: infantry +4 attack
+      if (u.armorClass & ArmorClass.Infantry) (u as { baseAtk: number }).baseAtk += 4;
+      break;
+    case TechId.Zealotry:       // Saracens: cavalry +20 HP
+      if (u.armorClass & ArmorClass.Cavalry) {
+        (u as { maxHp: number }).maxHp += 20;
+        u.hp = Math.min(u.hp + 20, u.maxHp);
+      }
+      break;
+    case TechId.FurorCeltica:   // Celts: siege +50% HP
+      if (u.armorClass & ArmorClass.Siege) {
+        const bonus = Math.round(u.maxHp * 0.5);
+        (u as { maxHp: number }).maxHp += bonus;
+        u.hp = Math.min(u.hp + bonus, u.maxHp);
+      }
+      break;
+    case TechId.Rocketry:       // Chinese: siege +2 range
+      if (u.armorClass & ArmorClass.Siege) (u as { attackRange: number }).attackRange += 2;
+      break;
+    case TechId.Artillery:      // Turks: siege +2 range
+      if (u.armorClass & ArmorClass.Siege) (u as { attackRange: number }).attackRange += 2;
+      break;
+    // No-op techs (complex mechanics not applicable to web unit model)
+    case TechId.Nomads: case TechId.Yasama: case TechId.Kamandaran:
+    case TechId.Mahouts: case TechId.GreekFire: case TechId.Logistica:
+    case TechId.Berserkergang: case TechId.Madrasah: case TechId.Stronghold:
+    case TechId.GreatWall: case TechId.Anarchy: case TechId.Perfusion:
       break;
   }
 }
