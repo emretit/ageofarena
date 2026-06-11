@@ -145,6 +145,7 @@ function startGame(mapType: MapType): void {
   combat.onHit = (pos, dmg) => { damagePopup.show(pos, dmg); play(SoundId.UnitAttack); };
   combat.onUnitKilled = () => play(SoundId.UnitDie);
   combat.onBuildingDestroyed = () => play(SoundId.BuildingDie);
+  gather.onGatherTick = () => play(SoundId.GatherHit);
 
   // ── Audio hooks (cosmetic seam: sim → sound) ──────────────────────────────
   ageSystem.onAgeUp = () => play(SoundId.AgeUp);
@@ -174,6 +175,13 @@ function startGame(mapType: MapType): void {
     rm.gold  = Math.max(0, rm.gold  - def.costGold);
     rm.onChange?.();
     buildings.push(new Building(scene, pos, 0, type));
+    if (type === BuildingType.Farm) {
+      const farmNode = new ResourceNode(scene, pos.clone(), ResourceKind.Food, 250);
+      (farmNode as { destroyOnDeplete: boolean }).destroyOnDeplete = false;
+      farmNode.decayPerSecond = 2;
+      farmNode.ownerTeamId = 0;
+      nodes.push(farmNode);
+    }
     return true;
   };
 
@@ -263,6 +271,7 @@ function startGame(mapType: MapType): void {
         for (const u of units) u.tick(step);
 
         gather.tick(units, buildings, teamRes, scene, step);
+        gather.tickFarms(nodes, teamRes, step);
         combat.tick(units, buildings, step);
         combat.tickBuildings(buildings, units, step);
         training.tick(buildings, units, scene, research, step);

@@ -25,6 +25,12 @@ export class ResourceNode {
   readonly gathererCap = 6;
   currentGatherers = 0;
   readonly destroyOnDeplete: boolean;
+  /** Idle decay rate (food/sec). >0 only for farm nodes. */
+  decayPerSecond = 0;
+  /** Fractional decay accumulator (sub-1 amounts are accumulated). */
+  decayAccum = 0;
+  /** Team that owns this node (relevant for per-civ farmDecayMult). */
+  ownerTeamId = -1;
 
   get depleted(): boolean { return this.amount <= 0; }
   get hasRoom(): boolean { return this.currentGatherers < this.gathererCap; }

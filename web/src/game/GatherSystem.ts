@@ -34,6 +34,9 @@ export function gatherIntervalFor(kind: ResourceKind): number {
 }
 
 export class GatherSystem {
+  /** Called on each successful harvest tick (GatherHit SFX seam). */
+  onGatherTick: (() => void) | null = null;
+
   /** Per-villager gather timer (seconds until next harvest tick). */
   private readonly timers = new Map<Unit, number>();
 
@@ -123,6 +126,7 @@ export class GatherSystem {
       const taken = node.take(1);
       v.carryAmount += taken;
       v.carryKind = node.kind;
+      if (taken > 0) this.onGatherTick?.();
     }
     this.timers.set(v, timer);
 
@@ -189,6 +193,37 @@ export class GatherSystem {
     const len = dir.length();
     if (len < 0.001) return nodePos.clone();
     return nodePos.clone().add(dir.normalize().multiplyScalar(range));
+  }
+
+  /**
+   * Tick idle-farm decay and auto-reseed (ResourceNode.SimTick port).
+   * Farm nodes (decayPerSecond > 0) lose food while idle; when depleted they
+   * reseed for 60 wood (Franks pay half-rate decay via farmDecayMult).
+   */
+  tickFarms(nodes: ResourceNode[], teamRes: ResourceManager[], dt: number) {
+    for (const n of nodes) {
+      if (n.decayPerSecond <= 0 || n.amount <= 0) continue;
+      if (n.currentGatherers > 0) { n.decayAccum = 0; continue; }
+      const decayMult = n.ownerTeamId >= 0
+        ? (getTeamBonus(n.ownerTeamId).farmDecayMult ?? 1)
+        : 1;
+      n.decayAccum += n.decayPerSecond * decayMult * dt;
+      if (n.decayAccum >= 1) {
+        const dec = Math.floor(n.decayAccum);
+        n.amount = Math.max(0, n.amount - dec);
+        n.decayAccum -= dec;
+      }
+      if (n.amount === 0 && !n.destroyOnDeplete) {
+        // Farm reseed: 60 wood cost; if unaffordable farm stays empty until next tick
+        const rm = n.ownerTeamId >= 0 ? teamRes[n.ownerTeamId] : null;
+        if (rm && rm.wood >= 60) {
+          rm.wood -= 60;
+          rm.onChange?.();
+          n.amount = (n as { maxAmount: number }).maxAmount;
+          n.decayAccum = 0;
+        }
+      }
+    }
   }
 
   /** Remove timer entries for dead/non-gathering units; decrement their node slots. */

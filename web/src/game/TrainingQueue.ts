@@ -4,9 +4,10 @@
  */
 import * as THREE from "three";
 import { Age, BuildingType, UnitType } from "../core/GameTypes";
+import { Civilization } from "../core/CivilizationDefs";
 import { ResourceManager } from "../core/ResourceManager";
 import { getUnitRow } from "../core/UnitRegistry";
-import { getTeamBonus } from "../core/CivState";
+import { getTeamBonus, getTeamCiv } from "../core/CivState";
 import type { Building } from "./Building";
 import { Unit } from "./Unit";
 import type { ResearchSystem } from "./ResearchSystem";
@@ -22,6 +23,11 @@ const UNIT_MIN_AGE: Partial<Record<UnitType, Age>> = {
   [UnitType.Trebuchet]:   Age.Castle,
   [UnitType.Mangonel]:    Age.Castle,
   [UnitType.Ram]:         Age.Castle,
+};
+
+/** Units denied to specific civilizations (port of CivDefs.DENIED_UNITS). */
+const DENIED_UNITS: Partial<Record<Civilization, ReadonlySet<UnitType>>> = {
+  [Civilization.Aztecs]: new Set([UnitType.Cavalry, UnitType.Scout]),
 };
 
 /** Which unit types a building can train. */
@@ -49,6 +55,8 @@ export class TrainingQueue {
     if (rm.pop + inQueue >= rm.popCap) return false;
     const minAge = UNIT_MIN_AGE[type] ?? Age.Dark;
     if (rm.age < minAge) return false;
+    const denied = DENIED_UNITS[getTeamCiv(building.teamId)];
+    if (denied?.has(type)) return false;
     if (!rm.canAfford(row.trainFood, row.trainWood, row.trainGold)) return false;
     const queue = this._queue(building);
     if (queue.length >= TrainingQueue.MAX_QUEUE) return false;

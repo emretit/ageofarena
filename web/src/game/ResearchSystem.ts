@@ -259,6 +259,20 @@ export const BUILDING_TECHS: Partial<Record<BuildingType, TechId[]>> = {
   ],
 };
 
+/** Per-civ denied techs — N0.7 port. Only includes techs present in this web port. */
+const DENIED_TECHS: Partial<Record<Civilization, ReadonlySet<TechId>>> = {
+  [Civilization.Franks]:   new Set([TechId.Halberdier, TechId.Arbalest]),
+  [Civilization.Britons]:  new Set([TechId.Paladin]),
+  [Civilization.Mongols]:  new Set([TechId.Halberdier, TechId.Paladin]),
+  [Civilization.Japanese]: new Set([TechId.Paladin]),
+  [Civilization.Aztecs]:   new Set([TechId.Cavalier, TechId.Paladin, TechId.Bloodlines, TechId.Husbandry]),
+  [Civilization.Vikings]:  new Set([TechId.Paladin]),
+  [Civilization.Celts]:    new Set([TechId.Paladin, TechId.Arbalest]),
+  [Civilization.Chinese]:  new Set([TechId.Halberdier]),
+  [Civilization.Goths]:    new Set([TechId.Paladin, TechId.Arbalest]),
+  [Civilization.Turks]:    new Set([TechId.Halberdier, TechId.EliteSkirmisher]),
+};
+
 interface QueueEntry { tech: TechId; timer: number; total: number; }
 
 export class ResearchSystem {
@@ -278,12 +292,14 @@ export class ResearchSystem {
     return this.queues.get(b);
   }
 
-  /** Returns all available (not yet researched, prereqs met, age ok, civ allowed) techs for a building. */
+  /** Returns all available (not yet researched, prereqs met, age ok, civ allowed, not denied) techs for a building. */
   available(b: Building, rm: ResourceManager): TechId[] {
     const list = BUILDING_TECHS[b.buildingType] ?? [];
     const teamCiv = getTeamCiv(b.teamId);
+    const denied = DENIED_TECHS[teamCiv];
     return list.filter(t => {
       if (this.isResearched(b.teamId, t)) return false;
+      if (denied?.has(t)) return false;
       const def = TECH_DEFS[t];
       if (rm.age < def.minAge) return false;
       if (def.prereq && !this.isResearched(b.teamId, def.prereq)) return false;
@@ -298,7 +314,9 @@ export class ResearchSystem {
     const def = TECH_DEFS[tech];
     if (rm.age < def.minAge) return false;
     if (def.prereq && !this.isResearched(b.teamId, def.prereq)) return false;
-    if (def.civGate !== undefined && def.civGate !== getTeamCiv(b.teamId)) return false;
+    const teamCiv = getTeamCiv(b.teamId);
+    if (DENIED_TECHS[teamCiv]?.has(tech)) return false;
+    if (def.civGate !== undefined && def.civGate !== teamCiv) return false;
     if (!rm.canAfford(def.food, def.wood, def.gold)) return false;
     rm.deduct(def.food, def.wood, def.gold);
     this.queues.set(b, { tech, timer: def.time, total: def.time });
