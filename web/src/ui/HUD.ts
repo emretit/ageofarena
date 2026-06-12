@@ -15,6 +15,7 @@ import { BUILDING_TECHS, TECH_DEFS, type ResearchSystem, type TechId } from "../
 import type { MarketSystem } from "../game/MarketSystem";
 import type { GarrisonSystem } from "../game/GarrisonSystem";
 import type { CommandIssuer } from "../sim/CommandBus";
+import { versionString } from "../../../shared/Versions";
 
 /** Minimum age required to construct each building type. */
 const BUILDING_MIN_AGE: Partial<Record<BuildingType, Age>> = {
@@ -95,6 +96,15 @@ export class HUD {
       pointerEvents: "none",
       fontFamily: "monospace", userSelect: "none",
     });
+
+    // ── Version badge (bottom-right corner) ────────────────────────────────
+    const versionBadge = document.createElement("div");
+    Object.assign(versionBadge.style, {
+      position: "absolute", bottom: "4px", right: "6px",
+      color: "rgba(255,255,255,0.35)", fontSize: "10px", pointerEvents: "none",
+    });
+    versionBadge.textContent = `v${versionString()}`;
+    this.root.appendChild(versionBadge);
 
     // ── Resource bar ────────────────────────────────────────────────────────
     this.resBar = document.createElement("div");

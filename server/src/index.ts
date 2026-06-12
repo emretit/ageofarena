@@ -4,6 +4,7 @@ import { randomInt } from 'crypto';
 import { Room, type RoomPlayer } from './Room';
 import { PROTOCOL_VERSION } from '../../shared/protocol';
 import type { ClientMsg } from '../../shared/protocol';
+import { isRateLimited, cleanupSocket, touchRoom, removeRoom, startRoomGc } from './Limits';
 
 const port = Number(process.env.PORT ?? 2567);
 const httpServer = createServer((req, res) => {
@@ -36,7 +37,9 @@ wss.on('connection', (ws) => {
   console.log(`[+] connected: ${playerId}`);
 
   ws.on('message', (raw) => {
+    if (isRateLimited(ws)) { send(ws, { type: 'error', code: 'RATE_LIMITED', message: 'Too many messages' }); return; }
     const str = raw.toString();
+    if (Buffer.byteLength(str, 'utf8') > 8192) { return; } // drop oversized
 
     let msg: ClientMsg;
     try { msg = JSON.parse(str); } catch { return; }
@@ -55,6 +58,7 @@ wss.on('connection', (ws) => {
       const room = new Room(code, playerId, seed);
       room.addPlayer(player);
       rooms.set(code, room);
+      touchRoom(code);
       socketToPlayer.set(ws, { playerId, roomCode: code });
       send(ws, { type: 'room_created', roomCode: code, team: 0, playerId });
       console.log(`[Room] created: ${code} host=${player.name}`);
@@ -97,6 +101,7 @@ wss.on('connection', (ws) => {
       if (!ctx) return;
       const room = rooms.get(ctx.roomCode);
       if (!room || !room.started) return;
+      touchRoom(ctx.roomCode);
       room.receiveTurnInput(ctx.playerId, msg.turn, msg.commands ?? []);
     }
 
@@ -120,6 +125,7 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
+    cleanupSocket(ws);
     const ctx = socketToPlayer.get(ws);
     if (!ctx) return;
     socketToPlayer.delete(ws);
@@ -132,6 +138,7 @@ wss.on('connection', (ws) => {
     }
     if (room.playerCount === 0) {
       rooms.delete(ctx.roomCode);
+      removeRoom(ctx.roomCode);
       console.log(`[Room] ${ctx.roomCode} deleted (empty)`);
     }
   });
@@ -141,4 +148,14 @@ wss.on('connection', (ws) => {
 
 httpServer.listen(port, () => {
   console.log(`[AgeOfArena] Server running → ws://localhost:${port}`);
+});
+
+// Room GC — evict idle rooms after 30 min
+startRoomGc((code) => {
+  const room = rooms.get(code);
+  if (room) {
+    room.broadcast({ type: 'error', code: 'ROOM_EXPIRED', message: 'Room expired (idle)' });
+    rooms.delete(code);
+    console.log(`[Room] ${code} expired (TTL)`);
+  }
 });

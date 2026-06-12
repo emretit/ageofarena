@@ -54,7 +54,7 @@ export async function reportMatch(report: MatchReport): Promise<string | null> {
     return null;
   }
 
-  const matchId: string = await res.json();
+  const matchId = String(await res.json());
   console.log(`[Report] match recorded: ${matchId}`);
   return matchId;
 }

@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Required env vars (set in Netlify dashboard):
+#   VITE_SUPABASE_URL
+#   VITE_SUPABASE_ANON_KEY
+#   VITE_WS_URL   (Railway server WebSocket URL)
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

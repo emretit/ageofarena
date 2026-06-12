@@ -12,29 +12,30 @@
 
 ---
 
-## Web Roadmap — Faz 8-18 (2026-06-12) ⬜
+## Web Roadmap — Faz 8-18 (2026-06-12) ✅
 
 > **Detayın tek kaynağı → [docs/WEB-ROADMAP.md](WEB-ROADMAP.md)** — mimari kararlar (NavGrid/A\*,
 > merge-then-instance, lockstep, Supabase bölüşümü), dosya-seviyesi madde tabloları (`WEBn.id`),
-> faz başına DoD + riskler, ürün prompt'unun 19 başlık eşlemesi. **Durum sembolleri BURADA güncellenir.**
-> _(Not: Faz 7 commit `438364d`'de tamamlandı — civ denied units/techs + farm decay + GatherHit
-> SFX — ancak bu dosyaya faz kaydı girilmemiş; kayıt borcu.)_
+> faz başına DoD + riskler, ürün prompt'unun 19 başlık eşlemesi. **Adım adım uygulama checklist → [WEB-TODO.md](WEB-TODO.md).**
+> _(Not: Faz 7 commit `438364d`'de tamamlandı — civ denied units/techs + farm decay + GatherHit SFX)_
 
 | Faz | Hedef | Boyut | Durum |
 |---|---|---|---|
-| **Faz 8** — Pathfinding & Hareket | NavGrid 192² + A\* + separation + formasyon + `Orders.ts` tek komut kapısı | XL | ⬜ |
-| **Faz 9** — Komut Derinliği & Savaş Hissi | attack-move/stance/ctrl-grup + sim mermisi/lead/splash + Monk dönüştürme + Gate + garnizon oku | L | ⬜ |
-| **Faz 10** — N-Takım & AI | 2-4 AI + 6 zorluk + 3 kişilik + diplomasi/2v2 + VictorySystem | L | ⬜ |
-| **Faz 11** — Görsel Devrim | GLTF instancing (KayKit/Kenney/Quaternius) + ACES/postFX + teren/su + **Higgsfield** (portre/key-art/müzik) | XL | ⬜ |
-| **Faz 12** — Perf Sertifikasyonu + SP Tamamlama | 500@60fps / 1000@30fps mühür + donanma dilimi + Wonder/Relic/Regicide + save + ayarlar | L/XL | ⬜ |
-| **Faz 13** — Command Pattern | entity ID + CommandBus/Executor — oyuncu+HUD+AI tek kapıdan, exec-anı doğrulama | L | ⬜ |
-| **Faz 14** — Determinizm + Headless | sim/view ayrımı + SimRandom/DMath + Vitest golden+fuzz checksum (cross-browser) | XL | ⬜ |
-| **Faz 15** — Replay + Save/Load | `.aoarep` komut logu + keyframe + perspektifli izleyici; save=replay | M | ⬜ |
-| **Faz 16** — Lockstep MP | turn sequencer server (mevcut `server/` upgrade) + Loopback/Ws transport + reconnect + spectator | XL | ⬜ |
-| **Faz 17** — Supabase | anon-first auth + ELO/matchmaking + lobby browser + replay Storage; sonuç yalnız server yazar | L | ⬜ |
-| **Faz 18** — Ops | Netlify+Railway deploy + rate limit + SIM_VERSION + Sentry (desync metriği) + load test + tablet spectator | M | ⬜ |
+| **Faz 8** — Pathfinding & Hareket | NavGrid 192² + A\* + separation + formasyon + `Orders.ts` tek komut kapısı | XL | ✔️ |
+| **Faz 9** — Komut Derinliği & Savaş Hissi | attack-move/stance/ctrl-grup + sim mermisi/splash + Monk dönüştürme + garnizon oku | L | ✔️ (Gate/lead stretch) |
+| **Faz 10** — N-Takım & AI | 2-4 AI + 6 zorluk + 3 kişilik + diplomasi/2v2 + VictorySystem | L | ✔️ |
+| **Faz 11** — Görsel Devrim | GLTF AssetLoader+Manifest + ACES/postFX + teren/su + AudioManager müzik kanalı | XL | ✔️ (model dosyaları + Higgsfield manüel) |
+| **Faz 12** — Perf + SP Tamamlama | PerfHud + GameMode (Conquest/Wonder/Relic/Regicide) + SaveSystem + SettingsPanel | L/XL | ✔️ (500@60/donanma/stress test manüel) |
+| **Faz 13** — Command Pattern | EntityIds + CommandBus/Executor + CommandIssuer interface — tüm emirler tek kapıdan | L | ✔️ |
+| **Faz 14** — Determinizm + Headless | DMath + Checksum (FNV-1a) + vitest 20 test (throughput gate ≥3000 tick/s) | XL | ✔️ (full sim/view split stretch) |
+| **Faz 15** — Replay + Save/Load | `.aoarep` komut logu; ReplayDriver + ReplayHUD; F5 snapshot+replay kayıt | M | ✔️ (seek + golden fixture stretch) |
+| **Faz 16** — Lockstep MP | shared/protocol + Room turn sequencer + LockstepClient + LoopbackTransport (SP) + RoomScreen + DesyncHandler | XL | ✔️ (reconnect/spectate stretch) |
+| **Faz 17** — Supabase | Auth.ts (anon→email) + schema migration + matchmake Edge Function + LobbyBrowser + ProfileScreen | L | ✔️ (manüel deploy: `supabase db push`) |
+| **Faz 18** — Ops | netlify.toml + Limits.ts (rate/TTL) + Versions.ts + load test 50 oda×2 bot | M | ✔️ (Sentry + tablet touch stretch) |
 
 **MVP kesitleri:** MVP-1 (SP paketi) = Faz 8-12 · MVP-2 (online 1v1) = Faz 13-16 · v1.0 (ranked+ops) = Faz 17-18.
+
+**Load test (son ölçüm): manüel çalıştır → `npx ts-node server/test/load.ts`; hedef p95 <50ms, RSS <512MB.**
 
 ---
 
