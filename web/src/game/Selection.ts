@@ -12,6 +12,8 @@ import type { Building } from "./Building";
 import type { ResourceNode } from "./ResourceNode";
 import type { PathQueue } from "../sim/PathQueue";
 import { orderMove, orderAttackUnit, orderAttackBuilding, orderGather, orderAttackMove, orderPatrol } from "./Orders";
+import type { CommandBus } from "../sim/CommandBus";
+import { qEncode } from "../sim/Command";
 
 const DRAG_THRESHOLD = 6; // pixels before drag-box activates
 
@@ -45,6 +47,7 @@ export class Selection {
     private readonly combat: CombatSystem,
     private readonly garrisonSys?: GarrisonSystem,
     private readonly pathQueue?: PathQueue,
+    private readonly bus?: CommandBus,
   ) {
     // Selection-box DOM element
     this.boxEl = document.createElement("div");
@@ -148,23 +151,35 @@ export class Selection {
     this.ray.setFromCamera(this.ndc, this.camera);
 
     // Attack-move pending: left-click issues attack-move, doesn't change selection
-    if (this.attackMovePending && this.selected.length > 0 && this.pathQueue) {
+    if (this.attackMovePending && this.selected.length > 0) {
       this.attackMovePending = false;
       const ground = this.scene.getObjectByName("Ground");
       if (ground) {
         const hit = this.ray.intersectObject(ground, false)[0];
-        if (hit) orderAttackMove(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+        if (hit) {
+          if (this.bus) {
+            this.bus.issue({ kind: 'attackMove', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z) });
+          } else if (this.pathQueue) {
+            orderAttackMove(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+          }
+        }
       }
       return;
     }
 
     // Patrol pending: left-click issues patrol order
-    if (this.patrolPending && this.selected.length > 0 && this.pathQueue) {
+    if (this.patrolPending && this.selected.length > 0) {
       this.patrolPending = false;
       const ground = this.scene.getObjectByName("Ground");
       if (ground) {
         const hit = this.ray.intersectObject(ground, false)[0];
-        if (hit) orderPatrol(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+        if (hit) {
+          if (this.bus) {
+            this.bus.issue({ kind: 'patrol', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z) });
+          } else if (this.pathQueue) {
+            orderPatrol(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+          }
+        }
       }
       return;
     }
@@ -206,12 +221,19 @@ export class Selection {
     this.ray.setFromCamera(this.ndc, this.camera);
 
     // Attack-move pending: right-click also issues attack-move
-    if (this.attackMovePending && this.selected.length > 0 && this.pathQueue) {
+    if (this.attackMovePending && this.selected.length > 0) {
       this.attackMovePending = false;
       const ground = this.scene.getObjectByName("Ground");
       if (ground) {
         const hit = this.ray.intersectObject(ground, false)[0];
-        if (hit) { orderAttackMove(this.selected, hit.point.x, hit.point.z, this.pathQueue); return; }
+        if (hit) {
+          if (this.bus) {
+            this.bus.issue({ kind: 'attackMove', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z) });
+          } else if (this.pathQueue) {
+            orderAttackMove(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+          }
+          return;
+        }
       }
     }
 
@@ -236,7 +258,9 @@ export class Selection {
         if (o.userData.resourceNode) {
           const node = o.userData.resourceNode as ResourceNode;
           const gatherers = this.selected.filter(u => u.teamId === 0 && u.gathers);
-          if (this.pathQueue) {
+          if (this.bus) {
+            this.bus.issue({ kind: 'gather', teamId: 0, ai: false, unitIds: gatherers.map(u => u.id), nodeId: node.id });
+          } else if (this.pathQueue) {
             orderGather(gatherers, node, this.buildings, this.gather, this.pathQueue);
           } else {
             for (const u of gatherers) this.gather.assignGather(u, node, this.buildings);
@@ -256,7 +280,9 @@ export class Selection {
         if (o.userData.building) {
           const b = o.userData.building as Building;
           if (b.teamId !== 0) {
-            if (this.pathQueue) {
+            if (this.bus) {
+              this.bus.issue({ kind: 'attackBuilding', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), targetId: b.id });
+            } else if (this.pathQueue) {
               orderAttackBuilding(this.selected, b, this.combat, this.pathQueue);
             } else {
               for (const u of this.selected) this.combat.attackBuilding(u, b);
@@ -265,8 +291,12 @@ export class Selection {
           }
           // Right-click own building with selected units → garrison
           if (b.teamId === 0 && this.garrisonSys && this.garrisonSys.canGarrison(b)) {
-            for (const u of this.selected) {
-              if (u.teamId === 0) this.garrisonSys.orderGarrison(u, b);
+            if (this.bus) {
+              this.bus.issue({ kind: 'garrison', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), buildingId: b.id });
+            } else {
+              for (const u of this.selected) {
+                if (u.teamId === 0) this.garrisonSys.orderGarrison(u, b);
+              }
             }
             return;
           }
@@ -284,7 +314,9 @@ export class Selection {
         if (o.userData.unit) {
           const t = o.userData.unit as Unit;
           if (t.teamId !== 0 && t.alive) {
-            if (this.pathQueue) {
+            if (this.bus) {
+              this.bus.issue({ kind: 'attack', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), targetId: t.id });
+            } else if (this.pathQueue) {
               orderAttackUnit(this.selected, t, this.combat, this.pathQueue);
             } else {
               for (const u of this.selected) this.combat.attackUnit(u, t);
@@ -301,9 +333,18 @@ export class Selection {
     const hit = this.ray.intersectObject(ground, false)[0];
     if (!hit) return;
 
-    if (this.pathQueue) {
+    if (this.bus) {
       if (this._shiftHeld) {
-        // Shift+right-click: queue destination; issue move immediately for idle units
+        // Shift+right-click: queue destination
+        const liveIds = this.selected.filter(u => u.alive && !u.isGarrisoned).map(u => u.id);
+        this.bus.issue({ kind: 'move', teamId: 0, ai: false, unitIds: liveIds, qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), queued: true });
+      } else {
+        // Normal right-click: clear queue and move
+        for (const u of this.selected) u.pendingGoals = [];
+        this.bus.issue({ kind: 'move', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), queued: false });
+      }
+    } else if (this.pathQueue) {
+      if (this._shiftHeld) {
         for (const u of this.selected) {
           if (!u.alive || u.isGarrisoned) continue;
           if (u.waypoints.length > 0 || u.pendingGoals.length > 0) {
@@ -313,7 +354,6 @@ export class Selection {
           }
         }
       } else {
-        // Normal right-click: clear queue and move
         for (const u of this.selected) u.pendingGoals = [];
         orderMove(this.selected, hit.point.x, hit.point.z, this.pathQueue);
       }

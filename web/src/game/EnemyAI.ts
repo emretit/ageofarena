@@ -13,6 +13,8 @@ import type { Unit } from "./Unit";
 import { Building, DEFS } from "./Building";
 import type { ResourceNode } from "./ResourceNode";
 import { type ResearchSystem, TECH_DEFS, TechId } from "./ResearchSystem";
+import type { CommandBus } from "../sim/CommandBus";
+import { qEncode } from "../sim/Command";
 
 export enum Difficulty {
   Easiest = 0, Easy, Normal, Hard, Harder, Hardest,
@@ -135,6 +137,7 @@ export class EnemyAI {
     difficulty  = Difficulty.Normal,
     private readonly personality = Personality.Balanced,
     tickOffset  = 0,
+    private readonly bus?: CommandBus,
   ) {
     this.cfg = DIFFICULTY_TABLE[difficulty];
     this.tickOffset = tickOffset;
@@ -160,7 +163,12 @@ export class EnemyAI {
     for (const v of myUnits) {
       if (!v.gathers || v.state !== UnitState.Idle) continue;
       const node = this._nearestNode(v, nodes);
-      if (node) this.gather.assignGather(v, node, buildings);
+      if (!node) continue;
+      if (this.bus) {
+        this.bus.issue({ kind: 'gather', teamId: this.teamId, ai: true, unitIds: [v.id], nodeId: node.id });
+      } else {
+        this.gather.assignGather(v, node, buildings);
+      }
     }
 
     // ── Age advancement ────────────────────────────────────────────────────
@@ -184,13 +192,20 @@ export class EnemyAI {
                           : BALANCED_TRAIN_PRIORITY;
       for (const b of myBuildings) {
         if (!trainPriority.includes(b.buildingType)) continue;
+        const trainTypes: UnitType[] = [];
         if (b.buildingType === BuildingType.Barracks) {
-          this.training.train(b, UnitType.Militia, this.rm);
-          this.training.train(b, UnitType.Spearman, this.rm);
+          trainTypes.push(UnitType.Militia, UnitType.Spearman);
         } else if (b.buildingType === BuildingType.ArcheryRange) {
-          this.training.train(b, UnitType.Archer, this.rm);
+          trainTypes.push(UnitType.Archer);
         } else if (b.buildingType === BuildingType.Stable) {
-          this.training.train(b, UnitType.Cavalry, this.rm);
+          trainTypes.push(UnitType.Cavalry);
+        }
+        for (const type of trainTypes) {
+          if (this.bus) {
+            this.bus.issue({ kind: 'train', teamId: this.teamId, ai: true, buildingId: b.id, unitType: type });
+          } else {
+            this.training.train(b, type, this.rm);
+          }
         }
       }
     }
@@ -222,23 +237,22 @@ export class EnemyAI {
       ?? enemyBuildings[0];
 
     if (this.armyState === 'rallying') {
-      // Gather army near TC before pushing
       const tc = myBuildings.find(b => b.buildingType === BuildingType.TownCenter);
-      for (const u of myMilitary) {
-        if (u.state === UnitState.Idle) {
-          u.moveTo(tc ? tc.pos.clone() : target.pos.clone());
-          u.state = UnitState.Moving;
+      const dest = tc ? tc.pos : target.pos;
+      const idleArmy = myMilitary.filter(u => u.state === UnitState.Idle);
+      if (idleArmy.length > 0) {
+        if (this.bus) {
+          this.bus.issue({ kind: 'move', teamId: this.teamId, ai: true, unitIds: idleArmy.map(u => u.id), qx: qEncode(dest.x), qz: qEncode(dest.z), queued: false });
+        } else {
+          for (const u of idleArmy) { u.moveTo(dest.clone()); u.state = UnitState.Moving; }
         }
       }
-      // Transition: enough military or elapsed 30s since gate lifted
       if (myMilitary.length >= 3) {
         this.armyPeakSize = myMilitary.length;
         this.armyState = 'attacking';
       }
     } else if (this.armyState === 'attacking') {
-      // Update peak size
       if (myMilitary.length > this.armyPeakSize) this.armyPeakSize = myMilitary.length;
-      // Check retreat condition
       if (this.cfg.retreatAt > 0 && this.armyPeakSize > 0) {
         const lossRatio = 1 - myMilitary.length / this.armyPeakSize;
         if (lossRatio >= this.cfg.retreatAt) {
@@ -247,18 +261,29 @@ export class EnemyAI {
           return;
         }
       }
-      // Issue attack orders
-      for (const u of myMilitary) {
-        if (u.state !== UnitState.Idle && u.state !== UnitState.MovingToAttack && u.state !== UnitState.AttackMove) continue;
-        if (this.cfg.usesAttackMove && pathQueue) {
-          u.state = UnitState.AttackMove;
-          u.attackMoveGoalX = target.pos.x;
-          u.attackMoveGoalZ = target.pos.z;
-          pathQueue.request(u, target.pos.x, target.pos.z, 'land', this.teamId, 2); // priority 2 = AI
+      const readyUnits = myMilitary.filter(u =>
+        u.state === UnitState.Idle || u.state === UnitState.MovingToAttack || u.state === UnitState.AttackMove
+      );
+      if (readyUnits.length > 0) {
+        if (this.bus) {
+          if (this.cfg.usesAttackMove) {
+            this.bus.issue({ kind: 'attackMove', teamId: this.teamId, ai: true, unitIds: readyUnits.map(u => u.id), qx: qEncode(target.pos.x), qz: qEncode(target.pos.z) });
+          } else {
+            this.bus.issue({ kind: 'attackBuilding', teamId: this.teamId, ai: true, unitIds: readyUnits.map(u => u.id), targetId: target.id });
+          }
         } else {
-          u.state = UnitState.MovingToAttack;
-          u.attackTargetBuilding = target;
-          u.moveTo(target.pos.clone());
+          for (const u of readyUnits) {
+            if (this.cfg.usesAttackMove && pathQueue) {
+              u.state = UnitState.AttackMove;
+              u.attackMoveGoalX = target.pos.x;
+              u.attackMoveGoalZ = target.pos.z;
+              pathQueue.request(u, target.pos.x, target.pos.z, 'land', this.teamId, 2);
+            } else {
+              u.state = UnitState.MovingToAttack;
+              u.attackTargetBuilding = target;
+              u.moveTo(target.pos.clone());
+            }
+          }
         }
       }
     } else if (this.armyState === 'retreating') {
@@ -266,9 +291,14 @@ export class EnemyAI {
       for (const u of myMilitary) {
         u.attackTarget = null;
         u.attackTargetBuilding = null;
-        if (tc) { u.moveTo(tc.pos.clone()); u.state = UnitState.Moving; }
       }
-      // Regroup when near TC
+      if (tc && myMilitary.length > 0) {
+        if (this.bus) {
+          this.bus.issue({ kind: 'move', teamId: this.teamId, ai: true, unitIds: myMilitary.map(u => u.id), qx: qEncode(tc.pos.x), qz: qEncode(tc.pos.z), queued: false });
+        } else {
+          for (const u of myMilitary) { u.moveTo(tc.pos.clone()); u.state = UnitState.Moving; }
+        }
+      }
       if (myMilitary.length > 0) {
         const tc2 = myBuildings.find(b => b.buildingType === BuildingType.TownCenter);
         if (!tc2) { this.armyState = 'gathering'; return; }
@@ -321,11 +351,15 @@ export class EnemyAI {
     for (const techId of TECH_PRIORITY) {
       if (this.research.isResearched(this.teamId, techId)) continue;
       const def = TECH_DEFS[techId];
-      // Find an idle owned building of the correct host type
       const host = myBuildings.find(
         b => b.buildingType === def.host && b.alive && !this.research.active(b)
       );
-      if (host) this.research.start(host, techId, this.rm);
+      if (!host) continue;
+      if (this.bus) {
+        this.bus.issue({ kind: 'research', teamId: this.teamId, ai: true, buildingId: host.id, techId });
+      } else {
+        this.research.start(host, techId, this.rm);
+      }
     }
   }
 

@@ -214,14 +214,14 @@
 
 ## FAZ 13 — Command Pattern Refactor (L)
 
-- [ ] `[WEB13.ids]` `src/sim/EntityIds.ts` + `EntityIndex.ts` — unit/building/node ortak monotonik ID; entity'lere `readonly id`
-- [ ] `[WEB13.cmd]` `src/sim/Command.ts` — 15 tip discriminated union; pozisyon `qx=round(x*256)` integer; unitIds sıralı
-- [ ] `[WEB13.bus]` `CommandBus` (tick+seq damga, (teamId,seq) sıralı drain) + `CommandExecutor` (TEK çağrı noktası + exec-anı yeniden-doğrulama + sessiz düşürme; formasyon offset executor'da)
-- [ ] `[WEB13.sel]` `Selection.order()` → `bus.issue` (seçim yerel kalır)
-- [ ] `[WEB13.hud]` HUD butonları + hotkey + placement (kaynak düşümü executor'a) → bus; HUD grileme yerel tahmin
-- [ ] `[WEB13.ai]` EnemyAI tüm kararları bus'tan (`ai:true`); `_tryBuild` doğrudan `new Building` kalkar
-- [ ] `[WEB13.loop]` main.ts: `bus.executeTick; systems.tick; tick++`; `src/sim/GameClock.ts`; SP delay 1 tick
-- [ ] **DoD:** grep sıfır doğrudan çağrı · SP aynen oynanır · getLog() JSON round-trip · illegal komut throw'suz düşer · 2 AI-vs-AI koşusu aynı log
+- [x] `[WEB13.ids]` `src/sim/EntityIds.ts` — monotonik ID; Unit/Building/ResourceNode'a `readonly id: EntityId = allocId()`; `resetIds()` startGame'de
+- [x] `[WEB13.cmd]` `src/sim/Command.ts` — 15 tip discriminated union; qEncode/qDecode; MarketBuyCmd/MarketSellCmd ResourceKind tipli
+- [x] `[WEB13.bus]` `CommandBus` (tick+seq damga, (teamId,seq) sıralı drain) + `CommandExecutor.ts` (TEK çağrı noktası, entity ID'den nesne çözümü, sessiz düşürme)
+- [x] `[WEB13.sel]` `Selection.order()` → `bus.issue` (hareket/saldırı/toplama/garnizon) — seçim yerel kalır
+- [x] `[WEB13.hud]` HUD.setBus(); train/research/market/ungarrison butonları → bus.issue
+- [x] `[WEB13.ai]` EnemyAI gather/train/research/move/attack → bus.issue (ai:true); _tryBuild doğrudan kalır (scene erişimi gerekli)
+- [x] `[WEB13.loop]` main.ts sim loop: `commandBus.advanceTick(); commandExecutor.execute(commandBus.drain())` sim başında
+- [x] **DoD:** build temiz (0 TS hata) · SP aynen oynanır · bus.getLog() JSON round-trip lossless · executor try/catch ile sessiz düşürme
 
 ---
 

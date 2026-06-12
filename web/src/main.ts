@@ -54,6 +54,9 @@ import { PerfHud } from "./dev/PerfHud";
 import { SettingsPanel } from "./ui/SettingsPanel";
 import { buildSnapshot, saveToSlot } from "./game/SaveSystem";
 import { GameMode, type GameModeType } from "./game/GameMode";
+import { CommandBus } from "./sim/CommandBus";
+import { CommandExecutor } from "./sim/CommandExecutor";
+import { resetIds } from "./sim/EntityIds";
 
 // ── Renderer (eager — shows while PreGameScreen is up) ───────────────────────
 const app = document.getElementById("app")!;
@@ -128,6 +131,12 @@ function stampBuilding(b: Building): void {
 function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentConfig[] = [{ civ: 0 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced }]): void {
   const arch = getMapArchetype(mapType);
   const rng  = mulberry32(42);
+
+  // Reset entity IDs for new game
+  resetIds();
+
+  // Command bus — all player/AI actions flow through this
+  const commandBus = new CommandBus();
 
   // Reset diplomacy for new game
   resetDiplomacy();
@@ -209,7 +218,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   const market      = new MarketSystem();
   const aiInstances = opponents.map((op, i) =>
     new EnemyAI(i + 1, teamRes[i + 1], ageSystems[i + 1], gather, training, research,
-      op.difficulty, op.personality, (i * 7) % 30),
+      op.difficulty, op.personality, (i * 7) % 30, commandBus),
   );
   const victory     = new VictorySystem();
   const gameMode    = new GameMode('Conquest'); // default; PreGameScreen v3 can set mode
@@ -226,6 +235,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
   // ── HUD ──────────────────────────────────────────────────────────────────
   const hud = new HUD(app, teamRes[0]);
+  hud.setBus(commandBus);
   const settings = new SettingsPanel(app, postfx);
   settings.onResume = () => { _focusPaused = false; };
 
@@ -259,7 +269,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   // ── Selection ─────────────────────────────────────────────────────────────
   const selection = new Selection(
     renderer.domElement, rig.camera, scene,
-    units, buildings, nodes, gather, combat, garrison, pathQueue,
+    units, buildings, nodes, gather, combat, garrison, pathQueue, commandBus,
   );
 
   function onBuild(type: BuildingType) {
@@ -305,11 +315,17 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     if (node) gather.assignGather(u, node, buildings);
   });
 
+  // ── CommandExecutor — single dispatch for all Command objects ─────────────
+  const commandExecutor = new CommandExecutor(
+    units, buildings, nodes, gather, combat, training, research, market,
+    garrison, pathQueue, teamRes,
+  );
+
   // ── Dev/debug handle ──────────────────────────────────────────────────────
   (window as unknown as Record<string, unknown>).__game = {
     units, buildings, nodes, selection, rig, teamRes, diplomacy, victory,
     gather, combat, training, trading, pathQueue, ctrlGroups, conversion,
-    aiInstances,
+    aiInstances, commandBus,
   };
 
   // ── Hotkeys (HKEY port) ───────────────────────────────────────────────────
@@ -425,6 +441,10 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
         const step = Config.FixedStep;
         gameElapsed += step;
         const simStart = performance.now();
+
+        // Advance command bus tick + drain and execute all queued commands
+        commandBus.advanceTick();
+        commandExecutor.execute(commandBus.drain());
 
         // Pathfinding + movement (before systems that read positions)
         pathQueue.tick(navGrid, step);

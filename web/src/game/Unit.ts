@@ -8,6 +8,7 @@ import { AttackStance, DamageType, UnitState, UnitType } from "../core/GameTypes
 import { ArmorClassFlags } from "../core/GameTypes";
 import { getUnitRow } from "../core/UnitRegistry";
 import { getTeamBonus } from "../core/CivState";
+import { allocId, type EntityId } from "../sim/EntityIds";
 import type { ResourceNode } from "./ResourceNode";
 import type { Building } from "./Building";
 
@@ -21,6 +22,7 @@ const BAR_FG_GEO  = new THREE.PlaneGeometry(1.0, 0.12);
 const BAR_BG_MAT  = new THREE.MeshBasicMaterial({ color: 0x330000 });
 
 export class Unit {
+  readonly id: EntityId = allocId();
   readonly root: THREE.Group;
   readonly teamId: number;
   readonly unitType: UnitType;

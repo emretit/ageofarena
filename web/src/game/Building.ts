@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { ArmorClass, ArmorClassFlags, BuildingType } from "../core/GameTypes";
 import { TeamColors } from "../core/Config";
 import { getTeamBonus } from "../core/CivState";
+import { allocId, type EntityId } from "../sim/EntityIds";
 
 export interface BuildingDef {
   hp: number;
@@ -83,6 +84,7 @@ const HP_FG_GEO  = new THREE.PlaneGeometry(1.2, 0.13);
 const HP_BG_MAT  = new THREE.MeshBasicMaterial({ color: 0x220000 });
 
 export class Building {
+  readonly id: EntityId = allocId();
   readonly root: THREE.Group;
   readonly teamId: number;
   readonly buildingType: BuildingType;

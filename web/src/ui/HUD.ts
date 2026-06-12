@@ -11,9 +11,10 @@ import type { TrainingQueue } from "../game/TrainingQueue";
 import type { Unit } from "../game/Unit";
 import { Building, DEFS } from "../game/Building";
 import { AGE_NAMES, AgeSystem } from "../game/AgeSystem";
-import { BUILDING_TECHS, TECH_DEFS, type ResearchSystem } from "../game/ResearchSystem";
+import { BUILDING_TECHS, TECH_DEFS, type ResearchSystem, type TechId } from "../game/ResearchSystem";
 import type { MarketSystem } from "../game/MarketSystem";
 import type { GarrisonSystem } from "../game/GarrisonSystem";
+import type { CommandBus } from "../sim/CommandBus";
 
 /** Minimum age required to construct each building type. */
 const BUILDING_MIN_AGE: Partial<Record<BuildingType, Age>> = {
@@ -81,6 +82,10 @@ export class HUD {
   private readonly infoPanel: HTMLElement;
   private readonly counters: Record<ResourceKind, HTMLElement>;
   private readonly popCell: HTMLElement;
+  private _bus?: CommandBus;
+
+  /** Provide a CommandBus after construction; all action buttons route through it. */
+  setBus(bus: CommandBus): void { this._bus = bus; }
 
   constructor(container: HTMLElement, rm: ResourceManager) {
     this.root = document.createElement("div");
@@ -348,7 +353,12 @@ export class HUD {
       this.infoPanel.querySelectorAll<HTMLButtonElement>("[data-train]").forEach(btn => {
         btn.addEventListener("click", () => {
           const type = parseInt(btn.dataset.train ?? "0") as UnitType;
-          if (training.train(b, type, rm)) play(SoundId.TrainStart);
+          if (this._bus) {
+            this._bus.issue({ kind: 'train', teamId: b.teamId, ai: false, buildingId: b.id, unitType: type });
+            play(SoundId.TrainStart);
+          } else if (training.train(b, type, rm)) {
+            play(SoundId.TrainStart);
+          }
         });
       });
     }
@@ -357,8 +367,13 @@ export class HUD {
     if (research && rm) {
       this.infoPanel.querySelectorAll<HTMLButtonElement>("[data-research]").forEach(btn => {
         btn.addEventListener("click", () => {
-          const tech = btn.dataset.research!;
-          if (research.start(b, tech as import("../game/ResearchSystem").TechId, rm)) play(SoundId.ButtonClick);
+          const tech = btn.dataset.research! as TechId;
+          if (this._bus) {
+            this._bus.issue({ kind: 'research', teamId: b.teamId, ai: false, buildingId: b.id, techId: tech });
+            play(SoundId.ButtonClick);
+          } else if (research.start(b, tech, rm)) {
+            play(SoundId.ButtonClick);
+          }
         });
       });
     }
@@ -367,12 +382,22 @@ export class HUD {
     if (market && rm) {
       this.infoPanel.querySelectorAll<HTMLButtonElement>("[data-sell]").forEach(btn => {
         btn.addEventListener("click", () => {
-          market.sell(rm, parseInt(btn.dataset.sell!) as ResourceKind);
+          const kind = parseInt(btn.dataset.sell!) as ResourceKind;
+          if (this._bus) {
+            this._bus.issue({ kind: 'marketSell', teamId: b.teamId, ai: false, resource: kind });
+          } else {
+            market.sell(rm, kind);
+          }
         });
       });
       this.infoPanel.querySelectorAll<HTMLButtonElement>("[data-buy]").forEach(btn => {
         btn.addEventListener("click", () => {
-          market.buy(rm, parseInt(btn.dataset.buy!) as ResourceKind);
+          const kind = parseInt(btn.dataset.buy!) as ResourceKind;
+          if (this._bus) {
+            this._bus.issue({ kind: 'marketBuy', teamId: b.teamId, ai: false, resource: kind });
+          } else {
+            market.buy(rm, kind);
+          }
         });
       });
     }
@@ -380,7 +405,13 @@ export class HUD {
     // Wire up garrison buttons
     if (garrison) {
       this.infoPanel.querySelector<HTMLButtonElement>("#ungarrison-btn")
-        ?.addEventListener("click", () => garrison.ungarrisonAll(b));
+        ?.addEventListener("click", () => {
+          if (this._bus) {
+            this._bus.issue({ kind: 'ungarrison', teamId: b.teamId, ai: false, buildingId: b.id });
+          } else {
+            garrison.ungarrisonAll(b);
+          }
+        });
       this.infoPanel.querySelector<HTMLButtonElement>("#ungarrison-one-btn")
         ?.addEventListener("click", () => garrison.ungarrisonOne(b));
     }

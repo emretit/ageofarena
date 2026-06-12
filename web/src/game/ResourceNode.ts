@@ -4,6 +4,7 @@
  */
 import * as THREE from "three";
 import { ResourceKind } from "../core/GameTypes";
+import { allocId, type EntityId } from "../sim/EntityIds";
 
 const GEO_GOLD  = new THREE.CylinderGeometry(0.6, 0.8, 1.0, 6);
 const GEO_STONE = new THREE.DodecahedronGeometry(0.8, 0);
@@ -18,6 +19,7 @@ const MAT_TRUNK  = new THREE.MeshLambertMaterial({ color: 0x6b4a2a });
 const MAT_PINE   = new THREE.MeshLambertMaterial({ color: 0x3f9b4f });
 
 export class ResourceNode {
+  readonly id: EntityId = allocId();
   readonly root: THREE.Group;
   readonly kind: ResourceKind;
   amount: number;
