@@ -15,6 +15,8 @@ export const enum SoundId {
   ButtonClick  = "ButtonClick",
   Victory      = "Victory",
   Defeat       = "Defeat",
+  Conversion   = "Conversion",
+  HornAttack   = "HornAttack",
 }
 
 /** Master volume (0–1). Persisted in localStorage. */
@@ -28,11 +30,52 @@ export function getSfxVol()             { return _sfxVol; }
 
 let _ctx: AudioContext | null = null;
 
+// Ambient loop state
+let _ambientGain: GainNode | null = null;
+let _ambientStarted = false;
+
 function ctx(): AudioContext {
   if (!_ctx) _ctx = new AudioContext();
   // Resume if suspended (browser autoplay policy)
   if (_ctx.state === "suspended") _ctx.resume();
   return _ctx;
+}
+
+/** Start the ambient wind/nature loop (call once on first interaction). */
+function _startAmbient() {
+  if (_ambientStarted) return;
+  _ambientStarted = true;
+  try {
+    const c = ctx();
+    const bufLen = c.sampleRate * 2;
+    const buf = c.createBuffer(1, bufLen, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufLen; i++) data[i] = (Math.random() * 2 - 1);
+
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+
+    const lp = c.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 300;
+
+    _ambientGain = c.createGain();
+    _ambientGain.gain.value = 0.08 * _masterVol;
+
+    src.connect(lp).connect(_ambientGain).connect(c.destination);
+    src.start();
+  } catch { /* no ambient if ctx fails */ }
+}
+
+/**
+ * Duck ambient by intensity 0..1.
+ * At full intensity (lots of combat), ambient drops to ~20% of normal.
+ */
+export function setAmbientDuck(intensity: number): void {
+  if (!_ambientGain) return;
+  const target = 0.08 * _masterVol * (1 - intensity * 0.8);
+  _ambientGain.gain.setTargetAtTime(target, ctx().currentTime, 0.5);
 }
 
 /** Pitch-vary helper: ±fraction random offset. */
@@ -138,7 +181,20 @@ export function play(id: SoundId) {
           setTimeout(() => playTone(f, "sawtooth", 0.25, 0.3, 0.02, 0.2), i * 200)
         );
         break;
+      case SoundId.Conversion:
+        // Gregorian chant-like: rising thirds
+        [330, 392, 440, 523].forEach((f, i) =>
+          setTimeout(() => playTone(pitchVary(f, 0.02), "sine", 0.18, 0.5), i * 220)
+        );
+        break;
+      case SoundId.HornAttack:
+        // Military horn blast
+        [220, 330, 440].forEach((f, i) =>
+          setTimeout(() => playTone(pitchVary(f, 0.03), "sawtooth", 0.3, 0.35), i * 100)
+        );
+        break;
     }
+    _startAmbient();
   } catch {
     // Silently ignore if AudioContext unavailable
   }

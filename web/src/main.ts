@@ -4,9 +4,9 @@
  * Pre-game screen lets the player pick civilization + map type before starting.
  */
 import * as THREE from "three";
-import { Config } from "./core/Config";
+import { Config, TeamColors } from "./core/Config";
 import { ResourceManager } from "./core/ResourceManager";
-import { BuildingType, ResourceKind, UnitType } from "./core/GameTypes";
+import { BuildingType, ResourceKind, UnitState, UnitType } from "./core/GameTypes";
 import { CameraRig } from "./camera/CameraRig";
 import { buildTerrain, mulberry32 } from "./world/World";
 import {
@@ -39,10 +39,12 @@ import { ResearchSystem } from "./game/ResearchSystem";
 import { MarketSystem } from "./game/MarketSystem";
 import { ProjectileSystem } from "./game/ProjectileSystem";
 import { GarrisonSystem } from "./game/GarrisonSystem";
+import { ControlGroups } from "./game/ControlGroups";
+import { ConversionSystem } from "./game/ConversionSystem";
 import { BuildingPlacement } from "./game/BuildingPlacement";
 import { RelicSystem } from "./game/RelicSystem";
 import { VisualEffectSystem } from "./game/VisualEffectSystem";
-import { play, SoundId } from "./game/AudioManager";
+import { play, setAmbientDuck, SoundId } from "./game/AudioManager";
 
 // ── Renderer (eager — shows while PreGameScreen is up) ───────────────────────
 const app = document.getElementById("app")!;
@@ -182,6 +184,8 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
   const relicSys    = new RelicSystem();
   const relics      = RelicSystem.spawnRelics(scene, 3);
   const vfx         = new VisualEffectSystem(app);
+  const ctrlGroups  = new ControlGroups();
+  const conversion  = new ConversionSystem();
 
   // ── HUD ──────────────────────────────────────────────────────────────────
   const hud = new HUD(app, teamRes[0]);
@@ -192,14 +196,22 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
   // ── Damage popups ─────────────────────────────────────────────────────────
   const damagePopup = new DamagePopup(app);
   combat.onHit = (pos, dmg) => { damagePopup.show(pos, dmg); play(SoundId.UnitAttack); };
-  combat.onUnitKilled = () => play(SoundId.UnitDie);
-  combat.onBuildingDestroyed = () => play(SoundId.BuildingDie);
+  combat.onUnitKilled = (u) => { u.startDeathAnim(); play(SoundId.UnitDie); };
+  combat.onBuildingDestroyed = () => { rig.shake(1.5, 0.4); play(SoundId.BuildingDie); };
   gather.onGatherTick = () => play(SoundId.GatherHit);
 
   // ── Audio hooks (cosmetic seam: sim → sound) ──────────────────────────────
   ageSystem.onAgeUp = () => play(SoundId.AgeUp);
   research.onComplete = (teamId) => { if (teamId === 0) play(SoundId.ResearchDone); };
   combat.onRangedFire = (from, to, splash) => projectiles.fire(from, to, splash);
+
+  // ── Conversion callbacks ──────────────────────────────────────────────────
+  conversion.onConverted = (u, newTeam) => {
+    if (u.teamMat) {
+      u.teamMat.color.setHex(TeamColors[newTeam % TeamColors.length]);
+    }
+    play(SoundId.Conversion);
+  };
 
   // ── Minimap ───────────────────────────────────────────────────────────────
   const minimap = new Minimap(app);
@@ -257,7 +269,7 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
   // ── Dev/debug handle ──────────────────────────────────────────────────────
   (window as unknown as Record<string, unknown>).__game = {
     units, buildings, nodes, selection, rig, teamRes,
-    gather, combat, training, trading, pathQueue,
+    gather, combat, training, trading, pathQueue, ctrlGroups, conversion,
   };
 
   // ── Hotkeys (HKEY port) ───────────────────────────────────────────────────
@@ -265,7 +277,21 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
     if (e.target instanceof HTMLInputElement) return;
     const key = e.key.toLowerCase();
 
+    // Attack-move (A key)
+    if (key === "a" && selection.selected.length > 0) {
+      selection.attackMovePending = true;
+      selection.patrolPending = false;
+    }
+
+    // Patrol (Z key)
+    if (key === "z" && selection.selected.length > 0) {
+      selection.patrolPending = true;
+      selection.attackMovePending = false;
+    }
+
+    // Stop
     if (key === "s") {
+      selection.attackMovePending = false;
       for (const u of selection.selected) {
         u.attackTarget = null;
         u.attackTargetBuilding = null;
@@ -299,7 +325,29 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
     }
 
     if (key === "escape") {
+      selection.attackMovePending = false;
+      selection.patrolPending = false;
       placement.cancel();
+    }
+
+    // Control groups: Ctrl+1..9 assign, 1..9 recall (double-tap to focus)
+    const digit = parseInt(e.key);
+    if (digit >= 1 && digit <= 9) {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        ctrlGroups.assign(digit, selection.selected);
+      } else {
+        const doubleTap = ctrlGroups.isDoubleTap(digit);
+        for (const u of selection.selected) u.selected = false;
+        selection.selected.length = 0;
+        selection.selectedBuilding = null;
+        ctrlGroups.recall(digit, selection.selected);
+        for (const u of selection.selected) u.selected = true;
+        if (selection.selected.length > 0) {
+          selection.onSelectUnit?.(selection.selected[0]);
+          if (doubleTap) ctrlGroups.focusCentroid(digit, rig);
+        }
+      }
     }
   });
 
@@ -328,14 +376,34 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
         gather.tick(units, buildings, teamRes, scene, step);
         gather.tickFarms(nodes, teamRes, step);
         combat.tick(units, buildings, step);
-        combat.tickBuildings(buildings, units, step);
+        combat.tickBuildings(buildings, units, step, b => garrison.garrisonCount(b));
         training.tick(buildings, units, scene, research, step);
         trading.tick(units, buildings, teamRes, step);
         garrison.tick(units, buildings, step);
         relicSys.tick(units, relics, buildings, teamRes, step);
         research.tick(units, buildings, teamRes, step);
         market.tick(step);
+        // Shift-queue: when unit arrives and has pending goals, issue next goal
+        for (const u of units) {
+          if (!u.alive || u.isGarrisoned || u.pendingGoals.length === 0) continue;
+          if (u.waypoints.length > 0 || u.attackTarget || u.attackTargetBuilding) continue;
+          const [gx, gz] = u.pendingGoals.shift()!;
+          pathQueue.requestForced(u, gx, gz, 'land', u.teamId, 1);
+        }
+
+        // Patrol: flip destination when waypoints exhausted + no target
+        for (const u of units) {
+          if (u.state !== UnitState.Patrol) continue;
+          if (u.attackTarget || u.attackTargetBuilding) continue;
+          if (u.waypoints.length > 0) continue;
+          u.patrolGoingToB = !u.patrolGoingToB;
+          const destX = u.patrolGoingToB ? u.patrolBX : u.patrolAX;
+          const destZ = u.patrolGoingToB ? u.patrolBZ : u.patrolAZ;
+          pathQueue.requestForced(u, destX, destZ, 'land', u.teamId, 1);
+        }
+
         enemyAI.tick(units, buildings, nodes, scene, step);
+        conversion.tick(units, step);
         fog.tick(units, buildings, step);
         ageSystem.tick(teamRes[0], step);
         // ageSystemEnemy is ticked inside EnemyAI.tick() — no separate call needed
@@ -345,9 +413,9 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
         pathQueue.prune();
         trading.prune(units);
         for (let i = units.length - 1; i >= 0; i--) {
-          if (!units[i].alive) {
-            units[i].root.visible = false;
-            scene.remove(units[i].root);
+          const u = units[i];
+          if (!u.alive && !u.isDying) {
+            scene.remove(u.root);
             units.splice(i, 1);
           }
         }
@@ -381,6 +449,11 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
     if (selection.selected.length > 1) hud.showMultiUnit(selection.selected);
     else if (selection.selected.length === 1) hud.showUnit(selection.selected[0], teamRes[0], onBuild);
     else if (selection.selectedBuilding) hud.showBuilding(selection.selectedBuilding, training, teamRes[0], ageSystem, research, market, garrison);
+
+    // Combat intensity for audio ducking (fraction of player units actively attacking)
+    const playerUnits = units.filter(u => u.teamId === 0 && u.alive);
+    const attacking   = playerUnits.filter(u => u.attackTarget || u.attackTargetBuilding).length;
+    setAmbientDuck(playerUnits.length > 0 ? attacking / playerUnits.length : 0);
 
     damagePopup.tick(rig.camera, dt);
     projectiles.tick(dt);

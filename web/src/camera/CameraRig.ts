@@ -13,7 +13,9 @@ export class CameraRig {
   private readonly keys = new Set<string>();
   private mouseX = -1;
   private mouseY = -1;
-  private dirty = true; // re-project only when focus/zoom/viewport change
+  private dirty = true;
+  private _shakeAmp = 0;
+  private _shakeDur = 0;
 
   // Scratch vectors reused every frame — update() runs at 60fps and per-frame
   // `new Vector3` churn triggers avoidable GC pauses.
@@ -46,6 +48,12 @@ export class CameraRig {
     this.focus.x = THREE.MathUtils.clamp(p.x, -Config.CameraBounds, Config.CameraBounds);
     this.focus.z = THREE.MathUtils.clamp(p.z, -Config.CameraBounds, Config.CameraBounds);
     this.dirty = true;
+  }
+
+  /** Trigger a screen-shake (exponential decay). amp in world units, dur in seconds. */
+  shake(amp: number, dur: number): void {
+    // Keep largest ongoing shake
+    if (amp > this._shakeAmp) { this._shakeAmp = amp; this._shakeDur = dur; }
   }
 
   /** Pan camera focus to given world X/Z coordinates (minimap click navigation). */
@@ -82,6 +90,18 @@ export class CameraRig {
       this.dirty = true;
     }
     if (this.dirty) this.apply();
+
+    // Screen shake (exponential decay)
+    if (this._shakeDur > 0) {
+      this._shakeDur -= dt;
+      const decay = this._shakeDur / Math.max(this._shakeDur + dt, 0.001);
+      this._shakeAmp *= decay;
+      const ox = (Math.random() * 2 - 1) * this._shakeAmp;
+      const oz = (Math.random() * 2 - 1) * this._shakeAmp;
+      this.camera.position.x += ox;
+      this.camera.position.z += oz;
+      if (this._shakeDur <= 0) { this._shakeAmp = 0; this._shakeDur = 0; }
+    }
   }
 
   private apply() {

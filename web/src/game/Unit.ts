@@ -4,7 +4,7 @@
  */
 import * as THREE from "three";
 import { TeamColors } from "../core/Config";
-import { DamageType, UnitState, UnitType } from "../core/GameTypes";
+import { AttackStance, DamageType, UnitState, UnitType } from "../core/GameTypes";
 import { ArmorClassFlags } from "../core/GameTypes";
 import { getUnitRow } from "../core/UnitRegistry";
 import { getTeamBonus } from "../core/CivState";
@@ -52,11 +52,26 @@ export class Unit {
   // Waypoint path (set by PathQueue; consumed by MovementSystem)
   waypoints: [number, number][] = [];
   waypointIdx = 0;
+  // Shift-queued move goals: consumed sequentially on arrival at each destination
+  pendingGoals: [number, number][] = [];
 
   // State
   state = UnitState.Idle;
+  stance = AttackStance.Aggressive;
+  // AttackMove: destination for the current attack-move order
+  attackMoveGoalX = 0;
+  attackMoveGoalZ = 0;
+  // Patrol: ping-pong between two points
+  patrolAX = 0; patrolAZ = 0;
+  patrolBX = 0; patrolBZ = 0;
+  patrolGoingToB = true; // which end of the route is the current destination
+  // Defensive stance leash
+  defensiveHomeX = 0;
+  defensiveHomeZ = 0;
   private moveTarget: THREE.Vector3 | null = null;
   private ring: THREE.Mesh;
+  // Death animation state
+  private _deathTimer = 0;
 
   // Gather state (GatherSystem fills these)
   gatherTarget: ResourceNode | null = null;
@@ -72,6 +87,9 @@ export class Unit {
   // Garrison state (GarrisonSystem fills these)
   garrisonTarget: Building | null = null;
   isGarrisoned = false;
+
+  // Team-colored material reference — updated by ConversionSystem on team change
+  teamMat: THREE.MeshLambertMaterial | null = null;
 
   // HP bar
   private readonly hpFgMat: THREE.MeshBasicMaterial;
@@ -159,10 +177,9 @@ export class Unit {
     body.position.y = bodyH / 2 + 0.05;
     body.castShadow = true;
 
-    const tunic = new THREE.Mesh(
-      new THREE.BoxGeometry(0.58, 0.38, 0.43),
-      new THREE.MeshLambertMaterial({ color: team }),
-    );
+    const tunicMat = new THREE.MeshLambertMaterial({ color: team });
+    this.teamMat = tunicMat;
+    const tunic = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.38, 0.43), tunicMat);
     tunic.position.y = 0.30;
 
     const head = new THREE.Mesh(
@@ -208,10 +225,9 @@ export class Unit {
     body.position.y = 0.8;
     body.castShadow = true;
 
-    const canopy = new THREE.Mesh(
-      new THREE.BoxGeometry(1.1, 0.25, 0.75),
-      new THREE.MeshLambertMaterial({ color: team }),
-    );
+    const canopyMat = new THREE.MeshLambertMaterial({ color: team });
+    this.teamMat = canopyMat;
+    const canopy = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.25, 0.75), canopyMat);
     canopy.position.y = 1.3;
 
     const wheelGeo = new THREE.CylinderGeometry(0.22, 0.22, 0.1, 8);
@@ -235,10 +251,9 @@ export class Unit {
     horse.position.y = 0.7;
     horse.castShadow = true;
 
-    const rider = new THREE.Mesh(
-      new THREE.BoxGeometry(0.45, 0.55, 0.35),
-      new THREE.MeshLambertMaterial({ color: team }),
-    );
+    const riderMat = new THREE.MeshLambertMaterial({ color: team });
+    this.teamMat = riderMat;
+    const rider = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.55, 0.35), riderMat);
     rider.position.y = 1.55;
 
     const head = new THREE.Mesh(
@@ -296,7 +311,31 @@ export class Unit {
 
   // ── Sim tick ───────────────────────────────────────────────────────────────
 
+  /** Starts 0.8s sink + fade death animation. Call instead of removing immediately. */
+  startDeathAnim(): void {
+    this._deathTimer = 0.8;
+  }
+
+  /** True while death animation plays (unit already dead but still visible). */
+  get isDying(): boolean { return this._deathTimer > 0; }
+
   tick(dt: number, camera?: THREE.Camera) {
+    // Death animation: sink into ground + fade out
+    if (this._deathTimer > 0) {
+      this._deathTimer -= dt;
+      const t = 1 - this._deathTimer / 0.8; // 0→1
+      this.root.position.y = -t * 1.2;
+      this.root.traverse(o => {
+        if (o instanceof THREE.Mesh) {
+          const mat = o.material as THREE.MeshLambertMaterial;
+          if (!mat.transparent) { mat.transparent = true; }
+          mat.opacity = 1 - t;
+        }
+      });
+      if (this._deathTimer <= 0) this.root.visible = false;
+      return;
+    }
+
     if (!this.alive || this.isGarrisoned) return;
 
     if (this.waypoints.length > 0) {

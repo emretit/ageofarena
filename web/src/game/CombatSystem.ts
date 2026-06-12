@@ -3,7 +3,7 @@
  * Aggro detection, approach, attack timing, CombatMath damage.
  */
 import * as THREE from "three";
-import { ArmorClass, BuildingType, DamageType, UnitState } from "../core/GameTypes";
+import { ArmorClass, AttackStance, BuildingType, DamageType, UnitState } from "../core/GameTypes";
 import { ArmorClassFlags } from "../core/GameTypes";
 import { SpatialHash } from "../sim/SpatialHash";
 import type { Unit } from "./Unit";
@@ -13,6 +13,7 @@ import type { Building } from "./Building";
 const BUILDING_COMBAT: Partial<Record<BuildingType, { range: number; dmg: number; interval: number }>> = {
   [BuildingType.TownCenter]: { range: 8, dmg: 5,  interval: 2.5 },
   [BuildingType.Castle]:     { range: 9, dmg: 18, interval: 1.5 },
+  [BuildingType.WatchTower]: { range: 7, dmg: 6,  interval: 2.0 },
 };
 
 /** CombatMath.NetDamage equivalent. */
@@ -53,7 +54,49 @@ export class CombatSystem {
   private readonly _bldTimers = new Map<Building, number>();
   private readonly _spatial = new SpatialHash<Unit>();
 
+  // Pending ranged hits — damage applied on arrival, not instantly
+  private readonly _pending: Array<{
+    target: Unit | null; targetB: Building | null;
+    damage: number; timeLeft: number;
+    fromPos: THREE.Vector3; toPos: THREE.Vector3;
+    splash: boolean; splashRadius: number; attackerTeam: number;
+  }> = [];
+
   tick(units: Unit[], buildings: Building[], dt: number) {
+    // Advance pending ranged hits (damage on arrival)
+    for (let i = this._pending.length - 1; i >= 0; i--) {
+      const p = this._pending[i];
+      p.timeLeft -= dt;
+      if (p.timeLeft <= 0) {
+        this._pending.splice(i, 1);
+        if (p.splash && p.splashRadius > 0) {
+          // Splash damage: apply to all alive enemy units within splashRadius of landing point
+          const r2 = p.splashRadius * p.splashRadius;
+          for (const u of units) {
+            if (!u.alive || u.isGarrisoned || u.teamId === p.attackerTeam) continue;
+            const dx = u.x - p.toPos.x; const dz = u.z - p.toPos.z;
+            const d2 = dx * dx + dz * dz;
+            if (d2 <= r2) {
+              const falloff = 1 - Math.sqrt(d2) / p.splashRadius;
+              const dmg = Math.max(1, Math.round(p.damage * falloff));
+              u.takeDamage(dmg);
+              this.onHit?.(u.pos, dmg);
+              if (!u.alive) this.onUnitKilled?.(u);
+            }
+          }
+        } else if (p.target && p.target.alive) {
+          p.target.takeDamage(p.damage);
+          this.onHit?.(p.target.pos, p.damage);
+          if (!p.target.alive) this.onUnitKilled?.(p.target);
+        } else if (p.targetB && p.targetB.alive) {
+          p.targetB.takeDamage(p.damage);
+          this.onHit?.(p.targetB.pos, p.damage);
+          if (!p.targetB.alive) this.onBuildingDestroyed?.(p.targetB);
+        }
+        // If target already dead and no splash: lands harmlessly (DoD: "ölü hedefe boşa")
+      }
+    }
+
     // Rebuild spatial hash once per tick for O(1) aggro queries
     this._spatial.rebuild(units.filter(u => u.alive && !u.isGarrisoned));
 
@@ -61,11 +104,12 @@ export class CombatSystem {
       if (!u.alive || u.isGarrisoned) continue;
       if (u.state === UnitState.Gathering || u.state === UnitState.ReturningToDropoff) continue;
 
-      // Try to find an attack target if idle and has aggro
-      if (u.aggroRadius > 0 &&
-          u.state === UnitState.Idle &&
-          !u.attackTarget &&
-          !u.attackTargetBuilding) {
+      // NoAttack stance: ignore all enemies
+      if (u.stance === AttackStance.NoAttack) continue;
+
+      // Try to find an attack target if idle/attack-moving and has aggro
+      const canAggro = u.state === UnitState.Idle || u.state === UnitState.AttackMove || u.state === UnitState.Patrol;
+      if (u.aggroRadius > 0 && canAggro && !u.attackTarget && !u.attackTargetBuilding) {
         this._findAggro(u, units, buildings);
       }
 
@@ -92,6 +136,12 @@ export class CombatSystem {
   }
 
   private _findAggro(u: Unit, _units: Unit[], _buildings: Building[]) {
+    // Defensive stance: only aggro if already attacked (attackTarget set externally)
+    if (u.stance === AttackStance.Defensive && u.state !== UnitState.MovingToAttack) {
+      // Defensive units don't self-aggro; they respond when hit (handled in takeDamage)
+      return;
+    }
+
     let best: Unit | null = null;
     let bestDist = u.aggroRadius;
 
@@ -105,9 +155,18 @@ export class CombatSystem {
     }
 
     if (best) {
+      // Record home pos for Defensive leash before chasing
+      if (u.stance === AttackStance.Defensive) {
+        u.defensiveHomeX = u.x;
+        u.defensiveHomeZ = u.z;
+      }
+      const prevState = u.state;
       u.attackTarget = best;
-      u.state = UnitState.MovingToAttack;
-      u.moveTo(best.pos);
+      // AttackMove/Patrol: preserve state so we resume route when target dies
+      if (prevState !== UnitState.AttackMove && prevState !== UnitState.Patrol) {
+        u.state = UnitState.MovingToAttack;
+        u.moveTo(best.pos);
+      }
     }
   }
 
@@ -118,14 +177,15 @@ export class CombatSystem {
     // Validate target still alive
     if (target && !target.alive) {
       u.attackTarget = null;
-      u.gatherTarget = null; // resume gather requires explicit re-assign
-      u.state = UnitState.Idle;
+      u.gatherTarget = null;
+      // Preserve AttackMove/Patrol state; revert Attacking→Idle
+      if (u.state === UnitState.Attacking) u.state = UnitState.Idle;
       return;
     }
     if (targetB && !targetB.alive) {
       u.attackTargetBuilding = null;
       u.gatherTarget = null;
-      u.state = UnitState.Idle;
+      if (u.state === UnitState.Attacking) u.state = UnitState.Idle;
       return;
     }
 
@@ -133,6 +193,26 @@ export class CombatSystem {
     const dist = u.pos.distanceTo(targetPos);
 
     if (dist > u.attackRange) {
+      // StandGround: don't move to chase
+      if (u.stance === AttackStance.StandGround) {
+        u.attackTarget = null;
+        u.attackTargetBuilding = null;
+        // Resume attack-move path if applicable
+        if (u.state === UnitState.AttackMove) { /* keep state */ }
+        else u.state = UnitState.Idle;
+        return;
+      }
+      // Defensive leash: retreat if too far from home
+      if (u.stance === AttackStance.Defensive) {
+        const hDx = u.x - u.defensiveHomeX; const hDz = u.z - u.defensiveHomeZ;
+        if (Math.sqrt(hDx * hDx + hDz * hDz) > 8) {
+          u.attackTarget = null;
+          u.attackTargetBuilding = null;
+          u.moveTo(new THREE.Vector3(u.defensiveHomeX, 0, u.defensiveHomeZ));
+          u.state = UnitState.Moving;
+          return;
+        }
+      }
       // Approach
       u.state = UnitState.MovingToAttack;
       u.moveTo(targetPos.clone());
@@ -159,6 +239,8 @@ export class CombatSystem {
     target: Unit | null,
     targetB: Building | null,
   ) {
+    const PROJ_SPEED = 22; // world units/s — matches game/ProjectileSystem
+
     if (target) {
       const dmg = netDamage(
         attacker.baseAtk,
@@ -168,11 +250,16 @@ export class CombatSystem {
         target.armorPierce,
         attacker.damageKind,
       );
-      target.takeDamage(dmg);
-      this.onHit?.(target.pos, dmg);
-      if (!target.alive) this.onUnitKilled?.(target);
+      const fromPos = attacker.pos.clone();
+      const toPos   = target.pos.clone();
       if (attacker.isRanged) {
-        this.onRangedFire?.(attacker.pos.clone(), target.pos.clone(), attacker.splashRadius > 0);
+        const dist = fromPos.distanceTo(toPos);
+        this.onRangedFire?.(fromPos, toPos, attacker.splashRadius > 0);
+        this._pending.push({ target, targetB: null, damage: dmg, timeLeft: dist / PROJ_SPEED, fromPos, toPos, splash: attacker.splashRadius > 0, splashRadius: attacker.splashRadius, attackerTeam: attacker.teamId });
+      } else {
+        target.takeDamage(dmg);
+        this.onHit?.(toPos, dmg);
+        if (!target.alive) this.onUnitKilled?.(target);
       }
     }
 
@@ -185,17 +272,26 @@ export class CombatSystem {
         targetB.def.armorPierce,
         attacker.damageKind,
       );
-      targetB.takeDamage(dmg);
-      this.onHit?.(targetB.pos, dmg);
-      if (!targetB.alive) this.onBuildingDestroyed?.(targetB);
+      const fromPos = attacker.pos.clone();
+      const toPos   = targetB.pos.clone();
       if (attacker.isRanged) {
-        this.onRangedFire?.(attacker.pos.clone(), targetB.pos.clone(), attacker.splashRadius > 0);
+        const dist = fromPos.distanceTo(toPos);
+        this.onRangedFire?.(fromPos, toPos, attacker.splashRadius > 0);
+        this._pending.push({ target: null, targetB, damage: dmg, timeLeft: dist / PROJ_SPEED, fromPos, toPos, splash: attacker.splashRadius > 0, splashRadius: attacker.splashRadius, attackerTeam: attacker.teamId });
+      } else {
+        targetB.takeDamage(dmg);
+        this.onHit?.(toPos, dmg);
+        if (!targetB.alive) this.onBuildingDestroyed?.(targetB);
       }
     }
   }
 
-  /** Port of BuildingCombatSystem — TC and Castle auto-shoot nearby enemies. */
-  tickBuildings(buildings: Building[], units: Unit[], dt: number) {
+  /** Port of BuildingCombatSystem — TC/Castle/WatchTower auto-shoot nearby enemies.
+   *  garrisonCount: optional callback for garrison arrow bonus ×(1+0.4n) cap 5. */
+  tickBuildings(
+    buildings: Building[], units: Unit[], dt: number,
+    garrisonCount?: (b: Building) => number,
+  ) {
     for (const b of buildings) {
       if (!b.alive) continue;
       const stats = BUILDING_COMBAT[b.buildingType];
@@ -217,10 +313,13 @@ export class CombatSystem {
       }
 
       if (target) {
-        // Pierce damage against unit armor
-        const dmg = Math.max(1, stats.dmg - target.armorPierce);
+        const n    = garrisonCount ? garrisonCount(b) : 0;
+        const mult = Math.min(5, 1 + 0.4 * n); // ×(1+0.4n) cap 5
+        const dmg  = Math.max(1, Math.round((stats.dmg - target.armorPierce) * mult));
         target.takeDamage(dmg);
         this.onHit?.(target.pos, dmg);
+        if (!target.alive) this.onUnitKilled?.(target);
+        this.onRangedFire?.(b.pos.clone(), target.pos.clone(), false);
       }
       this._bldTimers.set(b, stats.interval);
     }

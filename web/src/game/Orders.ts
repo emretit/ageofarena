@@ -5,6 +5,7 @@
  * direct executor calls behind a clean API.
  */
 
+import { UnitState } from '../core/GameTypes';
 import type { Unit } from './Unit';
 import type { Building } from './Building';
 import type { ResourceNode } from './ResourceNode';
@@ -74,6 +75,48 @@ export function orderAttackBuilding(
     u.waypoints = []; u.waypointIdx = 0;
     combat.attackBuilding(u, target);
     queue.requestForced(u, target.pos.x, target.pos.z, 'land', u.teamId, 1);
+  }
+}
+
+// ── Attack-move ───────────────────────────────────────────────────────────────
+
+export function orderAttackMove(
+  units: Unit[],
+  goalX: number, goalZ: number,
+  queue: PathQueue,
+  formation = FormationType.Grid,
+): void {
+  const live = units.filter(u => u.alive && !u.isGarrisoned);
+  if (live.length === 0) return;
+
+  const offsets = getFormationOffsets(live.length, formation);
+  for (let i = 0; i < live.length; i++) {
+    const u = live[i];
+    u.attackTarget         = null;
+    u.attackTargetBuilding = null;
+    u.state                = UnitState.AttackMove;
+    u.attackMoveGoalX      = goalX + (offsets[i]?.[0] ?? 0);
+    u.attackMoveGoalZ      = goalZ + (offsets[i]?.[1] ?? 0);
+    queue.requestForced(u, u.attackMoveGoalX, u.attackMoveGoalZ, 'land', u.teamId, 1);
+  }
+}
+
+// ── Patrol ────────────────────────────────────────────────────────────────────
+
+export function orderPatrol(
+  units: Unit[],
+  goalX: number, goalZ: number,
+  queue: PathQueue,
+): void {
+  for (const u of units) {
+    if (!u.alive || u.isGarrisoned) continue;
+    u.attackTarget         = null;
+    u.attackTargetBuilding = null;
+    u.patrolAX = u.x; u.patrolAZ = u.z; // current position is point A
+    u.patrolBX = goalX; u.patrolBZ = goalZ;
+    u.patrolGoingToB = true;
+    u.state = UnitState.Patrol;
+    queue.requestForced(u, goalX, goalZ, 'land', u.teamId, 1);
   }
 }
 

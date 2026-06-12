@@ -11,7 +11,7 @@ import type { Unit } from "./Unit";
 import type { Building } from "./Building";
 import type { ResourceNode } from "./ResourceNode";
 import type { PathQueue } from "../sim/PathQueue";
-import { orderMove, orderAttackUnit, orderAttackBuilding, orderGather } from "./Orders";
+import { orderMove, orderAttackUnit, orderAttackBuilding, orderGather, orderAttackMove, orderPatrol } from "./Orders";
 
 const DRAG_THRESHOLD = 6; // pixels before drag-box activates
 
@@ -20,6 +20,10 @@ export class Selection {
   private readonly ndc = new THREE.Vector2();
   readonly selected: Unit[] = [];
   selectedBuilding: Building | null = null;
+  /** When true, next click issues an attack-move order instead of select/move. */
+  attackMovePending = false;
+  /** When true, next click issues a patrol order. */
+  patrolPending = false;
 
   onSelectUnit: ((u: Unit | null) => void) | null = null;
   onSelectBuilding: ((b: Building | null) => void) | null = null;
@@ -28,6 +32,7 @@ export class Selection {
   private dragStart: { x: number; y: number } | null = null;
   private dragging = false;
   private readonly boxEl: HTMLDivElement;
+  private _shiftHeld = false; // captured from last right-click event
 
   constructor(
     private readonly dom: HTMLElement,
@@ -55,6 +60,7 @@ export class Selection {
         this.dragStart = { x: e.clientX, y: e.clientY };
         this.dragging  = false;
       } else if (e.button === 2) {
+        this._shiftHeld = e.shiftKey;
         this.toNdc(e, dom);
         this.order();
       }
@@ -141,6 +147,28 @@ export class Selection {
   private pick() {
     this.ray.setFromCamera(this.ndc, this.camera);
 
+    // Attack-move pending: left-click issues attack-move, doesn't change selection
+    if (this.attackMovePending && this.selected.length > 0 && this.pathQueue) {
+      this.attackMovePending = false;
+      const ground = this.scene.getObjectByName("Ground");
+      if (ground) {
+        const hit = this.ray.intersectObject(ground, false)[0];
+        if (hit) orderAttackMove(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+      }
+      return;
+    }
+
+    // Patrol pending: left-click issues patrol order
+    if (this.patrolPending && this.selected.length > 0 && this.pathQueue) {
+      this.patrolPending = false;
+      const ground = this.scene.getObjectByName("Ground");
+      if (ground) {
+        const hit = this.ray.intersectObject(ground, false)[0];
+        if (hit) orderPatrol(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+      }
+      return;
+    }
+
     for (const u of this.selected) u.selected = false;
     this.selected.length = 0;
     this.selectedBuilding = null;
@@ -176,6 +204,16 @@ export class Selection {
 
   private order() {
     this.ray.setFromCamera(this.ndc, this.camera);
+
+    // Attack-move pending: right-click also issues attack-move
+    if (this.attackMovePending && this.selected.length > 0 && this.pathQueue) {
+      this.attackMovePending = false;
+      const ground = this.scene.getObjectByName("Ground");
+      if (ground) {
+        const hit = this.ray.intersectObject(ground, false)[0];
+        if (hit) { orderAttackMove(this.selected, hit.point.x, hit.point.z, this.pathQueue); return; }
+      }
+    }
 
     // Rally point: no units selected, own building selected → right-click ground sets rally.
     if (this.selected.length === 0) {
@@ -264,7 +302,21 @@ export class Selection {
     if (!hit) return;
 
     if (this.pathQueue) {
-      orderMove(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+      if (this._shiftHeld) {
+        // Shift+right-click: queue destination; issue move immediately for idle units
+        for (const u of this.selected) {
+          if (!u.alive || u.isGarrisoned) continue;
+          if (u.waypoints.length > 0 || u.pendingGoals.length > 0) {
+            u.pendingGoals.push([hit.point.x, hit.point.z]);
+          } else {
+            orderMove([u], hit.point.x, hit.point.z, this.pathQueue);
+          }
+        }
+      } else {
+        // Normal right-click: clear queue and move
+        for (const u of this.selected) u.pendingGoals = [];
+        orderMove(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+      }
     } else {
       this.selected.forEach((u, i) => {
         const off = new THREE.Vector3((i % 3 - 1) * 1.2, 0, Math.floor(i / 3) * 1.2);

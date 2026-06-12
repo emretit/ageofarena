@@ -5,6 +5,15 @@ export enum ResourceKind { Food = 0, Wood = 1, Gold = 2, Stone = 3 }
 export enum UnitState {
   Idle, Moving, Gathering, ReturningToDropoff,
   MovingToAttack, Attacking, Constructing,
+  AttackMove, // moving to destination but engages any enemy in aggroRadius along the way
+  Patrol,     // attack-move ping-pong between patrolA and patrolB
+}
+
+export enum AttackStance {
+  Aggressive,   // chase any enemy in aggroRadius (default)
+  Defensive,    // attack only if attacked; chase limited to 8u leash
+  StandGround,  // attack in range but never move to chase
+  NoAttack,     // ignore all enemies
 }
 
 export enum UnitType {
