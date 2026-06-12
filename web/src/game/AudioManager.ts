@@ -22,17 +22,30 @@ export const enum SoundId {
 /** Master volume (0–1). Persisted in localStorage. */
 let _masterVol = parseFloat(localStorage.getItem("masterVol") ?? "0.4");
 let _sfxVol    = parseFloat(localStorage.getItem("sfxVol")    ?? "0.7");
+let _musicVol  = parseFloat(localStorage.getItem("musicVol")  ?? "0.5");
 
-export function setMasterVol(v: number) { _masterVol = v; localStorage.setItem("masterVol", String(v)); }
+export function setMasterVol(v: number) { _masterVol = v; localStorage.setItem("masterVol", String(v)); _applyMusicGain(); }
 export function setSfxVol(v: number)    { _sfxVol    = v; localStorage.setItem("sfxVol",    String(v)); }
+export function setMusicVol(v: number)  { _musicVol  = v; localStorage.setItem("musicVol",  String(v)); _applyMusicGain(); }
 export function getMasterVol()          { return _masterVol; }
 export function getSfxVol()             { return _sfxVol; }
+export function getMusicVol()           { return _musicVol; }
 
 let _ctx: AudioContext | null = null;
 
 // Ambient loop state
 let _ambientGain: GainNode | null = null;
 let _ambientStarted = false;
+
+// Music channel
+let _musicGain: GainNode | null = null;
+let _musicSource: AudioBufferSourceNode | null = null;
+let _musicCombatGain = 1.0; // multiplied in setAmbientDuck
+
+function _applyMusicGain() {
+  if (!_musicGain || !_ctx) return;
+  _musicGain.gain.setTargetAtTime(_masterVol * _musicVol * _musicCombatGain, _ctx.currentTime, 0.3);
+}
 
 function ctx(): AudioContext {
   if (!_ctx) _ctx = new AudioContext();
@@ -69,13 +82,60 @@ function _startAmbient() {
 }
 
 /**
- * Duck ambient by intensity 0..1.
- * At full intensity (lots of combat), ambient drops to ~20% of normal.
+ * Duck ambient + music by intensity 0..1.
+ * At full intensity (lots of combat), ambient drops to ~20%, music to ~70%.
  */
 export function setAmbientDuck(intensity: number): void {
-  if (!_ambientGain) return;
-  const target = 0.08 * _masterVol * (1 - intensity * 0.8);
-  _ambientGain.gain.setTargetAtTime(target, ctx().currentTime, 0.5);
+  const c = ctx();
+  if (_ambientGain) {
+    const target = 0.08 * _masterVol * (1 - intensity * 0.8);
+    _ambientGain.gain.setTargetAtTime(target, c.currentTime, 0.5);
+  }
+  if (_musicGain) {
+    _musicCombatGain = 1 - intensity * 0.3; // music ducks less than ambient
+    _applyMusicGain();
+  }
+}
+
+/**
+ * Play a music track from a URL (AudioBuffer via fetch+decode).
+ * Fades out any current track before starting. If url is null, stops music.
+ */
+export async function playMusic(url: string | null, loop = true): Promise<void> {
+  const c = ctx();
+  if (!_musicGain) {
+    _musicGain = c.createGain();
+    _musicGain.gain.value = _masterVol * _musicVol;
+    _musicGain.connect(c.destination);
+  }
+
+  // Fade out current
+  if (_musicSource) {
+    const g = _musicGain;
+    g.gain.setTargetAtTime(0, c.currentTime, 0.5);
+    const old = _musicSource;
+    setTimeout(() => { try { old.stop(); } catch { /* already stopped */ } }, 2000);
+    _musicSource = null;
+  }
+
+  if (!url) return;
+
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return; // file not found → silent
+    const ab  = await resp.arrayBuffer();
+    const buf = await c.decodeAudioData(ab);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    src.loop = loop;
+    src.connect(_musicGain);
+    _musicGain.gain.setValueAtTime(0, c.currentTime);
+    _musicGain.gain.setTargetAtTime(_masterVol * _musicVol * _musicCombatGain, c.currentTime, 1.5);
+    src.start();
+    _musicSource = src;
+  } catch {
+    // Network/decode error — silent
+  }
 }
 
 /** Pitch-vary helper: ±fraction random offset. */

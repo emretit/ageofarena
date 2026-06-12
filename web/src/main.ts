@@ -8,7 +8,10 @@ import { Config, TeamColors } from "./core/Config";
 import { ResourceManager } from "./core/ResourceManager";
 import { BuildingType, ResourceKind, UnitState, UnitType } from "./core/GameTypes";
 import { CameraRig } from "./camera/CameraRig";
-import { buildTerrain, mulberry32 } from "./world/World";
+import { mulberry32 } from "./world/World";
+import { buildTerrain as buildTerrainNew, type TerrainObjects } from "./render/TerrainRenderer";
+import { buildLighting } from "./render/Lighting";
+import { PostFx } from "./render/PostFx";
 import {
   MapType, buildForest, getMapArchetype,
   spawnBaseResourcesForMap, spawnContestedMines,
@@ -58,13 +61,16 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87b9e8);
+scene.background = new THREE.Color(0x7ab0d8);
 
-buildTerrain(scene); // lights + ocean + land disc (no forest yet)
+buildLighting(scene, renderer);
+const terrain: TerrainObjects = buildTerrainNew(scene);
 const rig = new CameraRig(app);
+const postfx = new PostFx(renderer, scene, rig.camera);
 
 window.addEventListener("resize", () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
+  postfx.onResize(window.innerWidth * Math.min(window.devicePixelRatio, 2), window.innerHeight * Math.min(window.devicePixelRatio, 2));
 });
 
 // ── FocusPause — pause sim when tab is hidden (FocusPause.cs port) ───────────
@@ -489,8 +495,9 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     projectiles.tick(dt);
     vfx.tick(buildings, rig.camera, dt);
 
+    terrain.tick(dt);
     rig.update(dt);
-    renderer.render(scene, rig.camera);
+    postfx.render();
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
