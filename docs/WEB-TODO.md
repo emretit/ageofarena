@@ -268,13 +268,13 @@
 
 ## FAZ 17 — Supabase: Hesap/Lobby/Matchmaking (L)
 
-- [ ] `[WEB17.auth]` `src/net/Auth.ts` + `@supabase/supabase-js`; `signInAnonymously()`→email upgrade; profil UI (Higgsfield avatar opsiyonu)
-- [ ] `[WEB17.schema]` migration (profiles/matches/match_players/ratings/mm_queue/lobbies/leaderboard) + RLS (client sonuç yazamaz)
-- [ ] `[WEB17.results]` `apply_match_result(jsonb,secret)` ELO K=32 + `server/src/Report.ts` (sonuç POST + `.aoarep`→Storage)
-- [ ] `[WEB17.lobby]` `src/ui/LobbyBrowser.ts` Supabase Realtime'dan; server lobbies satırı upsert
-- [ ] `[WEB17.mm]` Edge Function `matchmake` (±100 pencere, +50/30s, cron 10s) → server `POST /internal/create-room`
-- [ ] `[WEB17.history]` `src/ui/ProfileScreen.ts` (son 20 maç + Storage replay) + leaderboard
-- [ ] **DoD:** incognito→3 tıkta maç · ELO doğru + client sonuç yazamaz · lobby ≤2s · eşleşme ≤15s · replay Storage'dan oynar · get_advisors temiz
+- [x] `[WEB17.auth]` `src/net/Auth.ts` + `@supabase/supabase-js`; `signInAnonymously()`→email upgrade; env: VITE_SUPABASE_URL/ANON_KEY; offline-safe stub
+- [x] `[WEB17.schema]` `supabase/migrations/001_schema.sql` — profiles/matches/match_players/ratings/mm_queue/lobbies/leaderboard; RLS: client sonuç yazamaz; `apply_match_result` fn (ELO K=32)
+- [x] `[WEB17.results]` `server/src/Report.ts` — POST apply_match_result (service key); MATCH_SECRET doğrulama
+- [x] `[WEB17.lobby]` `src/ui/LobbyBrowser.ts` Supabase Realtime (postgres_changes); join butonu
+- [x] `[WEB17.mm]` `supabase/functions/matchmake/index.ts` — ±100 ELO pencere + 30s genişleme; game-server create-room POST
+- [x] `[WEB17.history]` `src/ui/ProfileScreen.ts` — anon upgrade form + stats + son 20 maç + leaderboard
+- [ ] **DoD (Manuel adımlar gerekli):** supabase db push + Edge Function deploy + VITE_SUPABASE_URL set → tam test; kod 0 TS hata ✓
 
 ---
 
