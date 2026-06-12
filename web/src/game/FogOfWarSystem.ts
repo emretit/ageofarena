@@ -12,6 +12,7 @@
  */
 import * as THREE from "three";
 import { BuildingType, UnitType } from "../core/GameTypes";
+import { diplomacy } from "../core/Diplomacy";
 import type { Unit } from "./Unit";
 import type { Building } from "./Building";
 
@@ -125,11 +126,11 @@ export class FogOfWarSystem {
     }
 
     for (const u of units) {
-      if (u.teamId !== 0 || !u.alive) continue;
+      if (!u.alive || (u.teamId !== 0 && !diplomacy.isAlly(u.teamId, 0))) continue;
       this._paintCircle(u.pos.x, u.pos.z, unitSight(u.unitType));
     }
     for (const b of buildings) {
-      if (b.teamId !== 0 || !b.alive) continue;
+      if (!b.alive || (b.teamId !== 0 && !diplomacy.isAlly(b.teamId, 0))) continue;
       this._paintCircle(b.pos.x, b.pos.z, buildingSight(b.buildingType));
     }
 
@@ -189,11 +190,11 @@ export class FogOfWarSystem {
 
   private _updateEnemyVisibility(units: Unit[], buildings: Building[]) {
     for (const u of units) {
-      if (u.teamId === 0) continue;
+      if (u.teamId === 0 || diplomacy.isAlly(u.teamId, 0)) continue;
       u.root.visible = this._isLit(u.pos.x, u.pos.z);
     }
     for (const b of buildings) {
-      if (b.teamId === 0) continue;
+      if (b.teamId === 0 || diplomacy.isAlly(b.teamId, 0)) continue;
       b.root.visible = this._isLit(b.pos.x, b.pos.z);
     }
   }

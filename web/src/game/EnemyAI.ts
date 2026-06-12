@@ -14,10 +14,36 @@ import { Building, DEFS } from "./Building";
 import type { ResourceNode } from "./ResourceNode";
 import { type ResearchSystem, TECH_DEFS, TechId } from "./ResearchSystem";
 
-/** BAL.ai: first attack gates by difficulty (Normal = 240s). */
-const FIRST_PUSH_TIME = 240;
-const BUILD_CHECK_INTERVAL = 20;
-const TRAIN_CHECK_INTERVAL = 10;
+export enum Difficulty {
+  Easiest = 0, Easy, Normal, Hard, Harder, Hardest,
+}
+
+export enum Personality { Rusher, Balanced, Boomer }
+
+interface DifficultyConfig {
+  firstPush:    number; // seconds before first attack
+  gatherMult:   number; // resource deposit multiplier (applied at deposit)
+  villagerGoal: number; // target villager count before military push
+  usesAttackMove: boolean;
+  retreatAt:    number; // retreat when this fraction of army is lost (0=never)
+}
+
+const DIFFICULTY_TABLE: DifficultyConfig[] = [
+  { firstPush: 420, gatherMult: 0.7,  villagerGoal:  8, usesAttackMove: false, retreatAt: 0    }, // Easiest
+  { firstPush: 360, gatherMult: 0.85, villagerGoal: 10, usesAttackMove: false, retreatAt: 0    }, // Easy
+  { firstPush: 240, gatherMult: 1.0,  villagerGoal: 14, usesAttackMove: false, retreatAt: 0    }, // Normal
+  { firstPush: 150, gatherMult: 1.1,  villagerGoal: 18, usesAttackMove: true,  retreatAt: 0.4  }, // Hard
+  { firstPush:  90, gatherMult: 1.2,  villagerGoal: 22, usesAttackMove: true,  retreatAt: 0.35 }, // Harder
+  { firstPush:  60, gatherMult: 1.5,  villagerGoal: 28, usesAttackMove: true,  retreatAt: 0.3  }, // Hardest
+];
+
+// Personality-filtered build orders and train priorities
+const RUSHER_TRAIN_PRIORITY  = [BuildingType.Barracks, BuildingType.ArcheryRange];
+const BALANCED_TRAIN_PRIORITY = [BuildingType.Barracks, BuildingType.ArcheryRange, BuildingType.Stable];
+const BOOMER_TRAIN_PRIORITY  = [BuildingType.Stable, BuildingType.ArcheryRange, BuildingType.Barracks];
+
+const BUILD_CHECK_INTERVAL    = 20;
+const TRAIN_CHECK_INTERVAL    = 10;
 const RESEARCH_CHECK_INTERVAL = 30;
 
 /**
@@ -84,6 +110,8 @@ const TECH_PRIORITY: TechId[] = [
   TechId.FurorCeltica, TechId.Rocketry, TechId.Perfusion, TechId.Artillery,
 ];
 
+type ArmyState = 'gathering' | 'rallying' | 'attacking' | 'retreating';
+
 export class EnemyAI {
   private elapsed = 0;
   private gateLifted = false;
@@ -91,6 +119,11 @@ export class EnemyAI {
   private lastBuildCheck = 0;
   private lastAgeCheck = 0;
   private lastResearchCheck = 0;
+  private armyState: ArmyState = 'gathering';
+  private armyPeakSize = 0; // track peak to detect losses
+  private tickOffset: number;
+
+  private readonly cfg: DifficultyConfig;
 
   constructor(
     private readonly teamId: number,
@@ -99,7 +132,13 @@ export class EnemyAI {
     private readonly gather: GatherSystem,
     private readonly training: TrainingQueue,
     private readonly research: ResearchSystem,
-  ) {}
+    difficulty  = Difficulty.Normal,
+    private readonly personality = Personality.Balanced,
+    tickOffset  = 0,
+  ) {
+    this.cfg = DIFFICULTY_TABLE[difficulty];
+    this.tickOffset = tickOffset;
+  }
 
   tick(
     units: Unit[],
@@ -107,12 +146,15 @@ export class EnemyAI {
     nodes: ResourceNode[],
     scene: THREE.Scene,
     dt: number,
+    pathQueue?: import('../sim/PathQueue').PathQueue,
+    allyTeams: number[] = [],
   ) {
     this.elapsed += dt;
 
-    const myUnits     = units.filter(u => u.teamId === this.teamId && u.alive);
-    const myBuildings = buildings.filter(b => b.teamId === this.teamId && b.alive);
-    const enemyBuildings = buildings.filter(b => b.teamId !== this.teamId && b.alive);
+    const myUnits        = units.filter(u => u.teamId === this.teamId && u.alive);
+    const myMilitary     = myUnits.filter(u => !u.gathers);
+    const myBuildings    = buildings.filter(b => b.teamId === this.teamId && b.alive);
+    const enemyBuildings = buildings.filter(b => b.teamId !== this.teamId && !allyTeams.includes(b.teamId) && b.alive);
 
     // ── Assign idle villagers to nearest resource node ─────────────────────
     for (const v of myUnits) {
@@ -137,7 +179,11 @@ export class EnemyAI {
     // ── Train military units from production buildings ─────────────────────
     if (this.elapsed - this.lastTrainCheck >= TRAIN_CHECK_INTERVAL) {
       this.lastTrainCheck = this.elapsed;
+      const trainPriority = this.personality === Personality.Rusher  ? RUSHER_TRAIN_PRIORITY
+                          : this.personality === Personality.Boomer   ? BOOMER_TRAIN_PRIORITY
+                          : BALANCED_TRAIN_PRIORITY;
       for (const b of myBuildings) {
+        if (!trainPriority.includes(b.buildingType)) continue;
         if (b.buildingType === BuildingType.Barracks) {
           this.training.train(b, UnitType.Militia, this.rm);
           this.training.train(b, UnitType.Spearman, this.rm);
@@ -155,21 +201,84 @@ export class EnemyAI {
       this._tryResearch(myBuildings);
     }
 
-    // ── Attack when gate lifts ─────────────────────────────────────────────
-    if (!this.gateLifted && this.elapsed >= FIRST_PUSH_TIME) {
+    // ── Army state machine ────────────────────────────────────────────────
+    if (!this.gateLifted && this.elapsed >= this.cfg.firstPush) {
       this.gateLifted = true;
+      this.armyState = 'rallying';
     }
 
-    if (this.gateLifted && enemyBuildings.length > 0) {
-      const target = enemyBuildings.find(b => b.buildingType === BuildingType.TownCenter)
-        ?? enemyBuildings[0];
+    this._tickArmyState(myMilitary, myBuildings, enemyBuildings, pathQueue);
+  }
 
-      for (const u of myUnits) {
-        if (!u.gathers && u.state === UnitState.Idle) {
+  private _tickArmyState(
+    myMilitary: Unit[],
+    myBuildings: Building[],
+    enemyBuildings: Building[],
+    pathQueue?: import('../sim/PathQueue').PathQueue,
+  ) {
+    if (!this.gateLifted || enemyBuildings.length === 0) return;
+
+    const target = enemyBuildings.find(b => b.buildingType === BuildingType.TownCenter)
+      ?? enemyBuildings[0];
+
+    if (this.armyState === 'rallying') {
+      // Gather army near TC before pushing
+      const tc = myBuildings.find(b => b.buildingType === BuildingType.TownCenter);
+      for (const u of myMilitary) {
+        if (u.state === UnitState.Idle) {
+          u.moveTo(tc ? tc.pos.clone() : target.pos.clone());
+          u.state = UnitState.Moving;
+        }
+      }
+      // Transition: enough military or elapsed 30s since gate lifted
+      if (myMilitary.length >= 3) {
+        this.armyPeakSize = myMilitary.length;
+        this.armyState = 'attacking';
+      }
+    } else if (this.armyState === 'attacking') {
+      // Update peak size
+      if (myMilitary.length > this.armyPeakSize) this.armyPeakSize = myMilitary.length;
+      // Check retreat condition
+      if (this.cfg.retreatAt > 0 && this.armyPeakSize > 0) {
+        const lossRatio = 1 - myMilitary.length / this.armyPeakSize;
+        if (lossRatio >= this.cfg.retreatAt) {
+          this.armyState = 'retreating';
+          this.armyPeakSize = 0;
+          return;
+        }
+      }
+      // Issue attack orders
+      for (const u of myMilitary) {
+        if (u.state !== UnitState.Idle && u.state !== UnitState.MovingToAttack && u.state !== UnitState.AttackMove) continue;
+        if (this.cfg.usesAttackMove && pathQueue) {
+          u.state = UnitState.AttackMove;
+          u.attackMoveGoalX = target.pos.x;
+          u.attackMoveGoalZ = target.pos.z;
+          pathQueue.request(u, target.pos.x, target.pos.z, 'land', this.teamId, 2); // priority 2 = AI
+        } else {
           u.state = UnitState.MovingToAttack;
           u.attackTargetBuilding = target;
           u.moveTo(target.pos.clone());
         }
+      }
+    } else if (this.armyState === 'retreating') {
+      const tc = myBuildings.find(b => b.buildingType === BuildingType.TownCenter);
+      for (const u of myMilitary) {
+        u.attackTarget = null;
+        u.attackTargetBuilding = null;
+        if (tc) { u.moveTo(tc.pos.clone()); u.state = UnitState.Moving; }
+      }
+      // Regroup when near TC
+      if (myMilitary.length > 0) {
+        const tc2 = myBuildings.find(b => b.buildingType === BuildingType.TownCenter);
+        if (!tc2) { this.armyState = 'gathering'; return; }
+        const allNear = myMilitary.every(u => {
+          const dx = u.x - tc2.pos.x; const dz = u.z - tc2.pos.z;
+          return dx * dx + dz * dz < 100;
+        });
+        if (allNear) { this.armyState = 'gathering'; this.elapsed = Math.max(0, this.elapsed - 60); }
+      } else {
+        this.armyState = 'gathering';
       }
     }
   }

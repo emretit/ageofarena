@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { ArmorClass, AttackStance, BuildingType, DamageType, UnitState } from "../core/GameTypes";
 import { ArmorClassFlags } from "../core/GameTypes";
 import { SpatialHash } from "../sim/SpatialHash";
+import { diplomacy } from "../core/Diplomacy";
 import type { Unit } from "./Unit";
 import type { Building } from "./Building";
 
@@ -73,7 +74,7 @@ export class CombatSystem {
           // Splash damage: apply to all alive enemy units within splashRadius of landing point
           const r2 = p.splashRadius * p.splashRadius;
           for (const u of units) {
-            if (!u.alive || u.isGarrisoned || u.teamId === p.attackerTeam) continue;
+            if (!u.alive || u.isGarrisoned || !diplomacy.isEnemy(u.teamId, p.attackerTeam)) continue;
             const dx = u.x - p.toPos.x; const dz = u.z - p.toPos.z;
             const d2 = dx * dx + dz * dz;
             if (d2 <= r2) {
@@ -148,7 +149,7 @@ export class CombatSystem {
     const candidates: Unit[] = [];
     this._spatial.query(u.x, u.z, u.aggroRadius, candidates);
     for (const t of candidates) {
-      if (t.teamId === u.teamId) continue;
+      if (!diplomacy.isEnemy(t.teamId, u.teamId)) continue;
       const dx = t.x - u.x; const dz = t.z - u.z;
       const d = Math.sqrt(dx * dx + dz * dz);
       if (d < bestDist) { bestDist = d; best = t; }
@@ -306,7 +307,7 @@ export class CombatSystem {
       const nearby: Unit[] = [];
       this._spatial.query(b.pos.x, b.pos.z, stats.range, nearby);
       for (const u of nearby) {
-        if (u.isGarrisoned || u.teamId === b.teamId) continue;
+        if (u.isGarrisoned || !diplomacy.isEnemy(u.teamId, b.teamId)) continue;
         const dx = u.x - b.pos.x; const dz = u.z - b.pos.z;
         const d = Math.sqrt(dx * dx + dz * dz);
         if (d < bestDist) { bestDist = d; target = u; }

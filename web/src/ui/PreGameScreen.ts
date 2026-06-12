@@ -1,15 +1,21 @@
 /**
- * PreGameScreen — CivSelectScreen.cs port (HTML overlay).
- * Player picks a civilization and map type before the game starts.
- * Fires onStart(playerCiv, enemyCiv, mapType) when "OYNA" is clicked.
+ * PreGameScreen v2 — opponent count, difficulty, personality + civ select.
+ * onStart fires with player civ, N opponent configs, and map type.
  */
-import { Civilization, CIVILIZATION_DEFS, PLAYABLE_CIVS, CivBonus } from "../core/CivilizationDefs";
+import { Civilization, CIVILIZATION_DEFS, PLAYABLE_CIVS, type CivBonus } from "../core/CivilizationDefs";
 import { MapType } from "../world/MapGenerator";
+import { Difficulty, Personality } from "../game/EnemyAI";
+
+export interface OpponentConfig {
+  civ:         Civilization;
+  difficulty:  Difficulty;
+  personality: Personality;
+}
 
 export class PreGameScreen {
   private readonly _el: HTMLDivElement;
 
-  onStart: ((player: Civilization, enemy: Civilization, map: MapType) => void) | null = null;
+  onStart: ((player: Civilization, opponents: OpponentConfig[], map: MapType) => void) | null = null;
 
   constructor(container: HTMLElement) {
     this._el = document.createElement("div");
@@ -23,8 +29,11 @@ export class PreGameScreen {
     container.appendChild(this._el);
   }
 
-  private _civSel   = Civilization.None;
-  private _mapSel   = MapType.Arabia;
+  private _civSel       = Civilization.None;
+  private _mapSel       = MapType.Arabia;
+  private _opponentCount = 1;
+  private _difficulty    = Difficulty.Normal;
+  private _personality   = Personality.Balanced;
 
   private _build(): void {
     this._el.innerHTML = "";
@@ -57,7 +66,7 @@ export class PreGameScreen {
       btn.dataset.civ = String(civ);
       btn.addEventListener("click", () => {
         this._civSel = civ;
-        this._refreshCivButtons();
+        this._refreshCivButtonsIn(grid);
       });
       grid.appendChild(btn);
     }
@@ -71,14 +80,14 @@ export class PreGameScreen {
     this._el.appendChild(mapLabel);
 
     const mapRow = document.createElement("div");
-    mapRow.style.cssText = "display:flex;gap:8px;margin-bottom:28px;flex-wrap:wrap;justify-content:center;";
+    mapRow.style.cssText = "display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap;justify-content:center;";
 
     const MAP_NAMES: Record<MapType, string> = {
-      [MapType.Arabia]:    "Arabistan",
-      [MapType.Arena]:     "Arena",
+      [MapType.Arabia]:     "Arabistan",
+      [MapType.Arena]:      "Arena",
       [MapType.BlackForest]:"Kara Orman",
-      [MapType.Islands]:   "Adalar",
-      [MapType.Nomad]:     "Göçebe",
+      [MapType.Islands]:    "Adalar",
+      [MapType.Nomad]:      "Göçebe",
     };
     for (const [k, name] of Object.entries(MAP_NAMES) as Array<[string, string]>) {
       const mt = Number(k) as MapType;
@@ -92,11 +101,43 @@ export class PreGameScreen {
       `;
       btn.addEventListener("click", () => {
         this._mapSel = mt;
-        this._refreshMapButtons();
+        this._refreshMapButtonsIn(mapRow);
       });
       mapRow.appendChild(btn);
     }
     this._el.appendChild(mapRow);
+    this._refreshMapButtonsIn(mapRow);
+
+    // ── Opponent / difficulty / personality row ────────────────────────────
+    const optLabel = document.createElement("div");
+    optLabel.textContent = "OYUN AYARLARI";
+    optLabel.style.cssText = "font-size:14px;font-weight:bold;color:#f5d060;margin-bottom:10px;letter-spacing:1px;";
+    this._el.appendChild(optLabel);
+
+    const optRow = document.createElement("div");
+    optRow.style.cssText = "display:flex;gap:24px;margin-bottom:28px;flex-wrap:wrap;justify-content:center;align-items:center;";
+
+    // Opponent count
+    const oppGroup = this._buildOptionGroup("RAKİP", ["1", "2", "3"], String(this._opponentCount), v => {
+      this._opponentCount = Number(v);
+    });
+    optRow.appendChild(oppGroup);
+
+    // Difficulty
+    const DIFF_LABELS = ["Çok Kolay", "Kolay", "Normal", "Zor", "Çok Zor", "Aşırı Zor"];
+    const diffGroup = this._buildOptionGroup("ZORLUK", DIFF_LABELS, DIFF_LABELS[this._difficulty], (_, i) => {
+      this._difficulty = i as Difficulty;
+    });
+    optRow.appendChild(diffGroup);
+
+    // Personality
+    const PERS_LABELS = ["Saldırgan", "Dengeli", "Geliştirici"];
+    const persGroup = this._buildOptionGroup("KİŞİLİK", PERS_LABELS, PERS_LABELS[this._personality], (_, i) => {
+      this._personality = i as Personality;
+    });
+    optRow.appendChild(persGroup);
+
+    this._el.appendChild(optRow);
 
     // Start button
     const startBtn = document.createElement("button");
@@ -109,14 +150,78 @@ export class PreGameScreen {
     startBtn.addEventListener("mouseenter", () => { startBtn.style.background = "#2a7a2e"; });
     startBtn.addEventListener("mouseleave", () => { startBtn.style.background = "#1f5c22"; });
     startBtn.addEventListener("click", () => {
-      const enemyCivs = PLAYABLE_CIVS.filter(c => c !== this._civSel);
-      const enemy = enemyCivs[Math.floor(Math.random() * enemyCivs.length)];
+      const opponents = this._buildOpponents();
       this._el.remove();
-      this.onStart?.(this._civSel, enemy, this._mapSel);
+      this.onStart?.(this._civSel, opponents, this._mapSel);
     });
     this._el.appendChild(startBtn);
+  }
 
-    this._refreshMapButtonsIn(mapRow);
+  private _buildOpponents(): OpponentConfig[] {
+    const taken = new Set([this._civSel]);
+    const remaining = PLAYABLE_CIVS.filter(c => !taken.has(c));
+    // Shuffle remaining (non-deterministic but only in menu, not sim)
+    for (let i = remaining.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
+    }
+
+    const opponents: OpponentConfig[] = [];
+    for (let i = 0; i < this._opponentCount; i++) {
+      opponents.push({
+        civ:         remaining[i % remaining.length],
+        difficulty:  this._difficulty,
+        personality: this._personality,
+      });
+    }
+    return opponents;
+  }
+
+  /** Build a row of labeled option buttons. Callback receives (value, index). */
+  private _buildOptionGroup(
+    label: string,
+    options: string[],
+    initial: string,
+    onChange: (value: string, index: number) => void,
+  ): HTMLElement {
+    const group = document.createElement("div");
+    group.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:6px;";
+
+    const lbl = document.createElement("div");
+    lbl.textContent = label;
+    lbl.style.cssText = "font-size:11px;color:#888;letter-spacing:1px;";
+    group.appendChild(lbl);
+
+    const row = document.createElement("div");
+    row.style.cssText = "display:flex;gap:4px;";
+
+    let activeBtn: HTMLButtonElement | null = null;
+    options.forEach((opt, i) => {
+      const btn = document.createElement("button");
+      btn.textContent = opt;
+      btn.style.cssText = `
+        padding:5px 10px; border:2px solid #333; border-radius:4px;
+        background:#11192a; color:#aaa; font-family:monospace; font-size:11px;
+        cursor:pointer; white-space:nowrap;
+      `;
+      const select = () => {
+        if (activeBtn) {
+          activeBtn.style.borderColor = "#333";
+          activeBtn.style.background  = "#11192a";
+          activeBtn.style.color       = "#aaa";
+        }
+        btn.style.borderColor = "#f5d060";
+        btn.style.background  = "#2a2000";
+        btn.style.color       = "#f5d060";
+        activeBtn = btn;
+        onChange(opt, i);
+      };
+      if (opt === initial) { select(); }
+      btn.addEventListener("click", select);
+      row.appendChild(btn);
+    });
+    group.appendChild(row);
+    return group;
   }
 
   private _bonusSummary(def: CivBonus): string {
@@ -137,10 +242,6 @@ export class PreGameScreen {
     return `<div style="font-size:10px;color:#888;margin-top:4px">${lines.slice(0, 3).join(" · ")}</div>`;
   }
 
-  private _refreshCivButtons(): void {
-    this._refreshCivButtonsIn(this._el);
-  }
-
   private _refreshCivButtonsIn(root: HTMLElement): void {
     const btns = root.querySelectorAll<HTMLButtonElement>("button[data-civ]");
     btns.forEach(btn => {
@@ -149,10 +250,6 @@ export class PreGameScreen {
       btn.style.background  = selected ? "#2a2000" : "#11192a";
       btn.style.color       = selected ? "#f5d060" : "#c8c8e0";
     });
-  }
-
-  private _refreshMapButtons(): void {
-    this._refreshMapButtonsIn(this._el);
   }
 
   private _refreshMapButtonsIn(root: HTMLElement): void {

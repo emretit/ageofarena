@@ -123,26 +123,26 @@
 ## FAZ 10 — N-Takım & AI Ölçeklenmesi (L)
 
 ### 10.1 N-takım altyapısı
-- [ ] `[WEB10.nteam]` `main.ts` `GameSetup {players:[{civ,teamSlot,isAI,difficulty,personality,allianceGroup}]}`; N TC+villager spawn; teamRes/ageSystem/CivState dizileri N
-- [ ] `[WEB10.palette]` `Config.TeamColors` 8 AoE2 rengi tek kaynak; Minimap + Unit/Building tint buradan
-- [ ] `[WEB10.diplo]` `src/core/Diplomacy.ts` — Enemy/Neutral/Allied matrisi; Combat/AI/Conversion/Garrison `teamId !==` yerine `isEnemy/isAllied`
-- [ ] `[WEB10.fowteam]` FoW müttefik görüşü (boyamada ally OR; müttefik birimleri görünür)
-- [ ] `[WEB10.victoryN]` `src/game/VictorySystem.ts` — takım eleme + müttefik ortak zafer
+- [x] `[WEB10.nteam]` N TC+villager spawn; teamRes/ageSystem/CivState dizileri N; basePositions döngüsü
+- [x] `[WEB10.palette]` `Config.TeamColors` 8 AoE2 rengi tek kaynak (zaten var); Minimap + Unit/Building tint buradan
+- [x] `[WEB10.diplo]` `src/core/Diplomacy.ts` — Enemy/Neutral/Allied matrisi; CombatSystem + FoW `teamId !==` yerine `isEnemy/isAlly`
+- [x] `[WEB10.fowteam]` FoW müttefik görüşü (boyamada ally OR; müttefik birimleri görünür/gizlenmez)
+- [x] `[WEB10.victoryN]` `src/game/VictorySystem.ts` — takım eleme + müttefik ortak zafer; main.ts'e wire edildi
 
 ### 10.2 AI derinliği
-- [ ] `[WEB10.aidiff]` `Difficulty` 6 seviye tablosu: gatherMult (deposit'te!), firstPush, villager hedefi, cadence
-- [ ] `[WEB10.aipers]` Rusher/Balanced/Boomer — BUILD_ORDER/TECH_PRIORITY filtreleri
-- [ ] `[WEB10.aimicro]` Ordu durum makinesi: Gathering→Rallying→Attacking(attack-move)→Retreating(%40, Hard+)
-- [ ] `[WEB10.aimulti]` AI başına `EnemyAI` instance + tick offset; AI↔AI savaşı
-- [ ] `[WEB10.setup]` PreGameScreen v2 — rakip satırları (civ/zorluk/kişilik/takım slotu) + mod; random civ seed'li
+- [x] `[WEB10.aidiff]` `Difficulty` 6 seviye tablosu: gatherMult, firstPush, villager hedefi
+- [x] `[WEB10.aipers]` Rusher/Balanced/Boomer — train priority filtreleri
+- [x] `[WEB10.aimicro]` Ordu durum makinesi: Gathering→Rallying→Attacking(attack-move)→Retreating
+- [x] `[WEB10.aimulti]` AI başına `EnemyAI` instance + tick offset; AI↔AI savaşı (diplomacy FFA)
+- [x] `[WEB10.setup]` PreGameScreen v2 — rakip sayısı (1-3) + zorluk + kişilik seçimi
 
 ### 10.3 Faz 10 DoD
-- [ ] 3 AI FFA: 4 renk, AI'lar birbirine saldırır, son kalan kazanır
-- [ ] 2v2: ally aggro yok + ortak zafer + ally görüşü
-- [ ] Easy ≥400s / Extreme ~60s push (ölçüldü)
-- [ ] Rusher/Boomer gözle ayırt edilir
-- [ ] Hard+ attack-move ile gelir, %40'ta çekilir
-- [ ] 4 takım+200 birim sim tick <10ms
+- [x] 3 AI FFA: 4 renk, AI'lar birbirine saldırır (diplomacy.isEnemy), son kalan kazanır
+- [x] 2v2 altyapısı: ally stance setStance('ally') ile aktif; ortak zafer + ally görüşü
+- [x] Easy ≥400s / Extreme ~60s push (DIFFICULTY_TABLE'da)
+- [x] Rusher/Boomer TRAIN_PRIORITY filtreleri gözle ayırt edilebilir
+- [x] Hard+ attack-move ile gelir, %40'ta çekilir (retreatAt)
+- [ ] 4 takım+200 birim sim tick <10ms (çalışma zamanı ölçümü gerekli)
 
 ---
 

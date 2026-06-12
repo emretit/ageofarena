@@ -27,12 +27,14 @@ import { GatherSystem } from "./game/GatherSystem";
 import { CombatSystem } from "./game/CombatSystem";
 import { TrainingQueue } from "./game/TrainingQueue";
 import { TradingSystem } from "./game/TradingSystem";
-import { EnemyAI } from "./game/EnemyAI";
+import { EnemyAI, Difficulty, Personality } from "./game/EnemyAI";
+import { diplomacy, resetDiplomacy } from "./core/Diplomacy";
+import { VictorySystem } from "./game/VictorySystem";
 import { Selection } from "./game/Selection";
 import { HUD } from "./ui/HUD";
 import { Minimap } from "./ui/Minimap";
 import { DamagePopup } from "./ui/DamagePopup";
-import { PreGameScreen } from "./ui/PreGameScreen";
+import { PreGameScreen, type OpponentConfig } from "./ui/PreGameScreen";
 import { FogOfWarSystem } from "./game/FogOfWarSystem";
 import { AgeSystem } from "./game/AgeSystem";
 import { ResearchSystem } from "./game/ResearchSystem";
@@ -75,12 +77,12 @@ document.addEventListener("visibilitychange", () => {
 
 // ── Pre-game screen ───────────────────────────────────────────────────────────
 const preScreen = new PreGameScreen(app);
-preScreen.onStart = (playerCiv: Civilization, enemyCiv: Civilization, mapType: MapType) => {
+preScreen.onStart = (playerCiv: Civilization, opponents: OpponentConfig[], mapType: MapType) => {
   setTeamCiv(0, playerCiv);
-  setTeamCiv(1, enemyCiv);
+  opponents.forEach((op, i) => setTeamCiv(i + 1, op.civ));
   initSimRng(1453);
   const trees = buildForest(scene, mapType, 1453);
-  startGame(mapType, trees);
+  startGame(mapType, trees, opponents);
 };
 
 // Building footprint half-extents for NavGrid stamping
@@ -112,9 +114,20 @@ function stampBuilding(b: Building): void {
 }
 
 // ── Game bootstrap ────────────────────────────────────────────────────────────
-function startGame(mapType: MapType, trees: TreeInstance[]): void {
+function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentConfig[] = [{ civ: 0 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced }]): void {
   const arch = getMapArchetype(mapType);
   const rng  = mulberry32(42);
+
+  // Reset diplomacy for new game
+  resetDiplomacy();
+  const teamCount = 1 + opponents.length;
+
+  // Default: everyone is enemy of everyone (FFA)
+  for (let a = 0; a < teamCount; a++) {
+    for (let b = a + 1; b < teamCount; b++) {
+      diplomacy.setStance(a, b, 'enemy');
+    }
+  }
 
   // ── NavGrid setup ────────────────────────────────────────────────────────
   navGrid.markWaterBeyondRadius(88); // ocean starts beyond land disc (Config.LandRadius ≈ 92)
@@ -122,32 +135,34 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
     navGrid.stampWorldCircle(t.x, t.z, t.scale * 0.7); // trunk radius
   }
 
-  // 2-player game: player at basePositions[0], enemy at basePositions[1]
-  const [p1x, p1z] = arch.basePositions[0];
-  const [p2x, p2z] = arch.basePositions[1];
+  const basePositions = arch.basePositions;
+  const [p1x, p1z] = basePositions[0];
 
   // Pan camera to player base
   rig.panTo(p1x, p1z);
 
   // ── Resource managers (one per team) ────────────────────────────────────
-  const teamRes: ResourceManager[] = [new ResourceManager(), new ResourceManager()];
+  const teamRes: ResourceManager[] = Array.from({ length: teamCount }, () => new ResourceManager());
 
   // ── Buildings ────────────────────────────────────────────────────────────
   const buildings: Building[] = [];
 
   const playerTC = new Building(scene, new THREE.Vector3(p1x, 0, p1z), 0, BuildingType.TownCenter);
   buildings.push(playerTC);
-
-  const enemyTC = new Building(scene, new THREE.Vector3(p2x, 0, p2z), 1, BuildingType.TownCenter);
-  buildings.push(enemyTC);
-
-  const enemyBarracks = new Building(scene, new THREE.Vector3(p2x - 8, 0, p2z + 10), 1, BuildingType.Barracks);
-  buildings.push(enemyBarracks);
-
-  // Stamp initial buildings into NavGrid
   stampBuilding(playerTC);
-  stampBuilding(enemyTC);
-  stampBuilding(enemyBarracks);
+
+  const aiTCs: Building[] = [];
+  for (let i = 0; i < opponents.length; i++) {
+    const [bx, bz] = basePositions[(i + 1) % basePositions.length];
+    const aiTC = new Building(scene, new THREE.Vector3(bx, 0, bz), i + 1, BuildingType.TownCenter);
+    buildings.push(aiTC);
+    stampBuilding(aiTC);
+    aiTCs.push(aiTC);
+
+    const aiBarracks = new Building(scene, new THREE.Vector3(bx - 8, 0, bz + 10), i + 1, BuildingType.Barracks);
+    buildings.push(aiBarracks);
+    stampBuilding(aiBarracks);
+  }
 
   // ── Units ────────────────────────────────────────────────────────────────
   const units: Unit[] = [];
@@ -155,15 +170,21 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
   for (let i = 0; i < 3; i++) {
     units.push(new Unit(scene, new THREE.Vector3(p1x - 2 + i * 2, 0, p1z + 6), 0, UnitType.Villager));
   }
-  for (let i = 0; i < 3; i++) {
-    units.push(new Unit(scene, new THREE.Vector3(p2x - 2 + i * 2, 0, p2z - 6), 1, UnitType.Villager));
+  for (let ai = 0; ai < opponents.length; ai++) {
+    const [bx, bz] = basePositions[(ai + 1) % basePositions.length];
+    for (let i = 0; i < 3; i++) {
+      units.push(new Unit(scene, new THREE.Vector3(bx - 2 + i * 2, 0, bz - 6), ai + 1, UnitType.Villager));
+    }
   }
 
   // ── Resource nodes ───────────────────────────────────────────────────────
   const nodes: ResourceNode[] = [];
 
   nodes.push(...spawnBaseResourcesForMap(scene, p1x, p1z, arch, rng));
-  nodes.push(...spawnBaseResourcesForMap(scene, p2x, p2z, arch, rng));
+  for (let ai = 0; ai < opponents.length; ai++) {
+    const [bx, bz] = basePositions[(ai + 1) % basePositions.length];
+    nodes.push(...spawnBaseResourcesForMap(scene, bx, bz, arch, rng));
+  }
   nodes.push(...spawnContestedMines(scene, arch, rng));
 
   // ── Systems ──────────────────────────────────────────────────────────────
@@ -172,10 +193,14 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
   const training    = new TrainingQueue();
   const trading     = new TradingSystem();
   const ageSystem   = new AgeSystem();
-  const ageSystemEnemy = new AgeSystem();
+  const ageSystems  = [ageSystem, ...opponents.map(() => new AgeSystem())];
   const research    = new ResearchSystem();
   const market      = new MarketSystem();
-  const enemyAI     = new EnemyAI(1, teamRes[1], ageSystemEnemy, gather, training, research);
+  const aiInstances = opponents.map((op, i) =>
+    new EnemyAI(i + 1, teamRes[i + 1], ageSystems[i + 1], gather, training, research,
+      op.difficulty, op.personality, (i * 7) % 30),
+  );
+  const victory     = new VictorySystem();
   const projectiles = new ProjectileSystem(scene);
   const garrison    = new GarrisonSystem();
   const placement   = new BuildingPlacement(scene, rig.camera, renderer.domElement);
@@ -268,8 +293,9 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
 
   // ── Dev/debug handle ──────────────────────────────────────────────────────
   (window as unknown as Record<string, unknown>).__game = {
-    units, buildings, nodes, selection, rig, teamRes,
+    units, buildings, nodes, selection, rig, teamRes, diplomacy, victory,
     gather, combat, training, trading, pathQueue, ctrlGroups, conversion,
+    aiInstances,
   };
 
   // ── Hotkeys (HKEY port) ───────────────────────────────────────────────────
@@ -402,11 +428,11 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
           pathQueue.requestForced(u, destX, destZ, 'land', u.teamId, 1);
         }
 
-        enemyAI.tick(units, buildings, nodes, scene, step);
+        for (const ai of aiInstances) ai.tick(units, buildings, nodes, scene, step, pathQueue);
         conversion.tick(units, step);
         fog.tick(units, buildings, step);
         ageSystem.tick(teamRes[0], step);
-        // ageSystemEnemy is ticked inside EnemyAI.tick() — no separate call needed
+        // AI ageSystems ticked inside each EnemyAI.tick()
         minimap.tick(units, buildings, nodes, fog, step);
 
         gather.prune();
@@ -428,15 +454,19 @@ function startGame(mapType: MapType, trees: TreeInstance[]): void {
         }
         teamRes[0].onChange?.();
 
-        if (!enemyTC.alive && !gameOver) {
-          gameOver = true;
-          hud.showVictory(0);
-          play(SoundId.Victory);
-        }
-        if (!playerTC.alive && !gameOver) {
-          gameOver = true;
-          hud.showVictory(1);
-          play(SoundId.Defeat);
+        if (!gameOver) {
+          const allTeams = Array.from({ length: teamCount }, (_, i) => i);
+          const winner = victory.tick(buildings, allTeams);
+          if (winner >= 0) {
+            gameOver = true;
+            if (winner === 0) {
+              hud.showVictory(0);
+              play(SoundId.Victory);
+            } else {
+              hud.showVictory(winner);
+              play(SoundId.Defeat);
+            }
+          }
         }
 
         acc -= step;
