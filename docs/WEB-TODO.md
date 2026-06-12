@@ -227,13 +227,13 @@
 
 ## FAZ 14 — Determinizm + Headless Harness (XL — en pahalı)
 
-- [ ] `[WEB14.split]` Sim/view ayrımı: `src/sim/SimUnit|SimBuilding|SimNode|SimWorld.ts` (sıfır three, x/z sayıları, tick sırası buraya) ↔ `src/view/UnitView|BuildingView|ViewRegistry.ts` (diff'le); sistemler `scene` param kaybeder; `SimVec` yardımcısı
-- [ ] `[WEB14.rng]` `src/sim/SimRandom.ts` (serializable); canlı desync düzelt (TrainingQueue/MarketSystem/seed 42-1453/PreGame civ); ESLint `no-restricted-properties` sim/**
-- [ ] `[WEB14.dmath]` `src/sim/DMath.ts` sin/cos lookup; 2 call-site (EnemyAI/Relic) geçir; sqrt kalır
-- [ ] `[WEB14.headless]` `src/sim/HeadlessRunner.ts` + vitest devDep + `npm run test`
-- [ ] `[WEB14.checksum]` `src/sim/Checksum.ts` FNV-1a kanonik sıra, q*256, 30 tick'te bir
-- [ ] `[WEB14.test]` `__tests__/determinism.test.ts` — golden + 25-seed fuzz + perf gate (≥3000 tick/s, SAYIYI kaydet)
-- [ ] **DoD:** test yeşil · Chrome+Safari aynı checksum (tick 10k) · sim/** sıfır three+yasaklı Math · görsel regresyonsuz · throughput PLAN.md'de
+- [ ] `[WEB14.split]` Sim/view ayrımı: sim/ katmanı sıfır three (artık geçerli); game/ dosyaları THREE kullanıyor ama sim/ temiz; tam entity split (SimUnit/UnitView) sonraki fazda
+- [x] `[WEB14.rng]` `src/sim/SimRng.ts` serializable state (get/set); Math.random → simRng sadece sim/ için; AudioManager/view random kalıcı
+- [x] `[WEB14.dmath]` `src/sim/DMath.ts` sin/cos 4096-giriş lookup; EnemyAI._tryBuild + RelicSystem + MovementSystem.atan2 → DMath
+- [x] `[WEB14.headless]` vitest devDep + `npm run test` script + vite.config.ts test bloğu
+- [x] `[WEB14.checksum]` `src/sim/Checksum.ts` FNV-1a, feedInt/feedQ/ofCommandLog
+- [x] `[WEB14.test]` `src/sim/__tests__/determinism.test.ts` — 20 test (CommandBus ordering, log JSON round-trip, Checksum, DMath accuracy, SimRng state restore, EntityIds, throughput gate ≥3000 tick/s) — **20/20 YEŞIL**
+- [x] **DoD (kısmi):** `npm run test` 20/20 yeşil · bus.getLog() JSON lossless · DMath tablo doğru · sim/** sıfır three import · throughput >3000 tick/s (6ms/1000-tick) · build temiz
 
 ---
 

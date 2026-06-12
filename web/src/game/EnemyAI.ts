@@ -15,6 +15,7 @@ import type { ResourceNode } from "./ResourceNode";
 import { type ResearchSystem, TECH_DEFS, TechId } from "./ResearchSystem";
 import type { CommandBus } from "../sim/CommandBus";
 import { qEncode } from "../sim/Command";
+import { DMath } from "../sim/DMath";
 
 export enum Difficulty {
   Easiest = 0, Easy, Normal, Hard, Harder, Hardest,
@@ -334,8 +335,8 @@ export class EnemyAI {
       let foundPos: THREE.Vector3 | null = null;
       for (let attempt = 0; attempt < 8; attempt++) {
         const angle = (baseAngle + attempt * (Math.PI / 4)) % (Math.PI * 2);
-        const px = tc.pos.x + Math.cos(angle) * radius;
-        const pz = tc.pos.z + Math.sin(angle) * radius;
+        const px = tc.pos.x + DMath.cos(angle) * radius;
+        const pz = tc.pos.z + DMath.sin(angle) * radius;
         const [cx, cz] = navGrid.worldToCell(px, pz);
         if (navGrid.isWalkable(cx, cz)) { foundPos = new THREE.Vector3(px, 0, pz); break; }
       }

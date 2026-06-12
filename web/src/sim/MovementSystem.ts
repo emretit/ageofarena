@@ -5,6 +5,7 @@
 
 import { NavGrid } from './NavGrid';
 import { SpatialHash } from './SpatialHash';
+import { DMath } from './DMath';
 
 export interface MoveUnit {
   x: number;
@@ -77,7 +78,7 @@ export class MovementSystem {
       u.velZ = nz * u.moveSpeed;
 
       // Facing angle (atan2 in XZ plane) — view layer will sync to root.rotation.y
-      u.facingAngle = Math.atan2(dx, dz);
+      u.facingAngle = DMath.atan2(dx, dz);
     }
 
     // ── Soft separation (after all movement) ─────────────────────────────────

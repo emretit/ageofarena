@@ -8,6 +8,7 @@ import { BuildingType, UnitType } from "../core/GameTypes";
 import type { Unit } from "./Unit";
 import type { Building } from "./Building";
 import type { ResourceManager } from "../core/ResourceManager";
+import { DMath } from "../sim/DMath";
 
 export const RELIC_GOLD_RATE = 0.5; // gold/sec per held relic (AoE2: ~31.25/min ≈ 0.52/s)
 const CAPTURE_RANGE  = 3.5;
@@ -105,7 +106,7 @@ export class RelicSystem {
     for (let i = 0; i < count; i++) {
       const ang = (i / count) * Math.PI * 2 + 0.3;
       const r = 18 + (i % 2) * 8;
-      relics.push(new RelicEntity(scene, new THREE.Vector3(Math.cos(ang) * r, 0, Math.sin(ang) * r)));
+      relics.push(new RelicEntity(scene, new THREE.Vector3(DMath.cos(ang) * r, 0, DMath.sin(ang) * r)));
     }
     return relics;
   }
