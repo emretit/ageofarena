@@ -12,7 +12,7 @@ import type { Building } from "./Building";
 import type { ResourceNode } from "./ResourceNode";
 import type { PathQueue } from "../sim/PathQueue";
 import { orderMove, orderAttackUnit, orderAttackBuilding, orderGather, orderAttackMove, orderPatrol } from "./Orders";
-import type { CommandBus } from "../sim/CommandBus";
+import type { CommandIssuer } from "../sim/CommandBus";
 import { qEncode } from "../sim/Command";
 
 const DRAG_THRESHOLD = 6; // pixels before drag-box activates
@@ -47,7 +47,7 @@ export class Selection {
     private readonly combat: CombatSystem,
     private readonly garrisonSys?: GarrisonSystem,
     private readonly pathQueue?: PathQueue,
-    private readonly bus?: CommandBus,
+    private readonly bus?: CommandIssuer,
   ) {
     // Selection-box DOM element
     this.boxEl = document.createElement("div");

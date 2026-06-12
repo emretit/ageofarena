@@ -1,0 +1,11 @@
+{
+  "name": "ageofarena",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix web\" \"npm run start --prefix server\"",
+    "build": "npm run build --prefix web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

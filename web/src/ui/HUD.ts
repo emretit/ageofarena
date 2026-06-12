@@ -14,7 +14,7 @@ import { AGE_NAMES, AgeSystem } from "../game/AgeSystem";
 import { BUILDING_TECHS, TECH_DEFS, type ResearchSystem, type TechId } from "../game/ResearchSystem";
 import type { MarketSystem } from "../game/MarketSystem";
 import type { GarrisonSystem } from "../game/GarrisonSystem";
-import type { CommandBus } from "../sim/CommandBus";
+import type { CommandIssuer } from "../sim/CommandBus";
 
 /** Minimum age required to construct each building type. */
 const BUILDING_MIN_AGE: Partial<Record<BuildingType, Age>> = {
@@ -82,10 +82,10 @@ export class HUD {
   private readonly infoPanel: HTMLElement;
   private readonly counters: Record<ResourceKind, HTMLElement>;
   private readonly popCell: HTMLElement;
-  private _bus?: CommandBus;
+  private _bus?: CommandIssuer;
 
-  /** Provide a CommandBus after construction; all action buttons route through it. */
-  setBus(bus: CommandBus): void { this._bus = bus; }
+  /** Provide a CommandIssuer (CommandBus or LockstepClient) after construction. */
+  setBus(bus: CommandIssuer): void { this._bus = bus; }
 
   constructor(container: HTMLElement, rm: ResourceManager) {
     this.root = document.createElement("div");

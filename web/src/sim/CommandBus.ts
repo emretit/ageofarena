@@ -9,6 +9,11 @@ import type { Command } from "./Command";
 type DistOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
 export type CommandInput = DistOmit<Command, 'tick' | 'seq'>;
 
+/** Minimal interface for issuing commands. LockstepClient and CommandBus both satisfy it. */
+export interface CommandIssuer {
+  issue(cmd: CommandInput): void;
+}
+
 export class CommandBus {
   private _currentTick = 0;
   private readonly _pending: Command[] = [];

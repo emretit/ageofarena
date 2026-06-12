@@ -58,6 +58,9 @@ import { CommandBus } from "./sim/CommandBus";
 import { CommandExecutor } from "./sim/CommandExecutor";
 import { resetIds } from "./sim/EntityIds";
 import { type ReplaySetup, type AoaRep, REPLAY_MAGIC, REPLAY_VERSION, saveRepToSlot } from "./replay/ReplayFile";
+import { LockstepClient, SP_OPTIONS } from "./net/LockstepClient";
+import { LoopbackTransport } from "./net/LoopbackTransport";
+import { NetStatus } from "./ui/NetStatus";
 
 // ── Renderer (eager — shows while PreGameScreen is up) ───────────────────────
 const app = document.getElementById("app")!;
@@ -143,6 +146,13 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
   // Command bus — all player/AI actions flow through this
   const commandBus = new CommandBus();
+
+  // Lockstep client (SP: LoopbackTransport, zero delay)
+  const loopbackTransport = new LoopbackTransport(['player-0']);
+  const lockstepClient = new LockstepClient(loopbackTransport, { ...SP_OPTIONS, myTeamId: 0 });
+
+  // Net status overlay
+  const netStatus = new NetStatus(app);
 
   // Reset diplomacy for new game
   resetDiplomacy();
@@ -241,7 +251,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
   // ── HUD ──────────────────────────────────────────────────────────────────
   const hud = new HUD(app, teamRes[0]);
-  hud.setBus(commandBus);
+  hud.setBus(lockstepClient);
   const settings = new SettingsPanel(app, postfx);
   settings.onResume = () => { _focusPaused = false; };
 
@@ -275,7 +285,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   // ── Selection ─────────────────────────────────────────────────────────────
   const selection = new Selection(
     renderer.domElement, rig.camera, scene,
-    units, buildings, nodes, gather, combat, garrison, pathQueue, commandBus,
+    units, buildings, nodes, gather, combat, garrison, pathQueue, lockstepClient,
   );
 
   function onBuild(type: BuildingType) {
@@ -458,8 +468,14 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
         gameElapsed += step;
         const simStart = performance.now();
 
-        // Advance command bus tick + drain and execute all queued commands
+        // Lockstep tick: collect confirmed turn commands, gate on server echo
+        const { stalling, commands: turnCmds } = lockstepClient.tick();
+        netStatus.setStalling(stalling);
+        if (stalling) { acc -= step; break; } // pause sim until server confirms
+
+        // Advance command bus tick + execute confirmed player commands + AI commands
         commandBus.advanceTick();
+        for (const cmd of turnCmds) commandBus.issue(cmd);
         commandExecutor.execute(commandBus.drain());
 
         // Pathfinding + movement (before systems that read positions)

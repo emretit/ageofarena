@@ -251,15 +251,16 @@
 
 ## FAZ 16 — Lockstep WS Server + Transport (XL)
 
-- [ ] `[WEB16.proto]` `shared/protocol.ts` JSON v1 mesaj şeması (encode/decode izole); iki tsconfig'e alias
-- [ ] `[WEB16.server]` `server/src/Room.ts` turn sequencer (herkesin turn-T inputu gelince broadcast; stall; komut doğrulama; version-triple; crypto.randomInt seed)
-- [ ] `[WEB16.client]` `src/net/Transport.ts` + `WsTransport` + `LoopbackTransport` (SP buradan) + `LockstepClient.ts` (turn=4 tick, T+2 exec, waiting overlay) + `ui/NetStatus.ts`
-- [ ] `[WEB16.lobby]` `src/ui/RoomScreen.ts` (5-harf kod create/join, ready, host ayarları→game_start) + chat
-- [ ] `[WEB16.desync]` `src/net/DesyncHandler.ts` — checksum karşılaştır → banner + dump + void
-- [ ] `[WEB16.reconnect]` 120s slot + reconnectToken (HMAC) + log catch-up (headless fast-forward) + keyframe gate
-- [ ] `[WEB16.spectate]` spectator role (2 turn gecikmeli, komut yok, perspektif toggle)
-- [ ] `[WEB16.dev]` `concurrently` `npm run dev` (web+server) + `VITE_WS_URL`; `RtsRoom.ts` sil
-- [ ] **DoD:** iki makine ≥30dk sıfır desync · tab kapat→<15s rejoin · SP loopback'ten · hp×2 → desync banner · version uyuşmazlığı reddedilir · spectator komut sokamaz
+- [x] `[WEB16.proto]` `shared/protocol.ts` JSON v1 mesaj şeması; server+web'e göreceli import (iki tsconfig)
+- [x] `[WEB16.server]` `server/src/Room.ts` turn sequencer + index.ts yeniden yazıldı (crypto.randomInt seed, version-triple, komut doğrulama, stall broadcast)
+- [x] `[WEB16.client]` `src/net/Transport.ts` + `WsTransport` + `LoopbackTransport` (SP buradan) + `LockstepClient.ts` (SP: ticksPerTurn=1/delay=0; MP: 4/2) + `ui/NetStatus.ts` (stall overlay + ping)
+- [x] `[WEB16.lobby]` `src/ui/RoomScreen.ts` (5-char kod create/join, ready, player list, chat → game_start)
+- [x] `[WEB16.desync]` `src/net/DesyncHandler.ts` — checksum raporla → desync banner + console dump
+- [ ] `[WEB16.reconnect]` 120s slot + reconnectToken (HMAC) + catch-up — **stretch**
+- [ ] `[WEB16.spectate]` spectator role — **stretch**
+- [x] `[WEB16.dev]` root `package.json` + `concurrently`; `RtsRoom.ts` silindi; `VITE_WS_URL` env
+- [x] **main.ts wire:** SP LoopbackTransport → LockstepClient; sim gated on stalling; Selection+HUD → CommandIssuer interface
+- [ ] **DoD (kısmi):** SP LoopbackTransport'tan akar (0 gecikme) · WsTransport MP altyapısı hazır · RoomScreen lobby UI · server version-triple check · reconnect/spectate stretch
 
 **→ MVP-2 (online 1v1) tamam**
 

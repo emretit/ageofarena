@@ -1,202 +1,144 @@
-import { WebSocketServer, WebSocket } from "ws";
-import { createServer } from "http";
+import { WebSocketServer, WebSocket } from 'ws';
+import { createServer } from 'http';
+import { randomInt } from 'crypto';
+import { Room, type RoomPlayer } from './Room';
+import { PROTOCOL_VERSION } from '../../shared/protocol';
+import type { ClientMsg } from '../../shared/protocol';
 
 const port = Number(process.env.PORT ?? 2567);
 const httpServer = createServer((req, res) => {
-  // Health check
-  res.writeHead(200, { "Content-Type": "text/plain", "Access-Control-Allow-Origin": "*" });
-  res.end("Age of Arena — game server OK");
+  res.writeHead(200, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
+  res.end('Age of Arena — game server OK');
 });
 const wss = new WebSocketServer({ server: httpServer });
 
-// ── Oda ve oyuncu modeli ──────────────────────────────────────────────────────
-
-interface Player {
-  ws: WebSocket;
-  id: string;
-  name: string;
-  team: number;
-  ready: boolean;
-  roomCode: string;
-}
-
-interface Room {
-  code: string;
-  host: string;          // player id
-  players: Map<string, Player>;
-  started: boolean;
-  seed: number;
-  inputBuffer: Map<number, InputFrame[]>;
-  checksums: Map<string, { tick: number; hash: number }>;
-}
-
-interface InputFrame {
-  playerId: string;
-  tick: number;
-  commands: any[];
-}
-
 const rooms = new Map<string, Room>();
-const playerMap = new Map<WebSocket, Player>();
+const socketToPlayer = new Map<WebSocket, { playerId: string; roomCode: string }>();
 
-function send(ws: WebSocket, type: string, payload: any) {
-  if (ws.readyState === WebSocket.OPEN)
-    ws.send(JSON.stringify({ type, ...payload }));
+function makeCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 5; i++) code += chars[randomInt(chars.length)];
+  return code;
 }
 
-function broadcast(room: Room, type: string, payload: any, except?: string) {
-  room.players.forEach((p) => {
-    if (p.id !== except) send(p.ws, type, payload);
-  });
+function send(ws: WebSocket, payload: object): void {
+  if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(payload));
 }
 
-function makeRoomCode(): string {
-  return Math.random().toString(36).substring(2, 7).toUpperCase();
+function versionOk(v: unknown): boolean {
+  if (!Array.isArray(v) || v.length < 2) return false;
+  return v[0] === PROTOCOL_VERSION[0] && v[1] === PROTOCOL_VERSION[1];
 }
 
-// ── Bağlantı yönetimi ──────────────────────────────────────────────────────────
+wss.on('connection', (ws) => {
+  const playerId = randomInt(0x7fffffff).toString(36);
+  console.log(`[+] connected: ${playerId}`);
 
-wss.on("connection", (ws) => {
-  const playerId = Math.random().toString(36).substring(2, 10);
-  console.log(`[+] bağlandı: ${playerId}`);
+  ws.on('message', (raw) => {
+    const str = raw.toString();
 
-  ws.on("message", (raw) => {
-    let msg: any;
-    try { msg = JSON.parse(raw.toString()); } catch { return; }
+    let msg: ClientMsg;
+    try { msg = JSON.parse(str); } catch { return; }
 
     const { type } = msg;
 
-    // ── create_room ───────────────────────────────────────────────────────────
-    if (type === "create_room") {
-      const code = makeRoomCode();
-      const player: Player = {
-        ws, id: playerId,
-        name: msg.playerName ?? "Oyuncu1",
-        team: 0, ready: false,
-        roomCode: code,
-      };
-      const room: Room = {
-        code, host: playerId,
-        players: new Map([[playerId, player]]),
-        started: false,
-        seed: Math.floor(Math.random() * 2147483647),
-        inputBuffer: new Map(),
-        checksums: new Map(),
-      };
+    if (type === 'create') {
+      if (!versionOk(msg.version)) {
+        send(ws, { type: 'error', code: 'VERSION_MISMATCH', message: `Expected protocol ${PROTOCOL_VERSION.join('.')}` });
+        return;
+      }
+      let code = makeCode();
+      while (rooms.has(code)) code = makeCode();
+      const seed = randomInt(0x7fffffff);
+      const player: RoomPlayer = { ws, id: playerId, name: msg.playerName ?? 'Player1', team: 0, ready: false };
+      const room = new Room(code, playerId, seed);
+      room.addPlayer(player);
       rooms.set(code, room);
-      playerMap.set(ws, player);
-      send(ws, "room_created", { roomCode: code, team: 0, playerId });
-      console.log(`[Oda] oluşturuldu: ${code} host=${player.name}`);
+      socketToPlayer.set(ws, { playerId, roomCode: code });
+      send(ws, { type: 'room_created', roomCode: code, team: 0, playerId });
+      console.log(`[Room] created: ${code} host=${player.name}`);
     }
 
-    // ── join_room ─────────────────────────────────────────────────────────────
-    else if (type === "join_room") {
+    else if (type === 'join') {
+      if (!versionOk(msg.version)) {
+        send(ws, { type: 'error', code: 'VERSION_MISMATCH', message: `Expected protocol ${PROTOCOL_VERSION.join('.')}` });
+        return;
+      }
       const room = rooms.get(msg.roomCode);
-      if (!room) { send(ws, "error", { message: "Oda bulunamadı" }); return; }
-      if (room.started) { send(ws, "error", { message: "Oyun başladı" }); return; }
-      if (room.players.size >= 4) { send(ws, "error", { message: "Oda dolu" }); return; }
+      if (!room) { send(ws, { type: 'error', code: 'ROOM_NOT_FOUND', message: 'Room not found' }); return; }
+      if (room.started) { send(ws, { type: 'error', code: 'ALREADY_STARTED', message: 'Game already started' }); return; }
+      if (room.playerCount >= 4) { send(ws, { type: 'error', code: 'ROOM_FULL', message: 'Room full' }); return; }
 
-      const team = room.players.size;
-      const player: Player = {
-        ws, id: playerId,
-        name: msg.playerName ?? `Oyuncu${team + 1}`,
-        team, ready: false,
-        roomCode: msg.roomCode,
-      };
-      room.players.set(playerId, player);
-      playerMap.set(ws, player);
+      const team = room.playerCount;
+      const player: RoomPlayer = { ws, id: playerId, name: msg.playerName ?? `Player${team + 1}`, team, ready: false };
+      room.addPlayer(player);
+      socketToPlayer.set(ws, { playerId, roomCode: msg.roomCode });
 
-      const playerList = [...room.players.values()].map(p => ({ name: p.name, team: p.team, ready: p.ready }));
-      send(ws, "room_joined", { roomCode: msg.roomCode, team, playerId, playerList });
-      broadcast(room, "player_joined", { name: player.name, team, playerList }, playerId);
-      console.log(`[Oda] ${msg.roomCode} katıldı: ${player.name} (team=${team})`);
+      send(ws, { type: 'room_joined', roomCode: msg.roomCode, team, playerId, players: room.playerList() });
+      room.broadcast({ type: 'player_joined', name: player.name, team, players: room.playerList() }, playerId);
+      console.log(`[Room] ${msg.roomCode} joined: ${player.name} team=${team}`);
     }
 
-    // ── ready ─────────────────────────────────────────────────────────────────
-    else if (type === "ready") {
-      const player = playerMap.get(ws);
-      if (!player) return;
-      const room = rooms.get(player.roomCode);
-      if (!room) return;
-      room.players.get(playerId)!.ready = true;
-
-      const playerList = [...room.players.values()].map(p => ({ name: p.name, team: p.team, ready: p.ready }));
-      broadcast(room, "player_ready", { playerId, playerList });
-
-      const allReady = [...room.players.values()].every(p => p.ready);
-      if (allReady && room.players.size >= 2 && !room.started) {
-        room.started = true;
-        const players = [...room.players.values()].map(p => ({ id: p.id, name: p.name, team: p.team }));
-        broadcast(room, "game_start", { seed: room.seed, players });
-        console.log(`[Oda] ${room.code} BAŞLADI seed=${room.seed}`);
-      }
+    else if (type === 'ready') {
+      const ctx = socketToPlayer.get(ws);
+      if (!ctx) return;
+      const room = rooms.get(ctx.roomCode);
+      if (!room || room.started) return;
+      const p = room.getPlayer(ctx.playerId);
+      if (!p) return;
+      p.ready = true;
+      room.broadcast({ type: 'player_ready', playerId: ctx.playerId, players: room.playerList() });
+      if (room.allReady()) room.startGame(0);
     }
 
-    // ── input ─────────────────────────────────────────────────────────────────
-    else if (type === "input") {
-      const player = playerMap.get(ws);
-      if (!player) return;
-      const room = rooms.get(player.roomCode);
+    else if (type === 'turn_input') {
+      const ctx = socketToPlayer.get(ws);
+      if (!ctx) return;
+      const room = rooms.get(ctx.roomCode);
       if (!room || !room.started) return;
-
-      const tick: number = msg.tick;
-      if (!room.inputBuffer.has(tick)) room.inputBuffer.set(tick, []);
-      room.inputBuffer.get(tick)!.push({ playerId, tick, commands: msg.commands ?? [] });
-
-      const activePlayers = [...room.players.values()].length;
-      if (room.inputBuffer.get(tick)!.length >= activePlayers) {
-        broadcast(room, "tick_inputs", { tick, inputs: room.inputBuffer.get(tick)! });
-        room.inputBuffer.delete(tick);
-      }
+      room.receiveTurnInput(ctx.playerId, msg.turn, msg.commands ?? []);
     }
 
-    // ── checksum ──────────────────────────────────────────────────────────────
-    else if (type === "checksum") {
-      const player = playerMap.get(ws);
-      if (!player) return;
-      const room = rooms.get(player.roomCode);
+    else if (type === 'checksum') {
+      const ctx = socketToPlayer.get(ws);
+      if (!ctx) return;
+      const room = rooms.get(ctx.roomCode);
       if (!room) return;
-      room.checksums.set(playerId, { tick: msg.tick, hash: msg.hash });
-
-      if (room.checksums.size === room.players.size) {
-        const hashes = [...room.checksums.values()].map(c => c.hash);
-        const allSame = hashes.every(h => h === hashes[0]);
-        if (!allSame) {
-          broadcast(room, "desync", { tick: msg.tick });
-          console.warn(`[Oda] ${room.code} DESYNC tick=${msg.tick}`);
-        }
-        room.checksums.clear();
-      }
+      room.receiveChecksum(ctx.playerId, msg.turn, msg.hash);
     }
 
-    // ── chat ──────────────────────────────────────────────────────────────────
-    else if (type === "chat") {
-      const player = playerMap.get(ws);
-      if (!player) return;
-      const room = rooms.get(player.roomCode);
+    else if (type === 'chat') {
+      const ctx = socketToPlayer.get(ws);
+      if (!ctx) return;
+      const room = rooms.get(ctx.roomCode);
       if (!room) return;
-      broadcast(room, "chat", { name: player.name, message: msg.message });
+      const p = room.getPlayer(ctx.playerId);
+      if (!p) return;
+      room.broadcast({ type: 'chat', name: p.name, message: String(msg.message ?? '').slice(0, 256) });
     }
   });
 
-  ws.on("close", () => {
-    const player = playerMap.get(ws);
-    if (!player) return;
-    playerMap.delete(ws);
-
-    const room = rooms.get(player.roomCode);
+  ws.on('close', () => {
+    const ctx = socketToPlayer.get(ws);
+    if (!ctx) return;
+    socketToPlayer.delete(ws);
+    const room = rooms.get(ctx.roomCode);
     if (!room) return;
-    room.players.delete(playerId);
-    broadcast(room, "player_left", { playerId, name: player.name, team: player.team });
-    console.log(`[-] ayrıldı: ${player.name}`);
-
-    if (room.players.size === 0) {
-      rooms.delete(room.code);
-      console.log(`[Oda] ${room.code} silindi (boş)`);
+    const p = room.removePlayer(ctx.playerId);
+    if (p) {
+      room.broadcast({ type: 'player_left', playerId: ctx.playerId, name: p.name, team: p.team });
+      console.log(`[-] disconnected: ${p.name}`);
+    }
+    if (room.playerCount === 0) {
+      rooms.delete(ctx.roomCode);
+      console.log(`[Room] ${ctx.roomCode} deleted (empty)`);
     }
   });
+
+  ws.on('error', (err) => console.error(`[WS] error: ${err.message}`));
 });
 
 httpServer.listen(port, () => {
-  console.log(`[AgeOfArena] Sunucu ayakta → ws://localhost:${port}`);
+  console.log(`[AgeOfArena] Server running → ws://localhost:${port}`);
 });
