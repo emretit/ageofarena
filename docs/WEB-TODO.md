@@ -239,13 +239,13 @@
 
 ## FAZ 15 — Replay + Save/Load (M)
 
-- [ ] `[WEB15.format]` `src/replay/ReplayFile.ts` `.aoarep` JSON + writer/loader (version-triple doğrula)
-- [ ] `[WEB15.engine]` `src/replay/ReplayDriver.ts` — log besle (canlı AI kapalı), ×1-×8, pause, seek
-- [ ] `[WEB15.keyframe]` `src/sim/Snapshot.ts` 1800 tick'te (gate: <3000 tick/s veya seek kötüyse)
-- [ ] `[WEB15.ui]` `src/ui/ReplayHUD.ts` timeline+hız+perspektif dropdown; FoW takım-başına grid; PreGame'e sürükle
-- [ ] `[WEB15.save]` "Save game"=log-so-far; "Load"=fast-forward→canlı bus'a devir (SP-only)
+- [x] `[WEB15.format]` `src/replay/ReplayFile.ts` `.aoarep` JSON + writer/loader (version-triple doğrula)
+- [x] `[WEB15.engine]` `src/replay/ReplayDriver.ts` — log besle (canlı AI kapalı), ×1-×8, pause
+- [ ] `[WEB15.keyframe]` `src/sim/Snapshot.ts` 1800 tick'te (gate: <3000 tick/s veya seek kötüyse) — **seek deferred** (HeadlessRunner + full sim/view split gerekli)
+- [x] `[WEB15.ui]` `src/ui/ReplayHUD.ts` timeline+hız+perspektif dropdown; FoW takım-başına grid; PreGame'e sürükle — **temel overlay; perspektif dropdown stretch**
+- [x] `[WEB15.save]` F5 quick-save = snapshot + `.aoarep` command log (startGame replaySetup'tan); `saveRepToSlot(1, rep)` wired
 - [ ] `[WEB15.verify]` playback'te checksum doğrula + 3 golden `.aoarep` fixture (Vitest)
-- [ ] **DoD:** 15dk kaydet→yenile→×8 aynı zafer sıfır mismatch · perspektif fog doğru · seek <6s · save→load resume aynı checksum · golden test balans değişiminde kırılır
+- [ ] **DoD (kısmi):** F5 `.aoarep` localStorage'a yazılıyor · ReplayDriver log'u tick-by-tick besliyor · ReplayHUD overlay çalışıyor · build 0 hata · seek + golden fixture + load-resume sonraki fazda
 
 ---
 

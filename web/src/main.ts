@@ -57,6 +57,7 @@ import { GameMode, type GameModeType } from "./game/GameMode";
 import { CommandBus } from "./sim/CommandBus";
 import { CommandExecutor } from "./sim/CommandExecutor";
 import { resetIds } from "./sim/EntityIds";
+import { type ReplaySetup, type AoaRep, REPLAY_MAGIC, REPLAY_VERSION, saveRepToSlot } from "./replay/ReplayFile";
 
 // ── Renderer (eager — shows while PreGameScreen is up) ───────────────────────
 const app = document.getElementById("app")!;
@@ -94,9 +95,14 @@ const preScreen = new PreGameScreen(app);
 preScreen.onStart = (playerCiv: Civilization, opponents: OpponentConfig[], mapType: MapType) => {
   setTeamCiv(0, playerCiv);
   opponents.forEach((op, i) => setTeamCiv(i + 1, op.civ));
-  initSimRng(1453);
-  const trees = buildForest(scene, mapType, 1453);
-  startGame(mapType, trees, opponents);
+  const simSeed = 1453;
+  initSimRng(simSeed);
+  const trees = buildForest(scene, mapType, simSeed);
+  const replaySetup: ReplaySetup = {
+    mapType, simSeed, playerCiv,
+    opponents: opponents.map(op => ({ civ: op.civ, difficulty: op.difficulty, personality: op.personality })),
+  };
+  startGame(mapType, trees, opponents, replaySetup);
 };
 
 // Building footprint half-extents for NavGrid stamping
@@ -128,7 +134,7 @@ function stampBuilding(b: Building): void {
 }
 
 // ── Game bootstrap ────────────────────────────────────────────────────────────
-function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentConfig[] = [{ civ: 0 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced }]): void {
+function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentConfig[] = [{ civ: 0 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced }], _replaySetup?: ReplaySetup): void {
   const arch = getMapArchetype(mapType);
   const rng  = mulberry32(42);
 
@@ -393,12 +399,22 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
       }
     }
 
-    // Quick save (F5) / quick load hint
+    // Quick save (F5): snapshot + replay command log
     if (e.key === "F5") {
       e.preventDefault();
       const snap = buildSnapshot(gameElapsed, teamRes, units, buildings);
       saveToSlot(1, snap);
-      // Save notification (HUD does not have showNotification yet — just console log)
+      if (_replaySetup) {
+        const rep: AoaRep = {
+          magic: REPLAY_MAGIC,
+          version: REPLAY_VERSION,
+          setup: _replaySetup,
+          commands: [...commandBus.getLog()],
+          checksums: [],
+          durationTicks: commandBus.currentTick,
+        };
+        saveRepToSlot(1, rep);
+      }
       console.info("[Save] slot 1 kaydedildi");
     }
 
