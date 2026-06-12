@@ -50,9 +50,14 @@ import { BuildingPlacement } from "./game/BuildingPlacement";
 import { RelicSystem } from "./game/RelicSystem";
 import { VisualEffectSystem } from "./game/VisualEffectSystem";
 import { play, setAmbientDuck, SoundId } from "./game/AudioManager";
+import { PerfHud } from "./dev/PerfHud";
+import { SettingsPanel } from "./ui/SettingsPanel";
+import { buildSnapshot, saveToSlot } from "./game/SaveSystem";
+import { GameMode, type GameModeType } from "./game/GameMode";
 
 // ── Renderer (eager — shows while PreGameScreen is up) ───────────────────────
 const app = document.getElementById("app")!;
+const perfHud = new PerfHud(app);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -207,6 +212,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
       op.difficulty, op.personality, (i * 7) % 30),
   );
   const victory     = new VictorySystem();
+  const gameMode    = new GameMode('Conquest'); // default; PreGameScreen v3 can set mode
   const projectiles = new ProjectileSystem(scene);
   const garrison    = new GarrisonSystem();
   const placement   = new BuildingPlacement(scene, rig.camera, renderer.domElement);
@@ -220,6 +226,8 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
   // ── HUD ──────────────────────────────────────────────────────────────────
   const hud = new HUD(app, teamRes[0]);
+  const settings = new SettingsPanel(app, postfx);
+  settings.onResume = () => { _focusPaused = false; };
 
   // ── Fog of War ───────────────────────────────────────────────────────────
   const fog = new FogOfWarSystem(scene);
@@ -357,9 +365,25 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     }
 
     if (key === "escape") {
-      selection.attackMovePending = false;
-      selection.patrolPending = false;
-      placement.cancel();
+      if (settings.isVisible) {
+        settings.hide();
+        _focusPaused = false;
+      } else {
+        selection.attackMovePending = false;
+        selection.patrolPending = false;
+        placement.cancel();
+        settings.toggle();
+        _focusPaused = true;
+      }
+    }
+
+    // Quick save (F5) / quick load hint
+    if (e.key === "F5") {
+      e.preventDefault();
+      const snap = buildSnapshot(gameElapsed, teamRes, units, buildings);
+      saveToSlot(1, snap);
+      // Save notification (HUD does not have showNotification yet — just console log)
+      console.info("[Save] slot 1 kaydedildi");
     }
 
     // Control groups: Ctrl+1..9 assign, 1..9 recall (double-tap to focus)
@@ -384,7 +408,8 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   });
 
   // ── Game state ────────────────────────────────────────────────────────────
-  let gameOver = false;
+  let gameOver    = false;
+  let gameElapsed = 0; // seconds since game start (for save snapshot)
 
   // ── Fixed-step sim + render loop ──────────────────────────────────────────
   let last = performance.now();
@@ -398,6 +423,8 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
       acc += dt;
       while (!gameOver && acc >= Config.FixedStep) {
         const step = Config.FixedStep;
+        gameElapsed += step;
+        const simStart = performance.now();
 
         // Pathfinding + movement (before systems that read positions)
         pathQueue.tick(navGrid, step);
@@ -462,7 +489,13 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
         if (!gameOver) {
           const allTeams = Array.from({ length: teamCount }, (_, i) => i);
-          const winner = victory.tick(buildings, allTeams);
+
+          // Conquest: VictorySystem handles TC elimination
+          const victoryWinner = victory.tick(buildings, allTeams);
+          // Other modes: GameMode
+          const modeResult = gameMode.tick(buildings, units, allTeams, step);
+          const winner = victoryWinner >= 0 ? victoryWinner : modeResult.winner;
+
           if (winner >= 0) {
             gameOver = true;
             if (winner === 0) {
@@ -475,6 +508,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
           }
         }
 
+        perfHud.setSimMs(performance.now() - simStart);
         acc -= step;
       }
     }
@@ -498,6 +532,11 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     terrain.tick(dt);
     rig.update(dt);
     postfx.render();
+
+    perfHud.tickFrame(dt);
+    perfHud.setDrawCalls(renderer.info.render.calls);
+    perfHud.setPathQueue(pathQueue.pendingCount);
+    perfHud.flush();
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

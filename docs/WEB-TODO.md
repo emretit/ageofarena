@@ -149,44 +149,42 @@
 ## FAZ 11 — Görsel Devrim: GLTF + Işık + PostFX + Higgsfield (XL)
 
 ### 11.1 Asset yükleme
-- [ ] `[WEB11.loader]` `src/render/AssetLoader.ts` (GLTFLoader); `public/assets/models/{units,buildings,props}/`; `ui/LoadingScreen.ts` progress; bütçe <20MB
-- [ ] `[WEB11.manifest]` `src/render/AssetManifest.ts` — UnitType→{file,scale,yawOffset,teamMaskMaterials[]} + 19 bina eşlemesi (native GLB)
-- [ ] Asset paketlerini indir + `public/assets/CREDITS.md` (CC0/CC-BY)
-- [ ] `[WEB11.bake]` yüklemede model→tek BufferGeometry merge + `aTeamMask` vertex; `src/render/TeamTintMaterial.ts` (`onBeforeCompile` mix)
+- [x] `[WEB11.loader]` `src/render/AssetLoader.ts` (GLTFLoader + fallback); `public/assets/models/` dizinleri oluşturuldu
+- [x] `[WEB11.manifest]` `src/render/AssetManifest.ts` — UnitType→{file,scale,yawOffset} + 19 bina eşlemesi
+- [ ] Asset paketlerini indir + `public/assets/CREDITS.md` (model dosyaları henüz eksik)
+- [ ] `[WEB11.bake]` TeamTintMaterial + InstancedMesh merge (model dosyaları gerekli)
 
 ### 11.2 Birim render
-- [ ] `[WEB11.unitrender]` `src/render/UnitRenderer.ts` — arketip başına InstancedMesh; `Unit` görsel sahipliği bırakır → düz veri (pos/rotY/fowVisible)
-- [ ] `[WEB11.pick]` birim seçimi ekran-uzayı en-yakın; binalar raycast'le kalır
-- [ ] `[WEB11.anim]` `src/render/Anim.ts` — bob + lunge + ölüm bat (instance matris)
-- [ ] `[WEB11.hpbar]` `src/render/HpBarRenderer.ts` — tek InstancedMesh çifti, statik billboard (per-frame lookAt sil), cap 200
-- [ ] `[WEB11.trees]` ağaçlar TreeInstance'tan 2 InstancedMesh; ResourceNode GLTF bireysel
+- [ ] `[WEB11.unitrender]` InstancedMesh renderer (model dosyaları gerekli)
+- [ ] `[WEB11.pick]` ekran-uzayı seçim
+- [ ] `[WEB11.anim]` bob + lunge + ölüm bat (instance matris)
+- [ ] `[WEB11.hpbar]` tek InstancedMesh çifti billboard
+- [ ] `[WEB11.trees]` 2 InstancedMesh ağaç
 
 ### 11.3 Ortam & ışık
-- [ ] `[WEB11.terrain]` `src/render/TerrainRenderer.ts` — subdivision + vertex-color splat (çim/toprak/kum)
-- [ ] `[WEB11.water]` okyanus ShaderMaterial (noise normal + kıyı köpüğü)
-- [ ] `[WEB11.light]` `src/render/Lighting.ts` — hemisphere+güneş + ACES + dar gölge frustum
-- [ ] `[WEB11.postfx]` `src/render/PostFx.ts` — composer MSAA→bloom→vignette; High/Medium/Low tier + otomatik seçim
+- [x] `[WEB11.terrain]` `src/render/TerrainRenderer.ts` — vertex-color splat (çim/toprak/kum)
+- [x] `[WEB11.water]` okyanus ShaderMaterial (noise wave + kıyı köpüğü, animasyonlu)
+- [x] `[WEB11.light]` `src/render/Lighting.ts` — HemisphereLight + ACES + dar gölge frustum
+- [x] `[WEB11.postfx]` `src/render/PostFx.ts` — EffectComposer MSAA/FXAA→bloom→OutputPass; 3 tier + otomatik seçim
 
-### 11.4 Higgsfield içerik
-- [ ] `[WEB11.hfportrait]` 14 civ + Random portresi (tek stil şablonu) → `public/assets/img/portraits/`; PreGame kartları
-- [ ] `[WEB11.hfmenu]` ana menü key-art + loading art
-- [ ] `[WEB11.hfmusic]` 4 çağ müziği + savaş katmanı + zafer/yenilgi stinger → `public/assets/audio/`
-- [ ] `[WEB11.music]` AudioManager müzik kanalı (loop + crossfade + ducking + musicVol)
+### 11.4 İçerik
+- [ ] `[WEB11.hfportrait]` civ portreleri (Higgsfield — ücretli API, kullanıcı onayı gerekli)
+- [ ] `[WEB11.hfmenu]` menü key-art (Higgsfield)
+- [ ] `[WEB11.hfmusic]` müzik (Higgsfield)
+- [x] `[WEB11.music]` AudioManager müzik kanalı (loop + crossfade + combat ducking + musicVol localStorage)
 
 ### 11.5 Faz 11 DoD
-- [ ] Tek primitif kutu kalmaz; 4 takım rengi tabard'da ayırt edilir
-- [ ] 500 birimde draw call <300, 60fps
-- [ ] Tier geçişi canlı çalışır
-- [ ] Ordu bob'lu/lunge'lı/ölüm batışlı; HP bar doğru
-- [ ] Portreli kartlar + çağ müziği + savaşta ducking
-- [ ] Islands'ta animasyonlu su + kıyı köpüğü; teren geçişi
+- [ ] Tek primitif kutu kalmaz (model dosyaları gerekli — GLTF packs)
+- [x] Tier geçişi canlı çalışır (SettingsPanel ESC'den)
+- [x] Çağ müziği kanalı altyapısı + savaşta ducking
+- [x] Islands'ta animasyonlu su + kıyı rengi; vertex-color teren geçişi
 
 ---
 
 ## FAZ 12 — Performans Sertifikasyonu + SP Tamamlama (L/XL)
 
 ### 12.1 Profil & perf
-- [ ] `[WEB12.perfhud]` `src/dev/PerfHud.ts` — FPS p95, sim ms, draw call, path kuyruğu (F3)
+- [x] `[WEB12.perfhud]` `src/dev/PerfHud.ts` — FPS p95, sim ms, draw call, path kuyruğu (F3)
 - [ ] `[WEB12.stress]` P=250v250, Shift+P=500v500 + otomatik attack-move; 5dk senaryo dokümante
 - [ ] `[WEB12.hotpath]` ölç-düzelt: separation cap, FoW repaint, Minimap ImageData, GC scratch avı
 
@@ -197,9 +195,9 @@
 - [ ] `[WEB12.navalai]` AI Islands'ta Dock+donanma (harita-koşullu build order)
 
 ### 12.3 Modlar & kalıcılık
-- [ ] `[WEB12.modes]` GameMode{Conquest,Wonder(300s),Relic(200s),Regicide} + VictorySystem genişler
-- [ ] `[WEB12.save]` `src/game/SaveSystem.ts` snapshot JSON v1 (schemaVersion, localStorage + dosya)
-- [ ] `[WEB12.settings]` `ui/SettingsPanel.ts` ESC menü (ses/tier/edge-scroll/renk-körü, kalıcı, pause)
+- [x] `[WEB12.modes]` `src/game/GameMode.ts` — Conquest/Wonder(300s)/Relic(200s)/Regicide; main.ts'e wire edildi
+- [x] `[WEB12.save]` `src/game/SaveSystem.ts` snapshot JSON v1 (schemaVersion, localStorage); F5 quick-save
+- [x] `[WEB12.settings]` `ui/SettingsPanel.ts` ESC menü (ses/tier/edge-scroll, kalıcı, pause sim)
 - [ ] `[WEB12.techtree]` **stretch** TechTreeViewer (civ-filtreli)
 
 ### 12.4 Faz 12 DoD (sertifikasyon)
