@@ -34,6 +34,8 @@ export interface JoinMsg {
 
 export interface ReadyMsg {
   type: 'ready';
+  /** Host may include preferred map type; non-host sends are ignored. */
+  mapType?: number;
 }
 
 export interface TurnInputMsg {

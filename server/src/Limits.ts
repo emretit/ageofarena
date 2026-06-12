@@ -5,8 +5,7 @@
 import { WebSocket } from 'ws';
 
 const MSG_WINDOW_MS  = 1000;   // per-second window
-const MSG_LIMIT      = 60;     // max messages per second per socket
-const BURST_LIMIT    = 10;     // burst buffer per window
+const MSG_LIMIT      = 60;     // max messages per second per socket (hard cap)
 const ROOM_TTL_MS    = 30 * 60 * 1000;  // 30 minutes idle → room GC
 
 interface RateState {
@@ -31,7 +30,7 @@ export function isRateLimited(ws: WebSocket): boolean {
   }
 
   state.count++;
-  return state.count > MSG_LIMIT + BURST_LIMIT;
+  return state.count > MSG_LIMIT;
 }
 
 /** Clean up tracking state when socket closes. */

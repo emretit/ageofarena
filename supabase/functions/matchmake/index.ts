@@ -60,10 +60,7 @@ Deno.serve(async () => {
   let createdRooms = 0;
 
   for (const pair of matched) {
-    // Remove from queue
-    await sb.from('mm_queue').delete().in('player_id', pair);
-
-    // Ask game server to create a room
+    // Create room first; only remove from queue on success
     if (serverUrl) {
       try {
         await fetch(`${serverUrl}/internal/create-room`, {
@@ -71,10 +68,14 @@ Deno.serve(async () => {
           headers: { 'Content-Type': 'application/json', 'X-Secret': serverSecret },
           body: JSON.stringify({ playerIds: pair }),
         });
+        await sb.from('mm_queue').delete().in('player_id', pair);
         createdRooms++;
       } catch {
-        // Best-effort; players will need to re-queue
+        // Server unreachable — leave players in queue for next cycle
       }
+    } else {
+      // No game server configured — still remove from queue to avoid stale entries
+      await sb.from('mm_queue').delete().in('player_id', pair);
     }
   }
 

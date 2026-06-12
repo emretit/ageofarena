@@ -42,7 +42,7 @@ export class Room {
   private readonly _players = new Map<string, RoomPlayer>();
   private _currentTurn = 0;
   private readonly _buffer = new Map<number, Map<string, TurnBuffer>>();
-  private readonly _checksums = new Map<string, { turn: number; hash: number }>();
+  private readonly _checksumsByTurn = new Map<number, Map<string, number>>();
 
   constructor(code: string, hostId: string, seed: number) {
     this.code = code;
@@ -107,10 +107,10 @@ export class Room {
     turnMap.set(playerId, { playerId, commands: safeCommands });
 
     if (turnMap.size < this._players.size) {
-      // Not all players submitted yet — broadcast stall to everyone
+      // Not all players submitted yet — notify those still waiting (exclude submitter)
       const waiting = [...this._players.keys()].filter(id => !turnMap.has(id));
       const stall: StallMsg = { type: 'stall', turn, waitingFor: waiting };
-      this.broadcast(stall);
+      this.broadcast(stall, playerId);
       return false;
     }
 
@@ -125,16 +125,21 @@ export class Room {
   }
 
   receiveChecksum(playerId: string, turn: number, hash: number): void {
-    this._checksums.set(playerId, { turn, hash });
-    if (this._checksums.size < this._players.size) return;
+    if (!this._checksumsByTurn.has(turn)) {
+      this._checksumsByTurn.set(turn, new Map());
+    }
+    const turnMap = this._checksumsByTurn.get(turn)!;
+    turnMap.set(playerId, hash);
 
-    const hashes = [...this._checksums.values()];
-    const allSame = hashes.every(c => c.hash === hashes[0].hash);
+    if (turnMap.size < this._players.size) return;
+
+    const hashes = [...turnMap.values()];
+    const allSame = hashes.every(h => h === hashes[0]);
     if (!allSame) {
       this.broadcast({ type: 'desync', turn });
-      console.warn(`[Room] ${this.code} DESYNC turn=${turn} hashes=${hashes.map(c => c.hash).join(',')}`);
+      console.warn(`[Room] ${this.code} DESYNC turn=${turn} hashes=${hashes.join(',')}`);
     }
-    this._checksums.clear();
+    this._checksumsByTurn.delete(turn);
   }
 
   /** Strip unknown fields, validate teamId ownership. */

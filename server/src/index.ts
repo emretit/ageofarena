@@ -92,8 +92,12 @@ wss.on('connection', (ws) => {
       const p = room.getPlayer(ctx.playerId);
       if (!p) return;
       p.ready = true;
+      // Host's mapType preference is stored on the room
+      if (ctx.playerId === room.hostId && typeof msg.mapType === 'number') {
+        room.mapType = msg.mapType;
+      }
       room.broadcast({ type: 'player_ready', playerId: ctx.playerId, players: room.playerList() });
-      if (room.allReady()) room.startGame(0);
+      if (room.allReady()) room.startGame(room.mapType);
     }
 
     else if (type === 'turn_input') {

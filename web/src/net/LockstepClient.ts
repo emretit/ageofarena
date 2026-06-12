@@ -30,6 +30,7 @@ export class LockstepClient {
   private readonly _opts: LockstepOptions;
 
   private _simTick = 0;
+  private _lastSentTurn = -1;
   private _pendingInput: WireCommand[] = [];
   private _receivedTurns = new Map<number, CommandInput[]>();
 
@@ -60,8 +61,9 @@ export class LockstepClient {
     const isAtBoundary = this._simTick % ticksPerTurn === 0;
     const currentTurn = Math.floor(this._simTick / ticksPerTurn);
 
-    // At turn boundary: flush buffered input to transport
-    if (isAtBoundary) {
+    // At turn boundary: flush buffered input once per turn (guard against stall re-entry)
+    if (isAtBoundary && currentTurn > this._lastSentTurn) {
+      this._lastSentTurn = currentTurn;
       const cmds = this._pendingInput.splice(0);
       this._transport.send({ type: 'turn_input', turn: currentTurn, commands: cmds });
       // LoopbackTransport.send() → calls onMessage synchronously → populates _receivedTurns[turn]
