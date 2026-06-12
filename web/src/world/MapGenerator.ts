@@ -62,10 +62,13 @@ export function getMapArchetype(type: MapType): Archetype {
   return ARCHETYPES[type];
 }
 
-/** Build the tree geometry for a given map archetype. */
-export function buildForest(scene: THREE.Scene, type: MapType, seed = 1453): void {
+export interface TreeInstance { x: number; z: number; scale: number; }
+
+/** Build the tree geometry for a given map archetype. Returns tree instance data for NavGrid stamping. */
+export function buildForest(scene: THREE.Scene, type: MapType, seed = 1453): TreeInstance[] {
   const arch = ARCHETYPES[type];
   const rng = mulberry32(seed);
+  const instances: TreeInstance[] = [];
 
   const pineGeo  = new THREE.ConeGeometry(1.1, 3.2, 6);
   const trunkGeo = new THREE.CylinderGeometry(0.18, 0.22, 1.0, 5);
@@ -95,6 +98,7 @@ export function buildForest(scene: THREE.Scene, type: MapType, seed = 1453): voi
     crown.scale.setScalar(scale);
     crown.castShadow = true;
     trees.add(trunk, crown);
+    instances.push({ x, z, scale });
   }
 
   // Interior groves
@@ -114,10 +118,12 @@ export function buildForest(scene: THREE.Scene, type: MapType, seed = 1453): voi
       crown.scale.setScalar(scale);
       crown.castShadow = true;
       trees.add(trunk, crown);
+      instances.push({ x, z, scale });
     }
   }
 
   scene.add(trees);
+  return instances;
 }
 
 /** Spawn resource nodes for a base pocket. Mirrors WorldRoot.SpawnBaseResources. */

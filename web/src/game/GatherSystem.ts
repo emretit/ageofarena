@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { ResourceKind, UnitState } from "../core/GameTypes";
 import { ResourceManager } from "../core/ResourceManager";
 import { getTeamBonus } from "../core/CivState";
+import { navGrid } from "../sim/NavGrid";
 import type { Unit } from "./Unit";
 import type { ResourceNode } from "./ResourceNode";
 import type { Building } from "./Building";
@@ -188,11 +189,11 @@ export class GatherSystem {
     return nearest;
   }
 
-  private _approachPoint(nodePos: THREE.Vector3, fromPos: THREE.Vector3, range: number): THREE.Vector3 {
-    const dir = fromPos.clone().sub(nodePos); dir.y = 0;
-    const len = dir.length();
-    if (len < 0.001) return nodePos.clone();
-    return nodePos.clone().add(dir.normalize().multiplyScalar(range));
+  private _approachPoint(nodePos: THREE.Vector3, _fromPos: THREE.Vector3, _range: number): THREE.Vector3 {
+    // Use NavGrid to find nearest walkable cell adjacent to the node.
+    // This avoids approach points landing inside trees or building footprints.
+    const [wx, wz] = navGrid.nearestFreeCellWorld(nodePos.x, nodePos.z);
+    return new THREE.Vector3(wx, 0, wz);
   }
 
   /**

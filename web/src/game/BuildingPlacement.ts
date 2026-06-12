@@ -6,6 +6,7 @@
 import * as THREE from "three";
 import { BuildingType } from "../core/GameTypes";
 import { DEFS } from "./Building";
+import { navGrid } from "../sim/NavGrid";
 import type { ResourceManager } from "../core/ResourceManager";
 
 const GRID_SIZE = 1;
@@ -85,10 +86,22 @@ export class BuildingPlacement {
     });
   }
 
-  /** Check affordability and snap position is valid. */
+  /** Check affordability and NavGrid walkability at current ghost position. */
   isValid(rm: ResourceManager): boolean {
     const def = DEFS[this._type];
-    return rm.canAfford(0, def.costWood, def.costGold, def.costStone);
+    if (!rm.canAfford(0, def.costWood, def.costGold, def.costStone)) return false;
+    return this._ghost ? this._footprintWalkable(this._ghost.position) : true;
+  }
+
+  private _footprintWalkable(pos: THREE.Vector3): boolean {
+    const [w, , d] = this._dims(this._type);
+    const hw = w / 2 - 0.1;
+    const hd = d / 2 - 0.1;
+    for (const [ox, oz] of [[-hw, -hd], [hw, -hd], [-hw, hd], [hw, hd]] as [number, number][]) {
+      const [cx, cz] = navGrid.worldToCell(pos.x + ox, pos.z + oz);
+      if (!navGrid.isWalkable(cx, cz)) return false;
+    }
+    return true;
   }
 
   private _worldPos(e: PointerEvent): THREE.Vector3 | null {
@@ -113,6 +126,7 @@ export class BuildingPlacement {
     const pt = this._worldPos(e);
     if (!pt) return;
     this._ghost.position.copy(pt);
+    this.setValid(this._footprintWalkable(pt));
   }
 
   private _onDown(e: PointerEvent): void {
@@ -121,6 +135,7 @@ export class BuildingPlacement {
     if (e.button !== 0) return;
     const pt = this._worldPos(e);
     if (!pt) return;
+    if (!this._footprintWalkable(pt)) return; // blocked cell — reject
     this.onPlace?.(this._type, pt);
     this.cancel();
   }

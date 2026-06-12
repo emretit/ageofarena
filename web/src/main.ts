@@ -12,7 +12,12 @@ import { buildTerrain, mulberry32 } from "./world/World";
 import {
   MapType, buildForest, getMapArchetype,
   spawnBaseResourcesForMap, spawnContestedMines,
+  type TreeInstance,
 } from "./world/MapGenerator";
+import { navGrid } from "./sim/NavGrid";
+import { PathQueue } from "./sim/PathQueue";
+import { MovementSystem } from "./sim/MovementSystem";
+import { initSimRng } from "./sim/SimRng";
 import { Civilization } from "./core/CivilizationDefs";
 import { setTeamCiv } from "./core/CivState";
 import { Unit } from "./game/Unit";
@@ -63,20 +68,57 @@ let _focusPaused = false;
 document.addEventListener("visibilitychange", () => {
   _focusPaused = document.hidden;
 });
+// Dev helper: window.__setPaused(false) to force-resume in embedded preview
+(window as unknown as Record<string, unknown>).__setPaused = (v: boolean) => { _focusPaused = v; };
 
 // ── Pre-game screen ───────────────────────────────────────────────────────────
 const preScreen = new PreGameScreen(app);
 preScreen.onStart = (playerCiv: Civilization, enemyCiv: Civilization, mapType: MapType) => {
   setTeamCiv(0, playerCiv);
   setTeamCiv(1, enemyCiv);
-  buildForest(scene, mapType, 1453);
-  startGame(mapType);
+  initSimRng(1453);
+  const trees = buildForest(scene, mapType, 1453);
+  startGame(mapType, trees);
 };
 
+// Building footprint half-extents for NavGrid stamping
+const BUILDING_HALF: Partial<Record<BuildingType, [number, number]>> = {
+  [BuildingType.TownCenter]:   [2.5, 2.5],
+  [BuildingType.House]:        [1.5, 1.5],
+  [BuildingType.Barracks]:     [2.0, 2.0],
+  [BuildingType.ArcheryRange]: [2.0, 2.0],
+  [BuildingType.Stable]:       [2.0, 2.0],
+  [BuildingType.Farm]:         [1.5, 1.5],
+  [BuildingType.LumberCamp]:   [1.5, 1.5],
+  [BuildingType.MiningCamp]:   [1.5, 1.5],
+  [BuildingType.Mill]:         [1.5, 1.5],
+  [BuildingType.Market]:       [2.0, 2.0],
+  [BuildingType.Castle]:       [3.0, 3.0],
+  [BuildingType.Wall]:         [0.5, 0.5],
+  [BuildingType.Monastery]:    [2.0, 2.0],
+  [BuildingType.University]:   [2.0, 2.0],
+  [BuildingType.Blacksmith]:   [1.5, 1.5],
+  [BuildingType.SiegeWorkshop]:[2.0, 2.0],
+  [BuildingType.Dock]:         [2.0, 2.5],
+  [BuildingType.WatchTower]:   [1.0, 1.0],
+  [BuildingType.Wonder]:       [3.0, 3.0],
+};
+
+function stampBuilding(b: Building): void {
+  const half = BUILDING_HALF[b.buildingType] ?? [1.5, 1.5];
+  navGrid.stampWorldRect(b.pos.x, b.pos.z, half[0], half[1]);
+}
+
 // ── Game bootstrap ────────────────────────────────────────────────────────────
-function startGame(mapType: MapType): void {
+function startGame(mapType: MapType, trees: TreeInstance[]): void {
   const arch = getMapArchetype(mapType);
   const rng  = mulberry32(42);
+
+  // ── NavGrid setup ────────────────────────────────────────────────────────
+  navGrid.markWaterBeyondRadius(88); // ocean starts beyond land disc (Config.LandRadius ≈ 92)
+  for (const t of trees) {
+    navGrid.stampWorldCircle(t.x, t.z, t.scale * 0.7); // trunk radius
+  }
 
   // 2-player game: player at basePositions[0], enemy at basePositions[1]
   const [p1x, p1z] = arch.basePositions[0];
@@ -99,6 +141,11 @@ function startGame(mapType: MapType): void {
 
   const enemyBarracks = new Building(scene, new THREE.Vector3(p2x - 8, 0, p2z + 10), 1, BuildingType.Barracks);
   buildings.push(enemyBarracks);
+
+  // Stamp initial buildings into NavGrid
+  stampBuilding(playerTC);
+  stampBuilding(enemyTC);
+  stampBuilding(enemyBarracks);
 
   // ── Units ────────────────────────────────────────────────────────────────
   const units: Unit[] = [];
@@ -130,6 +177,8 @@ function startGame(mapType: MapType): void {
   const projectiles = new ProjectileSystem(scene);
   const garrison    = new GarrisonSystem();
   const placement   = new BuildingPlacement(scene, rig.camera, renderer.domElement);
+  const pathQueue   = new PathQueue();
+  const movement    = new MovementSystem();
   const relicSys    = new RelicSystem();
   const relics      = RelicSystem.spawnRelics(scene, 3);
   const vfx         = new VisualEffectSystem(app);
@@ -159,7 +208,7 @@ function startGame(mapType: MapType): void {
   // ── Selection ─────────────────────────────────────────────────────────────
   const selection = new Selection(
     renderer.domElement, rig.camera, scene,
-    units, buildings, nodes, gather, combat, garrison,
+    units, buildings, nodes, gather, combat, garrison, pathQueue,
   );
 
   function onBuild(type: BuildingType) {
@@ -174,7 +223,9 @@ function startGame(mapType: MapType): void {
     rm.stone = Math.max(0, rm.stone - def.costStone);
     rm.gold  = Math.max(0, rm.gold  - def.costGold);
     rm.onChange?.();
-    buildings.push(new Building(scene, pos, 0, type));
+    const newBuilding = new Building(scene, pos, 0, type);
+    buildings.push(newBuilding);
+    stampBuilding(newBuilding); // register with NavGrid
     if (type === BuildingType.Farm) {
       const farmNode = new ResourceNode(scene, pos.clone(), ResourceKind.Food, 250);
       (farmNode as { destroyOnDeplete: boolean }).destroyOnDeplete = false;
@@ -206,7 +257,7 @@ function startGame(mapType: MapType): void {
   // ── Dev/debug handle ──────────────────────────────────────────────────────
   (window as unknown as Record<string, unknown>).__game = {
     units, buildings, nodes, selection, rig, teamRes,
-    gather, combat, training, trading,
+    gather, combat, training, trading, pathQueue,
   };
 
   // ── Hotkeys (HKEY port) ───────────────────────────────────────────────────
@@ -268,6 +319,10 @@ function startGame(mapType: MapType): void {
       while (!gameOver && acc >= Config.FixedStep) {
         const step = Config.FixedStep;
 
+        // Pathfinding + movement (before systems that read positions)
+        pathQueue.tick(navGrid, step);
+        movement.tick(units, navGrid, step);
+
         for (const u of units) u.tick(step);
 
         gather.tick(units, buildings, teamRes, scene, step);
@@ -287,6 +342,7 @@ function startGame(mapType: MapType): void {
         minimap.tick(units, buildings, nodes, fog, step);
 
         gather.prune();
+        pathQueue.prune();
         trading.prune(units);
         for (let i = units.length - 1; i >= 0; i--) {
           if (!units[i].alive) {

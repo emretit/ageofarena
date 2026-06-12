@@ -42,6 +42,17 @@ export class Unit {
   readonly bonusVs: Array<{ cls: ArmorClassFlags; bonus: number }>;
   readonly gathers: boolean;
 
+  // Sim-layer position (source of truth; root.position synced each tick)
+  x = 0;
+  z = 0;
+  velX = 0;
+  velZ = 0;
+  facingAngle = 0;
+
+  // Waypoint path (set by PathQueue; consumed by MovementSystem)
+  waypoints: [number, number][] = [];
+  waypointIdx = 0;
+
   // State
   state = UnitState.Idle;
   private moveTarget: THREE.Vector3 | null = null;
@@ -95,6 +106,8 @@ export class Unit {
 
     this.root = new THREE.Group();
     this.root.position.copy(pos);
+    this.x = pos.x;
+    this.z = pos.z;
 
     const team = new THREE.Color(TeamColors[teamId % TeamColors.length]);
 
@@ -286,8 +299,15 @@ export class Unit {
   tick(dt: number, camera?: THREE.Camera) {
     if (!this.alive || this.isGarrisoned) return;
 
-    // Movement
-    if (this.moveTarget) {
+    if (this.waypoints.length > 0) {
+      // MovementSystem owns movement — just sync root.position from sim coords
+      this.root.position.x = this.x;
+      this.root.position.z = this.z;
+      if (this.velX !== 0 || this.velZ !== 0) {
+        this.root.rotation.y = this.facingAngle;
+      }
+    } else if (this.moveTarget) {
+      // Legacy direct-move (GatherSystem approach, combat chase, rally point)
       const to = this.moveTarget.clone().sub(this.root.position); to.y = 0;
       const dist = to.length();
       if (dist < 0.1) {
@@ -297,6 +317,9 @@ export class Unit {
         this.root.position.add(to.normalize().multiplyScalar(step));
         this.root.rotation.y = Math.atan2(to.x, to.z);
       }
+      // Keep sim coords in sync with root.position for SpatialHash etc.
+      this.x = this.root.position.x;
+      this.z = this.root.position.z;
     }
 
     // HP bar faces camera

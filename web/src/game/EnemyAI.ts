@@ -4,6 +4,7 @@
  */
 import * as THREE from "three";
 import { Age, BuildingType, ResourceKind, UnitState, UnitType } from "../core/GameTypes";
+import { navGrid } from "../sim/NavGrid";
 import { ResourceManager } from "../core/ResourceManager";
 import { AgeSystem } from "./AgeSystem";
 import { GatherSystem } from "./GatherSystem";
@@ -188,15 +189,21 @@ export class EnemyAI {
       // Buildings cost wood (and sometimes stone); deduct wood/stone/gold
       if (!this.rm.canAfford(0, def.costWood, def.costGold, def.costStone)) continue;
 
-      this.rm.deduct(0, def.costWood, def.costGold, def.costStone);
-
-      // Place near TC in a spiral — use myBuildings.length for both angle and radius
-      const angle = (myBuildings.length * 1.2) % (Math.PI * 2);
+      // Find walkable position in spiral — try 8 angles before giving up
+      const baseAngle = (myBuildings.length * 1.2) % (Math.PI * 2);
       const radius = 10 + Math.floor(myBuildings.length / 5) * 4;
-      const pos = tc.pos.clone().add(
-        new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius),
-      );
-      allBuildings.push(new Building(scene, pos, this.teamId, entry.type));
+      let foundPos: THREE.Vector3 | null = null;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const angle = (baseAngle + attempt * (Math.PI / 4)) % (Math.PI * 2);
+        const px = tc.pos.x + Math.cos(angle) * radius;
+        const pz = tc.pos.z + Math.sin(angle) * radius;
+        const [cx, cz] = navGrid.worldToCell(px, pz);
+        if (navGrid.isWalkable(cx, cz)) { foundPos = new THREE.Vector3(px, 0, pz); break; }
+      }
+      if (!foundPos) continue; // no valid spot this check — try next building type
+
+      this.rm.deduct(0, def.costWood, def.costGold, def.costStone);
+      allBuildings.push(new Building(scene, foundPos, this.teamId, entry.type));
       break; // one building per check interval
     }
   }

@@ -10,6 +10,8 @@ import type { GarrisonSystem } from "./GarrisonSystem";
 import type { Unit } from "./Unit";
 import type { Building } from "./Building";
 import type { ResourceNode } from "./ResourceNode";
+import type { PathQueue } from "../sim/PathQueue";
+import { orderMove, orderAttackUnit, orderAttackBuilding, orderGather } from "./Orders";
 
 const DRAG_THRESHOLD = 6; // pixels before drag-box activates
 
@@ -37,6 +39,7 @@ export class Selection {
     private readonly gather: GatherSystem,
     private readonly combat: CombatSystem,
     private readonly garrisonSys?: GarrisonSystem,
+    private readonly pathQueue?: PathQueue,
   ) {
     // Selection-box DOM element
     this.boxEl = document.createElement("div");
@@ -194,10 +197,11 @@ export class Selection {
       while (o) {
         if (o.userData.resourceNode) {
           const node = o.userData.resourceNode as ResourceNode;
-          for (const u of this.selected) {
-            if (u.teamId === 0 && u.gathers) {
-              this.gather.assignGather(u, node, this.buildings);
-            }
+          const gatherers = this.selected.filter(u => u.teamId === 0 && u.gathers);
+          if (this.pathQueue) {
+            orderGather(gatherers, node, this.buildings, this.gather, this.pathQueue);
+          } else {
+            for (const u of gatherers) this.gather.assignGather(u, node, this.buildings);
           }
           return;
         }
@@ -214,8 +218,10 @@ export class Selection {
         if (o.userData.building) {
           const b = o.userData.building as Building;
           if (b.teamId !== 0) {
-            for (const u of this.selected) {
-              this.combat.attackBuilding(u, b);
+            if (this.pathQueue) {
+              orderAttackBuilding(this.selected, b, this.combat, this.pathQueue);
+            } else {
+              for (const u of this.selected) this.combat.attackBuilding(u, b);
             }
             return;
           }
@@ -240,8 +246,10 @@ export class Selection {
         if (o.userData.unit) {
           const t = o.userData.unit as Unit;
           if (t.teamId !== 0 && t.alive) {
-            for (const u of this.selected) {
-              this.combat.attackUnit(u, t);
+            if (this.pathQueue) {
+              orderAttackUnit(this.selected, t, this.combat, this.pathQueue);
+            } else {
+              for (const u of this.selected) this.combat.attackUnit(u, t);
             }
             return;
           }
@@ -255,12 +263,16 @@ export class Selection {
     const hit = this.ray.intersectObject(ground, false)[0];
     if (!hit) return;
 
-    this.selected.forEach((u, i) => {
-      const off = new THREE.Vector3((i % 3 - 1) * 1.2, 0, Math.floor(i / 3) * 1.2);
-      u.attackTarget = null;
-      u.attackTargetBuilding = null;
-      u.state = UnitState.Moving;
-      u.moveTo(hit.point.clone().add(off));
-    });
+    if (this.pathQueue) {
+      orderMove(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+    } else {
+      this.selected.forEach((u, i) => {
+        const off = new THREE.Vector3((i % 3 - 1) * 1.2, 0, Math.floor(i / 3) * 1.2);
+        u.attackTarget = null;
+        u.attackTargetBuilding = null;
+        u.state = UnitState.Moving;
+        u.moveTo(hit.point.clone().add(off));
+      });
+    }
   }
 }

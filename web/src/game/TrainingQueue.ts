@@ -8,6 +8,7 @@ import { Civilization } from "../core/CivilizationDefs";
 import { ResourceManager } from "../core/ResourceManager";
 import { getUnitRow } from "../core/UnitRegistry";
 import { getTeamBonus, getTeamCiv } from "../core/CivState";
+import { simRng } from "../sim/SimRng";
 import type { Building } from "./Building";
 import { Unit } from "./Unit";
 import type { ResearchSystem } from "./ResearchSystem";
@@ -84,9 +85,9 @@ export class TrainingQueue {
       if (entry.timer <= 0) {
         queue.shift();
         const offset = new THREE.Vector3(
-          (Math.random() - 0.5) * 4,
+          simRng.range(-2, 2),
           0,
-          (Math.random() - 0.5) * 4,
+          simRng.range(-2, 2),
         );
         const spawnPos = b.pos.clone().add(offset);
         const spawned = new Unit(scene, spawnPos, b.teamId, entry.type);

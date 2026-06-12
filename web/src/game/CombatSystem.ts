@@ -5,6 +5,7 @@
 import * as THREE from "three";
 import { ArmorClass, BuildingType, DamageType, UnitState } from "../core/GameTypes";
 import { ArmorClassFlags } from "../core/GameTypes";
+import { SpatialHash } from "../sim/SpatialHash";
 import type { Unit } from "./Unit";
 import type { Building } from "./Building";
 
@@ -50,8 +51,12 @@ export class CombatSystem {
   onBuildingDestroyed: ((b: import("./Building").Building) => void) | null = null;
 
   private readonly _bldTimers = new Map<Building, number>();
+  private readonly _spatial = new SpatialHash<Unit>();
 
   tick(units: Unit[], buildings: Building[], dt: number) {
+    // Rebuild spatial hash once per tick for O(1) aggro queries
+    this._spatial.rebuild(units.filter(u => u.alive && !u.isGarrisoned));
+
     for (const u of units) {
       if (!u.alive || u.isGarrisoned) continue;
       if (u.state === UnitState.Gathering || u.state === UnitState.ReturningToDropoff) continue;
@@ -86,13 +91,16 @@ export class CombatSystem {
     attacker.moveTo(target.pos);
   }
 
-  private _findAggro(u: Unit, units: Unit[], buildings: Building[]) {
+  private _findAggro(u: Unit, _units: Unit[], _buildings: Building[]) {
     let best: Unit | null = null;
     let bestDist = u.aggroRadius;
 
-    for (const t of units) {
-      if (!t.alive || t.teamId === u.teamId) continue;
-      const d = u.pos.distanceTo(t.pos);
+    const candidates: Unit[] = [];
+    this._spatial.query(u.x, u.z, u.aggroRadius, candidates);
+    for (const t of candidates) {
+      if (t.teamId === u.teamId) continue;
+      const dx = t.x - u.x; const dz = t.z - u.z;
+      const d = Math.sqrt(dx * dx + dz * dz);
       if (d < bestDist) { bestDist = d; best = t; }
     }
 
@@ -196,12 +204,15 @@ export class CombatSystem {
       const remaining = (this._bldTimers.get(b) ?? 0) - dt;
       if (remaining > 0) { this._bldTimers.set(b, remaining); continue; }
 
-      // Find closest enemy unit in range
+      // Find closest enemy unit in range via SpatialHash
       let target: Unit | null = null;
       let bestDist = stats.range;
-      for (const u of units) {
-        if (!u.alive || u.isGarrisoned || u.teamId === b.teamId) continue;
-        const d = b.pos.distanceTo(u.pos);
+      const nearby: Unit[] = [];
+      this._spatial.query(b.pos.x, b.pos.z, stats.range, nearby);
+      for (const u of nearby) {
+        if (u.isGarrisoned || u.teamId === b.teamId) continue;
+        const dx = u.x - b.pos.x; const dz = u.z - b.pos.z;
+        const d = Math.sqrt(dx * dx + dz * dz);
         if (d < bestDist) { bestDist = d; target = u; }
       }
 
