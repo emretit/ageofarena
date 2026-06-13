@@ -77,6 +77,8 @@ const UNIT_NAMES: Record<UnitType, string> = {
   [UnitType.Ram]:        "Ram",
   [UnitType.Monk]:       "Monk",
   [UnitType.TradeCart]:  "Trade Cart",
+  [UnitType.FishingShip]:"Fishing Ship",
+  [UnitType.Galley]:     "Galley",
 };
 
 export class HUD {

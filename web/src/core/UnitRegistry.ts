@@ -3,6 +3,7 @@
  * UnitRegistry.cs + UnitFactory HP values so balance is identical.
  */
 import { ArmorClass, ArmorClassFlags, DamageType, UnitType } from "./GameTypes";
+import type { Domain } from "../sim/NavGrid";
 
 export interface BonusVsEntry { cls: ArmorClassFlags; bonus: number; }
 
@@ -25,6 +26,7 @@ export interface UnitRow {
   trainGold: number;
   trainTime: number;       // seconds
   gathers: boolean;
+  domain?: Domain;         // movement domain — undefined = 'land'; naval units = 'water'
 }
 
 function bv(cls: ArmorClassFlags, bonus: number): BonusVsEntry { return { cls, bonus }; }
@@ -111,6 +113,21 @@ const table = new Map<UnitType, UnitRow>([
     aggroRadius: 0, armorClass: ArmorClass.None, armorMelee: 0, armorPierce: 4,
     damageKind: DamageType.Melee, isRanged: false, splashRadius: 0, bonusVs: [],
     trainFood: 100, trainWood: 0, trainGold: 50, trainTime: 50, gathers: false,
+  }],
+  // ── Naval (water domain) — Dock-trained ──────────────────────────────────
+  [UnitType.FishingShip, {
+    hp: 60, moveSpeed: 5.0, baseAtk: 0, baseRange: 0, attackInterval: 999,
+    aggroRadius: 0, armorClass: ArmorClass.Ship, armorMelee: 0, armorPierce: 4,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0, bonusVs: [],
+    trainFood: 0, trainWood: 75, trainGold: 0, trainTime: 40, gathers: true,
+    domain: 'water',
+  }],
+  [UnitType.Galley, {
+    hp: 120, moveSpeed: 5.5, baseAtk: 6, baseRange: 7, attackInterval: 3.0,
+    aggroRadius: 9, armorClass: ArmorClass.Ship, armorMelee: 0, armorPierce: 6,
+    damageKind: DamageType.Pierce, isRanged: true, splashRadius: 0, bonusVs: [],
+    trainFood: 0, trainWood: 90, trainGold: 30, trainTime: 60, gathers: false,
+    domain: 'water',
   }],
 ]);
 

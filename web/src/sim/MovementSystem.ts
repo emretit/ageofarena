@@ -3,7 +3,7 @@
  * Reads/writes unit.x, unit.z (plain numbers). Zero three.js imports.
  */
 
-import { NavGrid } from './NavGrid';
+import { NavGrid, type Domain } from './NavGrid';
 import { SpatialHash } from './SpatialHash';
 import { DMath } from './DMath';
 
@@ -18,6 +18,9 @@ export interface MoveUnit {
   isGarrisoned: boolean;
   waypoints: [number, number][];
   waypointIdx: number;
+  // Movement domain — 'land' or 'water'; clamp + separation honour it so ships stay on
+  // water and land units stay off it.
+  domain: Domain;
   // Optional: facing angle written by MovementSystem, read by view layer
   facingAngle: number;
 }
@@ -65,11 +68,11 @@ export class MovementSystem {
 
       // Clamp to walkable cell — if new pos blocked try cardinal slides
       const [cx, cz] = nav.worldToCell(newX, newZ);
-      if (!nav.isWalkable(cx, cz)) {
+      if (!nav.isWalkable(cx, cz, u.domain, u.teamId)) {
         const [cx2] = nav.worldToCell(newX, u.z);
         const [, cz2] = nav.worldToCell(u.x, newZ);
-        if (nav.isWalkable(cx2, cz)) { newZ = u.z; }
-        else if (nav.isWalkable(cx, cz2)) { newX = u.x; }
+        if (nav.isWalkable(cx2, cz, u.domain, u.teamId)) { newZ = u.z; }
+        else if (nav.isWalkable(cx, cz2, u.domain, u.teamId)) { newX = u.x; }
         else { newX = u.x; newZ = u.z; }
       }
 
@@ -112,7 +115,7 @@ export class MovementSystem {
 
         // Only push to walkable cells (no cell-tuple allocation)
         const nx2 = u.x + px; const nz2 = u.z + pz;
-        if (nav.isWalkableWorld(nx2, nz2)) { u.x = nx2; u.z = nz2; }
+        if (nav.isWalkableWorld(nx2, nz2, u.domain, u.teamId)) { u.x = nx2; u.z = nz2; }
       }
     }
   }

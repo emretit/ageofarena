@@ -20,6 +20,7 @@ export enum UnitType {
   Villager, Militia, Archer, Cavalry, Spearman,
   Trebuchet, Scout, Longbowman, Skirmisher, Mangonel, Ram,
   Monk, TradeCart,
+  FishingShip, Galley, // naval (water domain) — Dock-trained
 }
 
 export enum DamageType { Melee = 0, Pierce = 1, Siege = 2 }

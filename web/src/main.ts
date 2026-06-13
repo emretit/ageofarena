@@ -622,7 +622,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
           if (!u.alive || u.isGarrisoned || u.pendingGoals.length === 0) continue;
           if (u.waypoints.length > 0 || u.attackTarget || u.attackTargetBuilding) continue;
           const [gx, gz] = u.pendingGoals.shift()!;
-          pathQueue.requestForced(u, gx, gz, 'land', u.teamId, 1);
+          pathQueue.requestForced(u, gx, gz, u.domain, u.teamId, 1);
         }
 
         // Patrol: flip destination when waypoints exhausted + no target
@@ -633,7 +633,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
           u.patrolGoingToB = !u.patrolGoingToB;
           const destX = u.patrolGoingToB ? u.patrolBX : u.patrolAX;
           const destZ = u.patrolGoingToB ? u.patrolBZ : u.patrolAZ;
-          pathQueue.requestForced(u, destX, destZ, 'land', u.teamId, 1);
+          pathQueue.requestForced(u, destX, destZ, u.domain, u.teamId, 1);
         }
 
         for (const ai of aiInstances) ai.tick(units, buildings, nodes, scene, step, pathQueue);

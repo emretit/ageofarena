@@ -34,7 +34,7 @@ export function orderMove(
     u.attackTargetBuilding = null;
     const [ox, oz] = offsets[i] ?? [0, 0];
     // Use forced request so player commands bypass throttle
-    queue.requestForced(u, goalX + ox, goalZ + oz, 'land', u.teamId, 1);
+    queue.requestForced(u, goalX + ox, goalZ + oz, u.domain, u.teamId, 1);
   }
 }
 
@@ -62,7 +62,7 @@ export function orderAttackUnit(
     if (!u.alive || u.isGarrisoned) continue;
     u.waypoints = []; u.waypointIdx = 0;
     combat.attackUnit(u, target);
-    queue.requestForced(u, target.x, target.z, 'land', u.teamId, 1);
+    queue.requestForced(u, target.x, target.z, u.domain, u.teamId, 1);
   }
 }
 
@@ -74,7 +74,7 @@ export function orderAttackBuilding(
     if (!u.alive || u.isGarrisoned) continue;
     u.waypoints = []; u.waypointIdx = 0;
     combat.attackBuilding(u, target);
-    queue.requestForced(u, target.pos.x, target.pos.z, 'land', u.teamId, 1);
+    queue.requestForced(u, target.pos.x, target.pos.z, u.domain, u.teamId, 1);
   }
 }
 
@@ -97,7 +97,7 @@ export function orderAttackMove(
     u.state                = UnitState.AttackMove;
     u.attackMoveGoalX      = goalX + (offsets[i]?.[0] ?? 0);
     u.attackMoveGoalZ      = goalZ + (offsets[i]?.[1] ?? 0);
-    queue.requestForced(u, u.attackMoveGoalX, u.attackMoveGoalZ, 'land', u.teamId, 1);
+    queue.requestForced(u, u.attackMoveGoalX, u.attackMoveGoalZ, u.domain, u.teamId, 1);
   }
 }
 
@@ -116,7 +116,7 @@ export function orderPatrol(
     u.patrolBX = goalX; u.patrolBZ = goalZ;
     u.patrolGoingToB = true;
     u.state = UnitState.Patrol;
-    queue.requestForced(u, goalX, goalZ, 'land', u.teamId, 1);
+    queue.requestForced(u, goalX, goalZ, u.domain, u.teamId, 1);
   }
 }
 
@@ -131,6 +131,6 @@ export function orderGather(
     u.waypoints = []; u.waypointIdx = 0;
     gather.assignGather(u, node, buildings);
     // Queue path to node — overrides direct moveTo from assignGather
-    queue.requestForced(u, node.root.position.x, node.root.position.z, 'land', u.teamId, 1);
+    queue.requestForced(u, node.root.position.x, node.root.position.z, u.domain, u.teamId, 1);
   }
 }

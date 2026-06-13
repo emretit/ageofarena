@@ -10,6 +10,7 @@ import { getUnitRow } from "../core/UnitRegistry";
 import { getTeamBonus } from "../core/CivState";
 import { allocId, type EntityId } from "../sim/EntityIds";
 import { assetLoader } from "../render/AssetLoader";
+import type { Domain } from "../sim/NavGrid";
 import type { BakedModel } from "../render/ModelBake";
 import type { ResourceNode } from "./ResourceNode";
 import type { Building } from "./Building";
@@ -53,6 +54,8 @@ export class Unit {
   hasBallistics = false;
   readonly bonusVs: Array<{ cls: ArmorClassFlags; bonus: number }>;
   readonly gathers: boolean;
+  /** Movement domain — 'land' (default) or 'water' (ships). NavGrid/PathQueue honour it. */
+  readonly domain: Domain;
 
   // Sim-layer position (source of truth; root.position synced each tick)
   x = 0;
@@ -136,6 +139,7 @@ export class Unit {
     this.splashRadius = row.splashRadius;
     this.bonusVs      = row.bonusVs;
     this.gathers      = row.gathers;
+    this.domain       = row.domain ?? 'land';
 
     this.root = new THREE.Group();
     this.root.position.copy(pos);
