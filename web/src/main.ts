@@ -244,6 +244,10 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     terrain = buildTerrainNew(scene, { centers: islandCenters, radius: ISLAND_RADIUS });
     navGrid.markIslands(islandCenters, ISLAND_RADIUS);
   } else {
+    // Rebuild the single-disc terrain too, so a prior Islands game doesn't leave island
+    // terrain visible over a single-disc NavGrid (terrain is a module-level `let`, reused).
+    terrain.dispose();
+    terrain = buildTerrainNew(scene);
     navGrid.markWaterBeyondRadius(88); // ocean starts beyond land disc (Config.LandRadius ≈ 92)
   }
   for (const t of trees) {
@@ -310,6 +314,16 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     const fx = DMath.cos(ang) * 92;
     const fz = DMath.sin(ang) * 92;
     nodes.push(new ResourceNode(scene, new THREE.Vector3(fx, 0, fz), ResourceKind.Food, 400, 'water'));
+  }
+
+  // Drop nodes whose cell domain mismatches (Islands: contested mines pushed into water, or
+  // fish-ring points overlapping a land disc) so gatherers never chase an unreachable node.
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const n = nodes[i];
+    if (!navGrid.cellDomainMatches(n.root.position.x, n.root.position.z, n.domain)) {
+      n.remove(scene);
+      nodes.splice(i, 1);
+    }
   }
 
   // ── Systems ──────────────────────────────────────────────────────────────

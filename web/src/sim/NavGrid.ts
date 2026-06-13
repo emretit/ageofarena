@@ -198,6 +198,19 @@ export class NavGrid {
     }
   }
 
+  /**
+   * True if a cell's water/land matches `domain` — IGNORING BLOCKED/gate flags. Used to validate
+   * resource-node placement (a node stamps itself BLOCKED, so isWalkable would falsely reject it;
+   * we only care that a fish sits on water and a mine sits on land).
+   */
+  cellDomainMatches(wx: number, wz: number, domain: Domain): boolean {
+    const cx = Math.floor(wx + GRID_HALF);
+    const cz = Math.floor(wz + GRID_HALF);
+    if (!this.inBounds(cx, cz)) return false;
+    const isWater = (this.flags[cz * GRID_SIZE + cx] & FLAG_WATER) !== 0;
+    return domain === 'water' ? isWater : !isWater;
+  }
+
   // ── Nearest free cell (deterministic square-spiral BFS) ──────────────────
 
   nearestFreeCell(cx: number, cz: number, domain: Domain = 'land', teamId = -1): [number, number] {

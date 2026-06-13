@@ -45,9 +45,11 @@ const ARCHETYPES: Record<MapType, Archetype> = {
     extraGoldPerBase: true, extraStonePerBase: true, contestedGold: 1, contestedStone: 1, forceNomad: false,
   },
   [MapType.Islands]: {
-    displayName: "Adalar", coastInner: 87, coastOuter: 91, coastClusters: 28,
+    // coastClusters 0: no ring of coast trees (they'd land in open ocean on the multi-island
+    // layout). Trees come from the centre-island grove instead.
+    displayName: "Adalar", coastInner: 87, coastOuter: 91, coastClusters: 0,
     basePositions: [[-60, -60], [60, 60], [-60, 60], [60, -60]],
-    groveCenters: [[0, 0]], groveRadius: 3,
+    groveCenters: [[0, 0]], groveRadius: 8,
     extraGoldPerBase: false, extraStonePerBase: false, contestedGold: 2, contestedStone: 2, forceNomad: false,
   },
   [MapType.Nomad]: {
