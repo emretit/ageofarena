@@ -159,6 +159,7 @@ export class CombatSystem {
     this._spatial.query(u.x, u.z, u.aggroRadius, candidates);
     for (const t of candidates) {
       if (!diplomacy.isEnemy(t.teamId, u.teamId)) continue;
+      if (t.domain !== u.domain) continue; // naval seam: ships aggro ships, land aggros land
       const dx = t.x - u.x; const dz = t.z - u.z;
       const d = Math.sqrt(dx * dx + dz * dz);
       if (d < bestDist) { bestDist = d; best = t; }

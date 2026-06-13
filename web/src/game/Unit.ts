@@ -10,7 +10,7 @@ import { getUnitRow } from "../core/UnitRegistry";
 import { getTeamBonus } from "../core/CivState";
 import { allocId, type EntityId } from "../sim/EntityIds";
 import { assetLoader } from "../render/AssetLoader";
-import type { Domain } from "../sim/NavGrid";
+import { navGrid, type Domain } from "../sim/NavGrid";
 import type { BakedModel } from "../render/ModelBake";
 import type { ResourceNode } from "./ResourceNode";
 import type { Building } from "./Building";
@@ -467,7 +467,18 @@ export class Unit {
         this.moveTarget = null;
       } else {
         const step = Math.min(dist, this.moveSpeed * dt);
-        this.root.position.add(to.normalize().multiplyScalar(step));
+        to.normalize();
+        const nx = this.root.position.x + to.x * step;
+        const nz = this.root.position.z + to.z * step;
+        // Ships must not beach: a water-domain unit stops at the shore instead of sailing
+        // onto land via the legacy direct-move path (rally / combat chase). Land units keep
+        // their existing behaviour (they may approach blocked building/resource cells).
+        if (this.domain === 'water' && !navGrid.isWalkableWorld(nx, nz, 'water', this.teamId)) {
+          this.moveTarget = null;
+        } else {
+          this.root.position.x = nx;
+          this.root.position.z = nz;
+        }
         this.root.rotation.y = Math.atan2(to.x, to.z);
       }
       // Keep sim coords in sync with root.position for SpatialHash etc.
