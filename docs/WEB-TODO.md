@@ -96,7 +96,7 @@
 
 ### 9.2 Mermi & savaş
 - [x] `[WEB9.proj]` ProjectileSystem'i SİM tick'ine taşı (hasar VARIŞTA); Combat ranged dalı `fireSim(att,tgt)`; ölü hedefe varan mermi boşa düşer
-- [ ] `[WEB9.lead]` lead targeting (uçuş süresi × hedef vel); Ballistics öncesi SimRng ıskası, sonrası tam lead
+- [x] `[WEB9.lead]` lead targeting: Ballistics'siz mermi ateş-anı noktasına düşer → hareketli hedef HIT_RADIUS dışına çıkarsa ıska; Ballistics ile `toPos += vel × flightTime` tam lead (Unit.hasBallistics, deterministik — SimRng yerine geometrik ıska)
 - [x] `[WEB9.splash]` splash varış NOKTASINDA: SpatialHash daire + falloff + friendly-fire + kurban başına zırh
 
 ### 9.3 Mekanikler
@@ -111,7 +111,7 @@
 
 ### 9.5 Faz 9 DoD
 - [x] A+tık ordu yol boyu savaşıp döner; StandGround takipsiz vurur
-- [x] Ballistics'siz koşan hedefe ıska; havadaki mermi ölü hedefte boşa
+- [x] Ballistics'siz koşan hedefe ıska (HIT_RADIUS=0.9 geometrik); havadaki mermi ölü hedefte boşa
 - [x] Monk dönüştürür (renk + pop ledger)
 - [ ] Gate dosta açık/düşmana kapalı; yıkılınca herkese açık
 - [x] Garnizonlu TC oku ~3×; Ctrl+1/çift-1 çalışır

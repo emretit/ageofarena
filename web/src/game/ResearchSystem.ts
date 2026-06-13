@@ -538,9 +538,12 @@ export function applyTechBonus(u: Unit, tech: TechId) {
         (u as { moveSpeed: number }).moveSpeed *= 1.1;
       }
       break;
-    // ── Ballistics (archer accuracy → simplified as +1 attack) ────────────
+    // ── Ballistics (lead targeting vs moving units + minor accuracy buff) ──
     case TechId.Ballistics:
-      if (u.isRanged) (u as { baseAtk: number }).baseAtk += 1;
+      if (u.isRanged) {
+        (u as { baseAtk: number }).baseAtk += 1;
+        u.hasBallistics = true;
+      }
       break;
     // ── Chemistry (ranged +1 attack) ──────────────────────────────────────
     case TechId.Chemistry:

@@ -61,6 +61,7 @@ export class CombatSystem {
     damage: number; timeLeft: number;
     fromPos: THREE.Vector3; toPos: THREE.Vector3;
     splash: boolean; splashRadius: number; attackerTeam: number;
+    ballistics: boolean;
   }> = [];
 
   tick(units: Unit[], buildings: Building[], dt: number) {
@@ -86,9 +87,17 @@ export class CombatSystem {
             }
           }
         } else if (p.target && p.target.alive) {
-          p.target.takeDamage(p.damage);
-          this.onHit?.(p.target.pos, p.damage);
-          if (!p.target.alive) this.onUnitKilled?.(p.target);
+          // Without Ballistics a projectile lands at the fire-time point — if the
+          // target has moved away from that landing spot, it misses.
+          const HIT_RADIUS = 0.9;
+          const dx = p.target.x - p.toPos.x; const dz = p.target.z - p.toPos.z;
+          const hit = p.ballistics || (dx * dx + dz * dz) <= HIT_RADIUS * HIT_RADIUS;
+          if (hit) {
+            p.target.takeDamage(p.damage);
+            this.onHit?.(p.target.pos, p.damage);
+            if (!p.target.alive) this.onUnitKilled?.(p.target);
+          }
+          // else: misses, lands harmlessly (DoD: "Ballistics'siz koşan hedefe ıska")
         } else if (p.targetB && p.targetB.alive) {
           p.targetB.takeDamage(p.damage);
           this.onHit?.(p.targetB.pos, p.damage);
@@ -255,8 +264,14 @@ export class CombatSystem {
       const toPos   = target.pos.clone();
       if (attacker.isRanged) {
         const dist = fromPos.distanceTo(toPos);
+        const flightTime = dist / PROJ_SPEED;
+        // Ballistics: lead the target by its velocity so the projectile arrives where it will be.
+        if (attacker.hasBallistics) {
+          toPos.x += target.velX * flightTime;
+          toPos.z += target.velZ * flightTime;
+        }
         this.onRangedFire?.(fromPos, toPos, attacker.splashRadius > 0);
-        this._pending.push({ target, targetB: null, damage: dmg, timeLeft: dist / PROJ_SPEED, fromPos, toPos, splash: attacker.splashRadius > 0, splashRadius: attacker.splashRadius, attackerTeam: attacker.teamId });
+        this._pending.push({ target, targetB: null, damage: dmg, timeLeft: flightTime, fromPos, toPos, splash: attacker.splashRadius > 0, splashRadius: attacker.splashRadius, attackerTeam: attacker.teamId, ballistics: attacker.hasBallistics });
       } else {
         target.takeDamage(dmg);
         this.onHit?.(toPos, dmg);
@@ -278,7 +293,7 @@ export class CombatSystem {
       if (attacker.isRanged) {
         const dist = fromPos.distanceTo(toPos);
         this.onRangedFire?.(fromPos, toPos, attacker.splashRadius > 0);
-        this._pending.push({ target: null, targetB, damage: dmg, timeLeft: dist / PROJ_SPEED, fromPos, toPos, splash: attacker.splashRadius > 0, splashRadius: attacker.splashRadius, attackerTeam: attacker.teamId });
+        this._pending.push({ target: null, targetB, damage: dmg, timeLeft: dist / PROJ_SPEED, fromPos, toPos, splash: attacker.splashRadius > 0, splashRadius: attacker.splashRadius, attackerTeam: attacker.teamId, ballistics: true });
       } else {
         targetB.takeDamage(dmg);
         this.onHit?.(toPos, dmg);

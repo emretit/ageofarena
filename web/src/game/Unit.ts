@@ -41,6 +41,8 @@ export class Unit {
   readonly damageKind: DamageType;
   readonly isRanged: boolean;
   readonly splashRadius: number;
+  /** Ballistics researched → projectiles lead moving targets (else miss when target moves). */
+  hasBallistics = false;
   readonly bonusVs: Array<{ cls: ArmorClassFlags; bonus: number }>;
   readonly gathers: boolean;
 
