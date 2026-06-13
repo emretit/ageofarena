@@ -87,6 +87,8 @@ export class HUD {
   private readonly popCell: HTMLElement;
   private _formationBadge!: HTMLDivElement;
   private _bus?: CommandIssuer;
+  /** Local player's team — panels/victory key off this (MP: = myTeam). */
+  localTeam = 0;
 
   /** Provide a CommandIssuer (CommandBus or LockstepClient) after construction. */
   setBus(bus: CommandIssuer): void { this._bus = bus; }
@@ -187,7 +189,7 @@ export class HUD {
         : `Spd: ${u.moveSpeed.toFixed(1)}`);
 
     // Build panel for player villagers
-    if (u.teamId === 0 && u.gathers && onBuild && rm) {
+    if (u.teamId === this.localTeam && u.gathers && onBuild && rm) {
       html += `<div style="margin-top:8px;border-top:1px solid #555;padding-top:6px;font-size:11px;color:#aaa">BUILD</div>`;
       html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">`;
       for (const type of BUILDABLE) {
@@ -231,7 +233,7 @@ export class HUD {
 
     // Age-up card — only for player TC
     let ageCard = "";
-    if (b.teamId === 0 && b.buildingType === BuildingType.TownCenter && rm && ageSystem) {
+    if (b.teamId === this.localTeam && b.buildingType === BuildingType.TownCenter && rm && ageSystem) {
       const def = ageSystem.nextAgeDef(rm);
       const prog = ageSystem.progress();
       if (def) {
@@ -260,7 +262,7 @@ export class HUD {
 
     // Training card — only for player-owned buildings with trainable units
     let card = "";
-    if (b.teamId === 0 && training && rm) {
+    if (b.teamId === this.localTeam && training && rm) {
       const trainable = TRAINABLE[b.buildingType];
       if (trainable?.length) {
         const qLen = training.queueLength(b);
@@ -298,7 +300,7 @@ export class HUD {
 
     // ── Research card ──────────────────────────────────────────────────────
     let resCard = "";
-    if (b.teamId === 0 && research && rm) {
+    if (b.teamId === this.localTeam && research && rm) {
       const avail = research.available(b, rm);
       const active = research.active(b);
       if (avail.length > 0 || active) {
@@ -330,7 +332,7 @@ export class HUD {
 
     // ── Market card ───────────────────────────────────────────────────────
     let mktCard = "";
-    if (b.teamId === 0 && b.buildingType === BuildingType.Market && market && rm) {
+    if (b.teamId === this.localTeam && b.buildingType === BuildingType.Market && market && rm) {
       mktCard += `<div style="margin-top:8px;border-top:1px solid #555;padding-top:6px;font-size:11px;color:#aaa">TRADE (batch 100)</div>`;
       mktCard += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">`;
       for (const kind of [ResourceKind.Food, ResourceKind.Wood, ResourceKind.Stone]) {
@@ -353,7 +355,7 @@ export class HUD {
 
     // Garrison card — TC and Castle show garrison count + Ungarrison button
     let garrisonCard = "";
-    if (b.teamId === 0 && garrison && (garrison.canGarrison(b) || garrison.garrisonCount(b) > 0)) {
+    if (b.teamId === this.localTeam && garrison && (garrison.canGarrison(b) || garrison.garrisonCount(b) > 0)) {
       const count = garrison.garrisonCount(b);
       garrisonCard += `<div style="margin-top:8px;border-top:1px solid #555;padding-top:6px;font-size:11px;color:#aaa">`;
       garrisonCard += `Garrison: ${count} unit${count !== 1 ? "s" : ""}`;
@@ -365,7 +367,7 @@ export class HUD {
     }
 
     // Rally point hint
-    const rallyHint = b.teamId === 0 && (TRAINABLE[b.buildingType]?.length || BUILDING_TECHS[b.buildingType]?.length)
+    const rallyHint = b.teamId === this.localTeam && (TRAINABLE[b.buildingType]?.length || BUILDING_TECHS[b.buildingType]?.length)
       ? `<div style="font-size:10px;color:#666;margin-top:6px">Right-click to set rally point${b.rallyPoint ? " (set)" : ""}</div>`
       : "";
 
@@ -485,11 +487,11 @@ export class HUD {
     Object.assign(banner.style, {
       position: "absolute", top: "40%", left: "50%",
       transform: "translate(-50%,-50%)",
-      background: winner === 0 ? "rgba(0,100,0,0.85)" : "rgba(120,0,0,0.85)",
+      background: winner === this.localTeam ? "rgba(0,100,0,0.85)" : "rgba(120,0,0,0.85)",
       color: "#fff", fontSize: "32px", padding: "24px 40px",
       borderRadius: "10px", textAlign: "center", pointerEvents: "none",
     });
-    banner.textContent = winner === 0 ? "Victory!" : "Defeat";
+    banner.textContent = winner === this.localTeam ? "Victory!" : "Defeat";
     this.root.appendChild(banner);
   }
 }

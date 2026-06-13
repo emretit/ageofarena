@@ -35,6 +35,8 @@ export class Minimap {
   private readonly fogBlitCtx: CanvasRenderingContext2D;
   /** Reused fog ImageData — avoids a SIDE×SIDE×4 allocation on every redraw. */
   private _fogImg?: ImageData;
+  /** Local player's team — own units/buildings always drawn (MP: = myTeam). */
+  localTeam = 0;
 
   /** Called when user clicks the minimap — world X and Z coordinates. */
   onNavigate: ((x: number, z: number) => void) | null = null;
@@ -151,7 +153,7 @@ export class Minimap {
     // ── Buildings ──────────────────────────────────────────────────────────
     for (const b of buildings) {
       if (!b.alive) continue;
-      if (b.teamId !== 0 && !fog.isVisible(b.pos.x, b.pos.z)) continue;
+      if (b.teamId !== this.localTeam && !fog.isVisible(b.pos.x, b.pos.z)) continue;
       const x = worldToMap(b.pos.x);
       const z = worldToMap(b.pos.z);
       ctx.fillStyle = TEAM_COLORS[b.teamId] ?? "#fff";
@@ -161,7 +163,7 @@ export class Minimap {
     // ── Units ──────────────────────────────────────────────────────────────
     for (const u of units) {
       if (!u.alive) continue;
-      if (u.teamId !== 0 && !fog.isVisible(u.pos.x, u.pos.z)) continue;
+      if (u.teamId !== this.localTeam && !fog.isVisible(u.pos.x, u.pos.z)) continue;
       const x = worldToMap(u.pos.x);
       const z = worldToMap(u.pos.z);
       ctx.fillStyle = TEAM_COLORS[u.teamId] ?? "#fff";

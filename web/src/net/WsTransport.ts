@@ -7,10 +7,18 @@ import type { ClientMsg, ServerMsg } from '../../../shared/protocol';
 
 export class WsTransport implements Transport {
   onMessage: ((msg: ServerMsg) => void) | null = null;
+  private readonly _listeners: ((msg: ServerMsg) => void)[] = [];
   private _ws: WebSocket | null = null;
   private _connected = false;
 
   get connected(): boolean { return this._connected; }
+
+  addListener(fn: (msg: ServerMsg) => void): void { this._listeners.push(fn); }
+
+  private _emit(msg: ServerMsg): void {
+    this.onMessage?.(msg);
+    for (const l of this._listeners) l(msg);
+  }
 
   connect(url: string): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -30,7 +38,7 @@ export class WsTransport implements Transport {
       ws.addEventListener('message', (e) => {
         let msg: ServerMsg;
         try { msg = JSON.parse(e.data as string); } catch { return; }
-        this.onMessage?.(msg);
+        this._emit(msg);
       });
     });
   }

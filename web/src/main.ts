@@ -308,6 +308,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
   // ── HUD ──────────────────────────────────────────────────────────────────
   const hud = new HUD(app, teamRes[PLAYER_TEAM]);
+  hud.localTeam = PLAYER_TEAM;
   hud.setBus(lockstepClient);
   const settings = new SettingsPanel(app, postfx);
   settings.onResume = () => { _focusPaused = false; };
@@ -337,6 +338,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
   // ── Minimap ───────────────────────────────────────────────────────────────
   const minimap = new Minimap(app);
+  minimap.localTeam = PLAYER_TEAM;
   minimap.onNavigate = (x, z) => rig.panTo(x, z);
 
   // ── Selection ─────────────────────────────────────────────────────────────
@@ -358,14 +360,14 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     rm.stone = Math.max(0, rm.stone - def.costStone);
     rm.gold  = Math.max(0, rm.gold  - def.costGold);
     rm.onChange?.();
-    const newBuilding = new Building(scene, pos, 0, type);
+    const newBuilding = new Building(scene, pos, PLAYER_TEAM, type);
     buildings.push(newBuilding);
     stampBuilding(newBuilding); // register with NavGrid
     if (type === BuildingType.Farm) {
       const farmNode = new ResourceNode(scene, pos.clone(), ResourceKind.Food, 250);
       (farmNode as { destroyOnDeplete: boolean }).destroyOnDeplete = false;
       farmNode.decayPerSecond = 2;
-      farmNode.ownerTeamId = 0;
+      farmNode.ownerTeamId = PLAYER_TEAM;
       nodes.push(farmNode);
     }
     return true;
@@ -454,8 +456,9 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
       selection.cycleFormation();
     }
 
-    // Stress test (P = 250v250, Shift+P = 500v500): dev-only mass battle
-    if (key === "p") {
+    // Stress test (P = 250v250, Shift+P = 500v500): dev-only mass battle.
+    // Disabled in MP — direct spawns bypass the command bus and would desync.
+    if (key === "p" && !isMP) {
       const perSide = e.shiftKey ? 500 : 250;
       spawnStressArmy(perSide, 0, -55, 55);   // team 0 on the left, attacks right
       spawnStressArmy(perSide, 1,  55, -55);  // team 1 on the right, attacks left

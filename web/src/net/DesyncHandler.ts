@@ -19,12 +19,13 @@ export class DesyncHandler {
     private readonly _transport: Transport | null,
   ) {
     if (_transport) {
-      _transport.onMessage = (msg) => {
+      // addListener (not onMessage=) so we don't clobber LockstepClient's turn handler.
+      _transport.addListener((msg) => {
         if (msg.type === 'desync') {
           this._showBanner(msg.turn);
           reportDesync(msg.turn);
         }
-      };
+      });
     }
   }
 

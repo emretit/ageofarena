@@ -10,8 +10,16 @@ export class LoopbackTransport implements Transport {
   onMessage: ((msg: ServerMsg) => void) | null = null;
   readonly connected = true;
 
+  private readonly _listeners: ((msg: ServerMsg) => void)[] = [];
   private readonly _playerIds: string[];
   private readonly _turnBuffers = new Map<number, Map<string, WireCommand[]>>();
+
+  addListener(fn: (msg: ServerMsg) => void): void { this._listeners.push(fn); }
+
+  private _emit(msg: ServerMsg): void {
+    this.onMessage?.(msg);
+    for (const l of this._listeners) l(msg);
+  }
 
   /** Pass the player IDs that will participate (for turn completion check). */
   constructor(playerIds: string[]) {
@@ -38,7 +46,7 @@ export class LoopbackTransport implements Transport {
     if (buf.size >= this._playerIds.length) {
       const inputs = [...buf.entries()].map(([playerId, cmds]) => ({ playerId, commands: cmds }));
       this._turnBuffers.delete(turn);
-      this.onMessage?.({ type: 'turn', turn, inputs });
+      this._emit({ type: 'turn', turn, inputs });
     }
   }
 }
