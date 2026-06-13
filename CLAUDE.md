@@ -1,26 +1,28 @@
 # Age of Arena — Proje Talimatları
 
-## ⚠️ ÖNEMLİ: Bu proje artık **Unity** projesidir
+## ⚠️ ÖNEMLİ: Aktif geliştirme artık **web/** (Three.js) tarafında
 
-Aktif geliştirme **tamamen Unity (C#)** tarafında. AoE2-tarzı izometrik RTS.
+Proje Unity (C#) prototipi olarak başladı, ama 2026-06'da `web/` altındaki Three.js portu Unity
+SP+MP paritesinin büyük kısmını yakaladı ve **aktif geliştirme tamamen web'e taşındı**
+(kullanıcı kararı 2026-06-13). AoE2-tarzı izometrik RTS.
 
-- **Çalışma alanı:** [AgeOfArenaUnity/](AgeOfArenaUnity/) — Unity **6000.4.1f1**, **Built-in Render Pipeline** (URP/HDRP yok)
-- **Kod:** [AgeOfArenaUnity/Assets/Scripts/](AgeOfArenaUnity/Assets/Scripts/) — tüm C# scriptler burada
-- **Durum:** Unity Roslyn ile **0 error, 0 warning** derleniyor; Unity MCP bağlı
+- **Çalışma alanı:** [web/](web/) — Vite + TypeScript + Three.js
+- **Kod:** [web/src/](web/src/) — tüm `.ts` kaynak burada
+- **Çalıştırma:** `npm run dev --prefix web` (port 5173; `.claude/launch.json` → "web")
+- **Build/test:** `npm run build --prefix web` (tsc+vite, 0 hata olmalı), `npm run test --prefix web` (vitest)
+- Bir istek "oyuna X ekle" / "web" derse hedef **varsayılan olarak `web/`'dir.**
 
-### Eski Three.js web sürümü kaldırıldı; YENİ web portu `web/`'de
+Mimari, Unity adlarını 1:1 koruyarak port edildi (`web/src/core/Config.ts` ↔ WorldRoot sabitleri,
+`CameraRig` ↔ IsometricCameraRig, `CommandBus`/`CommandExecutor` ↔ Faz 13 command pattern…).
+Tüm emirler `CommandBus` tek kapısından akar (SP loopback + MP lockstep aynı sim state'i üretir).
 
-Proje Three.js/TypeScript web prototipinden Unity'ye taşındı ve **eski web kaynağı
-silindi** (yalnızca git geçmişinde — geri getirme). Bir istek "oyuna X ekle" derse hedef
-**varsayılan olarak Unity tarafıdır** (`AgeOfArenaUnity/`).
+### Unity sürümü (AgeOfArenaUnity/) — referans/arşiv, DOKUNMA
 
-**2026-06: [web/](web/) klasöründe SIFIRDAN yeni bir Three.js portu başladı** (eski
-prototipin dirilmesi DEĞİL). Vite + TS + Three.js; Unity mimari adları ve denge verileri
-1:1 port ediliyor (`web/src/core/Config.ts` ↔ WorldRoot sabitleri, `CameraRig` ↔
-IsometricCameraRig…). Çalıştırma: `npm run dev --prefix web` (port 5173; `.claude/launch.json`
-→ "web"). Kullanıcı "web" derse hedef burasıdır.
+Unity projesi git'te referans olarak duruyor; **aktif geliştirilmiyor.** Geri dönülmez bir şey
+yapma (silme/taşıma/dosya düzenleme) — kullanıcı açıkça istemedikçe. Aşağıdaki Unity teknik
+notları yalnızca o referans sürüm içindir.
 
-## Unity teknik notları
+## Unity teknik notları (referans/arşiv)
 
 - **Sahne kod ile kurulur** — elle `.unity` sahnesi yok. `GameBootstrap.cs`
   (`[RuntimeInitializeOnLoadMethod]`) Play'e basınca `WorldRoot.Build()` ile tüm sahneyi kurar.

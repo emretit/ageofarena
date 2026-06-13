@@ -12,6 +12,26 @@
 
 ---
 
+## 🚩 Unity → Three.js Geçişi RESMİLEŞTİ (2026-06-13)
+
+**Karar:** Aktif geliştirme tamamen **`web/`** (Three.js) tarafına taşındı. Unity sürümü
+(`AgeOfArenaUnity/`) referans/arşiv olarak duruyor — dokunulmuyor. Web portu Unity SP+MP
+paritesinin büyük kısmını yakaladı (aşağıdaki Web Roadmap Faz 8-18 + Web Port Parite 1-6 ✅).
+Kalan gap'ler 5 fazlık bir kapanış haritasına bağlandı (otonom uygulama, model: Sonnet 4.6):
+
+| Faz | Hedef | Boyut | Durum |
+|---|---|---|---|
+| **Faz 0** | Web'i resmi tek platform yap (CLAUDE.md + bu not) | XS | 🟡 |
+| **Faz 1** | Görsel/asset paritesi — GLTF render + team tint + fallback + LoadingScreen + InstancedMesh | M | ⬜ |
+| **Faz 2** | MP determinism — `AgeUpCmd` + `PlaceBuildingCmd` command-replication (tek kapı = CommandBus) | M/L | ⬜ |
+| **Faz 3** | Naval slice — water domain + FishingShip/Galley + fish eko + Dock eğitimi + naval combat/AI + Islands | XL | ⬜ |
+| **Faz 4** | Replay seek/keyframe + MP stretch (reconnect/spectator-client/tablet) | polish | ⬜ |
+
+> Detaylı adım planı: `~/.claude/plans/shimmering-twirling-breeze.md`. Kalan gap'lerin kod-seviyesi
+> durumu aşağıdaki **"Kalan"** bölümünde (2026-06-13 oturumu).
+
+---
+
 ## Web Roadmap — Faz 8-18 (2026-06-12) ✅
 
 > **Detayın tek kaynağı → [docs/WEB-ROADMAP.md](WEB-ROADMAP.md)** — mimari kararlar (NavGrid/A\*,
