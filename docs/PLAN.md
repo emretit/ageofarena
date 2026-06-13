@@ -37,6 +37,25 @@
 
 **Load test (son ölçüm): manüel çalıştır → `npx ts-node server/test/load.ts`; hedef p95 <50ms, RSS <512MB.**
 
+### 2026-06-13 oturumu — stretch'lerin kapatılması + MP entry wire
+
+Code-review'ın 6 bug'ı fixlendi (LockstepClient duplicate turn, checksum cross-turn,
+mapType, stall broadcast, matchmake delete-before-create, rate-limit off-by-one);
+security-review temiz. Sonra stretch DoD'ları tamamlandı:
+- **Faz 8.2/8.8:** ResourceNode NavGrid stamp+unstamp (madenler dolanılır, tükenince geçilir); F-tuşu formasyon döngüsü + HUD rozeti (komuta `formation` alanı).
+- **Faz 9:** Ballistics lead-targeting + geometrik ıska; **Gate** binası (takım-maskeli kapı hücresi, yıkılınca açılır — 2 unit testi).
+- **Faz 12:** stress makrosu (P/Shift+P) — ölçüm **1000 birim sim tick 2.30ms**; hot-path GC scratch azaltma (Minimap ImageData reuse, Combat melee clone, MovementSystem neighbours reuse + `isWalkableWorld`).
+- **Faz 15:** golden-replay regresyon harness'i (headless deterministik savaş + FNV state checksum, 3 senaryo `toMatchInlineSnapshot`).
+- **Faz 16:** **spectator (server-side)** + **MP entry wire** — RoomScreen→WsTransport→game_start→`startGame(NetConfig)`; perspektif `PLAYER_TEAM`, AI-kapalı, tüm-takım age tick, DesyncHandler. Runtime: Create Room → server `[Room] created` doğrulandı.
+- **Faz 18:** opsiyonel **Sentry** (client+server, DSN yoksa no-op; desync ANA metrik).
+- Test: 26/26 yeşil; web+server tsc 0 hata; vite build OK.
+
+**Kalan (her biri ayrı XL/manuel odak):**
+- **Naval slice (XL, SP):** WATER path + Islands çok-ada + FishingShip/Galley + Dock eğitimi + naval AI. UnitType/UNIT_NAMES genişletme + water-domain movement + fish ekonomisi + naval combat; tek oturumda tutarlı bitmez (yarım = gemi karada patlar).
+- **MP üzerine stretch (MP-wire artık hazır):** reconnect (120s slot+HMAC+catch-up) + spectator-client playback + tablet `?spectate=KOD` touch. Hepsi 2-client manuel test gerektirir.
+- **Replay seek/keyframe:** replay playback wire + tam Snapshot.ts + sim/view split (Faz 14.split) ön koşullu.
+- **Manuel/harici:** GLTF asset indirme + InstancedMesh renderer; Higgsfield içerik (ücretli); `supabase db push` + edge deploy + env secrets; ön-plan perf sertifikasyonu (500@60/1000@30 — sim zaten 2.30ms).
+
 ---
 
 ## Web Port Parite — Faz 6 (2026-06-11) ✅
