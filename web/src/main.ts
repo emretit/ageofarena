@@ -639,8 +639,14 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
     if (!gameOver && !_focusPaused) {
       acc += dt;
-      // Seeking: inject extra budget so the while-loop runs SEEK_BURST ticks this frame
-      if (replayDriver?.seeking) acc += Config.FixedStep * SEEK_BURST;
+      if (replayDriver) {
+        // Inject extra sim budget for seek burst or speed multiplier
+        if (replayDriver.seeking) {
+          acc += Config.FixedStep * SEEK_BURST;
+        } else if (replayDriver.speed > 1) {
+          acc += Config.FixedStep * (replayDriver.speed - 1);
+        }
+      }
       while (!gameOver && acc >= Config.FixedStep) {
         const step = Config.FixedStep;
         gameElapsed += step;
@@ -651,8 +657,8 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
           commandBus.advanceTick();
           if (!replayDriver.tick()) { acc = 0; break; } // replay ended
           commandExecutor.execute(commandBus.drain());
-          // Stop burst as soon as seek target is reached
-          if (!replayDriver.seeking) acc = 0;
+          // Stop burst when seek target is reached; set acc=step so acc-=step below → acc=0
+          if (!replayDriver.seeking) acc = step;
         } else {
           // Lockstep tick: collect confirmed turn commands, gate on server echo
           const { stalling, commands: turnCmds } = lockstepClient.tick();
@@ -706,11 +712,8 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
         for (const ai of aiInstances) ai.tick(units, buildings, nodes, scene, step, pathQueue);
         conversion.tick(units, step);
         fog.tick(units, buildings, step);
-        if (isMP) {
-          // No local AI in MP — tick every team's age system so opponents can advance.
-          for (let i = 0; i < ageSystems.length; i++) ageSystems[i].tick(teamRes[i], step);
-        } else if (isReplay) {
-          // Replay: age systems tick passively (age-up commands come from replay log)
+        if (isMP || isReplay) {
+          // MP: no local AI; Replay: commands come from log — tick all age systems passively
           for (let i = 0; i < ageSystems.length; i++) ageSystems[i].tick(teamRes[i], step);
         } else {
           localAge.tick(teamRes[PLAYER_TEAM], step);
