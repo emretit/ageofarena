@@ -50,9 +50,19 @@ security-review temiz. Sonra stretch DoD'ları tamamlandı:
 - **Faz 18:** opsiyonel **Sentry** (client+server, DSN yoksa no-op; desync ANA metrik).
 - Test: 26/26 yeşil; web+server tsc 0 hata; vite build OK.
 
+**Kod-review fix turu (aynı oturum sonu):** MP-breaking `DesyncHandler.onMessage` clobber'ı
+düzeltildi (Transport `addListener` multiplex — LockstepClient turn + DesyncHandler desync ikisi de
+alır). `localTeam` migration tamamlandı: HUD panelleri/victory banner + Minimap fog + onPlace bina/farm
+sahipliği artık `PLAYER_TEAM` (eskiden hardcode team 0 → MP'de team-1 oyuncu oynayamıyordu). Stress
+makrosu MP'de kapalı.
+
 **Kalan (her biri ayrı XL/manuel odak):**
+- **MP tam-oynanabilirlik (determinism):** age-up + bina yerleştirme henüz **command-replicated DEĞİL**
+  (HUD age-up doğrudan `ageSystem.startAgeUp`; `placement.onPlace` doğrudan `new Building`). SP'de
+  sorun yok ama MP'de desync ederler. Gerekli: `AgeUpCmd` + `PlaceBuildingCmd` command kind'ları +
+  CommandExecutor case'leri + HUD/placement'ı bus'a taşıma. (Faz 13 command-pattern'in MP-kapanışı.)
 - **Naval slice (XL, SP):** WATER path + Islands çok-ada + FishingShip/Galley + Dock eğitimi + naval AI. UnitType/UNIT_NAMES genişletme + water-domain movement + fish ekonomisi + naval combat; tek oturumda tutarlı bitmez (yarım = gemi karada patlar).
-- **MP üzerine stretch (MP-wire artık hazır):** reconnect (120s slot+HMAC+catch-up) + spectator-client playback + tablet `?spectate=KOD` touch. Hepsi 2-client manuel test gerektirir.
+- **MP üzerine stretch (MP-wire artık hazır):** reconnect (120s slot+HMAC+catch-up) + spectator-client playback + tablet `?spectate=KOD` touch. Hepsi 2-client manuel test gerektirir. _Not: spectator started-oyuna katılınca initial state almıyor (game_start tekrar gönderilmeli); disconnect'te in-flight turn/checksum flush yok._
 - **Replay seek/keyframe:** replay playback wire + tam Snapshot.ts + sim/view split (Faz 14.split) ön koşullu.
 - **Manuel/harici:** GLTF asset indirme + InstancedMesh renderer; Higgsfield içerik (ücretli); `supabase db push` + edge deploy + env secrets; ön-plan perf sertifikasyonu (500@60/1000@30 — sim zaten 2.30ms).
 
