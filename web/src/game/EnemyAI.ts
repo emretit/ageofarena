@@ -282,7 +282,7 @@ export class EnemyAI {
               u.state = UnitState.AttackMove;
               u.attackMoveGoalX = target.pos.x;
               u.attackMoveGoalZ = target.pos.z;
-              pathQueue.request(u, target.pos.x, target.pos.z, 'land', this.teamId, 2);
+              pathQueue.request(u, target.pos.x, target.pos.z, u.domain, this.teamId, 2);
             } else {
               u.state = UnitState.MovingToAttack;
               u.attackTargetBuilding = target;

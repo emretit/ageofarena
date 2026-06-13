@@ -35,12 +35,17 @@ describe('naval domain', () => {
     expect(ship.z).toBeGreaterThan(0); // moved toward the waypoint
   });
 
-  it('land unit is clamped at the shore and never enters water', () => {
+  it('ship advances on water but is clamped at the shore (never enters land)', () => {
     const nav = new NavGrid();
-    nav.markWaterBeyondRadius(5); // water boundary at ~r=5
+    nav.markWaterBeyondRadius(5); // land within r=5, water beyond
     const ms = new MovementSystem();
-    const land = mkUnit(4, 0, 'land', [12, 0]); // heads from land into deep water
-    for (let i = 0; i < 12; i++) ms.tick([land], nav, 0.2);
-    expect(land.x).toBeLessThan(6); // cannot cross the shore into water
+    const ship = mkUnit(8, 0, 'water', [0, 0]); // ship in water heading toward the land centre
+    for (let i = 0; i < 12; i++) ms.tick([ship], nav, 0.2);
+    // Domain-aware: the ship crosses water toward the shore (x drops from 8) but the clamp
+    // stops it before land (x stays > ~4). If domain were ignored ('land' default), the
+    // ship's water start cell would be unwalkable and it would never move (x stays 8) —
+    // so this lower-and-upper bound distinguishes domain-aware code from domain-ignoring.
+    expect(ship.x).toBeGreaterThan(4);
+    expect(ship.x).toBeLessThan(7.5);
   });
 });
