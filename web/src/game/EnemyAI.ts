@@ -4,7 +4,7 @@
  */
 import * as THREE from "three";
 import { Age, BuildingType, ResourceKind, UnitState, UnitType } from "../core/GameTypes";
-import { navGrid } from "../sim/NavGrid";
+import { navGrid, GRID_SIZE, FLAG_WATER } from "../sim/NavGrid";
 import { ResourceManager } from "../core/ResourceManager";
 import { AgeSystem } from "./AgeSystem";
 import { GatherSystem } from "./GatherSystem";
@@ -66,6 +66,7 @@ const BUILD_ORDER: Array<{
   { type: BuildingType.MiningCamp,  maxOwned: 1,  minElapsed: 100, minAge: Age.Feudal },
   { type: BuildingType.Blacksmith,  maxOwned: 1,  minElapsed: 110, minAge: Age.Feudal },
   { type: BuildingType.ArcheryRange,maxOwned: 1,  minElapsed: 120, minAge: Age.Feudal },
+  { type: BuildingType.Dock,        maxOwned: 1,  minElapsed: 80,  minAge: Age.Dark   },
   { type: BuildingType.House,       maxOwned: 10, minElapsed: 180, minAge: Age.Dark   },
   { type: BuildingType.Stable,      maxOwned: 1,  minElapsed: 200, minAge: Age.Castle },
   { type: BuildingType.University,  maxOwned: 1,  minElapsed: 250, minAge: Age.Castle },
@@ -156,7 +157,8 @@ export class EnemyAI {
     this.elapsed += dt;
 
     const myUnits        = units.filter(u => u.teamId === this.teamId && u.alive);
-    const myMilitary     = myUnits.filter(u => !u.gathers);
+    const myMilitary     = myUnits.filter(u => !u.gathers && u.domain === 'land');
+    const myNaval        = myUnits.filter(u => !u.gathers && u.domain === 'water');
     const myBuildings    = buildings.filter(b => b.teamId === this.teamId && b.alive);
     const enemyBuildings = buildings.filter(b => b.teamId !== this.teamId && !allyTeams.includes(b.teamId) && b.alive);
 
@@ -213,6 +215,17 @@ export class EnemyAI {
           }
         }
       }
+      // Naval training from Dock: 2 FishingShips first (fish economy), then Galleys
+      const fisherCount = myUnits.filter(u => u.unitType === UnitType.FishingShip).length;
+      for (const b of myBuildings) {
+        if (b.buildingType !== BuildingType.Dock) continue;
+        const navalType = fisherCount < 2 ? UnitType.FishingShip : UnitType.Galley;
+        if (this.bus) {
+          this.bus.issue({ kind: 'train', teamId: this.teamId, ai: true, buildingId: b.id, unitType: navalType });
+        } else {
+          this.training.train(b, navalType, this.rm);
+        }
+      }
     }
 
     // ── Research techs ────────────────────────────────────────────────────
@@ -228,6 +241,7 @@ export class EnemyAI {
     }
 
     this._tickArmyState(myMilitary, myBuildings, enemyBuildings, pathQueue);
+    this._tickNavalState(myNaval, enemyBuildings);
   }
 
   private _tickArmyState(
@@ -333,16 +347,22 @@ export class EnemyAI {
       // Buildings cost wood (and sometimes stone); deduct wood/stone/gold
       if (!this.rm.canAfford(0, def.costWood, def.costGold, def.costStone)) continue;
 
-      // Find walkable position in spiral — try 8 angles before giving up
-      const baseAngle = (myBuildings.length * 1.2) % (Math.PI * 2);
-      const radius = 10 + Math.floor(myBuildings.length / 5) * 4;
+      // Dock must sit on a shore cell (land cell adjacent to water) — use dedicated finder.
+      // On non-naval maps the finder returns null and we skip Dock silently.
       let foundPos: THREE.Vector3 | null = null;
-      for (let attempt = 0; attempt < 8; attempt++) {
-        const angle = (baseAngle + attempt * (Math.PI / 4)) % (Math.PI * 2);
-        const px = tc.pos.x + DMath.cos(angle) * radius;
-        const pz = tc.pos.z + DMath.sin(angle) * radius;
-        const [cx, cz] = navGrid.worldToCell(px, pz);
-        if (navGrid.isWalkable(cx, cz)) { foundPos = new THREE.Vector3(px, 0, pz); break; }
+      if (entry.type === BuildingType.Dock) {
+        foundPos = this._findShoreDockPos(tc.pos);
+      } else {
+        // Find walkable position in spiral — try 8 angles before giving up
+        const baseAngle = (myBuildings.length * 1.2) % (Math.PI * 2);
+        const radius = 10 + Math.floor(myBuildings.length / 5) * 4;
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const angle = (baseAngle + attempt * (Math.PI / 4)) % (Math.PI * 2);
+          const px = tc.pos.x + DMath.cos(angle) * radius;
+          const pz = tc.pos.z + DMath.sin(angle) * radius;
+          const [cx, cz] = navGrid.worldToCell(px, pz);
+          if (navGrid.isWalkable(cx, cz)) { foundPos = new THREE.Vector3(px, 0, pz); break; }
+        }
       }
       if (!foundPos) continue; // no valid spot this check — try next building type
 
@@ -373,6 +393,58 @@ export class EnemyAI {
         this.research.start(host, techId, this.rm);
       }
     }
+  }
+
+  /** Naval army: push Galleys toward the enemy TC position (water path stops at shore). */
+  private _tickNavalState(myNaval: Unit[], enemyBuildings: Building[]) {
+    if (!this.gateLifted || myNaval.length === 0 || enemyBuildings.length === 0) return;
+    const target = enemyBuildings.find(b => b.buildingType === BuildingType.TownCenter)
+      ?? enemyBuildings[0];
+    const ready = myNaval.filter(u =>
+      u.state === UnitState.Idle || u.state === UnitState.AttackMove || u.state === UnitState.MovingToAttack,
+    );
+    if (ready.length === 0) return;
+    if (this.bus) {
+      this.bus.issue({
+        kind: 'attackMove', teamId: this.teamId, ai: true,
+        unitIds: ready.map(u => u.id),
+        qx: qEncode(target.pos.x), qz: qEncode(target.pos.z),
+      });
+    } else {
+      for (const u of ready) {
+        u.state = UnitState.AttackMove;
+        u.attackMoveGoalX = target.pos.x;
+        u.attackMoveGoalZ = target.pos.z;
+      }
+    }
+  }
+
+  /**
+   * Find a shore-adjacent land cell (walkable, at least one orthogonal neighbour is water)
+   * within radii 12..26 from the AI's TC. Returns null on non-naval maps where no shore
+   * exists at that range (Dock will be skipped silently).
+   */
+  private _findShoreDockPos(tcPos: THREE.Vector3): THREE.Vector3 | null {
+    const [tcCx, tcCz] = navGrid.worldToCell(tcPos.x, tcPos.z);
+    for (let r = 12; r <= 26; r++) {
+      for (let a = 0; a < 16; a++) {
+        const angle = ((a / 16) * Math.PI * 2 + this.teamId * 0.3) % (Math.PI * 2);
+        const cx = Math.round(tcCx + Math.cos(angle) * r);
+        const cz = Math.round(tcCz + Math.sin(angle) * r);
+        if (!navGrid.isWalkable(cx, cz, 'land')) continue;
+        const fi = cz * GRID_SIZE + cx;
+        const nearWater =
+          ((navGrid.flags[fi + 1]          ?? 0) & FLAG_WATER) !== 0 ||
+          ((navGrid.flags[fi - 1]          ?? 0) & FLAG_WATER) !== 0 ||
+          ((navGrid.flags[fi + GRID_SIZE]  ?? 0) & FLAG_WATER) !== 0 ||
+          ((navGrid.flags[fi - GRID_SIZE]  ?? 0) & FLAG_WATER) !== 0;
+        if (nearWater) {
+          const [wx, wz] = navGrid.cellToWorld(cx, cz);
+          return new THREE.Vector3(wx, 0, wz);
+        }
+      }
+    }
+    return null;
   }
 
   private _nearestNode(v: Unit, nodes: ResourceNode[]): ResourceNode | null {
