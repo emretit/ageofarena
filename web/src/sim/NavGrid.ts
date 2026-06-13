@@ -103,6 +103,32 @@ export class NavGrid {
     this.unstampRect(cx0, cz0, cx1, cz1);
   }
 
+  /** Mark a gate footprint passable only to `ownerTeam` (enemies are blocked). */
+  stampGateWorld(wx: number, wz: number, halfW: number, halfD: number, ownerTeam: number): void {
+    const flag = GATE_FLAGS[ownerTeam] ?? 0;
+    if (!flag) return;
+    const [cx0, cz0] = this.worldToCell(wx - halfW, wz - halfD);
+    const [cx1, cz1] = this.worldToCell(wx + halfW - 0.01, wz + halfD - 0.01);
+    for (let cz = cz0; cz <= cz1; cz++) {
+      for (let cx = cx0; cx <= cx1; cx++) {
+        if (this.inBounds(cx, cz)) this.flags[cz * GRID_SIZE + cx] |= flag;
+      }
+    }
+  }
+
+  /** Remove a gate footprint's team mask — the cells become passable to everyone. */
+  unstampGateWorld(wx: number, wz: number, halfW: number, halfD: number, ownerTeam: number): void {
+    const flag = GATE_FLAGS[ownerTeam] ?? 0;
+    if (!flag) return;
+    const [cx0, cz0] = this.worldToCell(wx - halfW, wz - halfD);
+    const [cx1, cz1] = this.worldToCell(wx + halfW - 0.01, wz + halfD - 0.01);
+    for (let cz = cz0; cz <= cz1; cz++) {
+      for (let cx = cx0; cx <= cx1; cx++) {
+        if (this.inBounds(cx, cz)) this.flags[cz * GRID_SIZE + cx] &= ~flag;
+      }
+    }
+  }
+
   stampWorldCircle(wx: number, wz: number, worldRadius: number): void {
     const rc = Math.ceil(worldRadius / CELL_SIZE);
     const [ccx, ccz] = this.worldToCell(wx, wz);

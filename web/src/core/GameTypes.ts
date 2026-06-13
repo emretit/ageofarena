@@ -42,6 +42,7 @@ export enum BuildingType {
   Farm, LumberCamp, MiningCamp, Mill, Market,
   Castle, Wall, Wonder, Blacksmith, Monastery,
   University, SiegeWorkshop, Dock, WatchTower,
+  Gate,
 }
 
 /** Age advancement — Age.Dark=0 … Age.Imperial=3 (matches Unity enum Age). */

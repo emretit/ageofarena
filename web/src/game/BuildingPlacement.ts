@@ -72,6 +72,7 @@ export class BuildingPlacement {
       [BuildingType.Stable]:     [4, 2.5, 4],
       [BuildingType.Market]:     [4, 3, 4],
       [BuildingType.Castle]:     [5, 4, 5],
+      [BuildingType.Gate]:       [4, 3, 1],
     };
     return dims[type] ?? [3, 2.5, 3];
   }

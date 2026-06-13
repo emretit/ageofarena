@@ -134,11 +134,26 @@ const BUILDING_HALF: Partial<Record<BuildingType, [number, number]>> = {
   [BuildingType.Dock]:         [2.0, 2.5],
   [BuildingType.WatchTower]:   [1.0, 1.0],
   [BuildingType.Wonder]:       [3.0, 3.0],
+  [BuildingType.Gate]:         [2.0, 0.5],
 };
 
 function stampBuilding(b: Building): void {
   const half = BUILDING_HALF[b.buildingType] ?? [1.5, 1.5];
+  // Gates are passable to their owner (team-masked cells); other buildings are solid.
+  if (b.buildingType === BuildingType.Gate) {
+    navGrid.stampGateWorld(b.pos.x, b.pos.z, half[0], half[1], b.teamId);
+    return;
+  }
   navGrid.stampWorldRect(b.pos.x, b.pos.z, half[0], half[1]);
+}
+
+function unstampBuilding(b: Building): void {
+  const half = BUILDING_HALF[b.buildingType] ?? [1.5, 1.5];
+  if (b.buildingType === BuildingType.Gate) {
+    navGrid.unstampGateWorld(b.pos.x, b.pos.z, half[0], half[1], b.teamId);
+    return;
+  }
+  navGrid.unstampWorldRect(b.pos.x, b.pos.z, half[0], half[1]);
 }
 
 // ── Game bootstrap ────────────────────────────────────────────────────────────
@@ -268,7 +283,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   const damagePopup = new DamagePopup(app);
   combat.onHit = (pos, dmg) => { damagePopup.show(pos, dmg); play(SoundId.UnitAttack); };
   combat.onUnitKilled = (u) => { u.startDeathAnim(); play(SoundId.UnitDie); };
-  combat.onBuildingDestroyed = () => { rig.shake(1.5, 0.4); play(SoundId.BuildingDie); };
+  combat.onBuildingDestroyed = (b) => { unstampBuilding(b); rig.shake(1.5, 0.4); play(SoundId.BuildingDie); };
   gather.onGatherTick = () => play(SoundId.GatherHit);
 
   // ── Audio hooks (cosmetic seam: sim → sound) ──────────────────────────────

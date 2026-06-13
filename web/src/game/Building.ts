@@ -42,6 +42,7 @@ export const DEFS: Record<BuildingType, BuildingDef> = {
   [BuildingType.SiegeWorkshop]:{ hp: 400,  display: "Siege Workshop",  isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 1, armorPierce: 3,  costWood: 200, costStone: 0,   costGold: 0 },
   [BuildingType.Dock]:         { hp: 350,  display: "Dock",            isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 1, armorPierce: 3,  costWood: 150, costStone: 0,   costGold: 0 },
   [BuildingType.WatchTower]:   { hp: 500,  display: "Watch Tower",     isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 5, armorPierce: 8,  costWood: 0,   costStone: 125, costGold: 0 },
+  [BuildingType.Gate]:         { hp: 700,  display: "Gate",            isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 8, armorPierce: 8,  costWood: 0,   costStone: 30,  costGold: 0 },
 };
 
 // Building mesh colors by type
@@ -74,6 +75,7 @@ const DIMS: Partial<Record<BuildingType, [number, number, number]>> = {
   [BuildingType.SiegeWorkshop]:[4, 2.5, 4],
   [BuildingType.Dock]:         [4, 2, 5],
   [BuildingType.WatchTower]:   [2, 4.5, 2],
+  [BuildingType.Gate]:         [4, 3, 1],
 };
 
 export const BUILDING_ARMORCLASS: ArmorClassFlags = ArmorClass.Building;

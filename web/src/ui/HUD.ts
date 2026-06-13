@@ -32,6 +32,7 @@ const BUILDING_MIN_AGE: Partial<Record<BuildingType, Age>> = {
   [BuildingType.SiegeWorkshop]:Age.Castle,
   [BuildingType.WatchTower]:   Age.Feudal,
   [BuildingType.Castle]:       Age.Castle,
+  [BuildingType.Gate]:         Age.Feudal,
 };
 
 /** Buildings the player can construct (ordered by tech progression). */
@@ -46,6 +47,7 @@ export const BUILDABLE: BuildingType[] = [
   BuildingType.Market,
   BuildingType.Blacksmith,
   BuildingType.WatchTower,
+  BuildingType.Gate,
   BuildingType.Monastery,
   BuildingType.University,
   BuildingType.SiegeWorkshop,

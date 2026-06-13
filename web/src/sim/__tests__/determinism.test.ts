@@ -8,6 +8,7 @@ import { CommandBus } from '../CommandBus';
 import { Checksum } from '../Checksum';
 import { DMath } from '../DMath';
 import { SimRng } from '../SimRng';
+import { navGrid } from '../NavGrid';
 import { allocId, resetIds } from '../EntityIds';
 import { UnitType, BuildingType } from '../../core/GameTypes';
 
@@ -162,6 +163,26 @@ describe('EntityIds', () => {
     resetIds();
     const b = allocId();
     expect(a).toBe(b);
+  });
+});
+
+// ── Gate: team-masked passability (WEB9.gate) ───────────────────────────────
+
+describe('NavGrid gate', () => {
+  it('is passable to the owner team but blocks enemies', () => {
+    navGrid.reset();
+    navGrid.stampGateWorld(0, 0, 2, 0.5, 0); // gate owned by team 0 at origin
+    expect(navGrid.isWalkableWorld(0, 0, 'land', 0)).toBe(true);  // owner passes
+    expect(navGrid.isWalkableWorld(0, 0, 'land', 1)).toBe(false); // enemy blocked
+    expect(navGrid.isWalkableWorld(0, 0, 'land', -1)).toBe(false); // neutral blocked
+  });
+
+  it('opens to everyone once unstamped (gate destroyed)', () => {
+    navGrid.reset();
+    navGrid.stampGateWorld(0, 0, 2, 0.5, 0);
+    navGrid.unstampGateWorld(0, 0, 2, 0.5, 0);
+    expect(navGrid.isWalkableWorld(0, 0, 'land', 0)).toBe(true);
+    expect(navGrid.isWalkableWorld(0, 0, 'land', 1)).toBe(true); // enemy can now pass
   });
 });
 

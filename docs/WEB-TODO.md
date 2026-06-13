@@ -101,7 +101,7 @@
 
 ### 9.3 Mekanikler
 - [x] `[WEB9.monk]` `src/game/ConversionSystem.ts` — faith 4-10s, `convertTo(team)` (teamId mutable + re-tint + state sıfır + pop ledger düzelt), 30s recharge, HUD faith bar
-- [ ] `[WEB9.gate]` `BuildingType.Gate` (1×4 duvar snap); NavGrid kapı hücresi takım-maskeli; dosta açılma animasyonu; duvar sürükle-çiz modu
+- [x] `[WEB9.gate]` `BuildingType.Gate` (4×1, hp 700, taş 30) + NavGrid takım-maskeli kapı hücresi (`stampGateWorld`/`unstampGateWorld` + GATE_FLAGS): owner geçer, düşman/nötr geçemez, yıkılınca herkese açık. BuildingPlacement + HUD build butonu (Feudal). 2 unit testi yeşil. _(duvar sürükle-çiz + ally-geçiş stretch)_
 - [x] `[WEB9.garrarrow]` WatchTower combat + garnizonla ok hasarı `×(1+0.4n)` cap 5
 
 ### 9.4 His
@@ -113,7 +113,7 @@
 - [x] A+tık ordu yol boyu savaşıp döner; StandGround takipsiz vurur
 - [x] Ballistics'siz koşan hedefe ıska (HIT_RADIUS=0.9 geometrik); havadaki mermi ölü hedefte boşa
 - [x] Monk dönüştürür (renk + pop ledger)
-- [ ] Gate dosta açık/düşmana kapalı; yıkılınca herkese açık
+- [x] Gate dosta açık/düşmana kapalı; yıkılınca herkese açık (NavGrid GATE_FLAGS + unit testleri)
 - [x] Garnizonlu TC oku ~3×; Ctrl+1/çift-1 çalışır
 - [x] Treb vuruşunda sarsıntı + splash; ölü anında kaybolmaz
 - [ ] BAL pin'leri (Militia düello ~15s) yeniden ölçüldü
