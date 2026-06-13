@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { ResourceKind } from "../core/GameTypes";
 import { allocId, type EntityId } from "../sim/EntityIds";
-import { navGrid } from "../sim/NavGrid";
+import { navGrid, type Domain } from "../sim/NavGrid";
 
 /** NavGrid block radius per kind (0 = walkable: food bush/farm let villagers stand on them). */
 function navRadiusFor(kind: ResourceKind): number {
@@ -33,6 +33,8 @@ export class ResourceNode {
   readonly id: EntityId = allocId();
   readonly root: THREE.Group;
   readonly kind: ResourceKind;
+  /** Harvest domain — 'land' (default) or 'water' (fish). Only same-domain units may gather. */
+  readonly domain: Domain;
   amount: number;
   readonly maxAmount: number;
   readonly gathererCap = 6;
@@ -51,8 +53,9 @@ export class ResourceNode {
   get depleted(): boolean { return this.amount <= 0; }
   get hasRoom(): boolean { return this.currentGatherers < this.gathererCap; }
 
-  constructor(scene: THREE.Scene, pos: THREE.Vector3, kind: ResourceKind, amount: number) {
+  constructor(scene: THREE.Scene, pos: THREE.Vector3, kind: ResourceKind, amount: number, domain: Domain = 'land') {
     this.kind = kind;
+    this.domain = domain;
     this.amount = amount;
     this.maxAmount = amount;
     this.destroyOnDeplete = true;

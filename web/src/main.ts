@@ -20,6 +20,7 @@ import {
 import { navGrid } from "./sim/NavGrid";
 import { PathQueue } from "./sim/PathQueue";
 import { MovementSystem } from "./sim/MovementSystem";
+import { DMath } from "./sim/DMath";
 import { initSimRng } from "./sim/SimRng";
 import { Civilization } from "./core/CivilizationDefs";
 import { setTeamCiv } from "./core/CivState";
@@ -291,6 +292,15 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     nodes.push(...spawnBaseResourcesForMap(scene, bx, bz, arch, rng));
   }
   nodes.push(...spawnContestedMines(scene, arch, rng));
+
+  // Fish nodes in the surrounding ocean (water domain) — harvested by FishingShips → Dock.
+  // Deterministic placement (DMath lookup) on a ring just past the land/water boundary (r≈92).
+  for (let i = 0; i < 10; i++) {
+    const ang = (i / 10) * Math.PI * 2;
+    const fx = DMath.cos(ang) * 92;
+    const fz = DMath.sin(ang) * 92;
+    nodes.push(new ResourceNode(scene, new THREE.Vector3(fx, 0, fz), ResourceKind.Food, 400, 'water'));
+  }
 
   // ── Systems ──────────────────────────────────────────────────────────────
   const gather      = new GatherSystem();

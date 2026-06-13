@@ -41,7 +41,7 @@ export const DEFS: Record<BuildingType, BuildingDef> = {
   [BuildingType.Monastery]:    { hp: 350,  display: "Monastery",       isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 1, armorPierce: 3,  costWood: 175, costStone: 0,   costGold: 0 },
   [BuildingType.University]:   { hp: 350,  display: "University",      isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 1, armorPierce: 3,  costWood: 200, costStone: 0,   costGold: 0 },
   [BuildingType.SiegeWorkshop]:{ hp: 400,  display: "Siege Workshop",  isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 1, armorPierce: 3,  costWood: 200, costStone: 0,   costGold: 0 },
-  [BuildingType.Dock]:         { hp: 350,  display: "Dock",            isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 1, armorPierce: 3,  costWood: 150, costStone: 0,   costGold: 0 },
+  [BuildingType.Dock]:         { hp: 350,  display: "Dock",            isDropoff: true,  dropoffMask: 0b0001, popProvided: 0,  armorMelee: 1, armorPierce: 3,  costWood: 150, costStone: 0,   costGold: 0 },
   [BuildingType.WatchTower]:   { hp: 500,  display: "Watch Tower",     isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 5, armorPierce: 8,  costWood: 0,   costStone: 125, costGold: 0 },
   [BuildingType.Gate]:         { hp: 700,  display: "Gate",            isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 8, armorPierce: 8,  costWood: 0,   costStone: 30,  costGold: 0 },
 };

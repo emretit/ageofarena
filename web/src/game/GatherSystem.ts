@@ -6,7 +6,7 @@ import * as THREE from "three";
 import { ResourceKind, UnitState } from "../core/GameTypes";
 import { ResourceManager } from "../core/ResourceManager";
 import { getTeamBonus } from "../core/CivState";
-import { navGrid } from "../sim/NavGrid";
+import { navGrid, type Domain } from "../sim/NavGrid";
 import type { Unit } from "./Unit";
 import type { ResourceNode } from "./ResourceNode";
 import type { Building } from "./Building";
@@ -42,7 +42,8 @@ export class GatherSystem {
   private readonly timers = new Map<Unit, number>();
 
   assignGather(v: Unit, node: ResourceNode, buildings: Building[] = []) {
-    if (!v.gathers || node.depleted || !node.hasRoom) return;
+    // Domain match: land gatherers harvest land nodes, fishing ships harvest fish (water).
+    if (!v.gathers || v.domain !== node.domain || node.depleted || !node.hasRoom) return;
 
     // Release previous node slot (covers both switch-node and same-node re-assign)
     if (v.gatherTarget) {
@@ -56,8 +57,7 @@ export class GatherSystem {
     this.timers.set(v, 0);
     v.dropoffBuilding = this._nearestDropoff(v, node.kind, buildings) ?? null;
 
-    const approachRange = gatherRangeFor(node.kind) * 0.7;
-    v.moveTo(this._approachPoint(node.root.position, v.pos, approachRange));
+    v.moveTo(this._approachPoint(node.root.position, v.domain));
     v.state = UnitState.Gathering;
   }
 
@@ -97,7 +97,7 @@ export class GatherSystem {
     if (dist > gatherRangeFor(node.kind)) {
       if (!v.isAtTarget()) return; // still walking
       // Arrived but still out of range — nudge closer
-      v.moveTo(this._approachPoint(node.root.position, v.pos, gatherRangeFor(node.kind) * 0.6));
+      v.moveTo(this._approachPoint(node.root.position, v.domain));
       return;
     }
 
@@ -165,7 +165,7 @@ export class GatherSystem {
 
     // Resume gathering
     if (!node.depleted) {
-      v.moveTo(this._approachPoint(node.root.position, v.pos, gatherRangeFor(node.kind) * 0.6));
+      v.moveTo(this._approachPoint(node.root.position, v.domain));
       v.state = UnitState.Gathering;
     } else {
       node.currentGatherers = Math.max(0, node.currentGatherers - 1);
@@ -189,10 +189,10 @@ export class GatherSystem {
     return nearest;
   }
 
-  private _approachPoint(nodePos: THREE.Vector3, _fromPos: THREE.Vector3, _range: number): THREE.Vector3 {
-    // Use NavGrid to find nearest walkable cell adjacent to the node.
-    // This avoids approach points landing inside trees or building footprints.
-    const [wx, wz] = navGrid.nearestFreeCellWorld(nodePos.x, nodePos.z);
+  private _approachPoint(nodePos: THREE.Vector3, domain: Domain = 'land'): THREE.Vector3 {
+    // Nearest walkable cell adjacent to the node, in the gatherer's domain — avoids approach
+    // points inside trees/building footprints (land) and keeps fishing ships on water.
+    const [wx, wz] = navGrid.nearestFreeCellWorld(nodePos.x, nodePos.z, domain);
     return new THREE.Vector3(wx, 0, wz);
   }
 
