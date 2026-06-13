@@ -76,7 +76,19 @@ export class AssetLoader {
     const def = BUILDING_MODELS[type];
     if (!def) return null;
     const src = this._buildingScene.get(def.file);
-    return src ? src.clone(true) : null;
+    if (!src) return null;
+    const cloned = src.clone(true);
+    // clone(true) deep-copies the node hierarchy but SHARES materials by reference. Clone
+    // them per-instance so a future building tint / HP-fade / highlight can't corrupt every
+    // building of the type (and the cached template). Geometry stays shared (cheap).
+    cloned.traverse(o => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.material) return;
+      mesh.material = Array.isArray(mesh.material)
+        ? mesh.material.map(m => m.clone())
+        : mesh.material.clone();
+    });
+    return cloned;
   }
 
   private async _tryLoad(url: string): Promise<THREE.Group | null> {

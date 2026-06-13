@@ -655,6 +655,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
           const u = units[i];
           if (!u.alive && !u.isDying) {
             scene.remove(u.root);
+            u.dispose(); // free per-instance cloned materials (geometry stays shared)
             units.splice(i, 1);
           }
         }

@@ -372,6 +372,21 @@ export class Unit {
   /** True while death animation plays (unit already dead but still visible). */
   get isDying(): boolean { return this._deathTimer > 0; }
 
+  /** Free per-instance GPU materials when the unit is pruned. Geometry is SHARED (baked
+   *  templates + module-level ring/HP/disc geometry) and must never be disposed here.
+   *  Module-shared materials (RING_MAT, BAR_BG_MAT) are skipped; everything else — cloned
+   *  baked materials, teamMat, ground disc, HP-bar foreground, procedural — is per-instance. */
+  dispose(): void {
+    this.root.traverse(o => {
+      const mat = (o as THREE.Mesh).material;
+      if (!mat) return;
+      const mats = Array.isArray(mat) ? mat : [mat];
+      for (const m of mats) {
+        if (m !== RING_MAT && m !== BAR_BG_MAT) m.dispose();
+      }
+    });
+  }
+
   tick(dt: number, camera?: THREE.Camera) {
     // Death animation: sink into ground + fade out
     if (this._deathTimer > 0) {
