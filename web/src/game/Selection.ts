@@ -11,9 +11,19 @@ import type { Unit } from "./Unit";
 import type { Building } from "./Building";
 import type { ResourceNode } from "./ResourceNode";
 import type { PathQueue } from "../sim/PathQueue";
-import { orderMove, orderAttackUnit, orderAttackBuilding, orderGather, orderAttackMove, orderPatrol } from "./Orders";
+import { orderMove, orderAttackUnit, orderAttackBuilding, orderGather, orderAttackMove, orderPatrol, FormationType } from "./Orders";
 import type { CommandIssuer } from "../sim/CommandBus";
 import { qEncode } from "../sim/Command";
+
+const FORMATION_CYCLE: FormationType[] = [
+  FormationType.Grid, FormationType.Line, FormationType.Staggered, FormationType.Wedge,
+];
+export const FORMATION_NAMES: Record<FormationType, string> = {
+  [FormationType.Grid]: "Izgara",
+  [FormationType.Line]: "Hat",
+  [FormationType.Staggered]: "Kademeli",
+  [FormationType.Wedge]: "Kama",
+};
 
 const DRAG_THRESHOLD = 6; // pixels before drag-box activates
 
@@ -26,9 +36,20 @@ export class Selection {
   attackMovePending = false;
   /** When true, next click issues a patrol order. */
   patrolPending = false;
+  /** Active formation for group move/attack-move orders (cycled with F). */
+  formationType: FormationType = FormationType.Grid;
 
   onSelectUnit: ((u: Unit | null) => void) | null = null;
   onSelectBuilding: ((b: Building | null) => void) | null = null;
+  onFormationChange: ((type: FormationType) => void) | null = null;
+
+  /** Advance to the next formation in the cycle (F key). */
+  cycleFormation(): FormationType {
+    const idx = FORMATION_CYCLE.indexOf(this.formationType);
+    this.formationType = FORMATION_CYCLE[(idx + 1) % FORMATION_CYCLE.length];
+    this.onFormationChange?.(this.formationType);
+    return this.formationType;
+  }
 
   // ── Drag-box state ────────────────────────────────────────────────────────
   private dragStart: { x: number; y: number } | null = null;
@@ -158,9 +179,9 @@ export class Selection {
         const hit = this.ray.intersectObject(ground, false)[0];
         if (hit) {
           if (this.bus) {
-            this.bus.issue({ kind: 'attackMove', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z) });
+            this.bus.issue({ kind: 'attackMove', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), formation: this.formationType });
           } else if (this.pathQueue) {
-            orderAttackMove(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+            orderAttackMove(this.selected, hit.point.x, hit.point.z, this.pathQueue, this.formationType);
           }
         }
       }
@@ -228,9 +249,9 @@ export class Selection {
         const hit = this.ray.intersectObject(ground, false)[0];
         if (hit) {
           if (this.bus) {
-            this.bus.issue({ kind: 'attackMove', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z) });
+            this.bus.issue({ kind: 'attackMove', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), formation: this.formationType });
           } else if (this.pathQueue) {
-            orderAttackMove(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+            orderAttackMove(this.selected, hit.point.x, hit.point.z, this.pathQueue, this.formationType);
           }
           return;
         }
@@ -341,7 +362,7 @@ export class Selection {
       } else {
         // Normal right-click: clear queue and move
         for (const u of this.selected) u.pendingGoals = [];
-        this.bus.issue({ kind: 'move', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), queued: false });
+        this.bus.issue({ kind: 'move', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), queued: false, formation: this.formationType });
       }
     } else if (this.pathQueue) {
       if (this._shiftHeld) {
@@ -355,7 +376,7 @@ export class Selection {
         }
       } else {
         for (const u of this.selected) u.pendingGoals = [];
-        orderMove(this.selected, hit.point.x, hit.point.z, this.pathQueue);
+        orderMove(this.selected, hit.point.x, hit.point.z, this.pathQueue, this.formationType);
       }
     } else {
       this.selected.forEach((u, i) => {

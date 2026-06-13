@@ -83,10 +83,18 @@ export class HUD {
   private readonly infoPanel: HTMLElement;
   private readonly counters: Record<ResourceKind, HTMLElement>;
   private readonly popCell: HTMLElement;
+  private _formationBadge!: HTMLDivElement;
   private _bus?: CommandIssuer;
 
   /** Provide a CommandIssuer (CommandBus or LockstepClient) after construction. */
   setBus(bus: CommandIssuer): void { this._bus = bus; }
+
+  /** Update the formation badge text. Pass null to hide it. */
+  setFormation(name: string | null): void {
+    if (!name) { this._formationBadge.style.display = "none"; return; }
+    this._formationBadge.textContent = `Formasyon: ${name}  [F]`;
+    this._formationBadge.style.display = "block";
+  }
 
   constructor(container: HTMLElement, rm: ResourceManager) {
     this.root = document.createElement("div");
@@ -105,6 +113,16 @@ export class HUD {
     });
     versionBadge.textContent = `v${versionString()}`;
     this.root.appendChild(versionBadge);
+
+    // ── Formation badge (bottom-center, shown while units selected) ─────────
+    this._formationBadge = document.createElement("div");
+    Object.assign(this._formationBadge.style, {
+      position: "absolute", bottom: "6px", left: "50%", transform: "translateX(-50%)",
+      color: "rgba(255,255,255,0.7)", fontSize: "11px", pointerEvents: "none",
+      background: "rgba(0,0,0,0.35)", padding: "2px 8px", borderRadius: "3px",
+      display: "none",
+    });
+    this.root.appendChild(this._formationBadge);
 
     // ── Resource bar ────────────────────────────────────────────────────────
     this.resBar = document.createElement("div");

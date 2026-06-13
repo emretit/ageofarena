@@ -33,7 +33,7 @@ import { TradingSystem } from "./game/TradingSystem";
 import { EnemyAI, Difficulty, Personality } from "./game/EnemyAI";
 import { diplomacy, resetDiplomacy } from "./core/Diplomacy";
 import { VictorySystem } from "./game/VictorySystem";
-import { Selection } from "./game/Selection";
+import { Selection, FORMATION_NAMES } from "./game/Selection";
 import { HUD } from "./ui/HUD";
 import { Minimap } from "./ui/Minimap";
 import { DamagePopup } from "./ui/DamagePopup";
@@ -317,10 +317,14 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   selection.onSelectUnit = (u) => {
     if (u) hud.showUnit(u, teamRes[0], onBuild);
     else if (!selection.selectedBuilding) hud.clearInfo();
+    hud.setFormation(selection.selected.length > 0 ? FORMATION_NAMES[selection.formationType] : null);
   };
   selection.onSelectBuilding = (b) => {
     if (b) hud.showBuilding(b, training, teamRes[0], ageSystem, research, market, garrison);
     else hud.clearInfo();
+  };
+  selection.onFormationChange = (type) => {
+    if (selection.selected.length > 0) hud.setFormation(FORMATION_NAMES[type]);
   };
 
   // Auto-assign player villagers to different resources at start (gold, wood, food)
@@ -370,6 +374,11 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
         u.attackTargetBuilding = null;
         u.stopMoving();
       }
+    }
+
+    // Cycle formation (F key)
+    if (key === "f" && selection.selected.length > 0) {
+      selection.cycleFormation();
     }
 
     if (key === "g" && selection.selectedBuilding) {
@@ -572,6 +581,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     if (selection.selected.length > 1) hud.showMultiUnit(selection.selected);
     else if (selection.selected.length === 1) hud.showUnit(selection.selected[0], teamRes[0], onBuild);
     else if (selection.selectedBuilding) hud.showBuilding(selection.selectedBuilding, training, teamRes[0], ageSystem, research, market, garrison);
+    hud.setFormation(selection.selected.length > 0 ? FORMATION_NAMES[selection.formationType] : null);
 
     // Combat intensity for audio ducking (fraction of player units actively attacking)
     const playerUnits = units.filter(u => u.teamId === 0 && u.alive);

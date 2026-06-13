@@ -25,7 +25,7 @@
 - [x] `MapGenerator.buildForest()` imzasını değiştir: görseli kurmaya devam ama `TreeInstance[] {x,z,scale}` DÖNDÜR (Faz 11 de tüketecek)
 - [x] `main.ts` başlangıçta: tüm ağaçları + başlangıç kaynaklarını + başlangıç binalarını NavGrid'e stamp et; `r>LandRadius` hücrelerini WATER işaretle
 - [x] Bina yerleştirme/yıkımı NavGrid stamp/unstamp'a bağla (onPlace / onBuildingDestroyed)
-- [ ] ResourceNode tükenince unstamp
+- [x] ResourceNode tükenince unstamp (gold/stone/wood NavGrid'e stamp; remove'da unstamp; navGrid.reset() rematch'te)
 
 ### 8.3 A* yol bulucu `[WEB8.astar]`
 - [x] `src/sim/Pathfinder.ts`: binary-heap (typed-array `MinHeap`), octile heuristic (10/14), köşe-kesme yasağı
@@ -62,7 +62,7 @@
 - [x] `src/sim/Formation.ts`: `FormationOffsets(n,type)` — Grid/Line/Staggered/Wedge (spacing 1.5)
 - [x] Grup emrinde merkez path TEK hesaplanır, birimler offset hedefe yürür
 - [x] `Selection`'daki eski ad-hoc 3-kolon grid'i sil
-- [ ] F tuşu formasyon döngüsü + HUD rozeti
+- [x] F tuşu formasyon döngüsü (Grid→Line→Staggered→Wedge) + HUD rozeti; move/attackMove komutuna `formation` alanı eklendi (CommandExecutor uyguluyor)
 
 ### 8.9 Sistem entegrasyonları
 - [x] `[WEB8.gather]` GatherSystem approach noktaları → `nearestFreeCell`; node/dropoff'a path; dolu node'da komşu hücrede bekle

@@ -20,10 +20,10 @@ interface BaseCmd {
   ai:     boolean;  // true = EnemyAI command (not sent over network)
 }
 
-export interface MoveCmd extends BaseCmd        { kind: 'move';          unitIds: EntityId[]; qx: number; qz: number; queued: boolean; }
+export interface MoveCmd extends BaseCmd        { kind: 'move';          unitIds: EntityId[]; qx: number; qz: number; queued: boolean; formation?: number; }
 export interface AttackCmd extends BaseCmd       { kind: 'attack';        unitIds: EntityId[]; targetId: EntityId; }
 export interface AttackBuildingCmd extends BaseCmd{ kind: 'attackBuilding'; unitIds: EntityId[]; targetId: EntityId; }
-export interface AttackMoveCmd extends BaseCmd  { kind: 'attackMove';    unitIds: EntityId[]; qx: number; qz: number; }
+export interface AttackMoveCmd extends BaseCmd  { kind: 'attackMove';    unitIds: EntityId[]; qx: number; qz: number; formation?: number; }
 export interface PatrolCmd extends BaseCmd      { kind: 'patrol';        unitIds: EntityId[]; qx: number; qz: number; }
 export interface StopCmd extends BaseCmd        { kind: 'stop';          unitIds: EntityId[]; }
 export interface GatherCmd extends BaseCmd      { kind: 'gather';        unitIds: EntityId[]; nodeId: EntityId; }

@@ -52,14 +52,14 @@ export class CommandExecutor {
           const x = qDecode(cmd.qx), z = qDecode(cmd.qz);
           for (const u of units) u.pendingGoals.push([x, z]);
         } else {
-          orderMove(units, qDecode(cmd.qx), qDecode(cmd.qz), this.pathQueue);
+          orderMove(units, qDecode(cmd.qx), qDecode(cmd.qz), this.pathQueue, cmd.formation);
         }
         break;
       }
       case 'attackMove': {
         const units = this._resolveUnits(cmd.unitIds);
         if (units.length === 0) return;
-        orderAttackMove(units, qDecode(cmd.qx), qDecode(cmd.qz), this.pathQueue);
+        orderAttackMove(units, qDecode(cmd.qx), qDecode(cmd.qz), this.pathQueue, cmd.formation);
         break;
       }
       case 'patrol': {
