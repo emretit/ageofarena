@@ -380,6 +380,7 @@ export class EnemyAI {
     let bestDist = Infinity;
     for (const n of nodes) {
       if (n.depleted || !n.hasRoom) continue;
+      if (n.domain !== v.domain) continue; // land villagers skip water fish nodes (and vice versa)
       const d = v.pos.distanceTo(n.root.position);
       if (d < bestDist) { bestDist = d; best = n; }
     }

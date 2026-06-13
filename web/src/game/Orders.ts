@@ -128,6 +128,7 @@ export function orderGather(
 ): void {
   for (const u of units) {
     if (!u.alive || !u.gathers || u.isGarrisoned) continue;
+    if (u.domain !== node.domain) continue; // can't gather across domains (land villager ↔ water fish)
     u.waypoints = []; u.waypointIdx = 0;
     gather.assignGather(u, node, buildings);
     // Queue path to node — overrides direct moveTo from assignGather

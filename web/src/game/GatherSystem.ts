@@ -3,7 +3,7 @@
  * walk to node → harvest at interval → carry back to dropoff → deposit → repeat.
  */
 import * as THREE from "three";
-import { ResourceKind, UnitState } from "../core/GameTypes";
+import { BuildingType, ResourceKind, UnitState } from "../core/GameTypes";
 import { ResourceManager } from "../core/ResourceManager";
 import { getTeamBonus } from "../core/CivState";
 import { navGrid, type Domain } from "../sim/NavGrid";
@@ -183,6 +183,9 @@ export class GatherSystem {
       if (b.teamId !== v.teamId) continue;
       if (!b.def.isDropoff) continue;
       if (!(b.def.dropoffMask & bit)) continue;
+      // The Dock is a naval drop-off: water units (fishing ships) deposit there; land
+      // gatherers use land drop-offs (TC/Mill/camps) so neither walks an unreachable route.
+      if ((b.buildingType === BuildingType.Dock) !== (v.domain === 'water')) continue;
       const d = v.pos.distanceTo(b.pos);
       if (d < best) { best = d; nearest = b; }
     }
