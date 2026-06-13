@@ -25,6 +25,10 @@ const BAR_BG_GEO  = new THREE.PlaneGeometry(1.0, 0.12);
 const BAR_FG_GEO  = new THREE.PlaneGeometry(1.0, 0.12);
 const BAR_BG_MAT  = new THREE.MeshBasicMaterial({ color: 0x330000 });
 
+// Module-shared materials — fading or disposing these per-unit would corrupt every other
+// unit's selection ring / HP-bar background. Single source for both the fade and dispose skips.
+const SHARED_MATS: ReadonlySet<THREE.Material> = new Set<THREE.Material>([RING_MAT, BAR_BG_MAT]);
+
 export class Unit {
   readonly id: EntityId = allocId();
   readonly root: THREE.Group;
@@ -382,7 +386,7 @@ export class Unit {
       if (!mat) return;
       const mats = Array.isArray(mat) ? mat : [mat];
       for (const m of mats) {
-        if (m !== RING_MAT && m !== BAR_BG_MAT) m.dispose();
+        if (!SHARED_MATS.has(m)) m.dispose();
       }
     });
   }
@@ -398,7 +402,7 @@ export class Unit {
           const mat = o.material as THREE.Material;
           // Skip module-shared materials — fading them would corrupt every other unit's
           // selection ring / HP-bar background permanently.
-          if (mat === RING_MAT || mat === BAR_BG_MAT || mat === this._teamDiscMat || mat === this.hpFgMat) return;
+          if (SHARED_MATS.has(mat) || mat === this._teamDiscMat || mat === this.hpFgMat) return;
           const m = mat as THREE.MeshStandardMaterial;
           if (!m.transparent) m.transparent = true;
           m.opacity = 1 - t;
