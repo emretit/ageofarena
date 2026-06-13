@@ -7,6 +7,7 @@ import { ArmorClass, ArmorClassFlags, BuildingType } from "../core/GameTypes";
 import { TeamColors } from "../core/Config";
 import { getTeamBonus } from "../core/CivState";
 import { allocId, type EntityId } from "../sim/EntityIds";
+import { assetLoader } from "../render/AssetLoader";
 
 export interface BuildingDef {
   hp: number;
@@ -76,6 +77,14 @@ const DIMS: Partial<Record<BuildingType, [number, number, number]>> = {
   [BuildingType.Dock]:         [4, 2, 5],
   [BuildingType.WatchTower]:   [2, 4.5, 2],
   [BuildingType.Gate]:         [4, 3, 1],
+  // Large/landmark buildings — footprints match BUILDING_HALF (main.ts) so the baked
+  // model fills its collision area instead of defaulting to the small 3×3 fallback.
+  [BuildingType.Castle]:       [6, 5, 6],
+  [BuildingType.Wonder]:       [6, 7, 6],
+  [BuildingType.Monastery]:    [4, 3.5, 4],
+  [BuildingType.Mill]:         [3, 2.5, 3],
+  [BuildingType.Farm]:         [3, 1.5, 3],
+  [BuildingType.Blacksmith]:   [3, 2.5, 3],
 };
 
 export const BUILDING_ARMORCLASS: ArmorClassFlags = ArmorClass.Building;
@@ -84,6 +93,8 @@ export const BUILDING_ARMORCLASS: ArmorClassFlags = ArmorClass.Building;
 const HP_BG_GEO  = new THREE.PlaneGeometry(1.2, 0.13);
 const HP_FG_GEO  = new THREE.PlaneGeometry(1.2, 0.13);
 const HP_BG_MAT  = new THREE.MeshBasicMaterial({ color: 0x220000 });
+// Shared flag-pole material for the team banner added to baked building models.
+const POLE_MAT   = new THREE.MeshLambertMaterial({ color: 0x5a3a1a });
 
 export class Building {
   readonly id: EntityId = allocId();
@@ -118,51 +129,12 @@ export class Building {
     this.root.userData.building = this;
 
     const [w, h, d] = DIMS[type] ?? [3, 2.5, 3];
-    const bodyColor = BODY_COLORS[type] ?? 0xc8a86e;
     const teamColor = new THREE.Color(TeamColors[teamId % TeamColors.length]);
 
-    // Main building body
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, d),
-      new THREE.MeshLambertMaterial({ color: bodyColor }),
-    );
-    body.position.y = h / 2;
-    body.castShadow = true;
-    body.receiveShadow = true;
+    // Prefer the baked CC0 model; fall back to procedural box geometry.
+    const model = assetLoader.getBuilding(type);
+    const topY = model ? this._buildFromModel(model, w, teamColor) : this._buildProcedural(type, w, h, d, teamColor);
 
-    // Team-colored banner/roof trim
-    const roof = new THREE.Mesh(
-      new THREE.BoxGeometry(w + 0.2, 0.3, d + 0.2),
-      new THREE.MeshLambertMaterial({ color: teamColor }),
-    );
-    roof.position.y = h + 0.15;
-
-    // TC gets a larger flag pole
-    if (type === BuildingType.TownCenter) {
-      const pole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.08, 0.08, 4, 6),
-        new THREE.MeshLambertMaterial({ color: 0x5a3a1a }),
-      );
-      pole.position.set(w / 2 - 0.3, h + 2.15, d / 2 - 0.3);
-      const flag = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.2, 0.7),
-        new THREE.MeshLambertMaterial({ color: teamColor, side: THREE.DoubleSide }),
-      );
-      flag.position.set(w / 2 - 0.3 + 0.6, h + 3.9, d / 2 - 0.3);
-      this.root.add(pole, flag);
-    }
-
-    // WatchTower gets a narrow tower shape
-    if (type === BuildingType.WatchTower) {
-      const parapet = new THREE.Mesh(
-        new THREE.BoxGeometry(w + 0.4, 0.5, d + 0.4),
-        new THREE.MeshLambertMaterial({ color: 0x999988 }),
-      );
-      parapet.position.y = h + 0.25;
-      this.root.add(parapet);
-    }
-
-    this.root.add(body, roof);
     scene.add(this.root);
 
     // HP bar (world-space billboard, updated each frame via refreshHpBarCamera)
@@ -173,9 +145,81 @@ export class Building {
     barBg.add(this._hpFg);
     this._hpBarGroup = new THREE.Group();
     this._hpBarGroup.add(barBg);
-    this._hpBarGroup.position.y = h + 0.8;
+    this._hpBarGroup.position.y = topY + 0.8;
     this._hpBarGroup.renderOrder = 1;
     this.root.add(this._hpBarGroup);
+  }
+
+  /** Normalise a baked model to the footprint width, ground it, add a team banner.
+   *  Returns the building's top Y (for HP-bar placement). */
+  private _buildFromModel(model: THREE.Group, targetW: number, teamColor: THREE.Color): number {
+    model.updateMatrixWorld(true);
+    const bbox = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3(); bbox.getSize(size);
+    const footprint = Math.max(size.x, size.z) || 1;
+    const scale = targetW / footprint;
+    model.scale.setScalar(scale);
+    model.position.set(
+      -((bbox.min.x + bbox.max.x) / 2) * scale,
+      -bbox.min.y * scale,
+      -((bbox.min.z + bbox.max.z) / 2) * scale,
+    );
+    this.root.add(model);
+
+    const topY = size.y * scale;
+    // Team-colour banner on a pole — player-colour readout for un-tinted models.
+    const poleH = Math.max(1.5, topY * 0.6);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, poleH, 6), POLE_MAT);
+    pole.position.set(targetW * 0.42, topY + poleH / 2, targetW * 0.42);
+    const flag = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.1, 0.65),
+      new THREE.MeshLambertMaterial({ color: teamColor, side: THREE.DoubleSide }),
+    );
+    flag.position.set(targetW * 0.42 + 0.55, topY + poleH - 0.4, targetW * 0.42);
+    this.root.add(pole, flag);
+    return topY;
+  }
+
+  /** Procedural box building (fallback when no model is available). Returns top Y. */
+  private _buildProcedural(type: BuildingType, w: number, h: number, d: number, teamColor: THREE.Color): number {
+    const bodyColor = BODY_COLORS[type] ?? 0xc8a86e;
+
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, d),
+      new THREE.MeshLambertMaterial({ color: bodyColor }),
+    );
+    body.position.y = h / 2;
+    body.castShadow = true;
+    body.receiveShadow = true;
+
+    const roof = new THREE.Mesh(
+      new THREE.BoxGeometry(w + 0.2, 0.3, d + 0.2),
+      new THREE.MeshLambertMaterial({ color: teamColor }),
+    );
+    roof.position.y = h + 0.15;
+
+    if (type === BuildingType.TownCenter) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4, 6), POLE_MAT);
+      pole.position.set(w / 2 - 0.3, h + 2.15, d / 2 - 0.3);
+      const flag = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.2, 0.7),
+        new THREE.MeshLambertMaterial({ color: teamColor, side: THREE.DoubleSide }),
+      );
+      flag.position.set(w / 2 - 0.3 + 0.6, h + 3.9, d / 2 - 0.3);
+      this.root.add(pole, flag);
+    }
+
+    if (type === BuildingType.WatchTower) {
+      const parapet = new THREE.Mesh(
+        new THREE.BoxGeometry(w + 0.4, 0.5, d + 0.4),
+        new THREE.MeshLambertMaterial({ color: 0x999988 }),
+      );
+      parapet.position.y = h + 0.25;
+      this.root.add(parapet);
+    }
+
+    this.root.add(body, roof);
+    return h;
   }
 
   takeDamage(dmg: number) {

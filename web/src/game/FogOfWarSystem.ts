@@ -30,24 +30,24 @@ const VISIBLE    = 2;
 
 function unitSight(t: UnitType): number {
   switch (t) {
-    case UnitType.Scout:     return 13;
-    case UnitType.Cavalry:   return 9;
-    case UnitType.Archer:    return 8;
-    case UnitType.Militia:   return 7;
-    case UnitType.Villager:  return 5;
-    case UnitType.Trebuchet: return 4;
-    default:                 return 5;
+    case UnitType.Scout:     return 16;
+    case UnitType.Cavalry:   return 10;
+    case UnitType.Archer:    return 9;
+    case UnitType.Militia:   return 8;
+    case UnitType.Villager:  return 6;
+    case UnitType.Trebuchet: return 5;
+    default:                 return 6;
   }
 }
 
 function buildingSight(t: BuildingType): number {
   switch (t) {
-    case BuildingType.TownCenter:   return 10;
-    case BuildingType.Castle:       return 8;
+    case BuildingType.TownCenter:   return 14;
+    case BuildingType.Castle:       return 10;
     case BuildingType.Barracks:
     case BuildingType.ArcheryRange:
-    case BuildingType.Stable:       return 7;
-    default:                        return 5;
+    case BuildingType.Stable:       return 8;
+    default:                        return 6;
   }
 }
 
@@ -174,12 +174,12 @@ export class FogOfWarSystem {
           d[off]     = 0;
           d[off + 1] = 0;
           d[off + 2] = 0;
-          d[off + 3] = 160; // semi-transparent dim
+          d[off + 3] = 110; // explored-but-not-visible: dark grey
         } else {
           d[off]     = 0;
           d[off + 1] = 0;
           d[off + 2] = 0;
-          d[off + 3] = 255; // fully black
+          d[off + 3] = 205; // unexplored: near-black, faint terrain silhouette visible
         }
       }
     }

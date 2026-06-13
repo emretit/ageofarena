@@ -66,6 +66,8 @@ import { DesyncHandler } from "./net/DesyncHandler";
 import { RoomScreen, type MPGameConfig } from "./ui/RoomScreen";
 import { NetStatus } from "./ui/NetStatus";
 import { initTelemetry } from "./net/Telemetry";
+import { assetLoader } from "./render/AssetLoader";
+import { LoadingScreen } from "./ui/LoadingScreen";
 
 /** Multiplayer wiring passed to startGame; absent for single-player. */
 interface NetConfig {
@@ -108,9 +110,19 @@ document.addEventListener("visibilitychange", () => {
 // Dev helper: window.__setPaused(false) to force-resume in embedded preview
 (window as unknown as Record<string, unknown>).__setPaused = (v: boolean) => { _focusPaused = v; };
 
+// ── Asset preload — bake CC0 models before any Unit is constructed ───────────
+// A blocking overlay covers the pre-game screen until every manifest model is baked,
+// so Unit() always finds its baked template (else it silently uses procedural geometry).
+const loadingScreen = new LoadingScreen(app);
+void assetLoader
+  .preload((loaded, total) => loadingScreen.setProgress(loaded, total))
+  .then(() => loadingScreen.done())
+  .catch(() => loadingScreen.done()); // graceful: missing models fall back to procedural
+
 // ── Pre-game screen ───────────────────────────────────────────────────────────
 const preScreen = new PreGameScreen(app);
 preScreen.onStart = (playerCiv: Civilization, opponents: OpponentConfig[], mapType: MapType) => {
+  if (!assetLoader.isLoaded) return; // guard: never spawn units before models are baked
   setTeamCiv(0, playerCiv);
   opponents.forEach((op, i) => setTeamCiv(i + 1, op.civ));
   const simSeed = 1453;
@@ -127,6 +139,7 @@ preScreen.onStart = (playerCiv: Civilization, opponents: OpponentConfig[], mapTy
 const roomScreen = new RoomScreen(app);
 preScreen.onOnline = () => roomScreen.show();
 roomScreen.onGameStart = (cfg: MPGameConfig) => {
+  if (!assetLoader.isLoaded) return; // guard: never spawn units before models are baked
   // MP MVP: every team starts on the default civ (lobby civ-select is a follow-up).
   const otherCount = cfg.players.filter(p => p.team !== 0).length;
   const opponents: OpponentConfig[] = Array.from({ length: otherCount }, () => ({
@@ -330,9 +343,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
   // ── Conversion callbacks ──────────────────────────────────────────────────
   conversion.onConverted = (u, newTeam) => {
-    if (u.teamMat) {
-      u.teamMat.color.setHex(TeamColors[newTeam % TeamColors.length]);
-    }
+    u.setTeamColor(TeamColors[newTeam % TeamColors.length]); // re-colours model tint + ground disc
     play(SoundId.Conversion);
   };
 

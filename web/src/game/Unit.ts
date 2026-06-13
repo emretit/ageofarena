@@ -9,12 +9,16 @@ import { ArmorClassFlags } from "../core/GameTypes";
 import { getUnitRow } from "../core/UnitRegistry";
 import { getTeamBonus } from "../core/CivState";
 import { allocId, type EntityId } from "../sim/EntityIds";
+import { assetLoader } from "../render/AssetLoader";
+import type { BakedModel } from "../render/ModelBake";
 import type { ResourceNode } from "./ResourceNode";
 import type { Building } from "./Building";
 
 // Shared selection ring geometry — one allocation for all units.
 const RING_GEO = new THREE.RingGeometry(0.5, 0.65, 24);
 const RING_MAT = new THREE.MeshBasicMaterial({ color: 0x6aff6a, side: THREE.DoubleSide });
+// Shared team-colour ground disc (AoE2-style player-colour readout under baked models).
+const TEAM_DISC_GEO = new THREE.CircleGeometry(0.55, 20);
 
 // HP bar planes (shared geometry, per-instance material)
 const BAR_BG_GEO  = new THREE.PlaneGeometry(1.0, 0.12);
@@ -92,8 +96,11 @@ export class Unit {
   garrisonTarget: Building | null = null;
   isGarrisoned = false;
 
-  // Team-colored material reference — updated by ConversionSystem on team change
-  teamMat: THREE.MeshLambertMaterial | null = null;
+  // Team-colored material reference — updated by ConversionSystem on team change.
+  // Null for un-tinted baked models (e.g. horses) so conversion won't repaint the body.
+  teamMat: THREE.MeshLambertMaterial | THREE.MeshStandardMaterial | null = null;
+  // Team-colour ground disc material (baked units) — re-coloured on conversion.
+  private _teamDiscMat: THREE.MeshBasicMaterial | null = null;
 
   // HP bar
   private readonly hpFgMat: THREE.MeshBasicMaterial;
@@ -133,8 +140,11 @@ export class Unit {
 
     const team = new THREE.Color(TeamColors[teamId % TeamColors.length]);
 
-    // Visual body differs by unit type
-    if (type === UnitType.Cavalry || type === UnitType.Scout) {
+    // Prefer baked CC0 model (KayKit/Quaternius); fall back to procedural primitives.
+    const baked = assetLoader.getBakedUnit(type);
+    if (baked) {
+      this._buildFromBaked(baked, team, type);
+    } else if (type === UnitType.Cavalry || type === UnitType.Scout) {
       this._buildMounted(team);
     } else if (type === UnitType.TradeCart) {
       this._buildCart(team);
@@ -168,6 +178,45 @@ export class Unit {
 
   private _hpBarHeight(t: UnitType): number {
     return t === UnitType.Cavalry || t === UnitType.Scout ? 2.4 : 1.6;
+  }
+
+  /** Clone a baked CC0 model into this unit's root, tinted toward the team colour. */
+  private _buildFromBaked(baked: BakedModel, team: THREE.Color, type: UnitType) {
+    const def = assetLoader.getUnitDef(type)!;
+    const tintStrength = def.tint ?? 0.4;
+
+    const group = new THREE.Group();
+    group.scale.setScalar(def.scale);
+    group.rotation.y = def.yawOffset;
+    // Clone the material per unit (so team tint + death-fade are per-instance and never
+    // mutate the shared baked template). teamMat is only set when the model is tinted —
+    // un-tinted models (animals, tint:0) keep teamMat null so conversion won't repaint them.
+    let firstMat: THREE.MeshStandardMaterial | null = null;
+    for (const g of baked.groups) {
+      const mat = g.material.clone() as THREE.MeshStandardMaterial;
+      if (tintStrength > 0 && mat.color) {
+        mat.color.lerp(team, tintStrength);
+        if (!firstMat) firstMat = mat;
+      }
+      const mesh = new THREE.Mesh(g.geometry, mat); // geometry shared across units
+      mesh.castShadow = true;
+      group.add(mesh);
+    }
+    this.teamMat = firstMat;
+    this.root.add(group);
+
+    // Always-on team-colour ground disc (player-colour readout for textured models).
+    this._teamDiscMat = new THREE.MeshBasicMaterial({ color: team, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+    const disc = new THREE.Mesh(TEAM_DISC_GEO, this._teamDiscMat);
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.y = 0.02;
+    this.root.add(disc);
+  }
+
+  /** Re-colour team indicators after a conversion (ConversionSystem). Safe for all unit types. */
+  setTeamColor(hex: number): void {
+    this.teamMat?.color.setHex(hex);
+    this._teamDiscMat?.color.setHex(hex);
   }
 
   private _buildHumanoid(team: THREE.Color, type: UnitType) {
@@ -331,9 +380,13 @@ export class Unit {
       this.root.position.y = -t * 1.2;
       this.root.traverse(o => {
         if (o instanceof THREE.Mesh) {
-          const mat = o.material as THREE.MeshLambertMaterial;
-          if (!mat.transparent) { mat.transparent = true; }
-          mat.opacity = 1 - t;
+          const mat = o.material as THREE.Material;
+          // Skip module-shared materials — fading them would corrupt every other unit's
+          // selection ring / HP-bar background permanently.
+          if (mat === RING_MAT || mat === BAR_BG_MAT || mat === this._teamDiscMat || mat === this.hpFgMat) return;
+          const m = mat as THREE.MeshStandardMaterial;
+          if (!m.transparent) m.transparent = true;
+          m.opacity = 1 - t;
         }
       });
       if (this._deathTimer <= 0) this.root.visible = false;

@@ -1,97 +1,90 @@
 /**
- * AssetLoader.ts — GLTF model cache with progress callbacks + graceful fallback.
- * If a model file is missing (404), returns null → caller uses procedural geometry.
+ * AssetLoader.ts — Loads the CC0 glTF/GLB models from the manifest, bakes each unique
+ * file once into a static merged-geometry template (see ModelBake), and exposes per-type
+ * lookups. Missing files resolve to null → caller uses procedural geometry (graceful).
  *
  * Usage:
- *   const loader = new AssetLoader();
- *   await loader.preload(onProgress);
- *   const gltf = loader.getUnit(UnitType.Militia); // null if not found
+ *   await assetLoader.preload(onProgress);
+ *   const baked = assetLoader.getBakedUnit(UnitType.Militia); // null if not found
+ *   const def   = assetLoader.getUnitDef(UnitType.Militia);
  */
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { UnitType, BuildingType } from "../core/GameTypes";
-import { UNIT_MODELS, BUILDING_MODELS } from "./AssetManifest";
+import { UNIT_MODELS, BUILDING_MODELS, type UnitModelDef, type BuildingModelDef } from "./AssetManifest";
+import { bakeModel, type BakedModel } from "./ModelBake";
 
 const UNIT_BASE     = "/assets/models/units/";
 const BUILDING_BASE = "/assets/models/buildings/";
 
-type GltfScene = THREE.Group;
-
 export class AssetLoader {
   private readonly _gltf = new GLTFLoader();
-  private readonly _units     = new Map<UnitType, GltfScene | null>();
-  private readonly _buildings = new Map<BuildingType, GltfScene | null>();
+  /** Baked templates keyed by file name (deduped — several types share one file). */
+  private readonly _unitBaked     = new Map<string, BakedModel | null>();
+  private readonly _buildingScene = new Map<string, THREE.Group | null>();
   private _loaded = false;
 
-  /**
-   * Attempt to load all models in the manifest.
-   * Missing files silently resolve to null (no throw).
-   * onProgress called with (loaded, total).
-   */
+  /** Load + bake all unique files in the manifest. Missing files → null (no throw). */
   async preload(onProgress?: (loaded: number, total: number) => void): Promise<void> {
-    const unitEntries     = Object.entries(UNIT_MODELS)     as Array<[string, { file: string; scale: number; yawOffset: number }]>;
-    const buildingEntries = Object.entries(BUILDING_MODELS) as Array<[string, { file: string; scale: number }]>;
-    const total = unitEntries.length + buildingEntries.length;
+    const unitFiles     = [...new Set(Object.values(UNIT_MODELS).map(d => (d as UnitModelDef).file))];
+    const buildingFiles = [...new Set(Object.values(BUILDING_MODELS).map(d => (d as BuildingModelDef).file))];
+    const total = unitFiles.length + buildingFiles.length;
     let loaded = 0;
-
     const tick = () => { loaded++; onProgress?.(loaded, total); };
 
-    await Promise.all([
-      ...unitEntries.map(async ([type, def]) => {
-        const t = Number(type) as UnitType;
-        const scene = await this._tryLoad(UNIT_BASE + def.file);
-        if (scene) {
-          scene.scale.setScalar(def.scale);
-          scene.rotation.y = def.yawOffset;
-        }
-        this._units.set(t, scene);
-        tick();
-      }),
-      ...buildingEntries.map(async ([type, def]) => {
-        const t = Number(type) as BuildingType;
-        const scene = await this._tryLoad(BUILDING_BASE + def.file);
-        if (scene) scene.scale.setScalar(def.scale);
-        this._buildings.set(t, scene);
-        tick();
-      }),
-    ]);
+    try {
+      await Promise.all([
+        ...unitFiles.map(async file => {
+          const scene = await this._tryLoad(UNIT_BASE + file);
+          try {
+            this._unitBaked.set(file, scene ? bakeModel(scene) : null);
+          } catch (e) {
+            console.warn(`[AssetLoader] bakeModel failed for ${file}; using procedural fallback`, e);
+            this._unitBaked.set(file, null);
+          }
+          tick();
+        }),
+        ...buildingFiles.map(async file => {
+          const scene = await this._tryLoad(BUILDING_BASE + file);
+          if (scene) scene.traverse(c => { if ((c as THREE.Mesh).isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+          this._buildingScene.set(file, scene);
+          tick();
+        }),
+      ]);
+    } catch (e) {
+      console.warn("[AssetLoader] preload: unexpected error; falling back to procedural geometry", e);
+    }
 
     this._loaded = true;
   }
 
   get isLoaded(): boolean { return this._loaded; }
 
-  /** Returns a CLONED scene node (ready to add to scene), or null if not loaded. */
-  getUnit(type: UnitType): GltfScene | null {
-    const src = this._units.get(type);
-    return src ? src.clone() : null;
+  getUnitDef(type: UnitType): UnitModelDef | undefined { return UNIT_MODELS[type]; }
+
+  /** Baked template for a unit type (shared — clone groups before mutating). */
+  getBakedUnit(type: UnitType): BakedModel | null {
+    const def = UNIT_MODELS[type];
+    return def ? (this._unitBaked.get(def.file) ?? null) : null;
   }
 
-  getBuilding(type: BuildingType): GltfScene | null {
-    const src = this._buildings.get(type);
-    return src ? src.clone() : null;
+  /**
+   * Cloned, UN-scaled building scene node (or null → procedural fallback).
+   * Caller (Building.ts) normalises scale to the building's footprint.
+   */
+  getBuilding(type: BuildingType): THREE.Group | null {
+    const def = BUILDING_MODELS[type];
+    if (!def) return null;
+    const src = this._buildingScene.get(def.file);
+    return src ? src.clone(true) : null;
   }
 
-  private async _tryLoad(url: string): Promise<GltfScene | null> {
+  private async _tryLoad(url: string): Promise<THREE.Group | null> {
     return new Promise(resolve => {
-      this._gltf.load(
-        url,
-        gltf => {
-          // Apply team-color tinting: traverse and make materials cloneable
-          gltf.scene.traverse(child => {
-            if (child instanceof THREE.Mesh) {
-              child.castShadow = true;
-              child.receiveShadow = true;
-            }
-          });
-          resolve(gltf.scene);
-        },
-        undefined,
-        () => resolve(null), // 404 or parse error → graceful fallback
-      );
+      this._gltf.load(url, gltf => resolve(gltf.scene), undefined, () => resolve(null));
     });
   }
 }
 
-/** Singleton — imported wherever needed. Populated after preload(). */
+/** Singleton — populated after preload(). */
 export const assetLoader = new AssetLoader();
