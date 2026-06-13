@@ -25,7 +25,7 @@ Kalan gap'ler 5 fazlık bir kapanış haritasına bağlandı (otonom uygulama, m
 | **Faz 1** | Görsel/asset paritesi — GLTF render + team tint + fallback + LoadingScreen + InstancedMesh | M | ⬜ |
 | **Faz 2** | MP determinism — `AgeUpCmd` + `PlaceBuildingCmd` command-replication (tek kapı = CommandBus) | M/L | ⬜ |
 | **Faz 3** | Naval slice — water domain + FishingShip/Galley + fish eko + Dock eğitimi + naval combat/AI + Islands | XL | ✅\* |
-| **Faz 4** | Replay seek/keyframe + MP stretch (reconnect/spectator-client/tablet) | polish | ⬜ |
+| **Faz 4** | Replay seek/keyframe + MP stretch (reconnect/spectator-client/tablet) | polish | ✅\*\* |
 
 > **\* Faz 3 — naval slice + Islands + naval AI TAMAMEN BİTTİ** (2026-06-13): water-domain
 > movement (gemiler suda, kara birimi karada — MovementSystem/Orders/PathQueue domain-aware),
@@ -35,6 +35,13 @@ Kalan gap'ler 5 fazlık bir kapanış haritasına bağlandı (otonom uygulama, m
 > _tryNavalBuild kıyı-Dock + FishingShip/Galley train + _tickNavalState 5s-throttled push).
 > code-review: node-domain filtresi, shore scanner, nav-attack throttle, BUILD_ORDER Dock fix.
 > Commit'ler: `feat naval domain` → `fix naval AI code-review`; 30/30 test, build temiz.
+
+> **\*\* Faz 4 — Replay seek BİTTİ** (2026-06-13): `ReplayDriver.seekForward(tick)` + SEEK_BURST=60
+> fast-forward; `ReplayHUD` tıklanabilir timeline bar (ghost fill + `>>` label); `PreGameScreen`'e
+> slot-1 replay varsa "REPLAY IZLE" butonu; `startGame` `_watchRep` parametresi — replay modda
+> AI yok, Selection/HUD bus'suz, lockstep yerine `replayDriver.tick()`, victory screen atlanır.
+> MP stretch (reconnect/spectator-client/tablet) 2-client manuel test gerektirir — DoD'un o kısmı
+> açık kalıyor.
 
 > Detaylı adım planı: `~/.claude/plans/shimmering-twirling-breeze.md`. Kalan gap'lerin kod-seviyesi
 > durumu aşağıdaki **"Kalan"** bölümünde (2026-06-13 oturumu).
