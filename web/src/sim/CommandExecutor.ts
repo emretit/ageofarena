@@ -13,8 +13,10 @@ import type { TrainingQueue } from '../game/TrainingQueue';
 import type { ResearchSystem, TechId } from '../game/ResearchSystem';
 import type { MarketSystem } from '../game/MarketSystem';
 import type { GarrisonSystem } from '../game/GarrisonSystem';
+import type { AgeSystem } from '../game/AgeSystem';
 import type { PathQueue } from './PathQueue';
 import type { ResourceManager } from '../core/ResourceManager';
+import type { BuildingType } from '../core/GameTypes';
 import type { EntityId } from './EntityIds';
 import { type Command, qDecode } from './Command';
 import {
@@ -35,6 +37,9 @@ export class CommandExecutor {
     private readonly garrison: GarrisonSystem,
     private readonly pathQueue: PathQueue,
     private readonly teamRes: ResourceManager[],
+    private readonly ageSystems: AgeSystem[],
+    /** Builds a building for a team (scene + NavGrid stamp + cost deduct live in main.ts). */
+    private readonly placeBuilding: (type: BuildingType, x: number, z: number, teamId: number) => void,
   ) {}
 
   execute(cmds: Command[]): void {
@@ -125,9 +130,16 @@ export class CommandExecutor {
         this.research.start(b, cmd.techId as TechId, rm);
         break;
       }
+      case 'ageUp': {
+        const sys = this.ageSystems[cmd.teamId];
+        const rm  = this.teamRes[cmd.teamId];
+        if (sys && rm) sys.startAgeUp(rm); // cost/precondition checks live in AgeSystem
+        break;
+      }
       case 'placeBuilding':
-        // Building creation requires scene — handled by BuildingPlacement callbacks in main.ts.
-        // AI building placement is still direct in EnemyAI._tryBuild (needs scene ref).
+        // Cost-affordability + cost deduct + NavGrid stamp all live in the injected callback,
+        // so player + AI placement share one deterministic path (executed inside the sim tick).
+        this.placeBuilding(cmd.buildingType, qDecode(cmd.qx), qDecode(cmd.qz), cmd.teamId);
         break;
       case 'marketBuy': {
         const rm = this.teamRes[cmd.teamId];

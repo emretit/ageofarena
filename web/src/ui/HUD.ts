@@ -377,7 +377,11 @@ export class HUD {
     // Wire up age-up button
     if (ageSystem && rm) {
       const ageBtn = this.infoPanel.querySelector<HTMLButtonElement>("#age-up-btn");
-      ageBtn?.addEventListener("click", () => ageSystem.startAgeUp(rm));
+      ageBtn?.addEventListener("click", () => {
+        // Replicated command (MP-safe); falls back to direct call if no bus is wired.
+        if (this._bus) this._bus.issue({ kind: 'ageUp', teamId: b.teamId, ai: false });
+        else ageSystem.startAgeUp(rm);
+      });
     }
 
     // Wire up training buttons

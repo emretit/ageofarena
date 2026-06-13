@@ -57,6 +57,7 @@ import { buildSnapshot, saveToSlot } from "./game/SaveSystem";
 import { GameMode, type GameModeType } from "./game/GameMode";
 import { CommandBus } from "./sim/CommandBus";
 import { CommandExecutor } from "./sim/CommandExecutor";
+import { qEncode } from "./sim/Command";
 import { resetIds } from "./sim/EntityIds";
 import { type ReplaySetup, type AoaRep, REPLAY_MAGIC, REPLAY_VERSION, saveRepToSlot } from "./replay/ReplayFile";
 import { LockstepClient, SP_OPTIONS } from "./net/LockstepClient";
@@ -363,24 +364,36 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     placement.begin(type);
   }
 
-  placement.onPlace = (type, pos) => {
+  // Deterministic building creation — shared by player (placeBuilding cmd) and AI, run
+  // inside the sim tick via CommandExecutor. Cost is re-checked here so a stale command
+  // (issued before another expense landed) can't overdraw resources.
+  function placeBuildingForTeam(type: BuildingType, x: number, z: number, teamId: number): void {
     const def = DEFS[type];
-    const rm = teamRes[PLAYER_TEAM];
-    if (!rm.canAfford(0, def.costWood, def.costGold, def.costStone)) return false;
+    const rm = teamRes[teamId];
+    if (!rm || !rm.canAfford(0, def.costWood, def.costGold, def.costStone)) return;
     rm.wood  = Math.max(0, rm.wood  - def.costWood);
     rm.stone = Math.max(0, rm.stone - def.costStone);
     rm.gold  = Math.max(0, rm.gold  - def.costGold);
     rm.onChange?.();
-    const newBuilding = new Building(scene, pos, PLAYER_TEAM, type);
+    const newBuilding = new Building(scene, new THREE.Vector3(x, 0, z), teamId, type);
     buildings.push(newBuilding);
-    stampBuilding(newBuilding); // register with NavGrid
+    stampBuilding(newBuilding); // register with NavGrid (AI buildings now stamp too)
     if (type === BuildingType.Farm) {
-      const farmNode = new ResourceNode(scene, pos.clone(), ResourceKind.Food, 250);
+      const farmNode = new ResourceNode(scene, newBuilding.pos.clone(), ResourceKind.Food, 250);
       (farmNode as { destroyOnDeplete: boolean }).destroyOnDeplete = false;
       farmNode.decayPerSecond = 2;
-      farmNode.ownerTeamId = PLAYER_TEAM;
+      farmNode.ownerTeamId = teamId;
       nodes.push(farmNode);
     }
+  }
+
+  // Player placement → command (replicated over the wire in MP); creation happens in the
+  // sim tick so SP loopback and MP clients build the identical building deterministically.
+  placement.onPlace = (type, pos) => {
+    const def = DEFS[type];
+    const rm = teamRes[PLAYER_TEAM];
+    if (!rm.canAfford(0, def.costWood, def.costGold, def.costStone)) return false; // UI pre-check
+    lockstepClient.issue({ kind: 'placeBuilding', teamId: PLAYER_TEAM, ai: false, unitIds: [], buildingType: type, qx: qEncode(pos.x), qz: qEncode(pos.z) });
     return true;
   };
 
@@ -409,14 +422,14 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   // ── CommandExecutor — single dispatch for all Command objects ─────────────
   const commandExecutor = new CommandExecutor(
     units, buildings, nodes, gather, combat, training, research, market,
-    garrison, pathQueue, teamRes,
+    garrison, pathQueue, teamRes, ageSystems, placeBuildingForTeam,
   );
 
   // ── Dev/debug handle ──────────────────────────────────────────────────────
   (window as unknown as Record<string, unknown>).__game = {
     units, buildings, nodes, selection, rig, teamRes, diplomacy, victory,
     gather, combat, training, trading, pathQueue, ctrlGroups, conversion,
-    aiInstances, commandBus,
+    aiInstances, commandBus, commandExecutor, ageSystems,
   };
 
   // ── Stress-test spawn (dev) ───────────────────────────────────────────────

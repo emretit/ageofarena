@@ -32,6 +32,7 @@ export interface UngarrisonCmd extends BaseCmd  { kind: 'ungarrison';    buildin
 export interface TrainCmd extends BaseCmd       { kind: 'train';         buildingId: EntityId; unitType: UnitType; }
 export interface CancelTrainCmd extends BaseCmd { kind: 'cancelTrain';   buildingId: EntityId; }
 export interface ResearchCmd extends BaseCmd    { kind: 'research';      buildingId: EntityId; techId: TechId; }
+export interface AgeUpCmd extends BaseCmd       { kind: 'ageUp'; }
 export interface PlaceBuildingCmd extends BaseCmd{ kind: 'placeBuilding'; unitIds: EntityId[]; buildingType: BuildingType; qx: number; qz: number; }
 export interface MarketBuyCmd extends BaseCmd   { kind: 'marketBuy';     resource: ResourceKind; }
 export interface MarketSellCmd extends BaseCmd  { kind: 'marketSell';    resource: ResourceKind; }
@@ -39,7 +40,7 @@ export interface MarketSellCmd extends BaseCmd  { kind: 'marketSell';    resourc
 export type Command =
   | MoveCmd | AttackCmd | AttackBuildingCmd | AttackMoveCmd | PatrolCmd
   | StopCmd | GatherCmd | GarrisonCmd | UngarrisonCmd
-  | TrainCmd | CancelTrainCmd | ResearchCmd | PlaceBuildingCmd
+  | TrainCmd | CancelTrainCmd | ResearchCmd | AgeUpCmd | PlaceBuildingCmd
   | MarketBuyCmd | MarketSellCmd;
 
 export type CommandKind = Command['kind'];

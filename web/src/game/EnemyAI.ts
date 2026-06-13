@@ -176,7 +176,11 @@ export class EnemyAI {
     this.ageSystem.tick(this.rm, dt);
     if (this.elapsed - this.lastAgeCheck >= 30) {
       this.lastAgeCheck = this.elapsed;
-      if (this.ageSystem.progress() < 0) this.ageSystem.startAgeUp(this.rm);
+      if (this.ageSystem.progress() < 0) {
+        // Replicated command (single deterministic path); direct fallback when no bus.
+        if (this.bus) this.bus.issue({ kind: 'ageUp', teamId: this.teamId, ai: true });
+        else this.ageSystem.startAgeUp(this.rm);
+      }
     }
 
     // ── Build order ────────────────────────────────────────────────────────
@@ -342,8 +346,15 @@ export class EnemyAI {
       }
       if (!foundPos) continue; // no valid spot this check — try next building type
 
-      this.rm.deduct(0, def.costWood, def.costGold, def.costStone);
-      allBuildings.push(new Building(scene, foundPos, this.teamId, entry.type));
+      // Placement → command (deterministic, shares the player's path: cost deduct +
+      // NavGrid stamp happen in the executor callback in main.ts). Direct-build fallback
+      // only when no bus is wired (headless tests).
+      if (this.bus) {
+        this.bus.issue({ kind: 'placeBuilding', teamId: this.teamId, ai: true, unitIds: [], buildingType: entry.type, qx: qEncode(foundPos.x), qz: qEncode(foundPos.z) });
+      } else {
+        this.rm.deduct(0, def.costWood, def.costGold, def.costStone);
+        allBuildings.push(new Building(scene, foundPos, this.teamId, entry.type));
+      }
       break; // one building per check interval
     }
   }
