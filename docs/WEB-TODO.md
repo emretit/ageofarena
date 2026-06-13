@@ -244,8 +244,8 @@
 - [ ] `[WEB15.keyframe]` `src/sim/Snapshot.ts` 1800 tick'te (gate: <3000 tick/s veya seek kötüyse) — **seek deferred** (HeadlessRunner + full sim/view split gerekli)
 - [x] `[WEB15.ui]` `src/ui/ReplayHUD.ts` timeline+hız+perspektif dropdown; FoW takım-başına grid; PreGame'e sürükle — **temel overlay; perspektif dropdown stretch**
 - [x] `[WEB15.save]` F5 quick-save = snapshot + `.aoarep` command log (startGame replaySetup'tan); `saveRepToSlot(1, rep)` wired
-- [ ] `[WEB15.verify]` playback'te checksum doğrula + 3 golden `.aoarep` fixture (Vitest)
-- [ ] **DoD (kısmi):** F5 `.aoarep` localStorage'a yazılıyor · ReplayDriver log'u tick-by-tick besliyor · ReplayHUD overlay çalışıyor · build 0 hata · seek + golden fixture + load-resume sonraki fazda
+- [x] `[WEB15.verify]` golden-replay.test.ts — headless deterministik savaş (Unit/Combat/Movement/PathQueue, renderer'sız) + FNV state checksum; 3 golden senaryo (10v10/4v4/20v20) `toMatchInlineSnapshot` ile pinlendi (343308238/803690722/3661716493); determinizm self-check (2× run aynı). Balans değişikliği checksum'ı flip eder → test kırılır
+- [x] **DoD:** F5 `.aoarep` localStorage'a yazılıyor · ReplayDriver log'u tick-by-tick besliyor · ReplayHUD overlay çalışıyor · build 0 hata · golden fixture regresyon harness'i 24/24 yeşil · seek + load-resume → keyframe görevinde (Snapshot.ts)
 
 ---
 
