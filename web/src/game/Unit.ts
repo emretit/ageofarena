@@ -152,6 +152,8 @@ export class Unit {
     const baked = assetLoader.getBakedUnit(type);
     if (baked) {
       this._buildFromBaked(baked, team, type);
+    } else if (type === UnitType.FishingShip || type === UnitType.Galley) {
+      this._buildShip(team, type);
     } else if (type === UnitType.Cavalry || type === UnitType.Scout) {
       this._buildMounted(team);
     } else if (type === UnitType.TradeCart) {
@@ -225,6 +227,38 @@ export class Unit {
   setTeamColor(hex: number): void {
     this.teamMat?.color.setHex(hex);
     this._teamDiscMat?.color.setHex(hex);
+  }
+
+  /** Procedural ship (no CC0 model yet): wooden hull + prow + team-coloured sail/flag. */
+  private _buildShip(team: THREE.Color, type: UnitType) {
+    const woodMat = new THREE.MeshLambertMaterial({ color: 0x6b4423 });
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.5, 0.8), woodMat);
+    hull.position.y = 0.3;
+    hull.castShadow = true;
+    this.root.add(hull);
+
+    const prow = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.8, 4), woodMat);
+    prow.rotation.set(0, Math.PI / 4, -Math.PI / 2);
+    prow.position.set(1.05, 0.3, 0);
+    this.root.add(prow);
+
+    const teamMat = new THREE.MeshLambertMaterial({ color: team, side: THREE.DoubleSide });
+    const mastMat = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
+    if (type === UnitType.Galley) {
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.4, 6), mastMat);
+      mast.position.set(0, 1.0, 0);
+      const sail = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.9), teamMat);
+      sail.position.set(0, 1.1, 0);
+      this.root.add(mast, sail);
+    } else {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.8, 5), mastMat);
+      pole.position.set(-0.8, 0.6, 0);
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.4), teamMat);
+      flag.position.set(-0.55, 0.8, 0);
+      this.root.add(pole, flag);
+    }
+    // teamMat is per-instance → conversion recolours it; death-fade fades it (not shared).
+    this.teamMat = teamMat;
   }
 
   private _buildHumanoid(team: THREE.Color, type: UnitType) {

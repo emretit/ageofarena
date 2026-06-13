@@ -9,6 +9,7 @@ import { ResourceManager } from "../core/ResourceManager";
 import { getUnitRow } from "../core/UnitRegistry";
 import { getTeamBonus, getTeamCiv } from "../core/CivState";
 import { simRng } from "../sim/SimRng";
+import { navGrid } from "../sim/NavGrid";
 import type { Building } from "./Building";
 import { Unit } from "./Unit";
 import type { ResearchSystem } from "./ResearchSystem";
@@ -24,6 +25,7 @@ const UNIT_MIN_AGE: Partial<Record<UnitType, Age>> = {
   [UnitType.Trebuchet]:   Age.Castle,
   [UnitType.Mangonel]:    Age.Castle,
   [UnitType.Ram]:         Age.Castle,
+  [UnitType.Galley]:      Age.Feudal,
 };
 
 /** Units denied to specific civilizations (port of CivDefs.DENIED_UNITS). */
@@ -40,6 +42,7 @@ export const TRAINABLE: Partial<Record<BuildingType, UnitType[]>> = {
   [BuildingType.Monastery]:  [UnitType.Monk],
   [BuildingType.Castle]:     [UnitType.Trebuchet],
   [BuildingType.Market]:     [UnitType.TradeCart],
+  [BuildingType.Dock]:       [UnitType.FishingShip, UnitType.Galley],
 };
 
 interface QueueEntry { type: UnitType; timer: number; total: number; }
@@ -84,12 +87,13 @@ export class TrainingQueue {
       entry.timer -= dt;
       if (entry.timer <= 0) {
         queue.shift();
-        const offset = new THREE.Vector3(
-          simRng.range(-2, 2),
-          0,
-          simRng.range(-2, 2),
-        );
-        const spawnPos = b.pos.clone().add(offset);
+        let sx = b.pos.x + simRng.range(-2, 2);
+        let sz = b.pos.z + simRng.range(-2, 2);
+        // Naval units must spawn on water — snap to the nearest water cell near the Dock.
+        if (getUnitRow(entry.type).domain === 'water') {
+          [sx, sz] = navGrid.nearestFreeCellWorld(sx, sz, 'water');
+        }
+        const spawnPos = new THREE.Vector3(sx, 0, sz);
         const spawned = new Unit(scene, spawnPos, b.teamId, entry.type);
         // Apply all already-completed techs so new units match upgraded veterans
         research.applyCompletedResearchTo(spawned, b.teamId);
