@@ -371,10 +371,11 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     const def = DEFS[type];
     const rm = teamRes[teamId];
     if (!rm || !rm.canAfford(0, def.costWood, def.costGold, def.costStone)) return;
-    rm.wood  = Math.max(0, rm.wood  - def.costWood);
-    rm.stone = Math.max(0, rm.stone - def.costStone);
-    rm.gold  = Math.max(0, rm.gold  - def.costGold);
-    rm.onChange?.();
+    // Re-check walkability at execution time: a cell can become occupied between command
+    // issue and execution (notably MP's ~8-tick inputDelay), which would otherwise stamp a
+    // building on top of another / on now-blocked terrain.
+    if (!navGrid.isWalkableWorld(x, z)) return;
+    rm.deduct(0, def.costWood, def.costGold, def.costStone);
     const newBuilding = new Building(scene, new THREE.Vector3(x, 0, z), teamId, type);
     buildings.push(newBuilding);
     stampBuilding(newBuilding); // register with NavGrid (AI buildings now stamp too)
