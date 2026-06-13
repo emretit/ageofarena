@@ -257,7 +257,7 @@
 - [x] `[WEB16.lobby]` `src/ui/RoomScreen.ts` (5-char kod create/join, ready, player list, chat → game_start)
 - [x] `[WEB16.desync]` `src/net/DesyncHandler.ts` — checksum raporla → desync banner + console dump
 - [ ] `[WEB16.reconnect]` 120s slot + reconnectToken (HMAC) + catch-up — **stretch**
-- [ ] `[WEB16.spectate]` spectator role — **stretch**
+- [~] `[WEB16.spectate]` spectator role — **server-side hazır**: protocol JoinMsg.spectate + RoomJoinedMsg.spectator; Room `_spectators` ayrı liste (turn count'a dahil DEĞİL), broadcast spectator'lara da gider; index.ts spectate join (started oyunlara da izinli) + turn_input/checksum spectator'dan **reddedilir** (komut sokamaz). _Client playback UI + touch = tablet (#23) ile_
 - [x] `[WEB16.dev]` root `package.json` + `concurrently`; `RtsRoom.ts` silindi; `VITE_WS_URL` env
 - [x] **main.ts wire:** SP LoopbackTransport → LockstepClient; sim gated on stalling; Selection+HUD → CommandIssuer interface
 - [ ] **DoD (kısmi):** SP LoopbackTransport'tan akar (0 gecikme) · WsTransport MP altyapısı hazır · RoomScreen lobby UI · server version-triple check · reconnect/spectate stretch

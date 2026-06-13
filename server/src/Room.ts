@@ -41,6 +41,7 @@ export class Room {
   mapType = 0;
 
   private readonly _players = new Map<string, RoomPlayer>();
+  private readonly _spectators = new Map<string, WebSocket>();
   private _currentTurn = 0;
   private readonly _buffer = new Map<number, Map<string, TurnBuffer>>();
   private readonly _checksumsByTurn = new Map<number, Map<string, number>>();
@@ -67,6 +68,20 @@ export class Room {
     return this._players.get(id);
   }
 
+  get spectatorCount(): number { return this._spectators.size; }
+
+  addSpectator(id: string, ws: WebSocket): void {
+    this._spectators.set(id, ws);
+  }
+
+  removeSpectator(id: string): boolean {
+    return this._spectators.delete(id);
+  }
+
+  isSpectator(id: string): boolean {
+    return this._spectators.has(id);
+  }
+
   playerList(): PlayerInfo[] {
     return [...this._players.values()].map(p => ({
       id: p.id, name: p.name, team: p.team, ready: p.ready,
@@ -76,6 +91,10 @@ export class Room {
   broadcast(payload: object, exceptId?: string): void {
     this._players.forEach(p => {
       if (p.id !== exceptId) send(p.ws, payload);
+    });
+    // Spectators receive the same turn/game stream (read-only)
+    this._spectators.forEach((ws, id) => {
+      if (id !== exceptId) send(ws, payload);
     });
   }
 

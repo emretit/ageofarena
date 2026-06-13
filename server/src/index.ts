@@ -75,6 +75,16 @@ wss.on('connection', (ws) => {
       }
       const room = rooms.get(msg.roomCode);
       if (!room) { send(ws, { type: 'error', code: 'ROOM_NOT_FOUND', message: 'Room not found' }); return; }
+
+      // Spectators may join any time (including started games) — view-only, no team.
+      if (msg.spectate) {
+        room.addSpectator(playerId, ws);
+        socketToPlayer.set(ws, { playerId, roomCode: msg.roomCode });
+        send(ws, { type: 'room_joined', roomCode: msg.roomCode, team: -1, playerId, players: room.playerList(), spectator: true });
+        console.log(`[Room] ${msg.roomCode} spectator joined: ${playerId}`);
+        return;
+      }
+
       if (room.started) { send(ws, { type: 'error', code: 'ALREADY_STARTED', message: 'Game already started' }); return; }
       if (room.playerCount >= 4) { send(ws, { type: 'error', code: 'ROOM_FULL', message: 'Room full' }); return; }
 
@@ -109,6 +119,7 @@ wss.on('connection', (ws) => {
       if (!ctx) return;
       const room = rooms.get(ctx.roomCode);
       if (!room || !room.started) return;
+      if (room.isSpectator(ctx.playerId)) return; // spectators cannot issue commands
       touchRoom(ctx.roomCode);
       room.receiveTurnInput(ctx.playerId, msg.turn, msg.commands ?? []);
     }
@@ -118,6 +129,7 @@ wss.on('connection', (ws) => {
       if (!ctx) return;
       const room = rooms.get(ctx.roomCode);
       if (!room) return;
+      if (room.isSpectator(ctx.playerId)) return; // spectators don't count toward desync
       room.receiveChecksum(ctx.playerId, msg.turn, msg.hash);
     }
 
@@ -139,6 +151,10 @@ wss.on('connection', (ws) => {
     socketToPlayer.delete(ws);
     const room = rooms.get(ctx.roomCode);
     if (!room) return;
+    if (room.removeSpectator(ctx.playerId)) {
+      console.log(`[-] spectator left: ${ctx.playerId}`);
+      return;
+    }
     const p = room.removePlayer(ctx.playerId);
     if (p) {
       room.broadcast({ type: 'player_left', playerId: ctx.playerId, name: p.name, team: p.team });

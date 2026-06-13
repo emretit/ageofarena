@@ -30,6 +30,8 @@ export interface JoinMsg {
   roomCode: string;
   playerName: string;
   version: [number, number, number];
+  /** Join as a view-only spectator — receives turns but cannot issue commands. */
+  spectate?: boolean;
 }
 
 export interface ReadyMsg {
@@ -80,6 +82,8 @@ export interface RoomJoinedMsg {
   team: number;
   playerId: string;
   players: PlayerInfo[];
+  /** True when the joiner is a spectator (view-only, no team). */
+  spectator?: boolean;
 }
 
 export interface PlayerJoinedMsg {
