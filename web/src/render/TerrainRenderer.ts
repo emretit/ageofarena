@@ -4,6 +4,7 @@
  * Replaces the flat MeshLambertMaterial planes in World.ts.
  */
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { Config } from "../core/Config";
 
 const WATER_VERT = /* glsl */`
@@ -104,9 +105,17 @@ export interface TerrainObjects {
   ocean:   THREE.Mesh;
   /** Call each frame with elapsed time (seconds) to animate ocean. */
   tick(dt: number): void;
+  /** Remove all terrain meshes from the scene and free their GPU resources. */
+  dispose(): void;
 }
 
-export function buildTerrain(scene: THREE.Scene): TerrainObjects {
+/** Islands layout for buildTerrain — land discs at each centre, water between them. */
+export interface IslandsLayout {
+  centers: ReadonlyArray<readonly [number, number]>;
+  radius:  number;
+}
+
+export function buildTerrain(scene: THREE.Scene, islands?: IslandsLayout): TerrainObjects {
   // ── Ocean ──────────────────────────────────────────────────────────────────
   const oceanGeo = new THREE.PlaneGeometry(Config.OceanHalf * 2, Config.OceanHalf * 2, 32, 32);
   const waterMat = new THREE.ShaderMaterial({
@@ -121,22 +130,32 @@ export function buildTerrain(scene: THREE.Scene): TerrainObjects {
   ocean.position.y = -0.5;
   scene.add(ocean);
 
-  // ── Rim (sandy shore) ──────────────────────────────────────────────────────
-  const rimGeo = new THREE.CircleGeometry(Config.LandRadius + 3, 96);
-  const rim = new THREE.Mesh(
-    rimGeo,
-    new THREE.MeshLambertMaterial({ color: 0xd9c489, vertexColors: false }),
-  );
+  // ── Land + rim geometry: one disc, or merged island discs (Islands map) ─────
+  // Island discs are translated in the circle's XY plane; the mesh's -90° X rotation then
+  // maps (cx, cz) → world (cx, cz) on the ground plane — same transform as the single disc.
+  // Merging into ONE "Ground" mesh keeps Selection's getObjectByName("Ground") raycast working.
+  let landGeo: THREE.BufferGeometry;
+  let rimGeo: THREE.BufferGeometry;
+  if (islands) {
+    const landParts: THREE.BufferGeometry[] = [];
+    const rimParts: THREE.BufferGeometry[] = [];
+    for (const [cx, cz] of islands.centers) {
+      const lg = buildVertexColorLand(islands.radius, 5); lg.translate(cx, cz, 0); landParts.push(lg);
+      const rg = new THREE.CircleGeometry(islands.radius + 2, 48); rg.translate(cx, cz, 0); rimParts.push(rg);
+    }
+    landGeo = mergeGeometries(landParts, false) ?? landParts[0];
+    rimGeo  = mergeGeometries(rimParts, false) ?? rimParts[0];
+  } else {
+    landGeo = buildVertexColorLand(Config.LandRadius, 5);
+    rimGeo  = new THREE.CircleGeometry(Config.LandRadius + 3, 96);
+  }
+
+  const rim = new THREE.Mesh(rimGeo, new THREE.MeshLambertMaterial({ color: 0xd9c489 }));
   rim.rotation.x = -Math.PI / 2;
   rim.position.y = -0.15;
   scene.add(rim);
 
-  // ── Land — vertex-color splat ──────────────────────────────────────────────
-  const landGeo = buildVertexColorLand(Config.LandRadius, 5);
-  const land = new THREE.Mesh(
-    landGeo,
-    new THREE.MeshLambertMaterial({ vertexColors: true }),
-  );
+  const land = new THREE.Mesh(landGeo, new THREE.MeshLambertMaterial({ vertexColors: true }));
   land.rotation.x = -Math.PI / 2;
   land.receiveShadow = true;
   land.name = "Ground";
@@ -148,6 +167,14 @@ export function buildTerrain(scene: THREE.Scene): TerrainObjects {
     tick(dt: number) {
       elapsed += dt;
       (waterMat.uniforms['uTime'] as THREE.IUniform<number>).value = elapsed;
+    },
+    dispose() {
+      for (const m of [land, rim, ocean]) {
+        scene.remove(m);
+        m.geometry.dispose();
+        const mat = m.material;
+        (Array.isArray(mat) ? mat : [mat]).forEach(x => x.dispose());
+      }
     },
   };
 }

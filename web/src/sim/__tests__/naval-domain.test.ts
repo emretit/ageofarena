@@ -35,6 +35,17 @@ describe('naval domain', () => {
     expect(ship.z).toBeGreaterThan(0); // moved toward the waypoint
   });
 
+  it('markIslands carves land discs and leaves the gaps as water', () => {
+    const nav = new NavGrid();
+    nav.markIslands([[-30, 0], [30, 0]], 10); // two islands, gap between them
+    // Island centres are land:
+    expect(nav.isWalkableWorld(-30, 0, 'land')).toBe(true);
+    expect(nav.isWalkableWorld(30, 0, 'land')).toBe(true);
+    // The gap between islands is water — land units can't cross, ships can:
+    expect(nav.isWalkableWorld(0, 0, 'land')).toBe(false);
+    expect(nav.isWalkableWorld(0, 0, 'water')).toBe(true);
+  });
+
   it('ship advances on water but is clamped at the shore (never enters land)', () => {
     const nav = new NavGrid();
     nav.markWaterBeyondRadius(5); // land within r=5, water beyond

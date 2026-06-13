@@ -179,6 +179,25 @@ export class NavGrid {
     }
   }
 
+  /**
+   * Islands map: flood the whole grid with water, then carve a land disc at each island
+   * centre. Cells outside every island stay water (ships cross, land units are confined to
+   * their island). Keep the terrain visual (TerrainRenderer) in sync with the same centres/radius.
+   */
+  markIslands(centers: ReadonlyArray<readonly [number, number]>, islandRadius: number): void {
+    for (let i = 0; i < this.flags.length; i++) this.flags[i] |= FLAG_WATER;
+    const r2 = islandRadius * islandRadius;
+    for (const [cxw, czw] of centers) {
+      for (let cz = 0; cz < GRID_SIZE; cz++) {
+        for (let cx = 0; cx < GRID_SIZE; cx++) {
+          const dx = cx - GRID_HALF + 0.5 - cxw;
+          const dz = cz - GRID_HALF + 0.5 - czw;
+          if (dx * dx + dz * dz <= r2) this.flags[cz * GRID_SIZE + cx] &= ~FLAG_WATER;
+        }
+      }
+    }
+  }
+
   // ── Nearest free cell (deterministic square-spiral BFS) ──────────────────
 
   nearestFreeCell(cx: number, cz: number, domain: Domain = 'land', teamId = -1): [number, number] {

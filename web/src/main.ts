@@ -95,7 +95,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x7ab0d8);
 
 buildLighting(scene, renderer);
-const terrain: TerrainObjects = buildTerrainNew(scene);
+let terrain: TerrainObjects = buildTerrainNew(scene);
 const rig = new CameraRig(app);
 const postfx = new PostFx(renderer, scene, rig.camera);
 
@@ -234,8 +234,18 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     }
   }
 
-  // ── NavGrid setup ────────────────────────────────────────────────────────
-  navGrid.markWaterBeyondRadius(88); // ocean starts beyond land disc (Config.LandRadius ≈ 92)
+  // ── NavGrid + terrain water layout ─────────────────────────────────────────
+  // Islands: carve separate land discs (players are water-separated; ships cross gaps).
+  // Other maps: one land disc, ocean beyond it. Terrain visual is rebuilt to match NavGrid.
+  if (mapType === MapType.Islands) {
+    const ISLAND_RADIUS = 26;
+    const islandCenters: [number, number][] = [...arch.basePositions, [0, 0]];
+    terrain.dispose();
+    terrain = buildTerrainNew(scene, { centers: islandCenters, radius: ISLAND_RADIUS });
+    navGrid.markIslands(islandCenters, ISLAND_RADIUS);
+  } else {
+    navGrid.markWaterBeyondRadius(88); // ocean starts beyond land disc (Config.LandRadius ≈ 92)
+  }
   for (const t of trees) {
     navGrid.stampWorldCircle(t.x, t.z, t.scale * 0.7); // trunk radius
   }
