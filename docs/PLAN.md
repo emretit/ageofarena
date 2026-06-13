@@ -27,15 +27,14 @@ Kalan gap'ler 5 fazlık bir kapanış haritasına bağlandı (otonom uygulama, m
 | **Faz 3** | Naval slice — water domain + FishingShip/Galley + fish eko + Dock eğitimi + naval combat/AI + Islands | XL | ✅\* |
 | **Faz 4** | Replay seek/keyframe + MP stretch (reconnect/spectator-client/tablet) | polish | ⬜ |
 
-> **\* Faz 3 — oyuncu-facing naval döngü TAM ve runtime-doğrulandı** (2026-06-13): water-domain
+> **\* Faz 3 — naval slice + Islands + naval AI TAMAMEN BİTTİ** (2026-06-13): water-domain
 > movement (gemiler suda, kara birimi karada — MovementSystem/Orders/PathQueue domain-aware),
 > Dock'tan FishingShip/Galley eğitimi + suya spawn, prosedürel gemi görseli, domain-gated combat
 > (gemi↔gemi / kara↔kara aggro, beach-önleme), fish ekonomisi (FishingShip→su balık→Dock food).
-> Commit'ler `0a8237f`→`7716da1`; her dilim build+test(29/29)+preview ile doğrulandı.
-> **Ertelendi (opsiyonel genişletme):** naval AI (EnemyAI Dock build + ship train) ve Islands
-> çok-ada terrain'i. Gerekçe: ikisi birlikte gerekli (AI naval yalnız oyuncuları su ile ayıran
-> çok-ada haritasında anlamlı; mevcut çevre-okyanus modelinde AI gemisi izole kalır), ve çok-ada
-> MapGenerator + AI naval micro = ayrı büyük iş. Oyuncu zaten tam naval oynayabiliyor.
+> Islands çok-ada terrain (NavGrid.markIslands, merged "Ground" mesh), naval AI (EnemyAI
+> _tryNavalBuild kıyı-Dock + FishingShip/Galley train + _tickNavalState 5s-throttled push).
+> code-review: node-domain filtresi, shore scanner, nav-attack throttle, BUILD_ORDER Dock fix.
+> Commit'ler: `feat naval domain` → `fix naval AI code-review`; 30/30 test, build temiz.
 
 > Detaylı adım planı: `~/.claude/plans/shimmering-twirling-breeze.md`. Kalan gap'lerin kod-seviyesi
 > durumu aşağıdaki **"Kalan"** bölümünde (2026-06-13 oturumu).
