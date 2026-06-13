@@ -66,7 +66,6 @@ const BUILD_ORDER: Array<{
   { type: BuildingType.MiningCamp,  maxOwned: 1,  minElapsed: 100, minAge: Age.Feudal },
   { type: BuildingType.Blacksmith,  maxOwned: 1,  minElapsed: 110, minAge: Age.Feudal },
   { type: BuildingType.ArcheryRange,maxOwned: 1,  minElapsed: 120, minAge: Age.Feudal },
-  { type: BuildingType.Dock,        maxOwned: 1,  minElapsed: 80,  minAge: Age.Dark   },
   { type: BuildingType.House,       maxOwned: 10, minElapsed: 180, minAge: Age.Dark   },
   { type: BuildingType.Stable,      maxOwned: 1,  minElapsed: 200, minAge: Age.Castle },
   { type: BuildingType.University,  maxOwned: 1,  minElapsed: 250, minAge: Age.Castle },
@@ -125,6 +124,7 @@ export class EnemyAI {
   private lastResearchCheck = 0;
   private armyState: ArmyState = 'gathering';
   private armyPeakSize = 0; // track peak to detect losses
+  private lastNavalAttack = 0;
   private tickOffset: number;
 
   private readonly cfg: DifficultyConfig;
@@ -189,6 +189,9 @@ export class EnemyAI {
     if (this.elapsed - this.lastBuildCheck >= BUILD_CHECK_INTERVAL) {
       this.lastBuildCheck = this.elapsed;
       this._tryBuild(myBuildings, buildings, scene);
+      // Dock is checked independently of BUILD_ORDER (BUILD_ORDER's linear break-on-first-success
+      // would prevent Dock from being reached until all earlier entries are maxed out).
+      this._tryNavalBuild(myBuildings, buildings, scene);
     }
 
     // ── Train military units from production buildings ─────────────────────
@@ -379,6 +382,24 @@ export class EnemyAI {
     }
   }
 
+  /** Build a Dock on a shore cell if one doesn't exist yet and we have the wood. */
+  private _tryNavalBuild(myBuildings: Building[], allBuildings: Building[], scene: THREE.Scene): void {
+    if (this.elapsed < 80) return;
+    if (myBuildings.some(b => b.buildingType === BuildingType.Dock)) return;
+    const tc = myBuildings.find(b => b.buildingType === BuildingType.TownCenter);
+    if (!tc) return;
+    const def = DEFS[BuildingType.Dock];
+    if (!this.rm.canAfford(0, def.costWood, def.costGold, def.costStone)) return;
+    const foundPos = this._findShoreDockPos(tc.pos);
+    if (!foundPos) return; // non-naval map — silently skip
+    if (this.bus) {
+      this.bus.issue({ kind: 'placeBuilding', teamId: this.teamId, ai: true, unitIds: [], buildingType: BuildingType.Dock, qx: qEncode(foundPos.x), qz: qEncode(foundPos.z) });
+    } else {
+      this.rm.deduct(0, def.costWood, def.costGold, def.costStone);
+      allBuildings.push(new Building(scene, foundPos, this.teamId, BuildingType.Dock));
+    }
+  }
+
   private _tryResearch(myBuildings: Building[]) {
     for (const techId of TECH_PRIORITY) {
       if (this.research.isResearched(this.teamId, techId)) continue;
@@ -398,6 +419,10 @@ export class EnemyAI {
   /** Naval army: push Galleys toward the enemy TC position (water path stops at shore). */
   private _tickNavalState(myNaval: Unit[], enemyBuildings: Building[]) {
     if (!this.gateLifted || myNaval.length === 0 || enemyBuildings.length === 0) return;
+    // Throttle: re-issue attackMove at most every 5 s (same cadence as army state machine checks).
+    // Without this guard every sim tick floods CommandBus with attackMove and resets Galley paths.
+    if (this.elapsed - this.lastNavalAttack < 5) return;
+    this.lastNavalAttack = this.elapsed;
     const target = enemyBuildings.find(b => b.buildingType === BuildingType.TownCenter)
       ?? enemyBuildings[0];
     const ready = myNaval.filter(u =>
