@@ -141,8 +141,9 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   const arch = getMapArchetype(mapType);
   const rng  = mulberry32(42);
 
-  // Reset entity IDs for new game
+  // Reset entity IDs + NavGrid for new game (avoid stamp carry-over across rematches)
   resetIds();
+  navGrid.reset();
 
   // Command bus — all player/AI actions flow through this
   const commandBus = new CommandBus();

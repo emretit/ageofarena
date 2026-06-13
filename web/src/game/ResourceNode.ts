@@ -5,6 +5,17 @@
 import * as THREE from "three";
 import { ResourceKind } from "../core/GameTypes";
 import { allocId, type EntityId } from "../sim/EntityIds";
+import { navGrid } from "../sim/NavGrid";
+
+/** NavGrid block radius per kind (0 = walkable: food bush/farm let villagers stand on them). */
+function navRadiusFor(kind: ResourceKind): number {
+  switch (kind) {
+    case ResourceKind.Gold:  return 0.8;
+    case ResourceKind.Stone: return 0.8;
+    case ResourceKind.Wood:  return 0.6;
+    default:                 return 0; // Food — no block
+  }
+}
 
 const GEO_GOLD  = new THREE.CylinderGeometry(0.6, 0.8, 1.0, 6);
 const GEO_STONE = new THREE.DodecahedronGeometry(0.8, 0);
@@ -33,6 +44,9 @@ export class ResourceNode {
   decayAccum = 0;
   /** Team that owns this node (relevant for per-civ farmDecayMult). */
   ownerTeamId = -1;
+  /** NavGrid block radius (>0 = stamped at construction, unstamped on remove). */
+  private _navRadius = 0;
+  private _navStamped = false;
 
   get depleted(): boolean { return this.amount <= 0; }
   get hasRoom(): boolean { return this.currentGatherers < this.gathererCap; }
@@ -81,6 +95,13 @@ export class ResourceNode {
     }
 
     scene.add(this.root);
+
+    // Stamp solid resource bodies into the NavGrid so units path around them.
+    this._navRadius = navRadiusFor(kind);
+    if (this._navRadius > 0) {
+      navGrid.stampWorldCircle(pos.x, pos.z, this._navRadius);
+      this._navStamped = true;
+    }
   }
 
   /** Returns the amount actually taken (may be less than n if node is nearly empty). */
@@ -91,6 +112,10 @@ export class ResourceNode {
   }
 
   remove(scene: THREE.Scene) {
+    if (this._navStamped) {
+      navGrid.unstampWorldCircle(this.root.position.x, this.root.position.z, this._navRadius);
+      this._navStamped = false;
+    }
     scene.remove(this.root);
   }
 }

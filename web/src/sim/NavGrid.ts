@@ -23,6 +23,12 @@ export class NavGrid {
   readonly flags = new Uint8Array(GRID_SIZE * GRID_SIZE);
   private readonly _refs  = new Uint8Array(GRID_SIZE * GRID_SIZE); // BLOCKED ref count
 
+  /** Clear all flags and block refs — call at the start of each new game. */
+  reset(): void {
+    this.flags.fill(0);
+    this._refs.fill(0);
+  }
+
   // ── Coordinate conversion ─────────────────────────────────────────────────
 
   worldToCell(wx: number, wz: number): [number, number] {
@@ -104,6 +110,24 @@ export class NavGrid {
           const i = cz * GRID_SIZE + cx;
           if (this._refs[i] < 255) this._refs[i]++;
           this.flags[i] |= FLAG_BLOCKED;
+        }
+      }
+    }
+  }
+
+  /** Reverse a stampWorldCircle with the same (wx, wz, worldRadius). */
+  unstampWorldCircle(wx: number, wz: number, worldRadius: number): void {
+    const rc = Math.ceil(worldRadius / CELL_SIZE);
+    const [ccx, ccz] = this.worldToCell(wx, wz);
+    const r2 = worldRadius * worldRadius;
+    for (let dz = -rc; dz <= rc; dz++) {
+      for (let dx = -rc; dx <= rc; dx++) {
+        if (dx * dx + dz * dz <= r2) {
+          const cx = ccx + dx; const cz = ccz + dz;
+          if (!this.inBounds(cx, cz)) continue;
+          const i = cz * GRID_SIZE + cx;
+          if (this._refs[i] > 0) this._refs[i]--;
+          if (this._refs[i] === 0) this.flags[i] &= ~FLAG_BLOCKED;
         }
       }
     }
