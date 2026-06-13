@@ -260,9 +260,10 @@ export class CombatSystem {
         target.armorPierce,
         attacker.damageKind,
       );
-      const fromPos = attacker.pos.clone();
-      const toPos   = target.pos.clone();
       if (attacker.isRanged) {
+        // clone only on the ranged path — the projectile keeps these refs in flight
+        const fromPos = attacker.pos.clone();
+        const toPos   = target.pos.clone();
         const dist = fromPos.distanceTo(toPos);
         const flightTime = dist / PROJ_SPEED;
         // Ballistics: lead the target by its velocity so the projectile arrives where it will be.
@@ -274,7 +275,7 @@ export class CombatSystem {
         this._pending.push({ target, targetB: null, damage: dmg, timeLeft: flightTime, fromPos, toPos, splash: attacker.splashRadius > 0, splashRadius: attacker.splashRadius, attackerTeam: attacker.teamId, ballistics: attacker.hasBallistics });
       } else {
         target.takeDamage(dmg);
-        this.onHit?.(toPos, dmg);
+        this.onHit?.(target.pos, dmg); // popup clones internally — no clone needed here
         if (!target.alive) this.onUnitKilled?.(target);
       }
     }
@@ -288,15 +289,15 @@ export class CombatSystem {
         targetB.def.armorPierce,
         attacker.damageKind,
       );
-      const fromPos = attacker.pos.clone();
-      const toPos   = targetB.pos.clone();
       if (attacker.isRanged) {
+        const fromPos = attacker.pos.clone();
+        const toPos   = targetB.pos.clone();
         const dist = fromPos.distanceTo(toPos);
         this.onRangedFire?.(fromPos, toPos, attacker.splashRadius > 0);
         this._pending.push({ target: null, targetB, damage: dmg, timeLeft: dist / PROJ_SPEED, fromPos, toPos, splash: attacker.splashRadius > 0, splashRadius: attacker.splashRadius, attackerTeam: attacker.teamId, ballistics: true });
       } else {
         targetB.takeDamage(dmg);
-        this.onHit?.(toPos, dmg);
+        this.onHit?.(targetB.pos, dmg); // popup clones internally
         if (!targetB.alive) this.onBuildingDestroyed?.(targetB);
       }
     }

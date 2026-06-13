@@ -186,7 +186,7 @@
 ### 12.1 Profil & perf
 - [x] `[WEB12.perfhud]` `src/dev/PerfHud.ts` — FPS p95, sim ms, draw call, path kuyruğu (F3)
 - [x] `[WEB12.stress]` P=250v250, Shift+P=500v500 spawn + otomatik attack-move; PerfHud (F3) otomatik açılır + Units sayacı. Ölçüm: 1000 birimde sim tick **2.30ms** (path queue 923, draw call 1)
-- [ ] `[WEB12.hotpath]` ölç-düzelt: separation cap, FoW repaint, Minimap ImageData, GC scratch avı
+- [x] `[WEB12.hotpath]` GC scratch avı: Minimap ImageData reuse (per-redraw alloc kalktı); CombatSystem melee clone kaldırıldı; MovementSystem neighbours array reuse + `NavGrid.isWalkableWorld` (worldToCell tuple alloc kalktı, komşu başına). FoW zaten throttle+reuse. (sim tick 1000 birimde 2.30ms — sim hot-path zaten sağlam)
 
 ### 12.2 Donanma dilimi
 - [ ] `[WEB12.navgrid2]` WATER domain path; kıyı=LAND∧komşu-WATER; Dock yalnız kıyıya

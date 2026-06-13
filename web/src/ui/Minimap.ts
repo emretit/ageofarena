@@ -33,6 +33,8 @@ export class Minimap {
   /** Cached offscreen canvas for fog ImageData blit — avoids per-draw allocation. */
   private readonly fogBlit: HTMLCanvasElement;
   private readonly fogBlitCtx: CanvasRenderingContext2D;
+  /** Reused fog ImageData — avoids a SIDE×SIDE×4 allocation on every redraw. */
+  private _fogImg?: ImageData;
 
   /** Called when user clicks the minimap — world X and Z coordinates. */
   onNavigate: ((x: number, z: number) => void) | null = null;
@@ -108,8 +110,8 @@ export class Minimap {
       const scaleX    = (TEX_SIZE / FOG_WORLD) * (MAP_WORLD / SIDE);
       const scaleZ    = (TEX_SIZE / FOG_WORLD) * (MAP_WORLD / SIDE);
 
-      // Draw fog as semi-transparent overlay using image data
-      const imgData = ctx.createImageData(SIDE, SIDE);
+      // Draw fog as semi-transparent overlay using image data (reused buffer)
+      const imgData = this._fogImg ??= ctx.createImageData(SIDE, SIDE);
       for (let py = 0; py < SIDE; py++) {
         for (let px = 0; px < SIDE; px++) {
           // Map minimap pixel → fog grid cell

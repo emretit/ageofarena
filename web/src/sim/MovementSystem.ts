@@ -28,6 +28,7 @@ const SEP_STRENGTH      = 0.3;    // how hard to push
 
 export class MovementSystem {
   private readonly _hash = new SpatialHash<MoveUnit>();
+  private readonly _neighbours: MoveUnit[] = []; // reused per-unit separation scratch
 
   tick(units: MoveUnit[], nav: NavGrid, dt: number): void {
     // Rebuild spatial hash for this tick
@@ -84,11 +85,13 @@ export class MovementSystem {
     // ── Soft separation (after all movement) ─────────────────────────────────
     this._hash.rebuild(alive); // refresh positions
 
+    const neighbours = this._neighbours;
     for (const u of alive) {
-      const neighbours: MoveUnit[] = [];
+      neighbours.length = 0;
       this._hash.query(u.x, u.z, SEP_RADIUS, neighbours);
 
-      for (const other of neighbours) {
+      for (let ni = 0; ni < neighbours.length; ni++) {
+        const other = neighbours[ni];
         if (other === u) continue;
         const dx  = u.x - other.x;
         const dz  = u.z - other.z;
@@ -97,7 +100,7 @@ export class MovementSystem {
         let px: number, pz: number;
         if (d2 < 0.0001) {
           // Exact overlap — push in alternating cardinal directions (deterministic via index)
-          const dir = (neighbours.indexOf(other) & 1) ? 1 : -1;
+          const dir = (ni & 1) ? 1 : -1;
           px = SEP_STRENGTH * 0.5 * dir;
           pz = SEP_STRENGTH * 0.5 * -dir;
         } else {
@@ -107,10 +110,9 @@ export class MovementSystem {
           pz   = (dz / d) * push;
         }
 
-        // Only push to walkable cells
+        // Only push to walkable cells (no cell-tuple allocation)
         const nx2 = u.x + px; const nz2 = u.z + pz;
-        const [ccx, ccz] = nav.worldToCell(nx2, nz2);
-        if (nav.isWalkable(ccx, ccz)) { u.x = nx2; u.z = nz2; }
+        if (nav.isWalkableWorld(nx2, nz2)) { u.x = nx2; u.z = nz2; }
       }
     }
   }

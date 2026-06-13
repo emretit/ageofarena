@@ -60,6 +60,11 @@ export class NavGrid {
     return true;
   }
 
+  /** Walkability from world coords without allocating a cell tuple (hot-path friendly). */
+  isWalkableWorld(wx: number, wz: number, domain: Domain = 'land', teamId = -1): boolean {
+    return this.isWalkable(Math.floor(wx + GRID_HALF), Math.floor(wz + GRID_HALF), domain, teamId);
+  }
+
   // ── Stamp (cell coordinates) ──────────────────────────────────────────────
 
   stampRect(cx0: number, cz0: number, cx1: number, cz1: number): void {
