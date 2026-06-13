@@ -38,6 +38,8 @@ export class Selection {
   patrolPending = false;
   /** Active formation for group move/attack-move orders (cycled with F). */
   formationType: FormationType = FormationType.Grid;
+  /** The local player's team — only own units/buildings are controllable (MP: = myTeam). */
+  localTeam = 0;
 
   onSelectUnit: ((u: Unit | null) => void) | null = null;
   onSelectBuilding: ((b: Building | null) => void) | null = null;
@@ -149,7 +151,7 @@ export class Selection {
     const r = this.dom.getBoundingClientRect();
 
     for (const u of this.units) {
-      if (!u.alive || u.teamId !== 0) continue;
+      if (!u.alive || u.teamId !== this.localTeam) continue;
       // Project world position to screen space
       screenPos.copy(u.pos).project(this.camera);
       const sx2 = (screenPos.x + 1) / 2 * r.width  + r.left;
@@ -179,7 +181,7 @@ export class Selection {
         const hit = this.ray.intersectObject(ground, false)[0];
         if (hit) {
           if (this.bus) {
-            this.bus.issue({ kind: 'attackMove', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), formation: this.formationType });
+            this.bus.issue({ kind: 'attackMove', teamId: this.localTeam, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), formation: this.formationType });
           } else if (this.pathQueue) {
             orderAttackMove(this.selected, hit.point.x, hit.point.z, this.pathQueue, this.formationType);
           }
@@ -196,7 +198,7 @@ export class Selection {
         const hit = this.ray.intersectObject(ground, false)[0];
         if (hit) {
           if (this.bus) {
-            this.bus.issue({ kind: 'patrol', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z) });
+            this.bus.issue({ kind: 'patrol', teamId: this.localTeam, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z) });
           } else if (this.pathQueue) {
             orderPatrol(this.selected, hit.point.x, hit.point.z, this.pathQueue);
           }
@@ -249,7 +251,7 @@ export class Selection {
         const hit = this.ray.intersectObject(ground, false)[0];
         if (hit) {
           if (this.bus) {
-            this.bus.issue({ kind: 'attackMove', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), formation: this.formationType });
+            this.bus.issue({ kind: 'attackMove', teamId: this.localTeam, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), formation: this.formationType });
           } else if (this.pathQueue) {
             orderAttackMove(this.selected, hit.point.x, hit.point.z, this.pathQueue, this.formationType);
           }
@@ -260,7 +262,7 @@ export class Selection {
 
     // Rally point: no units selected, own building selected → right-click ground sets rally.
     if (this.selected.length === 0) {
-      if (this.selectedBuilding?.teamId === 0) {
+      if (this.selectedBuilding?.teamId === this.localTeam) {
         const ground = this.scene.getObjectByName("Ground");
         if (ground) {
           const hit = this.ray.intersectObject(ground, false)[0];
@@ -278,9 +280,9 @@ export class Selection {
       while (o) {
         if (o.userData.resourceNode) {
           const node = o.userData.resourceNode as ResourceNode;
-          const gatherers = this.selected.filter(u => u.teamId === 0 && u.gathers);
+          const gatherers = this.selected.filter(u => u.teamId === this.localTeam && u.gathers);
           if (this.bus) {
-            this.bus.issue({ kind: 'gather', teamId: 0, ai: false, unitIds: gatherers.map(u => u.id), nodeId: node.id });
+            this.bus.issue({ kind: 'gather', teamId: this.localTeam, ai: false, unitIds: gatherers.map(u => u.id), nodeId: node.id });
           } else if (this.pathQueue) {
             orderGather(gatherers, node, this.buildings, this.gather, this.pathQueue);
           } else {
@@ -300,9 +302,9 @@ export class Selection {
       while (o) {
         if (o.userData.building) {
           const b = o.userData.building as Building;
-          if (b.teamId !== 0) {
+          if (b.teamId !== this.localTeam) {
             if (this.bus) {
-              this.bus.issue({ kind: 'attackBuilding', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), targetId: b.id });
+              this.bus.issue({ kind: 'attackBuilding', teamId: this.localTeam, ai: false, unitIds: this.selected.map(u => u.id), targetId: b.id });
             } else if (this.pathQueue) {
               orderAttackBuilding(this.selected, b, this.combat, this.pathQueue);
             } else {
@@ -311,12 +313,12 @@ export class Selection {
             return;
           }
           // Right-click own building with selected units → garrison
-          if (b.teamId === 0 && this.garrisonSys && this.garrisonSys.canGarrison(b)) {
+          if (b.teamId === this.localTeam && this.garrisonSys && this.garrisonSys.canGarrison(b)) {
             if (this.bus) {
-              this.bus.issue({ kind: 'garrison', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), buildingId: b.id });
+              this.bus.issue({ kind: 'garrison', teamId: this.localTeam, ai: false, unitIds: this.selected.map(u => u.id), buildingId: b.id });
             } else {
               for (const u of this.selected) {
-                if (u.teamId === 0) this.garrisonSys.orderGarrison(u, b);
+                if (u.teamId === this.localTeam) this.garrisonSys.orderGarrison(u, b);
               }
             }
             return;
@@ -334,9 +336,9 @@ export class Selection {
       while (o) {
         if (o.userData.unit) {
           const t = o.userData.unit as Unit;
-          if (t.teamId !== 0 && t.alive) {
+          if (t.teamId !== this.localTeam && t.alive) {
             if (this.bus) {
-              this.bus.issue({ kind: 'attack', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), targetId: t.id });
+              this.bus.issue({ kind: 'attack', teamId: this.localTeam, ai: false, unitIds: this.selected.map(u => u.id), targetId: t.id });
             } else if (this.pathQueue) {
               orderAttackUnit(this.selected, t, this.combat, this.pathQueue);
             } else {
@@ -358,11 +360,11 @@ export class Selection {
       if (this._shiftHeld) {
         // Shift+right-click: queue destination
         const liveIds = this.selected.filter(u => u.alive && !u.isGarrisoned).map(u => u.id);
-        this.bus.issue({ kind: 'move', teamId: 0, ai: false, unitIds: liveIds, qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), queued: true });
+        this.bus.issue({ kind: 'move', teamId: this.localTeam, ai: false, unitIds: liveIds, qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), queued: true });
       } else {
         // Normal right-click: clear queue and move
         for (const u of this.selected) u.pendingGoals = [];
-        this.bus.issue({ kind: 'move', teamId: 0, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), queued: false, formation: this.formationType });
+        this.bus.issue({ kind: 'move', teamId: this.localTeam, ai: false, unitIds: this.selected.map(u => u.id), qx: qEncode(hit.point.x), qz: qEncode(hit.point.z), queued: false, formation: this.formationType });
       }
     } else if (this.pathQueue) {
       if (this._shiftHeld) {

@@ -16,6 +16,8 @@ export class PreGameScreen {
   private readonly _el: HTMLDivElement;
 
   onStart: ((player: Civilization, opponents: OpponentConfig[], map: MapType) => void) | null = null;
+  /** Fired when the player chooses online multiplayer instead of a skirmish. */
+  onOnline: (() => void) | null = null;
 
   constructor(container: HTMLElement) {
     this._el = document.createElement("div");
@@ -155,6 +157,22 @@ export class PreGameScreen {
       this.onStart?.(this._civSel, opponents, this._mapSel);
     });
     this._el.appendChild(startBtn);
+
+    // Online multiplayer button
+    const onlineBtn = document.createElement("button");
+    onlineBtn.textContent = "ÇOK OYUNCULU";
+    onlineBtn.style.cssText = `
+      padding:10px 40px; font-size:15px; font-weight:bold; font-family:monospace;
+      background:#1f3c6c; color:#c0d8f5; border:2px solid #3a6a9a; border-radius:8px;
+      cursor:pointer; letter-spacing:2px; margin-top:8px;
+    `;
+    onlineBtn.addEventListener("mouseenter", () => { onlineBtn.style.background = "#2a4f8c"; });
+    onlineBtn.addEventListener("mouseleave", () => { onlineBtn.style.background = "#1f3c6c"; });
+    onlineBtn.addEventListener("click", () => {
+      this._el.remove();
+      this.onOnline?.();
+    });
+    this._el.appendChild(onlineBtn);
   }
 
   private _buildOpponents(): OpponentConfig[] {

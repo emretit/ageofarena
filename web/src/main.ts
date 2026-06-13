@@ -61,8 +61,18 @@ import { resetIds } from "./sim/EntityIds";
 import { type ReplaySetup, type AoaRep, REPLAY_MAGIC, REPLAY_VERSION, saveRepToSlot } from "./replay/ReplayFile";
 import { LockstepClient, SP_OPTIONS } from "./net/LockstepClient";
 import { LoopbackTransport } from "./net/LoopbackTransport";
+import type { Transport } from "./net/Transport";
+import { DesyncHandler } from "./net/DesyncHandler";
+import { RoomScreen, type MPGameConfig } from "./ui/RoomScreen";
 import { NetStatus } from "./ui/NetStatus";
 import { initTelemetry } from "./net/Telemetry";
+
+/** Multiplayer wiring passed to startGame; absent for single-player. */
+interface NetConfig {
+  transport: Transport;
+  myTeam: number;
+  seed: number;
+}
 
 // Optional Sentry (no-op unless VITE_SENTRY_DSN is set)
 initTelemetry();
@@ -113,6 +123,23 @@ preScreen.onStart = (playerCiv: Civilization, opponents: OpponentConfig[], mapTy
   startGame(mapType, trees, opponents, replaySetup);
 };
 
+// ── Online multiplayer (RoomScreen → WsTransport → game_start) ──────────────────
+const roomScreen = new RoomScreen(app);
+preScreen.onOnline = () => roomScreen.show();
+roomScreen.onGameStart = (cfg: MPGameConfig) => {
+  // MP MVP: every team starts on the default civ (lobby civ-select is a follow-up).
+  const otherCount = cfg.players.filter(p => p.team !== 0).length;
+  const opponents: OpponentConfig[] = Array.from({ length: otherCount }, () => ({
+    civ: 0 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced,
+  }));
+  for (const p of cfg.players) setTeamCiv(p.team, 0 as Civilization);
+  initSimRng(cfg.seed);                       // identical RNG seed across all clients
+  const trees = buildForest(scene, cfg.mapType, cfg.seed);
+  startGame(cfg.mapType, trees, opponents, undefined, {
+    transport: cfg.transport, myTeam: cfg.myTeam, seed: cfg.seed,
+  });
+};
+
 // Building footprint half-extents for NavGrid stamping
 const BUILDING_HALF: Partial<Record<BuildingType, [number, number]>> = {
   [BuildingType.TownCenter]:   [2.5, 2.5],
@@ -157,9 +184,11 @@ function unstampBuilding(b: Building): void {
 }
 
 // ── Game bootstrap ────────────────────────────────────────────────────────────
-function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentConfig[] = [{ civ: 0 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced }], _replaySetup?: ReplaySetup): void {
+function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentConfig[] = [{ civ: 0 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced }], _replaySetup?: ReplaySetup, net?: NetConfig): void {
   const arch = getMapArchetype(mapType);
   const rng  = mulberry32(42);
+  const isMP = !!net;
+  const PLAYER_TEAM = net?.myTeam ?? 0; // local player's team (MP: assigned by server)
 
   // Reset entity IDs + NavGrid for new game (avoid stamp carry-over across rematches)
   resetIds();
@@ -168,9 +197,13 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   // Command bus — all player/AI actions flow through this
   const commandBus = new CommandBus();
 
-  // Lockstep client (SP: LoopbackTransport, zero delay)
-  const loopbackTransport = new LoopbackTransport(['player-0']);
-  const lockstepClient = new LockstepClient(loopbackTransport, { ...SP_OPTIONS, myTeamId: 0 });
+  // Lockstep client: MP uses the WS transport (turn=4, delay=2); SP loops back at zero delay.
+  const lockstepClient = isMP
+    ? new LockstepClient(net!.transport, { ticksPerTurn: 4, inputDelay: 2, myTeamId: PLAYER_TEAM })
+    : new LockstepClient(new LoopbackTransport(['player-0']), { ...SP_OPTIONS, myTeamId: 0 });
+
+  // Desync detection (MP only — sends periodic checksums, banners on mismatch)
+  const desyncHandler = isMP ? new DesyncHandler(commandBus, net!.transport) : null;
 
   // Net status overlay
   const netStatus = new NetStatus(app);
@@ -195,8 +228,9 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   const basePositions = arch.basePositions;
   const [p1x, p1z] = basePositions[0];
 
-  // Pan camera to player base
-  rig.panTo(p1x, p1z);
+  // Pan camera to the LOCAL player's base (spawns below are deterministic & team-indexed).
+  const [camX, camZ] = basePositions[PLAYER_TEAM % basePositions.length];
+  rig.panTo(camX, camZ);
 
   // ── Resource managers (one per team) ────────────────────────────────────
   const teamRes: ResourceManager[] = Array.from({ length: teamCount }, () => new ResourceManager());
@@ -251,9 +285,11 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   const trading     = new TradingSystem();
   const ageSystem   = new AgeSystem();
   const ageSystems  = [ageSystem, ...opponents.map(() => new AgeSystem())];
+  const localAge    = ageSystems[PLAYER_TEAM] ?? ageSystem; // local player's age (UI + SP tick)
   const research    = new ResearchSystem();
   const market      = new MarketSystem();
-  const aiInstances = opponents.map((op, i) =>
+  // MP: all teams are human (commands arrive over the wire) — no local AI.
+  const aiInstances = isMP ? [] : opponents.map((op, i) =>
     new EnemyAI(i + 1, teamRes[i + 1], ageSystems[i + 1], gather, training, research,
       op.difficulty, op.personality, (i * 7) % 30, commandBus),
   );
@@ -271,7 +307,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   const conversion  = new ConversionSystem();
 
   // ── HUD ──────────────────────────────────────────────────────────────────
-  const hud = new HUD(app, teamRes[0]);
+  const hud = new HUD(app, teamRes[PLAYER_TEAM]);
   hud.setBus(lockstepClient);
   const settings = new SettingsPanel(app, postfx);
   settings.onResume = () => { _focusPaused = false; };
@@ -287,8 +323,8 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   gather.onGatherTick = () => play(SoundId.GatherHit);
 
   // ── Audio hooks (cosmetic seam: sim → sound) ──────────────────────────────
-  ageSystem.onAgeUp = () => play(SoundId.AgeUp);
-  research.onComplete = (teamId) => { if (teamId === 0) play(SoundId.ResearchDone); };
+  localAge.onAgeUp = () => play(SoundId.AgeUp);
+  research.onComplete = (teamId) => { if (teamId === PLAYER_TEAM) play(SoundId.ResearchDone); };
   combat.onRangedFire = (from, to, splash) => projectiles.fire(from, to, splash);
 
   // ── Conversion callbacks ──────────────────────────────────────────────────
@@ -308,6 +344,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     renderer.domElement, rig.camera, scene,
     units, buildings, nodes, gather, combat, garrison, pathQueue, lockstepClient,
   );
+  selection.localTeam = PLAYER_TEAM;
 
   function onBuild(type: BuildingType) {
     placement.begin(type);
@@ -315,7 +352,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
   placement.onPlace = (type, pos) => {
     const def = DEFS[type];
-    const rm = teamRes[0];
+    const rm = teamRes[PLAYER_TEAM];
     if (!rm.canAfford(0, def.costWood, def.costGold, def.costStone)) return false;
     rm.wood  = Math.max(0, rm.wood  - def.costWood);
     rm.stone = Math.max(0, rm.stone - def.costStone);
@@ -335,12 +372,12 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   };
 
   selection.onSelectUnit = (u) => {
-    if (u) hud.showUnit(u, teamRes[0], onBuild);
+    if (u) hud.showUnit(u, teamRes[PLAYER_TEAM], onBuild);
     else if (!selection.selectedBuilding) hud.clearInfo();
     hud.setFormation(selection.selected.length > 0 ? FORMATION_NAMES[selection.formationType] : null);
   };
   selection.onSelectBuilding = (b) => {
-    if (b) hud.showBuilding(b, training, teamRes[0], ageSystem, research, market, garrison);
+    if (b) hud.showBuilding(b, training, teamRes[PLAYER_TEAM], localAge, research, market, garrison);
     else hud.clearInfo();
   };
   selection.onFormationChange = (type) => {
@@ -349,7 +386,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
   // Auto-assign player villagers to different resources at start (gold, wood, food)
   const startKinds = [ResourceKind.Gold, ResourceKind.Wood, ResourceKind.Food];
-  const playerVills = units.filter(u => u.teamId === 0);
+  const playerVills = units.filter(u => u.teamId === PLAYER_TEAM);
   playerVills.forEach((u, i) => {
     const kind = startKinds[i % startKinds.length];
     const node = nodes.find(n => n.kind === kind && !n.depleted && n.hasRoom);
@@ -428,9 +465,9 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
     if (key === "g" && selection.selectedBuilding) {
       const b = selection.selectedBuilding;
-      if (b.teamId === 0 && garrison.canGarrison(b)) {
+      if (b.teamId === PLAYER_TEAM && garrison.canGarrison(b)) {
         for (const u of selection.selected) {
-          if (u.teamId === 0) garrison.orderGarrison(u, b);
+          if (u.teamId === PLAYER_TEAM) garrison.orderGarrison(u, b);
         }
       }
     }
@@ -440,7 +477,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     }
 
     if (key === ".") {
-      const idle = units.find(u => u.teamId === 0 && u.alive && u.gathers && !u.gatherTarget && !u.attackTarget);
+      const idle = units.find(u => u.teamId === PLAYER_TEAM && u.alive && u.gathers && !u.gatherTarget && !u.attackTarget);
       if (idle) {
         for (const u of selection.selected) u.selected = false;
         selection.selected.length = 0;
@@ -533,6 +570,9 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
         for (const cmd of turnCmds) commandBus.issue(cmd);
         commandExecutor.execute(commandBus.drain());
 
+        // MP: emit periodic checksum for desync detection
+        desyncHandler?.tick(commandBus.currentTick, app);
+
         // Pathfinding + movement (before systems that read positions)
         pathQueue.tick(navGrid, step);
         movement.tick(units, navGrid, step);
@@ -571,8 +611,13 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
         for (const ai of aiInstances) ai.tick(units, buildings, nodes, scene, step, pathQueue);
         conversion.tick(units, step);
         fog.tick(units, buildings, step);
-        ageSystem.tick(teamRes[0], step);
-        // AI ageSystems ticked inside each EnemyAI.tick()
+        if (isMP) {
+          // No local AI in MP — tick every team's age system so opponents can advance.
+          for (let i = 0; i < ageSystems.length; i++) ageSystems[i].tick(teamRes[i], step);
+        } else {
+          localAge.tick(teamRes[PLAYER_TEAM], step);
+          // AI ageSystems ticked inside each EnemyAI.tick()
+        }
         minimap.tick(units, buildings, nodes, fog, step);
 
         gather.prune();
@@ -592,7 +637,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
         for (const b of buildings) {
           if (b.alive && b.def.popProvided > 0) teamRes[b.teamId].popCap += b.def.popProvided;
         }
-        teamRes[0].onChange?.();
+        teamRes[PLAYER_TEAM].onChange?.();
 
         if (!gameOver) {
           const allTeams = Array.from({ length: teamCount }, (_, i) => i);
@@ -605,7 +650,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
           if (winner >= 0) {
             gameOver = true;
-            if (winner === 0) {
+            if (winner === PLAYER_TEAM) {
               hud.showVictory(0);
               play(SoundId.Victory);
             } else {
@@ -624,12 +669,12 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     for (const b of buildings) b.refreshHpBarCamera(rig.camera);
 
     if (selection.selected.length > 1) hud.showMultiUnit(selection.selected);
-    else if (selection.selected.length === 1) hud.showUnit(selection.selected[0], teamRes[0], onBuild);
-    else if (selection.selectedBuilding) hud.showBuilding(selection.selectedBuilding, training, teamRes[0], ageSystem, research, market, garrison);
+    else if (selection.selected.length === 1) hud.showUnit(selection.selected[0], teamRes[PLAYER_TEAM], onBuild);
+    else if (selection.selectedBuilding) hud.showBuilding(selection.selectedBuilding, training, teamRes[PLAYER_TEAM], localAge, research, market, garrison);
     hud.setFormation(selection.selected.length > 0 ? FORMATION_NAMES[selection.formationType] : null);
 
     // Combat intensity for audio ducking (fraction of player units actively attacking)
-    const playerUnits = units.filter(u => u.teamId === 0 && u.alive);
+    const playerUnits = units.filter(u => u.teamId === PLAYER_TEAM && u.alive);
     const attacking   = playerUnits.filter(u => u.attackTarget || u.attackTargetBuilding).length;
     setAmbientDuck(playerUnits.length > 0 ? attacking / playerUnits.length : 0);
 

@@ -260,7 +260,8 @@
 - [~] `[WEB16.spectate]` spectator role — **server-side hazır**: protocol JoinMsg.spectate + RoomJoinedMsg.spectator; Room `_spectators` ayrı liste (turn count'a dahil DEĞİL), broadcast spectator'lara da gider; index.ts spectate join (started oyunlara da izinli) + turn_input/checksum spectator'dan **reddedilir** (komut sokamaz). _Client playback UI + touch = tablet (#23) ile_
 - [x] `[WEB16.dev]` root `package.json` + `concurrently`; `RtsRoom.ts` silindi; `VITE_WS_URL` env
 - [x] **main.ts wire:** SP LoopbackTransport → LockstepClient; sim gated on stalling; Selection+HUD → CommandIssuer interface
-- [ ] **DoD (kısmi):** SP LoopbackTransport'tan akar (0 gecikme) · WsTransport MP altyapısı hazır · RoomScreen lobby UI · server version-triple check · reconnect/spectate stretch
+- [x] **MP entry wire:** PreGameScreen "ÇOK OYUNCULU" → RoomScreen → WsTransport.connect → create/join → game_start → `startGame(..., NetConfig)`. MP: LockstepClient T=4/D=2, seed game_start'tan (initSimRng+buildForest tüm clientlarda aynı), AI kapalı, tüm takım ageSystem'leri tick (rakip çağ ilerletebilir), DesyncHandler checksum. Perspektif `PLAYER_TEAM` (kamera/HUD/Selection.localTeam/victory/ekonomi). **Runtime doğrulandı: Create Room → server `[Room] created: UBK6T` → lobby.** _(civ-select MP lobby + tam 2-client game_start = follow-up; teamId server-sanitize ile düzeltilir)_
+- [x] **DoD (kısmi):** SP LoopbackTransport'tan akar · MP RoomScreen→WsTransport→oda oluşturma uçtan uca çalışıyor (server log kanıt) · version-triple check · reconnect/spectate-client stretch (MP-wire artık hazır)
 
 **→ MVP-2 (online 1v1) tamam**
 
