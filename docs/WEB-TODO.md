@@ -283,7 +283,7 @@
 - [x] `[WEB18.deploy]` `web/netlify.toml` (publish=dist, env var comments) + `server/railway.json` zaten vardı; ölçek notları → PLAN.md
 - [x] `[WEB18.limits]` `server/src/Limits.ts` — 60 msg/s rate limit + burst cap + 30 min room TTL GC; index.ts'e wire edildi
 - [x] `[WEB18.version]` `shared/Versions.ts` triple + versionsCompatible(); HUD bottom-right badge; protocol.ts PROTOCOL_VERSION referans alıyor
-- [ ] `[WEB18.sentry]` `@sentry/browser` + `@sentry/node` — kurulum kılavuzu aşağıda; opsiyonel env VITE_SENTRY_DSN/SENTRY_DSN
+- [x] `[WEB18.sentry]` `@sentry/browser` (web) + `@sentry/node` (server) kuruldu; `Telemetry.ts` wrapper'ları (initTelemetry/reportDesync/reportError) — DSN yoksa no-op. DesyncHandler + Room desync → reportDesync (kind=desync tag, ANA metrik). .env.example + netlify.toml env dökümante. vite build 736KB OK
 - [x] `[WEB18.load]` `server/test/load.ts` — 50 oda × 2 bot × 300 turn; p95 < 50ms + RSS < 512MB gate; `npx ts-node server/test/load.ts`
 - [ ] `[WEB18.tablet]` tablet spectator — **stretch** (`?spectate=CODE` → view-only TouchCameraRig)
 - [x] `[WEB18.clean]` RtsRoom.ts Faz 16'da silindi; package.json kökü oluşturuldu; PLAN.md güncellendi

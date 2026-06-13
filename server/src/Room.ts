@@ -4,6 +4,7 @@
  * Stop-and-wait: server does NOT advance until all players submit.
  */
 import { WebSocket } from 'ws';
+import { reportDesync } from './Telemetry';
 import type {
   TurnMsg,
   StallMsg,
@@ -138,6 +139,7 @@ export class Room {
     if (!allSame) {
       this.broadcast({ type: 'desync', turn });
       console.warn(`[Room] ${this.code} DESYNC turn=${turn} hashes=${hashes.join(',')}`);
+      reportDesync(this.code, turn, hashes);
     }
     this._checksumsByTurn.delete(turn);
   }

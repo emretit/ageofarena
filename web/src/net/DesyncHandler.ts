@@ -6,6 +6,7 @@
 import type { Transport } from './Transport';
 import type { CommandBus } from '../sim/CommandBus';
 import { Checksum } from '../sim/Checksum';
+import { reportDesync } from './Telemetry';
 
 const SAMPLE_EVERY_TICKS = 30;
 
@@ -19,7 +20,10 @@ export class DesyncHandler {
   ) {
     if (_transport) {
       _transport.onMessage = (msg) => {
-        if (msg.type === 'desync') this._showBanner(msg.turn);
+        if (msg.type === 'desync') {
+          this._showBanner(msg.turn);
+          reportDesync(msg.turn);
+        }
       };
     }
   }

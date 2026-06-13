@@ -62,6 +62,10 @@ import { type ReplaySetup, type AoaRep, REPLAY_MAGIC, REPLAY_VERSION, saveRepToS
 import { LockstepClient, SP_OPTIONS } from "./net/LockstepClient";
 import { LoopbackTransport } from "./net/LoopbackTransport";
 import { NetStatus } from "./ui/NetStatus";
+import { initTelemetry } from "./net/Telemetry";
+
+// Optional Sentry (no-op unless VITE_SENTRY_DSN is set)
+initTelemetry();
 
 // ── Renderer (eager — shows while PreGameScreen is up) ───────────────────────
 const app = document.getElementById("app")!;

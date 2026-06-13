@@ -5,6 +5,10 @@ import { Room, type RoomPlayer } from './Room';
 import { PROTOCOL_VERSION } from '../../shared/protocol';
 import type { ClientMsg } from '../../shared/protocol';
 import { isRateLimited, cleanupSocket, touchRoom, removeRoom, startRoomGc } from './Limits';
+import { initTelemetry } from './Telemetry';
+
+// Optional Sentry (no-op unless SENTRY_DSN is set)
+initTelemetry();
 
 const port = Number(process.env.PORT ?? 2567);
 const httpServer = createServer((req, res) => {
