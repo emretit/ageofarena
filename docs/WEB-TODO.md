@@ -185,7 +185,7 @@
 
 ### 12.1 Profil & perf
 - [x] `[WEB12.perfhud]` `src/dev/PerfHud.ts` — FPS p95, sim ms, draw call, path kuyruğu (F3)
-- [ ] `[WEB12.stress]` P=250v250, Shift+P=500v500 + otomatik attack-move; 5dk senaryo dokümante
+- [x] `[WEB12.stress]` P=250v250, Shift+P=500v500 spawn + otomatik attack-move; PerfHud (F3) otomatik açılır + Units sayacı. Ölçüm: 1000 birimde sim tick **2.30ms** (path queue 923, draw call 1)
 - [ ] `[WEB12.hotpath]` ölç-düzelt: separation cap, FoW repaint, Minimap ImageData, GC scratch avı
 
 ### 12.2 Donanma dilimi

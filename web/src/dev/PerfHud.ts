@@ -12,6 +12,9 @@ export class PerfHud {
   private _simMs     = 0;
   private _drawCalls = 0;
   private _pathQueue = 0;
+  private _unitCount = 0;
+
+  get visible(): boolean { return this._visible; }
 
   constructor(container: HTMLElement) {
     this._el = document.createElement("div");
@@ -49,6 +52,9 @@ export class PerfHud {
   /** Set path queue depth. */
   setPathQueue(n: number): void { this._pathQueue = n; }
 
+  /** Set live unit count (stress-test visibility). */
+  setUnitCount(n: number): void { this._unitCount = n; }
+
   /** Call after tickFrame to refresh the display. */
   flush(): void {
     if (!this._visible || this._frameTimes.length === 0) return;
@@ -64,6 +70,7 @@ export class PerfHud {
       `Sim tick: ${this._simMs.toFixed(2)}ms`,
       `Draw calls: ${this._drawCalls}`,
       `Path queue: ${this._pathQueue}`,
+      `Units: ${this._unitCount}`,
     ].join("<br>");
   }
 }

@@ -34,6 +34,7 @@ import { EnemyAI, Difficulty, Personality } from "./game/EnemyAI";
 import { diplomacy, resetDiplomacy } from "./core/Diplomacy";
 import { VictorySystem } from "./game/VictorySystem";
 import { Selection, FORMATION_NAMES } from "./game/Selection";
+import { orderAttackMove } from "./game/Orders";
 import { HUD } from "./ui/HUD";
 import { Minimap } from "./ui/Minimap";
 import { DamagePopup } from "./ui/DamagePopup";
@@ -349,6 +350,22 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     aiInstances, commandBus,
   };
 
+  // ── Stress-test spawn (dev) ───────────────────────────────────────────────
+  function spawnStressArmy(count: number, teamId: number, baseX: number, targetX: number): void {
+    const cols = Math.ceil(Math.sqrt(count));
+    const added: Unit[] = [];
+    for (let i = 0; i < count; i++) {
+      const col = i % cols, row = Math.floor(i / cols);
+      const x = baseX + (col - cols / 2) * 1.3;
+      const z = (row - cols / 2) * 1.3;
+      const type = i % 3 === 0 ? UnitType.Archer : UnitType.Militia;
+      const u = new Unit(scene, new THREE.Vector3(x, 0, z), teamId, type);
+      units.push(u);
+      added.push(u);
+    }
+    orderAttackMove(added, targetX, 0, pathQueue);
+  }
+
   // ── Hotkeys (HKEY port) ───────────────────────────────────────────────────
   window.addEventListener("keydown", e => {
     if (e.target instanceof HTMLInputElement) return;
@@ -379,6 +396,15 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     // Cycle formation (F key)
     if (key === "f" && selection.selected.length > 0) {
       selection.cycleFormation();
+    }
+
+    // Stress test (P = 250v250, Shift+P = 500v500): dev-only mass battle
+    if (key === "p") {
+      const perSide = e.shiftKey ? 500 : 250;
+      spawnStressArmy(perSide, 0, -55, 55);   // team 0 on the left, attacks right
+      spawnStressArmy(perSide, 1,  55, -55);  // team 1 on the right, attacks left
+      if (!perfHud.visible) perfHud.toggle();
+      console.log(`[Stress] spawned ${perSide}v${perSide} (${units.length} units total)`);
     }
 
     if (key === "g" && selection.selectedBuilding) {
@@ -599,6 +625,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     perfHud.tickFrame(dt);
     perfHud.setDrawCalls(renderer.info.render.calls);
     perfHud.setPathQueue(pathQueue.pendingCount);
+    perfHud.setUnitCount(units.length);
     perfHud.flush();
     requestAnimationFrame(frame);
   }
