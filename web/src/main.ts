@@ -60,7 +60,9 @@ import { CommandBus } from "./sim/CommandBus";
 import { CommandExecutor } from "./sim/CommandExecutor";
 import { qEncode } from "./sim/Command";
 import { resetIds } from "./sim/EntityIds";
-import { type ReplaySetup, type AoaRep, REPLAY_MAGIC, REPLAY_VERSION, saveRepToSlot } from "./replay/ReplayFile";
+import { type ReplaySetup, type AoaRep, REPLAY_MAGIC, REPLAY_VERSION, saveRepToSlot, loadRepFromSlot } from "./replay/ReplayFile";
+import { ReplayDriver, SEEK_BURST } from "./replay/ReplayDriver";
+import { ReplayHUD } from "./ui/ReplayHUD";
 import { LockstepClient, SP_OPTIONS } from "./net/LockstepClient";
 import { LoopbackTransport } from "./net/LoopbackTransport";
 import type { Transport } from "./net/Transport";
@@ -122,7 +124,8 @@ void assetLoader
   .catch(() => loadingScreen.done()); // graceful: missing models fall back to procedural
 
 // ── Pre-game screen ───────────────────────────────────────────────────────────
-const preScreen = new PreGameScreen(app);
+const savedRep = loadRepFromSlot(1); // null if no replay saved yet
+const preScreen = new PreGameScreen(app, savedRep);
 preScreen.onStart = (playerCiv: Civilization, opponents: OpponentConfig[], mapType: MapType) => {
   if (!assetLoader.isLoaded) return; // guard: never spawn units before models are baked
   setTeamCiv(0, playerCiv);
@@ -135,6 +138,18 @@ preScreen.onStart = (playerCiv: Civilization, opponents: OpponentConfig[], mapTy
     opponents: opponents.map(op => ({ civ: op.civ, difficulty: op.difficulty, personality: op.personality })),
   };
   startGame(mapType, trees, opponents, replaySetup);
+};
+preScreen.onWatchReplay = (rep: AoaRep) => {
+  if (!assetLoader.isLoaded) return;
+  const mapType = rep.setup.mapType as MapType;
+  initSimRng(rep.setup.simSeed);
+  const trees = buildForest(scene, mapType, rep.setup.simSeed);
+  setTeamCiv(0, rep.setup.playerCiv as Civilization);
+  const opponents: OpponentConfig[] = rep.setup.opponents.map(op => ({
+    civ: op.civ as Civilization, difficulty: op.difficulty as Difficulty, personality: op.personality as Personality,
+  }));
+  opponents.forEach((op, i) => setTeamCiv(i + 1, op.civ));
+  startGame(mapType, trees, opponents, undefined, undefined, rep);
 };
 
 // ── Online multiplayer (RoomScreen → WsTransport → game_start) ──────────────────
@@ -199,10 +214,11 @@ function unstampBuilding(b: Building): void {
 }
 
 // ── Game bootstrap ────────────────────────────────────────────────────────────
-function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentConfig[] = [{ civ: 0 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced }], _replaySetup?: ReplaySetup, net?: NetConfig): void {
+function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentConfig[] = [{ civ: 0 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced }], _replaySetup?: ReplaySetup, net?: NetConfig, _watchRep?: AoaRep): void {
   const arch = getMapArchetype(mapType);
   const rng  = mulberry32(42);
   const isMP = !!net;
+  const isReplay = !!_watchRep;
   const PLAYER_TEAM = net?.myTeam ?? 0; // local player's team (MP: assigned by server)
 
   // Reset entity IDs + NavGrid for new game (avoid stamp carry-over across rematches)
@@ -336,8 +352,8 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   const localAge    = ageSystems[PLAYER_TEAM] ?? ageSystem; // local player's age (UI + SP tick)
   const research    = new ResearchSystem();
   const market      = new MarketSystem();
-  // MP: all teams are human (commands arrive over the wire) — no local AI.
-  const aiInstances = isMP ? [] : opponents.map((op, i) =>
+  // MP/Replay: all commands come from wire or replay log — no local AI.
+  const aiInstances = isMP || isReplay ? [] : opponents.map((op, i) =>
     new EnemyAI(i + 1, teamRes[i + 1], ageSystems[i + 1], gather, training, research,
       op.difficulty, op.personality, (i * 7) % 30, commandBus),
   );
@@ -354,10 +370,15 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   const ctrlGroups  = new ControlGroups();
   const conversion  = new ConversionSystem();
 
+  // ── Replay driver + HUD (replay mode only) ───────────────────────────────
+  const replayDriver = _watchRep ? new ReplayDriver(_watchRep, commandBus) : null;
+  const replayHUD    = replayDriver ? new ReplayHUD(app, replayDriver) : null;
+
   // ── HUD ──────────────────────────────────────────────────────────────────
   const hud = new HUD(app, teamRes[PLAYER_TEAM]);
   hud.localTeam = PLAYER_TEAM;
-  hud.setBus(lockstepClient);
+  // Replay: no bus — HUD buttons are display-only (commands come from replay log)
+  if (!isReplay) hud.setBus(lockstepClient);
   const settings = new SettingsPanel(app, postfx);
   settings.onResume = () => { _focusPaused = false; };
 
@@ -388,9 +409,10 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   minimap.onNavigate = (x, z) => rig.panTo(x, z);
 
   // ── Selection ─────────────────────────────────────────────────────────────
+  // Replay: no bus — clicks don't issue commands (replay is read-only)
   const selection = new Selection(
     renderer.domElement, rig.camera, scene,
-    units, buildings, nodes, gather, combat, garrison, pathQueue, lockstepClient,
+    units, buildings, nodes, gather, combat, garrison, pathQueue, isReplay ? undefined : lockstepClient,
   );
   selection.localTeam = PLAYER_TEAM;
 
@@ -617,20 +639,31 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
     if (!gameOver && !_focusPaused) {
       acc += dt;
+      // Seeking: inject extra budget so the while-loop runs SEEK_BURST ticks this frame
+      if (replayDriver?.seeking) acc += Config.FixedStep * SEEK_BURST;
       while (!gameOver && acc >= Config.FixedStep) {
         const step = Config.FixedStep;
         gameElapsed += step;
         const simStart = performance.now();
 
-        // Lockstep tick: collect confirmed turn commands, gate on server echo
-        const { stalling, commands: turnCmds } = lockstepClient.tick();
-        netStatus.setStalling(stalling);
-        if (stalling) { acc -= step; break; } // pause sim until server confirms
+        if (replayDriver) {
+          // Replay mode: commands come from the driver, not lockstep
+          commandBus.advanceTick();
+          if (!replayDriver.tick()) { acc = 0; break; } // replay ended
+          commandExecutor.execute(commandBus.drain());
+          // Stop burst as soon as seek target is reached
+          if (!replayDriver.seeking) acc = 0;
+        } else {
+          // Lockstep tick: collect confirmed turn commands, gate on server echo
+          const { stalling, commands: turnCmds } = lockstepClient.tick();
+          netStatus.setStalling(stalling);
+          if (stalling) { acc -= step; break; } // pause sim until server confirms
 
-        // Advance command bus tick + execute confirmed player commands + AI commands
-        commandBus.advanceTick();
-        for (const cmd of turnCmds) commandBus.issue(cmd);
-        commandExecutor.execute(commandBus.drain());
+          // Advance command bus tick + execute confirmed player commands + AI commands
+          commandBus.advanceTick();
+          for (const cmd of turnCmds) commandBus.issue(cmd);
+          commandExecutor.execute(commandBus.drain());
+        }
 
         // MP: emit periodic checksum for desync detection
         desyncHandler?.tick(commandBus.currentTick, app);
@@ -676,6 +709,9 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
         if (isMP) {
           // No local AI in MP — tick every team's age system so opponents can advance.
           for (let i = 0; i < ageSystems.length; i++) ageSystems[i].tick(teamRes[i], step);
+        } else if (isReplay) {
+          // Replay: age systems tick passively (age-up commands come from replay log)
+          for (let i = 0; i < ageSystems.length; i++) ageSystems[i].tick(teamRes[i], step);
         } else {
           localAge.tick(teamRes[PLAYER_TEAM], step);
           // AI ageSystems ticked inside each EnemyAI.tick()
@@ -702,7 +738,8 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
         }
         teamRes[PLAYER_TEAM].onChange?.();
 
-        if (!gameOver) {
+        // Skip victory screen in replay — game state evolves but we don't re-trigger fanfare
+        if (!isReplay && !gameOver) {
           const allTeams = Array.from({ length: teamCount }, (_, i) => i);
 
           // Conquest: VictorySystem handles TC elimination
@@ -741,6 +778,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     const attacking   = playerUnits.filter(u => u.attackTarget || u.attackTargetBuilding).length;
     setAmbientDuck(playerUnits.length > 0 ? attacking / playerUnits.length : 0);
 
+    replayHUD?.tick();
     damagePopup.tick(rig.camera, dt);
     projectiles.tick(dt);
     vfx.tick(buildings, rig.camera, dt);

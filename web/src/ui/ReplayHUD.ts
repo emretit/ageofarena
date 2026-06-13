@@ -1,13 +1,13 @@
 /**
  * ReplayHUD — overlay panel shown during replay playback.
- * Timeline bar + play/pause + speed selector.
+ * Timeline bar (click to seek forward) + play/pause + speed selector.
  */
 import type { ReplayDriver } from '../replay/ReplayDriver';
 
 export class ReplayHUD {
   private readonly _root: HTMLElement;
-  private readonly _bar: HTMLElement;
   private readonly _fill: HTMLElement;
+  private readonly _seekFill: HTMLElement;
   private readonly _label: HTMLElement;
 
   constructor(container: HTMLElement, private readonly driver: ReplayDriver) {
@@ -52,22 +52,42 @@ export class ReplayHUD {
       this._root.appendChild(btn);
     }
 
-    // Timeline bar
+    // Timeline bar — click to seek forward to that position
     const barWrap = document.createElement('div');
     Object.assign(barWrap.style, {
-      width: '200px', height: '6px', background: '#333', borderRadius: '3px', cursor: 'pointer',
+      position: 'relative', width: '200px', height: '6px', background: '#333',
+      borderRadius: '3px', cursor: 'pointer',
     });
+
+    // Ghost fill — shows seek target while fast-forwarding
+    this._seekFill = document.createElement('div');
+    Object.assign(this._seekFill.style, {
+      position: 'absolute', top: '0', left: '0', height: '100%',
+      background: 'rgba(100,180,255,0.25)', borderRadius: '3px', width: '0%',
+      pointerEvents: 'none',
+    });
+
     this._fill = document.createElement('div');
     Object.assign(this._fill.style, {
-      height: '100%', background: '#4af', borderRadius: '3px', width: '0%', transition: 'width 0.1s',
+      position: 'absolute', top: '0', left: '0',
+      height: '100%', background: '#4af', borderRadius: '3px', width: '0%',
+      transition: 'width 0.1s',
     });
+
+    barWrap.appendChild(this._seekFill);
     barWrap.appendChild(this._fill);
-    this._bar = barWrap;
     this._root.appendChild(barWrap);
+
+    barWrap.addEventListener('click', (e) => {
+      const rect = barWrap.getBoundingClientRect();
+      const frac = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      const targetTick = Math.floor(frac * driver.durationTicks);
+      driver.seekForward(targetTick);
+    });
 
     // Time label
     this._label = document.createElement('span');
-    this._label.style.minWidth = '60px';
+    this._label.style.minWidth = '80px';
     this._root.appendChild(this._label);
 
     container.appendChild(this._root);
@@ -76,11 +96,23 @@ export class ReplayHUD {
   tick(): void {
     const pct = Math.min(100, this.driver.progressFraction * 100);
     this._fill.style.width = `${pct}%`;
-    const secs = Math.floor(this.driver.cursor / 30);
+
+    // Ghost bar tracks seek target while fast-forwarding
+    if (this.driver.seeking && this.driver.seekTarget !== null) {
+      const targetPct = Math.min(100, (this.driver.seekTarget / this.driver.durationTicks) * 100);
+      this._seekFill.style.width = `${targetPct}%`;
+    } else {
+      this._seekFill.style.width = `${pct}%`;
+    }
+
+    const secs  = Math.floor(this.driver.cursor / 30);
     const total = Math.floor(this.driver.durationTicks / 30);
-    this._label.textContent = `${fmt(secs)} / ${fmt(total)}`;
-    if (this.driver.state === 'done') {
-      this._label.textContent += ' [END]';
+    if (this.driver.seeking && this.driver.seekTarget !== null) {
+      this._label.textContent = `${fmt(secs)} >> ${fmt(Math.floor(this.driver.seekTarget / 30))}`;
+    } else if (this.driver.state === 'done') {
+      this._label.textContent = `${fmt(total)} [END]`;
+    } else {
+      this._label.textContent = `${fmt(secs)} / ${fmt(total)}`;
     }
   }
 

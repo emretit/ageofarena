@@ -5,6 +5,7 @@
 import { Civilization, CIVILIZATION_DEFS, PLAYABLE_CIVS, type CivBonus } from "../core/CivilizationDefs";
 import { MapType } from "../world/MapGenerator";
 import { Difficulty, Personality } from "../game/EnemyAI";
+import type { AoaRep } from "../replay/ReplayFile";
 
 export interface OpponentConfig {
   civ:         Civilization;
@@ -18,8 +19,10 @@ export class PreGameScreen {
   onStart: ((player: Civilization, opponents: OpponentConfig[], map: MapType) => void) | null = null;
   /** Fired when the player chooses online multiplayer instead of a skirmish. */
   onOnline: (() => void) | null = null;
+  /** Fired when the player wants to watch a saved replay. */
+  onWatchReplay: ((rep: AoaRep) => void) | null = null;
 
-  constructor(container: HTMLElement) {
+  constructor(container: HTMLElement, private readonly _savedRep: AoaRep | null = null) {
     this._el = document.createElement("div");
     this._el.style.cssText = `
       position:absolute; inset:0; background:rgba(6,8,16,0.96);
@@ -173,6 +176,25 @@ export class PreGameScreen {
       this.onOnline?.();
     });
     this._el.appendChild(onlineBtn);
+
+    // Watch replay button — only shown when a saved replay exists in slot 1
+    if (this._savedRep) {
+      const repBtn = document.createElement("button");
+      const dur = Math.floor(this._savedRep.durationTicks / 30 / 60);
+      repBtn.textContent = `REPLAY IZLE (~${dur} dk)`;
+      repBtn.style.cssText = `
+        padding:8px 32px; font-size:13px; font-weight:bold; font-family:monospace;
+        background:#3c2c10; color:#f5d060; border:1px solid #a87c28; border-radius:6px;
+        cursor:pointer; letter-spacing:1px; margin-top:8px;
+      `;
+      repBtn.addEventListener("mouseenter", () => { repBtn.style.background = "#5c4218"; });
+      repBtn.addEventListener("mouseleave", () => { repBtn.style.background = "#3c2c10"; });
+      repBtn.addEventListener("click", () => {
+        this._el.remove();
+        this.onWatchReplay?.(this._savedRep!);
+      });
+      this._el.appendChild(repBtn);
+    }
   }
 
   private _buildOpponents(): OpponentConfig[] {
