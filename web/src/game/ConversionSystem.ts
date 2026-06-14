@@ -36,8 +36,6 @@ export class ConversionSystem {
   tick(units: Unit[], dt: number): void {
     for (const monk of units) {
       if (!monk.alive || monk.unitType !== UnitType.Monk) continue;
-      if (monk.teamId !== 0) continue; // only player monks for now (AI TODO)
-
       // Recharge countdown
       const rch = this._recharge.get(monk) ?? 0;
       if (rch > 0) { this._recharge.set(monk, rch - dt); continue; }

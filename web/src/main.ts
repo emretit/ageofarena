@@ -229,6 +229,9 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   const isReplay = !!_watchRep;
   const PLAYER_TEAM = net?.myTeam ?? 0; // local player's team (MP: assigned by server)
 
+  // Propagate local team to systems that need it for rendering (HP bars, FOW).
+  Building.localTeam = PLAYER_TEAM;
+
   // Reset entity IDs + NavGrid for new game (avoid stamp carry-over across rematches)
   resetIds();
   navGrid.reset();
@@ -434,6 +437,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
   // ── Fog of War ───────────────────────────────────────────────────────────
   const fog = new FogOfWarSystem(scene);
+  fog.localTeam = PLAYER_TEAM;
 
   // AoE2-style cheat codes (HKEY CHEATS port)
   settings.onCheat = (code) => {

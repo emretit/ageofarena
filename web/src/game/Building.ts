@@ -106,6 +106,9 @@ const HP_BG_MAT  = new THREE.MeshBasicMaterial({ color: 0x220000 });
 const POLE_MAT   = new THREE.MeshLambertMaterial({ color: 0x5a3a1a });
 
 export class Building {
+  /** Set once by main.ts so HP bars show green for allied buildings, red for enemy. */
+  static localTeam = 0;
+
   readonly id: EntityId = allocId();
   readonly root: THREE.Group;
   readonly teamId: number;
@@ -151,7 +154,7 @@ export class Building {
 
     // HP bar (world-space billboard, updated each frame via refreshHpBarCamera)
     const barBg = new THREE.Mesh(HP_BG_GEO, HP_BG_MAT);
-    this._hpFgMat = new THREE.MeshBasicMaterial({ color: teamId === 0 ? 0x44cc22 : 0xcc2222 });
+    this._hpFgMat = new THREE.MeshBasicMaterial({ color: teamId === Building.localTeam ? 0x44cc22 : 0xcc2222 });
     this._hpFg = new THREE.Mesh(HP_FG_GEO, this._hpFgMat);
     this._hpFg.position.z = 0.001;
     barBg.add(this._hpFg);

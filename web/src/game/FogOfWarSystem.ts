@@ -61,6 +61,9 @@ function worldToPixel(w: number): number {
 }
 
 export class FogOfWarSystem {
+  /** Local player's team — set from main.ts after construction (MP: assigned by server). */
+  localTeam = 0;
+
   private readonly vis      = new Uint8Array(TEX_SIZE * TEX_SIZE);
   private readonly explored = new Uint8Array(TEX_SIZE * TEX_SIZE);
 
@@ -131,11 +134,11 @@ export class FogOfWarSystem {
     }
 
     for (const u of units) {
-      if (!u.alive || (u.teamId !== 0 && !diplomacy.isAlly(u.teamId, 0))) continue;
+      if (!u.alive || (u.teamId !== this.localTeam && !diplomacy.isAlly(u.teamId, this.localTeam))) continue;
       this._paintCircle(u.pos.x, u.pos.z, unitSight(u.unitType));
     }
     for (const b of buildings) {
-      if (!b.alive || (b.teamId !== 0 && !diplomacy.isAlly(b.teamId, 0))) continue;
+      if (!b.alive || (b.teamId !== this.localTeam && !diplomacy.isAlly(b.teamId, this.localTeam))) continue;
       this._paintCircle(b.pos.x, b.pos.z, buildingSight(b));
     }
 
@@ -195,11 +198,11 @@ export class FogOfWarSystem {
 
   private _updateEnemyVisibility(units: Unit[], buildings: Building[]) {
     for (const u of units) {
-      if (u.teamId === 0 || diplomacy.isAlly(u.teamId, 0)) continue;
+      if (u.teamId === this.localTeam || diplomacy.isAlly(u.teamId, this.localTeam)) continue;
       u.root.visible = this._isLit(u.pos.x, u.pos.z);
     }
     for (const b of buildings) {
-      if (b.teamId === 0 || diplomacy.isAlly(b.teamId, 0)) continue;
+      if (b.teamId === this.localTeam || diplomacy.isAlly(b.teamId, this.localTeam)) continue;
       b.root.visible = this._isLit(b.pos.x, b.pos.z);
     }
   }
