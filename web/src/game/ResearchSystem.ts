@@ -619,11 +619,11 @@ export function applyTechBonus(u: Unit, tech: TechId) {
     case TechId.Chemistry:
       if (u.isRanged) (u as { baseAtk: number }).baseAtk += 1;
       break;
-    // ── Sanctity (Monk +50 HP) ────────────────────────────────────────────
+    // ── Sanctity (Monk +15 HP — AoE2:DE value; base 30→45) ──────────────
     case TechId.Sanctity:
       if (u.unitType === UnitType.Monk) {
-        (u as { maxHp: number }).maxHp += 50;
-        u.hp = Math.min(u.hp + 50, u.maxHp);
+        (u as { maxHp: number }).maxHp += 15;
+        u.hp = Math.min(u.hp + 15, u.maxHp);
       }
       break;
     // ── BlockPrinting (Monk +1 range) ────────────────────────────────────

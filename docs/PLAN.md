@@ -337,8 +337,8 @@ paritesi" hedefini kod tarafında başlatan temel dalga olarak kayda geçti.
 16. ✔️ Monastery gold trickle'ını relic deposit sonrası uzun süreli testle ölç.
 17. ✅ Monk conversion başarısızlık durumlarında faith reset davranışını test et. (faithGoal her conversion'da bir kez roll edilecek şekilde düzeltildi + cancel'da temizlendi — commit 832927c)
 18. ✅ Theocracy etkisinin grup convert sırasında faith tüketimini ölç. (Yanlış +speed kaldırıldı; ConversionSystem'da recharge×0.5 uygulanıyor — commit bf1e1d4)
-19. ⬜ Redemption ile siege/building conversion iznini negatif/pozitif senaryolarda doğrula.
-20. ⬜ Sanctity'nin Monk HP artışını UI ve stat testinde sabitle.
+19. ⬜ Redemption ile siege/building conversion iznini negatif/pozitif senaryolarda doğrula. (ConversionSystem'da building hedefleme gerektirir — büyük değişiklik, ertelendi)
+20. ✅ Sanctity'nin Monk HP artışını UI ve stat testinde sabitle. (AoE2:DE değeri +15 ile düzeltildi; base 30→45 HP. +50 yanlıştı — commit bu oturumda)
 21. ✅ Squires'in infantry hareket hızını sprint/retreat akışında gözlemlenebilir yap. (Barracks Feudal 200F, infantry moveSpeed×1.15 — commit 79efce7)
 22. ✅ Gambesons'un infantry pierce armor etkisini archer-heavy testte doğrula. (Barracks Castle 100F/100W, infantry armorPierce+1 — applyTechBonus+applyBuildingBonus)
 23. ✅ Thumb Ring'in archer attack interval etkisini combat timing testiyle sabitle. (ArcheryRange Castle 300F/250G, archer attackInterval×0.75 — commit 79efce7)
@@ -353,7 +353,7 @@ paritesi" hedefini kod tarafında başlatan temel dalga olarak kayda geçti.
 32. ✅ Gold Shaft Mining sonrası gold gather rate artışını node testine bağla. (MiningCamp Castle prereq GoldMining, techGatherGoldMult+0.15 — mevcut)
 33. ✅ Stone Shaft Mining sonrası stone gather rate artışını node testine bağla. (MiningCamp Castle prereq StoneMining, techGatherStoneMult+0.15 — mevcut)
 34. ✅ Town Watch ve Town Patrol building sight artışını fog-of-war görsel testine bağla. (TownWatch: TC Feudal 75F sightBonus+2; TownPatrol: TC Castle 300F sightBonus+4; FogOfWarSystem buildingSight() b.sightBonus ekliyor)
-35. ⬜ EnemyAI'nin Naval / Siege / Monk / Market tech seçimini her yaşta raporla.
+35. ✅ EnemyAI'nin Naval / Siege / Monk / Market tech seçimini her yaşta raporla. (TECH_PRIORITY güncellendi: Feudal Coinage, Castle Banking/Caravan/Sanctity/BlockPrinting/CappedRam/Onager, Imperial SiegeRam/SiegeOnager/HeavyScorpion/Theocracy/Champion/ParthianTactics/Arson/TwoManSaw)
 36. ✅ EnemyAI'nin pop cap'e takılmadan üretim döngüsünü 30 dakikalık simde doğrula. (8→14 house BUILD_ORDER + popCap test — commit 95d4f25)
 37. ✅ EnemyAI'nin build order'ını Blacksmith önceliğiyle yeniden dengele. (LC/Mill Dark Age'e çekildi, Blacksmith Feudal-1. öncelik — commit 4904ff7)
 38. ✅ EnemyAI'nin harita tipine göre Dock öncelik skorunu ayarla. (Islands=40s, diğer=80s, shore cache eklendi — commit 4904ff7)

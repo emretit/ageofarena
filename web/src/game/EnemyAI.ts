@@ -85,35 +85,50 @@ const BUILD_ORDER: Array<{
  */
 const TECH_PRIORITY: TechId[] = [
   // Dark Age eco
-  TechId.Loom,
+  TechId.Loom, TechId.TownWatch,
   // Feudal eco
   TechId.HorseCollar, TechId.DoubleBitAxe, TechId.Wheelbarrow,
   TechId.GoldMining, TechId.StoneMining,
   // Feudal military
   TechId.Fletching, TechId.Forging, TechId.ScaleMail, TechId.PaddedArcherArmor,
-  TechId.ManAtArms,
+  TechId.ManAtArms, TechId.Squires, TechId.Supplies,
+  // Feudal market
+  TechId.Coinage,
   // Castle eco
   TechId.HeavyPlow, TechId.BowSaw, TechId.HandCart,
-  TechId.GoldShaftMining, TechId.StoneMiningUpgrade,
+  TechId.GoldShaftMining, TechId.StoneMiningUpgrade, TechId.TownPatrol,
+  // Castle market
+  TechId.Banking,
   // Castle military
   TechId.IronCasting, TechId.ChainMail, TechId.Bodkin, TechId.LeatherArcherArmor,
-  TechId.Bloodlines, TechId.Longswordsman, TechId.Crossbowman, TechId.Cavalier, TechId.Pikeman,
-  TechId.LightCavalry, TechId.Husbandry,
+  TechId.Bloodlines, TechId.Longswordsman, TechId.Gambesons, TechId.Crossbowman, TechId.ThumbRing,
+  TechId.Cavalier, TechId.Pikeman, TechId.LightCavalry, TechId.Husbandry,
+  // Castle siege
+  TechId.CappedRam, TechId.Onager,
   // Castle university
   TechId.Masonry, TechId.Ballistics,
+  // Castle monk
+  TechId.Sanctity, TechId.BlockPrinting,
   // Imperial eco
-  TechId.CropRotation,
+  TechId.CropRotation, TechId.TwoManSaw,
+  // Imperial market
+  TechId.Caravan,
   // Imperial military
   TechId.BlastFurnace, TechId.PlateMail, TechId.RingArcherArmor, TechId.Bracer,
-  TechId.TwoHandedSwordsman, TechId.Arbalest, TechId.Paladin, TechId.Halberdier,
-  TechId.EliteSkirmisher, TechId.Hussar,
+  TechId.TwoHandedSwordsman, TechId.Champion, TechId.Arbalest, TechId.ParthianTactics,
+  TechId.Paladin, TechId.Halberdier, TechId.EliteSkirmisher, TechId.Hussar,
+  TechId.Arson,
+  // Imperial siege
+  TechId.SiegeRam, TechId.SiegeOnager, TechId.HeavyScorpion,
   // Imperial university
   TechId.Chemistry, TechId.Architecture,
+  // Imperial monk
+  TechId.Theocracy,
   // Castle civ unique (Castle Age) — start() filters by civGate
   TechId.Chivalry, TechId.Ironclad, TechId.Yeomen, TechId.Nomads, TechId.Yasama,
   TechId.Kamandaran, TechId.Atlatl, TechId.GreekFire, TechId.Chieftains, TechId.Madrasah,
   TechId.Stronghold, TechId.GreatWall, TechId.Anarchy, TechId.Sipahi,
-  // Castle civ unique (Imperial Age)
+  // Imperial civ unique
   TechId.BeardedAxe, TechId.Crenellations, TechId.Warwolf, TechId.Drill, TechId.Kataparuto,
   TechId.Mahouts, TechId.GarlandWars, TechId.Logistica, TechId.Berserkergang, TechId.Zealotry,
   TechId.FurorCeltica, TechId.Rocketry, TechId.Perfusion, TechId.Artillery,
