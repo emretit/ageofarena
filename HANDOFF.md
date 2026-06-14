@@ -1,9 +1,48 @@
-# Age of Arena — Unity Port Handoff
+# Age of Arena — Handoff
 
-## Proje
+> **⚠️ Aktif geliştirme `web/` (Three.js) tarafında.** Unity sürümü referans/arşiv. Bkz. [CLAUDE.md](CLAUDE.md).
+
+---
+
+## Web Oturumu Günlüğü (2026-06-14)
+
+Tek kaynaktan plan → [docs/PLAN.md](docs/PLAN.md). Aşağıdaki günlük mimari kararları + yapılan işi özetler.
+
+### Oturum W1 (2026-06-13) — Faz 8-18 + Parite Faz 1-6 ✅
+
+Naval, replay seek, lockstep MP, Supabase, ops (Faz 8-18) ve Unity parity (Faz 1-6) tamamlandı.
+Bkz. PLAN.md → "Web Roadmap" ve "Web Port Parite" bölümleri.
+
+### Oturum W2 (2026-06-14) — İçerik/Birim Parity + 50-madde TODO ✅
+
+**50-madde TODO sprint** (otonom loop, plan bitene kadar):
+
+| Faz | İçerik | Commit |
+|---|---|---|
+| P1 | 4 base unit (Camel/CavalryArcher/Medic/Scorpion), 2 naval (FireShip/DemoShip), King+Regicide, 3 bina (Outpost/BombardTower/FishTrap), 14 civ-unique birim, SiegeWorkshop fix | `4b6a3aa` |
+| P2 | 7 yeni game mode (DM/Nomad/EmpireWars/KoTH/SuddenDeath/Treaty/Turbo), PreGameScreen seçici | `0fe524b` |
+| P3 | TriggerSystem, CampaignSystem (3 misyon), TutorialSystem, ScenarioEditor | `a9d7819` |
+| P4 | Rebindable hotkeys, UI scale, cheat codes, BottomBar dock | `4b6a3aa` |
+| TODO | 46/50 madde: 30+ tech, income rates, Redemption building conv, AI TECH_PRIORITY, map-aware AI, control group badges, locked-tech panel | git log |
+| Refactor | Campaign/Tutorial/Trigger silindi (MP-only pivot) | `ea74d7f` |
+| Fix | income rate accumulator + RAF loop leak | `b3bb976` |
+| Fix | MP local-team: FOW / HP bar renk / ConversionSystem teamId guard | `8ab4f72` |
+| Fix | conversion friendly fire, onBuildingConverted | `f8db84c` |
+
+**Kalan deferred (açık):** #42 InstancedMesh, #46 tablet touch, #47 MP reconnect, #48 spectator-client.
+
+**Bilinen küçük borçlar (code review, düşük öncelik):**
+- `TributeSystem.ts:35` — çift `onChange` fire + `gain(kind,-amount)` anti-pattern (`deductKind` method eksik)
+- `main.ts:619` — `keydown` listener her `startGame()`'de ekleniyor, `removeEventListener` yok
+
+**Build:** `npm run build --prefix web` → 0 hata | **Test:** 91/91 yeşil
+
+---
+
+## Unity Port Handoff (Arşiv — Dokunma)
 
 `/Users/emreaydin/ageofarena/AgeOfArenaUnity/` — Unity **6000.4.1f1**, Built-in Render Pipeline.
-Three.js web sürümü **kaldırıldı** (git geçmişinde mevcut). Bu repo artık tamamen Unity.
+Web sürüm aktif; Unity arşiv referans olarak duruyor.
 
 > 📑 **Plan · backlog · DoD tek kaynağı** → [docs/PLAN.md](docs/PLAN.md).
 
@@ -63,6 +102,48 @@ ve kalan işler için tek kaynak: **[docs/AUDIT-2026-06.md](docs/AUDIT-2026-06.m
 | O26 | 2026-06-03 | Oyun wiki'si (`docs/wiki/`) — workflow ile 11 sayfa + backlog | ✔️ 13 dosya; 49 ajan; 72 eksik; adversarial denetim |
 | O27 | 2026-06-05 | NavMesh hareket bug + doküman konsolidasyonu + 10-adım plan | ✔️ commits `7ae0949`+`dfb51a8`+`16f304a`+`4be8a39` |
 | O28 | 2026-06-10 | BAL/FEEL dalgası: eko ~×0.5 nerf, attack interval AoE2 ritmi, Spearman/Pikeman/Halberdier anti-cav merdiveni, AI ilk-saldırı kapısı (Easy 420/Mod 330/Normal 240s), impact FX + ok görseli (`Prims.ParticleMat` — AddComponent ParticleSystem materyalsiz=magenta fix), carry göstergesi | ✔️ SelfTests 32/32; ContentParity+Wave2 PASS; Play: Militia düello ~15s, Cav>Spear 1v1, 2 Spear>Cav, impact FX görsel |
+| **W1** | **2026-06-14** | **Web oturumu — MP-only pivot + MP bug fixleri** | **✔️ 91/91 test, 0 hata** |
+
+---
+
+## 🌐 Web Oturumu W1 (2026-06-14) — MP-only Pivot + MP Bug Fixleri
+
+> Aktif geliştirme tamamen `web/` (Three.js/Vite/TypeScript). Unity referans/arşiv.
+
+### Karar: MP-only Pivot
+
+Kullanıcı kararı: "campaign kısmını istemiyorum tamamen multiplayer bir oyun olacak bu."
+**CampaignSystem, CampaignScreen, TutorialSystem, TriggerSystem** tamamen silindi.
+PreGameScreen "KAMPANYA" butonu + `onCampaign` callback kaldırıldı.
+Commit `ea74d7f` — 91 test yeşil, build 0 hata.
+
+### MP Bug Fixleri (Commit `8ab4f72`)
+
+| Bug | Dosya | Düzeltme |
+|---|---|---|
+| FogOfWar teamId hardcode | `FogOfWarSystem.ts` | `localTeam = 0` → `fog.localTeam = PLAYER_TEAM` ile set; MP'de team 1 oyuncu artık kendi FOW'unu görür |
+| Building HP bar rengi | `Building.ts` | `teamId === 0` → `teamId === Building.localTeam`; `Building.localTeam` static, main.ts'te set |
+| Monk conversion herkese kapalı | `ConversionSystem.ts` | `teamId !== 0` guard silindi; AI monkları ve MP team 1 oyuncusu artık dönüştürebilir |
+
+### Code-Review Bulguları (Commit `f8db84c`)
+
+| Bug | Dosya | Düzeltme |
+|---|---|---|
+| Friendly fire post-conversion | `CombatSystem.ts` | `_tickCombat`: `alive` kontrolüne `diplomacy.isEnemy()` eklendi; dönüştürülen birimi hedef alan eski saldırganlar iptal ediyor |
+| HP bar rengi _refreshHpBar'da eziliyordu | `Building.ts`, `Unit.ts` | `setRGB` artık localTeam'e göre: müttefik=yeşil→kırmızı gradient, düşman=sabit kırmızı |
+| Unit HP bar hep yeşil | `Unit.ts` | `Unit.localTeam` static + `_refreshHpBar` team-aware hale getirildi |
+| `onBuildingConverted` null | `main.ts` | Callback wire edildi; Redemption dönüşümünde `setTeamColor + refreshHpBar + ses` çalışıyor; `Building.setTeamColor()` + `_teamMats[]` eklendi |
+
+### Güvenlik Taraması
+
+Security-review bulgusu yok — `innerHTML` kullanımları hardcoded enum değerleriyle, localStorage deserialization client-only local etki (aynı-origin erişim için JS yürütmek zaten yeterli).
+
+### Mevcut Durum (W1 sonu)
+
+- **Branch:** main, 21 commit ahead of origin/main
+- **Test:** 91/91 yeşil
+- **Build:** 0 tsc/vite hatası, ~908KB bundle
+- **Sonraki olası çalışma:** lobby/room UX, AI geliştirme, oyun dengesi, ya da yeni MP özelliği
 
 ---
 
