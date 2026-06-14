@@ -11,7 +11,12 @@ export class ControlGroups {
 
   assign(key: number, units: Unit[]): void {
     if (key < 1 || key > 9) return;
-    this._groups.set(key, units.filter(u => u.alive).slice());
+    // Clear old group membership badge for any unit previously in this slot
+    const prev = this._groups.get(key);
+    if (prev) for (const u of prev) { if (u.controlGroupNum === key) u.controlGroupNum = 0; }
+    const next = units.filter(u => u.alive).slice();
+    this._groups.set(key, next);
+    for (const u of next) u.controlGroupNum = key;
   }
 
   recall(key: number, out: Unit[]): Unit[] {

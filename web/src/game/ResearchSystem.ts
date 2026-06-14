@@ -339,6 +339,22 @@ export class ResearchSystem {
     });
   }
 
+  /** Techs in this building's list that are blocked (wrong age, prereq, civ, or already done). */
+  locked(b: Building, rm: ResourceManager): Array<{ tech: TechId; reason: 'age' | 'prereq' | 'done' | 'civ' }> {
+    const list = BUILDING_TECHS[b.buildingType] ?? [];
+    const teamCiv = getTeamCiv(b.teamId);
+    const denied = DENIED_TECHS_TEST[teamCiv];
+    const out: Array<{ tech: TechId; reason: 'age' | 'prereq' | 'done' | 'civ' }> = [];
+    for (const t of list) {
+      const def = TECH_DEFS[t];
+      if (denied?.has(t) || (def.civGate !== undefined && def.civGate !== teamCiv)) continue; // civ-denied: hide
+      if (this.isResearched(b.teamId, t)) { out.push({ tech: t, reason: 'done' }); continue; }
+      if (rm.age < def.minAge) { out.push({ tech: t, reason: 'age' }); continue; }
+      if (def.prereq && !this.isResearched(b.teamId, def.prereq)) { out.push({ tech: t, reason: 'prereq' }); continue; }
+    }
+    return out;
+  }
+
   start(b: Building, tech: TechId, rm: ResourceManager): boolean {
     if (this.queues.has(b)) return false; // already busy
     if (this.isResearched(b.teamId, tech)) return false;

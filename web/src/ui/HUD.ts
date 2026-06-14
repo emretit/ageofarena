@@ -390,8 +390,12 @@ export class HUD {
     const grpBadge = u.controlGroupNum > 0
       ? ` <span style="display:inline-block;background:#333;color:#f5d060;border:1px solid #666;border-radius:3px;padding:0 4px;font-size:10px;vertical-align:middle;">[${u.controlGroupNum}]</span>`
       : "";
+    const waypointNote = u.pendingGoals.length > 0
+      ? ` · ${u.pendingGoals.length} waypoint` + (u.pendingGoals.length > 1 ? "s" : "")
+      : "";
     const subLine  = `Atk: ${u.baseAtk}  ` +
-      (u.gathers && u.carryAmount > 0 ? `Carry: ${u.carryAmount}/10` : `Spd: ${u.moveSpeed.toFixed(1)}`);
+      (u.gathers && u.carryAmount > 0 ? `Carry: ${u.carryAmount}/10` : `Spd: ${u.moveSpeed.toFixed(1)}`) +
+      waypointNote;
     const stats = infoCard(portrait, typeName + grpBadge, u.hp, u.maxHp, subLine);
 
     // Build panel for player villagers — all building types always shown (locked ones

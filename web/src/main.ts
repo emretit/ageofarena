@@ -918,11 +918,11 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
           if (winner >= 0) {
             gameOver = true;
             if (winner === PLAYER_TEAM) {
-              hud.showVictory(0);
+              hud.showVictory(0, playerStats);
               play(SoundId.Victory);
               if (activeMissionId >= 0) onCampaignWin();
             } else {
-              hud.showVictory(winner);
+              hud.showVictory(winner, playerStats);
               play(SoundId.Defeat);
               if (activeMissionId >= 0) abortCampaign();
             }

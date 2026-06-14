@@ -103,6 +103,9 @@ export class Unit {
   garrisonTarget: Building | null = null;
   isGarrisoned = false;
 
+  /** Control group number 1-9, or 0 if not in any group. Set by ControlGroups.assign(). */
+  controlGroupNum = 0;
+
   // Team-colored material reference — updated by ConversionSystem on team change.
   // Null for un-tinted baked models (e.g. horses) so conversion won't repaint the body.
   teamMat: THREE.MeshLambertMaterial | THREE.MeshStandardMaterial | null = null;
