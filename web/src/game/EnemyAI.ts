@@ -65,11 +65,14 @@ const BUILD_ORDER: Array<{
   // Eco buildings in Dark Age (AoE2: LC/Mill built before Feudal click)
   { type: BuildingType.LumberCamp,  maxOwned: 1,  minElapsed: 70,  minAge: Age.Dark   },
   { type: BuildingType.Mill,        maxOwned: 1,  minElapsed: 80,  minAge: Age.Dark   },
+  // Extra houses before Feudal so pop cap keeps up with training output (6×5=35 → 8×5=45 before push)
+  { type: BuildingType.House,       maxOwned: 8,  minElapsed: 85,  minAge: Age.Dark   },
   // Blacksmith is the first Feudal military priority (upgrades Fletching/Forging before pushing)
   { type: BuildingType.Blacksmith,  maxOwned: 1,  minElapsed: 90,  minAge: Age.Feudal },
   { type: BuildingType.ArcheryRange,maxOwned: 1,  minElapsed: 100, minAge: Age.Feudal },
   { type: BuildingType.MiningCamp,  maxOwned: 1,  minElapsed: 110, minAge: Age.Feudal },
-  { type: BuildingType.House,       maxOwned: 10, minElapsed: 150, minAge: Age.Dark   },
+  // Castle/Imperial house expansion
+  { type: BuildingType.House,       maxOwned: 14, minElapsed: 150, minAge: Age.Dark   },
   { type: BuildingType.Stable,      maxOwned: 1,  minElapsed: 200, minAge: Age.Castle },
   { type: BuildingType.University,  maxOwned: 1,  minElapsed: 250, minAge: Age.Castle },
   { type: BuildingType.Monastery,   maxOwned: 1,  minElapsed: 300, minAge: Age.Castle },

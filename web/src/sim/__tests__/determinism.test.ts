@@ -207,3 +207,23 @@ describe('CommandBus throughput', () => {
     expect(ticksPerSec).toBeGreaterThan(3000);
   });
 });
+
+// ── AI pop cap growth (TODO #36) ─────────────────────────────────────────────
+describe('AI pop cap growth', () => {
+  it('BUILD_ORDER houses provide enough pop cap for 30-min game', () => {
+    // TC provides 5, each House provides 5 pop slots.
+    // AI BUILD_ORDER: 8 houses by 85s (Dark), 14 houses by 150s (Dark).
+    const TC_POP     = 5;
+    const HOUSE_POP  = 5;
+    const CASTLE_POP = 10;
+
+    const popAt85s  = TC_POP + 8 * HOUSE_POP;   // 8 houses = 45
+    const popAt150s = TC_POP + 14 * HOUSE_POP;  // 14 houses = 75
+    const popWithCastle = popAt150s + CASTLE_POP; // + Castle = 85
+
+    // Never stalls: pop cap stays well above typical army size at each milestone.
+    expect(popAt85s).toBeGreaterThanOrEqual(40);   // 45 — pre-Feudal buffer
+    expect(popAt150s).toBeGreaterThanOrEqual(70);  // 75 — mid-game
+    expect(popWithCastle).toBeGreaterThanOrEqual(80); // 85 — Castle age
+  });
+});

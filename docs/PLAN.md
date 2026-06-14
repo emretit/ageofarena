@@ -355,8 +355,8 @@ paritesi" hedefini kod tarafında başlatan temel dalga olarak kayda geçti.
 34. ⬜ Town Watch ve Town Patrol building sight artışını fog-of-war görsel testine bağla.
 35. ⬜ EnemyAI'nin Naval / Siege / Monk / Market tech seçimini her yaşta raporla.
 36. ⬜ EnemyAI'nin pop cap'e takılmadan üretim döngüsünü 30 dakikalık simde doğrula.
-37. ⬜ EnemyAI'nin build order'ını Blacksmith önceliğiyle yeniden dengele.
-38. ⬜ EnemyAI'nin harita tipine göre Dock öncelik skorunu ayarla.
+37. ✅ EnemyAI'nin build order'ını Blacksmith önceliğiyle yeniden dengele. (LC/Mill Dark Age'e çekildi, Blacksmith Feudal-1. öncelik — commit 4904ff7)
+38. ✅ EnemyAI'nin harita tipine göre Dock öncelik skorunu ayarla. (Islands=40s, diğer=80s, shore cache eklendi — commit 4904ff7)
 39. ⬜ Civilization denied tech setlerini tek bir QA tablosunda topla.
 40. ⬜ Unique unit trainability için civ bazlı eğitim matrisi oluştur.
 41. ⬜ Unique tech çiftlerinin civ tooltip'lerini otomatik ürettir.
