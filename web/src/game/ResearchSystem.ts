@@ -46,6 +46,7 @@ export const enum TechId {
   CropRotation        = "CropRotation",
   // Military — Feudal
   ManAtArms           = "ManAtArms",
+  Squires             = "Squires",           // Barracks: infantry +15% move speed
   // Military — Castle
   Longswordsman       = "Longswordsman",
   Bloodlines          = "Bloodlines",
@@ -54,6 +55,8 @@ export const enum TechId {
   Pikeman             = "Pikeman",
   LightCavalry        = "LightCavalry",
   Husbandry           = "Husbandry",
+  Arson               = "Arson",             // Barracks: infantry +2 atk vs buildings
+  ThumbRing           = "ThumbRing",         // ArcheryRange: archers 25% faster fire
   // Military — Imperial
   TwoHandedSwordsman  = "TwoHandedSwordsman",
   Champion            = "Champion",
@@ -62,6 +65,7 @@ export const enum TechId {
   Halberdier          = "Halberdier",
   EliteSkirmisher     = "EliteSkirmisher",
   Hussar              = "Hussar",
+  ParthianTactics     = "ParthianTactics",   // ArcheryRange: cav archers +2 atk +1 pierce armor
   // Market
   Caravan             = "Caravan",
   Coinage             = "Coinage",
@@ -162,8 +166,11 @@ export const TECH_DEFS: Record<TechId, TechDef> = {
   [TechId.CropRotation]:       { label: "Crop Rotation",        host: BuildingType.Mill,        minAge: Age.Imperial, food: 250, wood:  0, gold: 100, time: 28, prereq: TechId.HeavyPlow },
   // ── Military Feudal ──────────────────────────────────────────────────────
   [TechId.ManAtArms]:          { label: "Man-at-Arms",          host: BuildingType.Barracks,    minAge: Age.Feudal,   food: 100, wood:  0, gold:  40, time: 25 },
+  [TechId.Squires]:            { label: "Squires",               host: BuildingType.Barracks,    minAge: Age.Feudal,   food: 200, wood:  0, gold:   0, time: 20 },
   // ── Military Castle ──────────────────────────────────────────────────────
   [TechId.Longswordsman]:      { label: "Long Swordsman",       host: BuildingType.Barracks,    minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 30, prereq: TechId.ManAtArms },
+  [TechId.Arson]:              { label: "Arson",                 host: BuildingType.Barracks,    minAge: Age.Castle,   food: 250, wood:  0, gold:   0, time: 25 },
+  [TechId.ThumbRing]:          { label: "Thumb Ring",            host: BuildingType.ArcheryRange, minAge: Age.Castle,  food: 300, wood:  0, gold: 250, time: 25 },
   [TechId.Bloodlines]:         { label: "Bloodlines",           host: BuildingType.Stable,      minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 25 },
   [TechId.Crossbowman]:        { label: "Crossbowman",          host: BuildingType.ArcheryRange, minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 30 },
   [TechId.Cavalier]:           { label: "Cavalier",             host: BuildingType.Stable,      minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 30 },
@@ -174,6 +181,7 @@ export const TECH_DEFS: Record<TechId, TechDef> = {
   [TechId.TwoHandedSwordsman]: { label: "Two-Handed Swordsman", host: BuildingType.Barracks,    minAge: Age.Imperial, food: 150, wood:  0, gold: 120, time: 32, prereq: TechId.Longswordsman },
   [TechId.Champion]:           { label: "Champion",             host: BuildingType.Barracks,    minAge: Age.Imperial, food: 200, wood:  0, gold: 150, time: 35, prereq: TechId.TwoHandedSwordsman },
   [TechId.Arbalest]:           { label: "Arbalest",             host: BuildingType.ArcheryRange, minAge: Age.Imperial, food: 200, wood:  0, gold: 150, time: 35, prereq: TechId.Crossbowman },
+  [TechId.ParthianTactics]:   { label: "Parthian Tactics",     host: BuildingType.ArcheryRange, minAge: Age.Imperial, food: 200, wood:  0, gold: 250, time: 30 },
   [TechId.Paladin]:            { label: "Paladin",              host: BuildingType.Stable,      minAge: Age.Imperial, food: 200, wood:  0, gold: 150, time: 35, prereq: TechId.Cavalier },
   [TechId.Halberdier]:         { label: "Halberdier",           host: BuildingType.Barracks,    minAge: Age.Imperial, food: 150, wood:  0, gold: 100, time: 32, prereq: TechId.Pikeman },
   [TechId.EliteSkirmisher]:    { label: "Elite Skirmisher",     host: BuildingType.ArcheryRange, minAge: Age.Imperial, food: 150, wood:  0, gold: 100, time: 30 },
@@ -240,9 +248,9 @@ export const BUILDING_TECHS: Partial<Record<BuildingType, TechId[]>> = {
   [BuildingType.MiningCamp]:  [TechId.GoldMining, TechId.StoneMining, TechId.GoldShaftMining, TechId.StoneMiningUpgrade],
   [BuildingType.Mill]:        [TechId.HorseCollar, TechId.HeavyPlow, TechId.CropRotation],
   [BuildingType.TownCenter]:  [TechId.Loom, TechId.Wheelbarrow, TechId.HandCart],
-  [BuildingType.Barracks]:    [TechId.ManAtArms, TechId.Longswordsman, TechId.Pikeman, TechId.TwoHandedSwordsman, TechId.Champion, TechId.Halberdier],
+  [BuildingType.Barracks]:    [TechId.ManAtArms, TechId.Squires, TechId.Longswordsman, TechId.Arson, TechId.Pikeman, TechId.TwoHandedSwordsman, TechId.Champion, TechId.Halberdier],
   [BuildingType.Stable]:      [TechId.Bloodlines, TechId.Husbandry, TechId.LightCavalry, TechId.Cavalier, TechId.Paladin, TechId.Hussar],
-  [BuildingType.ArcheryRange]:[TechId.Crossbowman, TechId.Arbalest, TechId.EliteSkirmisher],
+  [BuildingType.ArcheryRange]:[TechId.Crossbowman, TechId.ThumbRing, TechId.Arbalest, TechId.EliteSkirmisher, TechId.ParthianTactics],
   [BuildingType.Market]:      [TechId.Caravan, TechId.Coinage, TechId.Banking],
   [BuildingType.University]:  [TechId.Ballistics, TechId.Masonry, TechId.Architecture, TechId.GuardTower, TechId.Chemistry, TechId.Keep, TechId.Fortified],
   [BuildingType.Monastery]:   [TechId.Sanctity, TechId.BlockPrinting, TechId.Redemption, TechId.Theocracy],
@@ -448,6 +456,23 @@ export function applyTechBonus(u: Unit, tech: TechId) {
         (u as { armorMelee: number }).armorMelee += 1;
       }
       break;
+    // ── Squires (infantry +15% move speed) ───────────────────────────────────
+    case TechId.Squires:
+      if (u.armorClass & ArmorClass.Infantry) {
+        (u as { moveSpeed: number }).moveSpeed *= 1.15;
+      }
+      break;
+    // ── Arson (infantry +2 attack vs buildings) ───────────────────────────────
+    case TechId.Arson:
+      if (u.armorClass & ArmorClass.Infantry) {
+        const existing = u.bonusVs.findIndex(b => b.cls === ArmorClass.Building);
+        if (existing >= 0) {
+          (u.bonusVs[existing] as { bonus: number }).bonus += 2;
+        } else {
+          (u.bonusVs as Array<{ cls: number; bonus: number }>).push({ cls: ArmorClass.Building, bonus: 2 });
+        }
+      }
+      break;
     case TechId.Longswordsman:
       if (u.unitType === UnitType.Militia) {
         (u as { baseAtk: number }).baseAtk += 2;
@@ -508,6 +533,19 @@ export function applyTechBonus(u: Unit, tech: TechId) {
         (u as { baseAtk: number }).baseAtk += 1;
         (u as { maxHp: number }).maxHp += 10;
         u.hp = Math.min(u.hp + 10, u.maxHp);
+      }
+      break;
+    // ── Thumb Ring (archers 25% faster fire rate) ─────────────────────────
+    case TechId.ThumbRing:
+      if (u.armorClass & ArmorClass.Archer) {
+        (u as { attackInterval: number }).attackInterval *= 0.75;
+      }
+      break;
+    // ── Parthian Tactics (cavalry archers +2 atk, +1 pierce armor) ────────
+    case TechId.ParthianTactics:
+      if ((u.armorClass & ArmorClass.Cavalry) && (u.armorClass & ArmorClass.Archer)) {
+        (u as { baseAtk: number }).baseAtk += 2;
+        (u as { armorPierce: number }).armorPierce += 1;
       }
       break;
     // ── Bracer (archer attack + range) ────────────────────────────────────
