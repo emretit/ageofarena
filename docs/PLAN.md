@@ -21,9 +21,9 @@ Kalan gap'ler 5 fazlık bir kapanış haritasına bağlandı (otonom uygulama, m
 
 | Faz | Hedef | Boyut | Durum |
 |---|---|---|---|
-| **Faz 0** | Web'i resmi tek platform yap (CLAUDE.md + bu not) | XS | 🟡 |
-| **Faz 1** | Görsel/asset paritesi — GLTF render + team tint + fallback + LoadingScreen + InstancedMesh | M | ⬜ |
-| **Faz 2** | MP determinism — `AgeUpCmd` + `PlaceBuildingCmd` command-replication (tek kapı = CommandBus) | M/L | ⬜ |
+| **Faz 0** | Web'i resmi tek platform yap (CLAUDE.md + bu not) | XS | ✅ |
+| **Faz 1** | Görsel/asset paritesi — GLTF render + team tint + fallback + LoadingScreen + InstancedMesh | M | ✅ |
+| **Faz 2** | MP determinism — `AgeUpCmd` + `PlaceBuildingCmd` command-replication (tek kapı = CommandBus) | M/L | ✅ |
 | **Faz 3** | Naval slice — water domain + FishingShip/Galley + fish eko + Dock eğitimi + naval combat/AI + Islands | XL | ✅\* |
 | **Faz 4** | Replay seek/keyframe + MP stretch (reconnect/spectator-client/tablet) | polish | ✅\*\* |
 
