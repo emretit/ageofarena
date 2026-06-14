@@ -16,6 +16,7 @@ import { type ResearchSystem, TECH_DEFS, TechId } from "./ResearchSystem";
 import type { CommandBus } from "../sim/CommandBus";
 import { qEncode } from "../sim/Command";
 import { DMath } from "../sim/DMath";
+import { MapType } from "../world/MapGenerator";
 
 export enum Difficulty {
   Easiest = 0, Easy, Normal, Hard, Harder, Hardest,
@@ -61,12 +62,14 @@ const BUILD_ORDER: Array<{
 }> = [
   { type: BuildingType.House,       maxOwned: 6,  minElapsed: 30,  minAge: Age.Dark   },
   { type: BuildingType.Barracks,    maxOwned: 1,  minElapsed: 60,  minAge: Age.Dark   },
-  { type: BuildingType.LumberCamp,  maxOwned: 1,  minElapsed: 90,  minAge: Age.Feudal },
-  { type: BuildingType.Mill,        maxOwned: 1,  minElapsed: 90,  minAge: Age.Feudal },
-  { type: BuildingType.MiningCamp,  maxOwned: 1,  minElapsed: 100, minAge: Age.Feudal },
-  { type: BuildingType.Blacksmith,  maxOwned: 1,  minElapsed: 110, minAge: Age.Feudal },
-  { type: BuildingType.ArcheryRange,maxOwned: 1,  minElapsed: 120, minAge: Age.Feudal },
-  { type: BuildingType.House,       maxOwned: 10, minElapsed: 180, minAge: Age.Dark   },
+  // Eco buildings in Dark Age (AoE2: LC/Mill built before Feudal click)
+  { type: BuildingType.LumberCamp,  maxOwned: 1,  minElapsed: 70,  minAge: Age.Dark   },
+  { type: BuildingType.Mill,        maxOwned: 1,  minElapsed: 80,  minAge: Age.Dark   },
+  // Blacksmith is the first Feudal military priority (upgrades Fletching/Forging before pushing)
+  { type: BuildingType.Blacksmith,  maxOwned: 1,  minElapsed: 90,  minAge: Age.Feudal },
+  { type: BuildingType.ArcheryRange,maxOwned: 1,  minElapsed: 100, minAge: Age.Feudal },
+  { type: BuildingType.MiningCamp,  maxOwned: 1,  minElapsed: 110, minAge: Age.Feudal },
+  { type: BuildingType.House,       maxOwned: 10, minElapsed: 150, minAge: Age.Dark   },
   { type: BuildingType.Stable,      maxOwned: 1,  minElapsed: 200, minAge: Age.Castle },
   { type: BuildingType.University,  maxOwned: 1,  minElapsed: 250, minAge: Age.Castle },
   { type: BuildingType.Monastery,   maxOwned: 1,  minElapsed: 300, minAge: Age.Castle },
@@ -129,6 +132,9 @@ export class EnemyAI {
 
   private readonly cfg: DifficultyConfig;
 
+  /** Cached result of first shore scan: undefined = not yet checked, null = no shore on map. */
+  private _shorePos: THREE.Vector3 | null | undefined = undefined;
+
   constructor(
     private readonly teamId: number,
     private readonly rm: ResourceManager,
@@ -140,6 +146,7 @@ export class EnemyAI {
     private readonly personality = Personality.Balanced,
     tickOffset  = 0,
     private readonly bus?: CommandBus,
+    private readonly mapType: MapType = MapType.Arabia,
   ) {
     this.cfg = DIFFICULTY_TABLE[difficulty];
     this.tickOffset = tickOffset;
@@ -382,15 +389,22 @@ export class EnemyAI {
     }
   }
 
-  /** Build a Dock on a shore cell if one doesn't exist yet and we have the wood. */
+  /** Build a Dock on a shore cell if one doesn't exist yet and we have the wood.
+   *  Islands map: try at 40s (rush Dock); other maps: 80s (opportunistic).
+   *  Shore scan result is cached after the first attempt to avoid O(224) repeat scans on land maps. */
   private _tryNavalBuild(myBuildings: Building[], allBuildings: Building[], scene: THREE.Scene): void {
-    if (this.elapsed < 80) return;
+    const navalStart = this.mapType === MapType.Islands ? 40 : 80;
+    if (this.elapsed < navalStart) return;
     if (myBuildings.some(b => b.buildingType === BuildingType.Dock)) return;
+    // If we already confirmed this map has no shore, skip the scan.
+    if (this._shorePos === null) return;
     const tc = myBuildings.find(b => b.buildingType === BuildingType.TownCenter);
     if (!tc) return;
     const def = DEFS[BuildingType.Dock];
     if (!this.rm.canAfford(0, def.costWood, def.costGold, def.costStone)) return;
     const foundPos = this._findShoreDockPos(tc.pos);
+    // Cache result: null means non-naval map, skip all future attempts.
+    if (this._shorePos === undefined) this._shorePos = foundPos;
     if (!foundPos) return; // non-naval map — silently skip
     if (this.bus) {
       this.bus.issue({ kind: 'placeBuilding', teamId: this.teamId, ai: true, unitIds: [], buildingType: BuildingType.Dock, qx: qEncode(foundPos.x), qz: qEncode(foundPos.z) });

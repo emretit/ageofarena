@@ -416,7 +416,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   // MP/Replay: all commands come from wire or replay log — no local AI.
   const aiInstances = isMP || isReplay ? [] : opponents.map((op, i) =>
     new EnemyAI(i + 1, teamRes[i + 1], ageSystems[i + 1], gather, training, research,
-      op.difficulty, op.personality, (i * 7) % 30, commandBus),
+      op.difficulty, op.personality, (i * 7) % 30, commandBus, mapType),
   );
   const victory     = new VictorySystem();
   const gameMode    = new GameMode(modeType);
