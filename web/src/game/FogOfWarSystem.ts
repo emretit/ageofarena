@@ -40,18 +40,20 @@ function unitSight(t: UnitType): number {
   }
 }
 
-function buildingSight(t: BuildingType): number {
-  switch (t) {
-    case BuildingType.TownCenter:   return 14;
-    case BuildingType.Outpost:      return 12; // cheap eyes — wide vision, no attack
-    case BuildingType.Castle:       return 10;
+function buildingSight(b: Building): number {
+  let base: number;
+  switch (b.buildingType) {
+    case BuildingType.TownCenter:   base = 14; break;
+    case BuildingType.Outpost:      base = 12; break;
+    case BuildingType.Castle:       base = 10; break;
     case BuildingType.BombardTower:
     case BuildingType.WatchTower:
     case BuildingType.Barracks:
     case BuildingType.ArcheryRange:
-    case BuildingType.Stable:       return 8;
-    default:                        return 6;
+    case BuildingType.Stable:       base = 8; break;
+    default:                        base = 6; break;
   }
+  return base + b.sightBonus;
 }
 
 function worldToPixel(w: number): number {
@@ -134,7 +136,7 @@ export class FogOfWarSystem {
     }
     for (const b of buildings) {
       if (!b.alive || (b.teamId !== 0 && !diplomacy.isAlly(b.teamId, 0))) continue;
-      this._paintCircle(b.pos.x, b.pos.z, buildingSight(b.buildingType));
+      this._paintCircle(b.pos.x, b.pos.z, buildingSight(b));
     }
 
     for (let i = 0; i < this.vis.length; i++) {

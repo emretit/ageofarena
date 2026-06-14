@@ -118,6 +118,9 @@ export class Building {
   /** Rally point: trained units move here after spawning. Null = spawn in place. */
   rallyPoint: THREE.Vector3 | null = null;
 
+  /** Bonus sight radius from TownWatch/TownPatrol (added by ResearchSystem). */
+  sightBonus = 0;
+
   private readonly _hpBarGroup: THREE.Group;
   private readonly _hpFgMat: THREE.MeshBasicMaterial;
   private readonly _hpFg: THREE.Mesh;

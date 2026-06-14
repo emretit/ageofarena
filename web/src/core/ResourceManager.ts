@@ -21,6 +21,8 @@ export class ResourceManager {
   // Research-based unit multipliers
   techCavalrySpeedMult    = 1.0;
   techTradeCartSpeedMult  = 1.0;
+  /** Supplies: flat food discount on Militia training cost. */
+  techMilitiaFoodDiscount = 0;
 
   onChange: (() => void) | null = null;
 

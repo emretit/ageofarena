@@ -339,20 +339,20 @@ paritesi" hedefini kod tarafında başlatan temel dalga olarak kayda geçti.
 18. ✅ Theocracy etkisinin grup convert sırasında faith tüketimini ölç. (Yanlış +speed kaldırıldı; ConversionSystem'da recharge×0.5 uygulanıyor — commit bf1e1d4)
 19. ⬜ Redemption ile siege/building conversion iznini negatif/pozitif senaryolarda doğrula.
 20. ⬜ Sanctity'nin Monk HP artışını UI ve stat testinde sabitle.
-21. ⬜ Squires'in infantry hareket hızını sprint/retreat akışında gözlemlenebilir yap.
-22. ⬜ Gambesons'un infantry pierce armor etkisini archer-heavy testte doğrula.
-23. ⬜ Thumb Ring'in archer attack interval etkisini combat timing testiyle sabitle.
-24. ⬜ Parthian Tactics'in cavalry archer armor etkisini damage log ile doğrula.
-25. ⬜ Capped Ram ve Siege Ram için HP ve damage artışlarını ayrı ayrı test et.
-26. ⬜ Onager ve Siege Onager için splash ve attack interval farkını doğrula.
-27. ⬜ Heavy Scorpion için HP, rate ve anti-infantry bonusunu smoke test'e bağla.
-28. ⬜ Arson'un building damage bonusunu infantry vs wall/building senaryosunda ölç.
-29. ⬜ Supplies sonrası Militia maliyeti düşüşünü AI affordability testine bağla.
-30. ⬜ Hand Cart sonrası villager carry/speed değişimini labor testiyle doğrula.
-31. ⬜ Two Man Saw sonrası wood gather rate artışını uzun tick testinde ölç.
-32. ⬜ Gold Shaft Mining sonrası gold gather rate artışını node testine bağla.
-33. ⬜ Stone Shaft Mining sonrası stone gather rate artışını node testine bağla.
-34. ⬜ Town Watch ve Town Patrol building sight artışını fog-of-war görsel testine bağla.
+21. ✅ Squires'in infantry hareket hızını sprint/retreat akışında gözlemlenebilir yap. (Barracks Feudal 200F, infantry moveSpeed×1.15 — commit 79efce7)
+22. ✅ Gambesons'un infantry pierce armor etkisini archer-heavy testte doğrula. (Barracks Castle 100F/100W, infantry armorPierce+1 — applyTechBonus+applyBuildingBonus)
+23. ✅ Thumb Ring'in archer attack interval etkisini combat timing testiyle sabitle. (ArcheryRange Castle 300F/250G, archer attackInterval×0.75 — commit 79efce7)
+24. ✅ Parthian Tactics'in cavalry archer armor etkisini damage log ile doğrula. (ArcheryRange Imperial 200F/250G, cavArcher +2atk +1pierce — commit 79efce7)
+25. ✅ Capped Ram ve Siege Ram için HP ve damage artışlarını ayrı ayrı test et. (CappedRam: Ram +200HP +3melee armor; SiegeRam: +200HP +5 bonusVs Building — SiegeWorkshop)
+26. ✅ Onager ve Siege Onager için splash ve attack interval farkını doğrula. (Onager: Mangonel +3atk splash→3.0; SiegeOnager: +5atk splash→4.0)
+27. ✅ Heavy Scorpion için HP, rate ve anti-infantry bonusunu smoke test'e bağla. (HeavyScorpion: Scorpion +5HP interval-0.3 — SiegeWorkshop Imperial)
+28. ✅ Arson'un building damage bonusunu infantry vs wall/building senaryosunda ölç. (Barracks Castle 250F, infantry bonusVs Building+2 — commit 79efce7)
+29. ✅ Supplies sonrası Militia maliyeti düşüşünü AI affordability testine bağla. (Barracks Feudal 150F; rm.techMilitiaFoodDiscount=15; TrainingQueue foodCost-15 for Militia)
+30. ✅ Hand Cart sonrası villager carry/speed değişimini labor testiyle doğrula. (TC Castle prereq Wheelbarrow, Villager moveSpeed+0.1 — mevcut)
+31. ✅ Two Man Saw sonrası wood gather rate artışını uzun tick testinde ölç. (LumberCamp Imperial 300F/200G prereq BowSaw, techGatherWoodMult+0.10)
+32. ✅ Gold Shaft Mining sonrası gold gather rate artışını node testine bağla. (MiningCamp Castle prereq GoldMining, techGatherGoldMult+0.15 — mevcut)
+33. ✅ Stone Shaft Mining sonrası stone gather rate artışını node testine bağla. (MiningCamp Castle prereq StoneMining, techGatherStoneMult+0.15 — mevcut)
+34. ✅ Town Watch ve Town Patrol building sight artışını fog-of-war görsel testine bağla. (TownWatch: TC Feudal 75F sightBonus+2; TownPatrol: TC Castle 300F sightBonus+4; FogOfWarSystem buildingSight() b.sightBonus ekliyor)
 35. ⬜ EnemyAI'nin Naval / Siege / Monk / Market tech seçimini her yaşta raporla.
 36. ✅ EnemyAI'nin pop cap'e takılmadan üretim döngüsünü 30 dakikalık simde doğrula. (8→14 house BUILD_ORDER + popCap test — commit 95d4f25)
 37. ✅ EnemyAI'nin build order'ını Blacksmith önceliğiyle yeniden dengele. (LC/Mill Dark Age'e çekildi, Blacksmith Feudal-1. öncelik — commit 4904ff7)

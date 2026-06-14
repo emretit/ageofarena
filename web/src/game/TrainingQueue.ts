@@ -107,6 +107,8 @@ interface QueueEntry { type: UnitType; timer: number; total: number; }
 export class TrainingQueue {
   private readonly queues = new Map<Building, QueueEntry[]>();
   private static readonly MAX_QUEUE = 5;
+  /** AEGIS cheat: when true, all training completes instantly. */
+  static aegisMode = false;
 
   train(building: Building, type: UnitType, rm: ResourceManager): boolean {
     const row = getUnitRow(type);
@@ -122,10 +124,13 @@ export class TrainingQueue {
     // Civ-unique units: only the owning civ may train them.
     const civGate = UNIT_CIV_GATE[type];
     if (civGate !== undefined && civGate !== teamCiv) return false;
-    if (!rm.canAfford(row.trainFood, row.trainWood, row.trainGold)) return false;
+    const foodCost = type === UnitType.Militia
+      ? Math.max(0, row.trainFood - rm.techMilitiaFoodDiscount)
+      : row.trainFood;
+    if (!rm.canAfford(foodCost, row.trainWood, row.trainGold)) return false;
     const queue = this._queue(building);
     if (queue.length >= TrainingQueue.MAX_QUEUE) return false;
-    rm.deduct(row.trainFood, row.trainWood, row.trainGold);
+    rm.deduct(foodCost, row.trainWood, row.trainGold);
     const trainMult = getTeamBonus(building.teamId).unitTrainTimeMult;
     const trainTime = Math.max(1, row.trainTime * trainMult);
     queue.push({ type, timer: trainTime, total: trainTime });
@@ -145,6 +150,7 @@ export class TrainingQueue {
       if (!queue?.length) continue;
 
       const entry = queue[0];
+      if (TrainingQueue.aegisMode) entry.timer = 0;
       entry.timer -= dt;
       if (entry.timer <= 0) {
         queue.shift();

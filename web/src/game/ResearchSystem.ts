@@ -38,17 +38,22 @@ export const enum TechId {
   StoneMining         = "StoneMining",
   // Gather — Castle
   BowSaw              = "BowSaw",
+  TwoManSaw           = "TwoManSaw",         // LumberCamp Imperial: wood +10% gather
   HandCart            = "HandCart",
   HeavyPlow           = "HeavyPlow",
   GoldShaftMining     = "GoldShaftMining",
   StoneMiningUpgrade  = "StoneMiningUpgrade",
   // Gather — Imperial
   CropRotation        = "CropRotation",
+  TownWatch           = "TownWatch",          // TownCenter: sight +2 (Feudal)
+  TownPatrol          = "TownPatrol",         // TownCenter: sight +4 (Castle, prereq TownWatch)
   // Military — Feudal
   ManAtArms           = "ManAtArms",
   Squires             = "Squires",           // Barracks: infantry +15% move speed
+  Supplies            = "Supplies",          // Barracks: Militia -15 food cost
   // Military — Castle
   Longswordsman       = "Longswordsman",
+  Gambesons           = "Gambesons",         // Barracks: infantry +1 pierce armor
   Bloodlines          = "Bloodlines",
   Crossbowman         = "Crossbowman",
   Cavalier            = "Cavalier",
@@ -66,6 +71,12 @@ export const enum TechId {
   EliteSkirmisher     = "EliteSkirmisher",
   Hussar              = "Hussar",
   ParthianTactics     = "ParthianTactics",   // ArcheryRange: cav archers +2 atk +1 pierce armor
+  // SiegeWorkshop upgrades
+  CappedRam           = "CappedRam",         // SiegeWorkshop: Ram +200 HP +3 melee armor
+  SiegeRam            = "SiegeRam",          // SiegeWorkshop: Ram +200 HP +5 building damage
+  Onager              = "Onager",            // SiegeWorkshop: Mangonel +3 atk, splash 1.8→3.0
+  SiegeOnager         = "SiegeOnager",       // SiegeWorkshop: Mangonel +5 atk, splash 3.0→4.0
+  HeavyScorpion       = "HeavyScorpion",     // SiegeWorkshop: Scorpion +5 HP, faster interval
   // Market
   Caravan             = "Caravan",
   Coinage             = "Coinage",
@@ -158,17 +169,22 @@ export const TECH_DEFS: Record<TechId, TechDef> = {
   [TechId.StoneMining]:        { label: "Stone Mining",         host: BuildingType.MiningCamp,  minAge: Age.Feudal,   food: 100, wood:  0, gold:  75, time: 22 },
   // ── Gather Castle ────────────────────────────────────────────────────────
   [TechId.BowSaw]:             { label: "Bow Saw",              host: BuildingType.LumberCamp,  minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 25, prereq: TechId.DoubleBitAxe },
+  [TechId.TwoManSaw]:          { label: "Two-Man Saw",          host: BuildingType.LumberCamp,  minAge: Age.Imperial, food: 300, wood:  0, gold: 200, time: 30, prereq: TechId.BowSaw },
   [TechId.HandCart]:           { label: "Hand Cart",            host: BuildingType.TownCenter,  minAge: Age.Castle,   food: 300, wood:200, gold:   0, time: 35, prereq: TechId.Wheelbarrow },
   [TechId.HeavyPlow]:          { label: "Heavy Plow",           host: BuildingType.Mill,        minAge: Age.Castle,   food: 125, wood:  0, gold:   0, time: 25, prereq: TechId.HorseCollar },
   [TechId.GoldShaftMining]:    { label: "Gold Shaft Mining",    host: BuildingType.MiningCamp,  minAge: Age.Castle,   food: 200, wood:  0, gold: 100, time: 28, prereq: TechId.GoldMining },
   [TechId.StoneMiningUpgrade]: { label: "Stone Shaft Mining",   host: BuildingType.MiningCamp,  minAge: Age.Castle,   food: 200, wood:  0, gold: 100, time: 28, prereq: TechId.StoneMining },
   // ── Gather Imperial ──────────────────────────────────────────────────────
   [TechId.CropRotation]:       { label: "Crop Rotation",        host: BuildingType.Mill,        minAge: Age.Imperial, food: 250, wood:  0, gold: 100, time: 28, prereq: TechId.HeavyPlow },
+  [TechId.TownWatch]:          { label: "Town Watch",            host: BuildingType.TownCenter,  minAge: Age.Feudal,   food:  75, wood:  0, gold:   0, time: 25 },
+  [TechId.TownPatrol]:         { label: "Town Patrol",           host: BuildingType.TownCenter,  minAge: Age.Castle,   food: 300, wood:  0, gold:   0, time: 35, prereq: TechId.TownWatch },
   // ── Military Feudal ──────────────────────────────────────────────────────
   [TechId.ManAtArms]:          { label: "Man-at-Arms",          host: BuildingType.Barracks,    minAge: Age.Feudal,   food: 100, wood:  0, gold:  40, time: 25 },
   [TechId.Squires]:            { label: "Squires",               host: BuildingType.Barracks,    minAge: Age.Feudal,   food: 200, wood:  0, gold:   0, time: 20 },
+  [TechId.Supplies]:           { label: "Supplies",              host: BuildingType.Barracks,    minAge: Age.Feudal,   food: 150, wood:  0, gold:   0, time: 20 },
   // ── Military Castle ──────────────────────────────────────────────────────
   [TechId.Longswordsman]:      { label: "Long Swordsman",       host: BuildingType.Barracks,    minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 30, prereq: TechId.ManAtArms },
+  [TechId.Gambesons]:          { label: "Gambesons",             host: BuildingType.Barracks,    minAge: Age.Castle,   food: 100, wood:100, gold:   0, time: 20 },
   [TechId.Arson]:              { label: "Arson",                 host: BuildingType.Barracks,    minAge: Age.Castle,   food: 250, wood:  0, gold:   0, time: 25 },
   [TechId.ThumbRing]:          { label: "Thumb Ring",            host: BuildingType.ArcheryRange, minAge: Age.Castle,  food: 300, wood:  0, gold: 250, time: 25 },
   [TechId.Bloodlines]:         { label: "Bloodlines",           host: BuildingType.Stable,      minAge: Age.Castle,   food: 150, wood:  0, gold: 100, time: 25 },
@@ -186,6 +202,12 @@ export const TECH_DEFS: Record<TechId, TechDef> = {
   [TechId.Halberdier]:         { label: "Halberdier",           host: BuildingType.Barracks,    minAge: Age.Imperial, food: 150, wood:  0, gold: 100, time: 32, prereq: TechId.Pikeman },
   [TechId.EliteSkirmisher]:    { label: "Elite Skirmisher",     host: BuildingType.ArcheryRange, minAge: Age.Imperial, food: 150, wood:  0, gold: 100, time: 30 },
   [TechId.Hussar]:             { label: "Hussar",               host: BuildingType.Stable,      minAge: Age.Imperial, food: 150, wood:  0, gold: 100, time: 30, prereq: TechId.LightCavalry },
+  // ── SiegeWorkshop ────────────────────────────────────────────────────────
+  [TechId.CappedRam]:          { label: "Capped Ram",            host: BuildingType.SiegeWorkshop, minAge: Age.Castle,   food:   0, wood: 225, gold: 200, time: 50 },
+  [TechId.SiegeRam]:           { label: "Siege Ram",             host: BuildingType.SiegeWorkshop, minAge: Age.Imperial, food:   0, wood: 300, gold: 200, time: 50, prereq: TechId.CappedRam },
+  [TechId.Onager]:             { label: "Onager",                host: BuildingType.SiegeWorkshop, minAge: Age.Castle,   food: 375, wood:  0, gold: 825, time: 50 },
+  [TechId.SiegeOnager]:        { label: "Siege Onager",          host: BuildingType.SiegeWorkshop, minAge: Age.Imperial, food:1500, wood:  0, gold:1000, time: 50, prereq: TechId.Onager },
+  [TechId.HeavyScorpion]:      { label: "Heavy Scorpion",        host: BuildingType.SiegeWorkshop, minAge: Age.Imperial, food:1000, wood:  0, gold: 600, time: 50 },
   // ── Market ───────────────────────────────────────────────────────────────
   [TechId.Caravan]:            { label: "Caravan",              host: BuildingType.Market,      minAge: Age.Castle,   food:   0, wood:  0, gold: 200, time: 28 },
   [TechId.Coinage]:            { label: "Coinage",              host: BuildingType.Market,      minAge: Age.Castle,   food:   0, wood:  0, gold: 200, time: 30 },
@@ -244,13 +266,14 @@ export const BUILDING_TECHS: Partial<Record<BuildingType, TechId[]>> = {
     TechId.IronCasting, TechId.ChainMail, TechId.LeatherArcherArmor, TechId.Bodkin, TechId.ChainBarding,
     TechId.BlastFurnace, TechId.PlateMail, TechId.RingArcherArmor, TechId.PlateBarding, TechId.Bracer,
   ],
-  [BuildingType.LumberCamp]:  [TechId.DoubleBitAxe, TechId.BowSaw],
+  [BuildingType.LumberCamp]:  [TechId.DoubleBitAxe, TechId.BowSaw, TechId.TwoManSaw],
   [BuildingType.MiningCamp]:  [TechId.GoldMining, TechId.StoneMining, TechId.GoldShaftMining, TechId.StoneMiningUpgrade],
   [BuildingType.Mill]:        [TechId.HorseCollar, TechId.HeavyPlow, TechId.CropRotation],
-  [BuildingType.TownCenter]:  [TechId.Loom, TechId.Wheelbarrow, TechId.HandCart],
-  [BuildingType.Barracks]:    [TechId.ManAtArms, TechId.Squires, TechId.Longswordsman, TechId.Arson, TechId.Pikeman, TechId.TwoHandedSwordsman, TechId.Champion, TechId.Halberdier],
+  [BuildingType.TownCenter]:  [TechId.Loom, TechId.Wheelbarrow, TechId.HandCart, TechId.TownWatch, TechId.TownPatrol],
+  [BuildingType.Barracks]:    [TechId.ManAtArms, TechId.Squires, TechId.Supplies, TechId.Longswordsman, TechId.Gambesons, TechId.Arson, TechId.Pikeman, TechId.TwoHandedSwordsman, TechId.Champion, TechId.Halberdier],
   [BuildingType.Stable]:      [TechId.Bloodlines, TechId.Husbandry, TechId.LightCavalry, TechId.Cavalier, TechId.Paladin, TechId.Hussar],
   [BuildingType.ArcheryRange]:[TechId.Crossbowman, TechId.ThumbRing, TechId.Arbalest, TechId.EliteSkirmisher, TechId.ParthianTactics],
+  [BuildingType.SiegeWorkshop]: [TechId.CappedRam, TechId.SiegeRam, TechId.Onager, TechId.SiegeOnager, TechId.HeavyScorpion],
   [BuildingType.Market]:      [TechId.Caravan, TechId.Coinage, TechId.Banking],
   [BuildingType.University]:  [TechId.Ballistics, TechId.Masonry, TechId.Architecture, TechId.GuardTower, TechId.Chemistry, TechId.Keep, TechId.Fortified],
   [BuildingType.Monastery]:   [TechId.Sanctity, TechId.BlockPrinting, TechId.Redemption, TechId.Theocracy],
@@ -454,6 +477,15 @@ export function applyTechBonus(u: Unit, tech: TechId) {
       if (u.unitType === UnitType.Militia) {
         (u as { baseAtk: number }).baseAtk += 2;
         (u as { armorMelee: number }).armorMelee += 1;
+      }
+      break;
+    // ── Supplies (Militia food discount — applied in TrainingQueue.train) ────
+    case TechId.Supplies:
+      break; // effect is in ResourceManager.techMilitiaFoodDiscount (applyGatherBonus)
+    // ── Gambesons (infantry +1 pierce armor) ─────────────────────────────────
+    case TechId.Gambesons:
+      if (u.armorClass & ArmorClass.Infantry) {
+        (u as { armorPierce: number }).armorPierce += 1;
       }
       break;
     // ── Squires (infantry +15% move speed) ───────────────────────────────────
@@ -675,6 +707,45 @@ export function applyTechBonus(u: Unit, tech: TechId) {
     case TechId.Artillery:      // Turks: siege +2 range
       if (u.armorClass & ArmorClass.Siege) (u as { attackRange: number }).attackRange += 2;
       break;
+    // ── TownWatch / TownPatrol — handled in applyBuildingBonus ──────────────
+    case TechId.TownWatch: case TechId.TownPatrol:
+      break;
+    // ── Siege upgrades ────────────────────────────────────────────────────────
+    case TechId.CappedRam:
+      if (u.unitType === UnitType.Ram) {
+        (u as { maxHp: number }).maxHp += 200;
+        u.hp = Math.min(u.hp + 200, u.maxHp);
+        (u as { armorMelee: number }).armorMelee += 3;
+      }
+      break;
+    case TechId.SiegeRam:
+      if (u.unitType === UnitType.Ram) {
+        (u as { maxHp: number }).maxHp += 200;
+        u.hp = Math.min(u.hp + 200, u.maxHp);
+        const ramBv = u.bonusVs.findIndex(b => b.cls === ArmorClass.Building);
+        if (ramBv >= 0) (u.bonusVs[ramBv] as { bonus: number }).bonus += 5;
+        else u.bonusVs.push({ cls: ArmorClass.Building, bonus: 5 });
+      }
+      break;
+    case TechId.Onager:
+      if (u.unitType === UnitType.Mangonel) {
+        (u as { baseAtk: number }).baseAtk += 3;
+        u.splashRadius = Math.max(u.splashRadius, 3.0);
+      }
+      break;
+    case TechId.SiegeOnager:
+      if (u.unitType === UnitType.Mangonel) {
+        (u as { baseAtk: number }).baseAtk += 5;
+        u.splashRadius = Math.max(u.splashRadius, 4.0);
+      }
+      break;
+    case TechId.HeavyScorpion:
+      if (u.unitType === UnitType.Scorpion) {
+        (u as { maxHp: number }).maxHp += 5;
+        u.hp = Math.min(u.hp + 5, u.maxHp);
+        (u as { attackInterval: number }).attackInterval = Math.max(0.5, u.attackInterval - 0.3);
+      }
+      break;
     // No-op techs (complex mechanics not applicable to web unit model)
     case TechId.Nomads: case TechId.Yasama: case TechId.Kamandaran:
     case TechId.Mahouts: case TechId.GreekFire: case TechId.Logistica:
@@ -693,6 +764,8 @@ function applyGatherBonus(tech: TechId, rm: ResourceManager | undefined) {
     case TechId.CropRotation:       rm.techGatherFoodMult  += 0.15; break;
     case TechId.DoubleBitAxe:       rm.techGatherWoodMult  += 0.20; break;
     case TechId.BowSaw:             rm.techGatherWoodMult  += 0.20; break;
+    case TechId.TwoManSaw:          rm.techGatherWoodMult  += 0.10; break;
+    case TechId.Supplies:           rm.techMilitiaFoodDiscount = 15; break;
     case TechId.GoldMining:         rm.techGatherGoldMult  += 0.15; break;
     case TechId.GoldShaftMining:    rm.techGatherGoldMult  += 0.15; break;
     case TechId.StoneMining:        rm.techGatherStoneMult += 0.15; break;
@@ -712,6 +785,12 @@ function applyBuildingBonus(tech: TechId, buildings: Building[]) {
       case TechId.Architecture:
         (b as { maxHp: number }).maxHp = Math.round(b.maxHp * 1.1);
         b.hp = Math.min(b.hp, b.maxHp);
+        break;
+      case TechId.TownWatch:
+        if (b.buildingType === BuildingType.TownCenter) b.sightBonus += 2;
+        break;
+      case TechId.TownPatrol:
+        if (b.buildingType === BuildingType.TownCenter) b.sightBonus += 4;
         break;
     }
   }
