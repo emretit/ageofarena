@@ -48,6 +48,44 @@ Kalan gap'ler 5 fazlık bir kapanış haritasına bağlandı (otonom uygulama, m
 
 ---
 
+## Unity→Web İçerik/Birim Parity Kapanışı (2026-06-14)
+
+> Audit: Unity `GameTypes.cs` ↔ web `GameTypes.ts`. Plan: `~/.claude/plans/unity-den-webe-ge-i-modular-hejlsberg.md`.
+> Öncelik: oynanış etkisi. Kapsam: tam Unity parity (birim+bina+mod+içerik araçları+polish).
+
+**Faz P1 — Birim & Bina Derinliği ✅ (2026-06-14):**
+- **Base birim (4):** Camel (anti-cav +9), CavalryArcher, Medic (+`MedicSystem` alan-heal, tüm takımlar),
+  Scorpion (siege pierce +splash). Enum/UnitRegistry/TrainingQueue/Unit görsel/EnemyAI/HUD.
+- **Naval (2):** FireShip (anti-ship +6), DemoShip (self-destruct — `CombatSystem._detonate` AoE).
+- **King + Regicide:** `UnitType.King` (taçlı, saldırısız, hp150); her takım maç başı 1 King ile spawn
+  (`?mode=Regicide`); `GameMode._tickRegicide` gerçek King'e bağlandı (`_kingTeams` frame-0 guard).
+  Runtime doğrulandı: Regicide'da sahnede 2 King.
+- **3 bina:** Outpost (görüş 12, ateşsiz), BombardTower (gunpowder dmg25/range10), FishTrap
+  (su-yerleşim + co-located su-food node, Farm deseni). FOW sight + BuildingPlacement water + placeBuildingForTeam.
+- **14 civ-unique birim:** TeutonicKnight/WarElephant/Mangudai/Samurai/ThrowingAxeman/Cataphract/
+  Berserk/Mameluke/WoadRaider/ChuKoNu/Huskarl/Janissary/Eagle/EliteEagle. `UNIT_CIV_GATE` + civ-filtreli
+  `trainableFor()` (menü yalnız kendi civ'inin unique'ini gösterir). Castle/Barracks-trained.
+- **Bonus düzeltme:** SiegeWorkshop `TRAINABLE`'da yoktu (Mangonel/Ram eğitilemiyordu) → eklendi.
+- Her adımda build 0 hata + 30/30 test yeşil; preview runtime hatasız.
+
+**Faz P2 — Game Mode'lar ✅ (2026-06-14):**
+- **GameModeType** genişletildi: +Deathmatch, Nomad, EmpireWars, KingOfTheHill, SuddenDeath, Treaty, Turbo (11 mod toplam).
+- **KingOfTheHill:** `_tickKingOfTheHill` — (0,0) merkezde 15-unit yarıçap kontrol, baskın takım 200s kontrolü sonrası kazanır.
+  Altın daire visual marker. `timerRemaining/Active/Team` getter'ları KoTH için genişletildi.
+- **SuddenDeath:** `_tickSuddenDeath` — `_sdTeams` ile TC kaybı = anında elenme (VictorySystem yerine GameMode yönetir).
+- **Treaty:** `CombatSystem.enabled` flag — `modeType === 'Treaty'` ise `gameElapsed >= 900` (15 dk) olana dek savaş yok.
+- **Deathmatch:** start food/wood/gold/stone = 20k/20k/10k/10k.
+- **Nomad:** TC'siz başlangıç (tüm takımlar); +150 odun. AI hâlâ Barracks'la spawn olur.
+- **EmpireWars:** Castle Age + start 500/500/250/200 kaynakları.
+- **Turbo:** tüm takımların `techGather*Mult = 3` (×3 toplama hızı).
+- **PreGameScreen:** 11 mod düğmeli seçici UI; `onStart` callback'e `mode: GameModeType` 4. parametre eklendi.
+- **startGame:** 7. parametre `modeType: GameModeType = 'Conquest'`; URL param parsing kaldırıldı.
+- Build 0 hata + 30/30 test yeşil.
+
+**Faz P3 (Trigger/Campaign/Tutorial/Editor), P4 (hotkey/a11y/cheat):** açık.
+
+---
+
 ## Web Roadmap — Faz 8-18 (2026-06-12) ✅
 
 > **Detayın tek kaynağı → [docs/WEB-ROADMAP.md](WEB-ROADMAP.md)** — mimari kararlar (NavGrid/A\*,

@@ -6,6 +6,7 @@ import { Civilization, CIVILIZATION_DEFS, PLAYABLE_CIVS, type CivBonus } from ".
 import { MapType } from "../world/MapGenerator";
 import { Difficulty, Personality } from "../game/EnemyAI";
 import type { AoaRep } from "../replay/ReplayFile";
+import type { GameModeType } from "../game/GameMode";
 
 export interface OpponentConfig {
   civ:         Civilization;
@@ -16,7 +17,7 @@ export interface OpponentConfig {
 export class PreGameScreen {
   private readonly _el: HTMLDivElement;
 
-  onStart: ((player: Civilization, opponents: OpponentConfig[], map: MapType) => void) | null = null;
+  onStart: ((player: Civilization, opponents: OpponentConfig[], map: MapType, mode: GameModeType) => void) | null = null;
   /** Fired when the player chooses online multiplayer instead of a skirmish. */
   onOnline: (() => void) | null = null;
   /** Fired when the player wants to watch a saved replay. */
@@ -34,8 +35,9 @@ export class PreGameScreen {
     container.appendChild(this._el);
   }
 
-  private _civSel       = Civilization.None;
-  private _mapSel       = MapType.Arabia;
+  private _civSel        = Civilization.None;
+  private _mapSel        = MapType.Arabia;
+  private _modeSel: GameModeType = 'Conquest';
   private _opponentCount = 1;
   private _difficulty    = Difficulty.Normal;
   private _personality   = Personality.Balanced;
@@ -77,6 +79,55 @@ export class PreGameScreen {
     }
     this._el.appendChild(grid);
     this._refreshCivButtonsIn(grid);
+
+    // Mode picker
+    const modeLabel = document.createElement("div");
+    modeLabel.textContent = "OYUN MODU";
+    modeLabel.style.cssText = "font-size:14px;font-weight:bold;color:#f5d060;margin-bottom:10px;letter-spacing:1px;";
+    this._el.appendChild(modeLabel);
+
+    const modeRow = document.createElement("div");
+    modeRow.style.cssText = "display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:800px;margin-bottom:24px;";
+
+    const MODE_ENTRIES: Array<[GameModeType, string]> = [
+      ['Conquest',      'Fetih'],
+      ['Wonder',        'Harika'],
+      ['Relic',         'Emanet'],
+      ['Regicide',      'Regicide'],
+      ['Deathmatch',    'Ölüm Maçı'],
+      ['Nomad',         'Göçebe'],
+      ['EmpireWars',    'İmparatorluk'],
+      ['KingOfTheHill', 'Tepe Kontrolü'],
+      ['SuddenDeath',   'Ani Ölüm'],
+      ['Treaty',        'Antlaşma'],
+      ['Turbo',         'Turbo'],
+    ];
+    let activeModeBtn: HTMLButtonElement | null = null;
+    for (const [mode, label] of MODE_ENTRIES) {
+      const btn = document.createElement("button");
+      btn.textContent = label;
+      btn.style.cssText = `
+        padding:6px 12px; border:2px solid #333; border-radius:4px;
+        background:#11192a; color:#aaa; font-family:monospace; font-size:12px;
+        cursor:pointer; white-space:nowrap;
+      `;
+      const selectMode = () => {
+        if (activeModeBtn) {
+          activeModeBtn.style.borderColor = "#333";
+          activeModeBtn.style.background  = "#11192a";
+          activeModeBtn.style.color       = "#aaa";
+        }
+        btn.style.borderColor = "#f5d060";
+        btn.style.background  = "#2a2000";
+        btn.style.color       = "#f5d060";
+        activeModeBtn = btn;
+        this._modeSel = mode;
+      };
+      if (mode === this._modeSel) selectMode();
+      btn.addEventListener("click", selectMode);
+      modeRow.appendChild(btn);
+    }
+    this._el.appendChild(modeRow);
 
     // Map type picker
     const mapLabel = document.createElement("div");
@@ -157,7 +208,7 @@ export class PreGameScreen {
     startBtn.addEventListener("click", () => {
       const opponents = this._buildOpponents();
       this._el.remove();
-      this.onStart?.(this._civSel, opponents, this._mapSel);
+      this.onStart?.(this._civSel, opponents, this._mapSel, this._modeSel);
     });
     this._el.appendChild(startBtn);
 

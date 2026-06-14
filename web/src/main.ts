@@ -6,7 +6,7 @@
 import * as THREE from "three";
 import { Config, TeamColors } from "./core/Config";
 import { ResourceManager } from "./core/ResourceManager";
-import { BuildingType, ResourceKind, UnitState, UnitType } from "./core/GameTypes";
+import { Age, BuildingType, ResourceKind, UnitState, UnitType } from "./core/GameTypes";
 import { CameraRig } from "./camera/CameraRig";
 import { mulberry32 } from "./world/World";
 import { buildTerrain as buildTerrainNew, type TerrainObjects } from "./render/TerrainRenderer";
@@ -49,6 +49,7 @@ import { ProjectileSystem } from "./game/ProjectileSystem";
 import { GarrisonSystem } from "./game/GarrisonSystem";
 import { ControlGroups } from "./game/ControlGroups";
 import { ConversionSystem } from "./game/ConversionSystem";
+import { MedicSystem } from "./game/MedicSystem";
 import { BuildingPlacement } from "./game/BuildingPlacement";
 import { RelicSystem } from "./game/RelicSystem";
 import { VisualEffectSystem } from "./game/VisualEffectSystem";
@@ -127,7 +128,7 @@ void assetLoader
 // ── Pre-game screen ───────────────────────────────────────────────────────────
 const savedRep = loadRepFromSlot(1); // null if no replay saved yet
 const preScreen = new PreGameScreen(app, savedRep);
-preScreen.onStart = (playerCiv: Civilization, opponents: OpponentConfig[], mapType: MapType) => {
+preScreen.onStart = (playerCiv: Civilization, opponents: OpponentConfig[], mapType: MapType, mode: GameModeType) => {
   if (!assetLoader.isLoaded) return; // guard: never spawn units before models are baked
   setTeamCiv(0, playerCiv);
   opponents.forEach((op, i) => setTeamCiv(i + 1, op.civ));
@@ -138,7 +139,7 @@ preScreen.onStart = (playerCiv: Civilization, opponents: OpponentConfig[], mapTy
     mapType, simSeed, playerCiv,
     opponents: opponents.map(op => ({ civ: op.civ, difficulty: op.difficulty, personality: op.personality })),
   };
-  startGame(mapType, trees, opponents, replaySetup);
+  startGame(mapType, trees, opponents, replaySetup, undefined, undefined, mode);
 };
 preScreen.onWatchReplay = (rep: AoaRep) => {
   if (!assetLoader.isLoaded) return;
@@ -215,7 +216,7 @@ function unstampBuilding(b: Building): void {
 }
 
 // ── Game bootstrap ────────────────────────────────────────────────────────────
-function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentConfig[] = [{ civ: 0 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced }], _replaySetup?: ReplaySetup, net?: NetConfig, _watchRep?: AoaRep): void {
+function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentConfig[] = [{ civ: 0 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced }], _replaySetup?: ReplaySetup, net?: NetConfig, _watchRep?: AoaRep, modeType: GameModeType = 'Conquest'): void {
   const arch = getMapArchetype(mapType);
   const rng  = mulberry32(42);
   const isMP = !!net;
@@ -281,21 +282,41 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   // ── Resource managers (one per team) ────────────────────────────────────
   const teamRes: ResourceManager[] = Array.from({ length: teamCount }, () => new ResourceManager());
 
+  // ── Per-mode resource / age initialization ──────────────────────────────
+  if (modeType === 'Deathmatch') {
+    for (const rm of teamRes) { rm.food = 20000; rm.wood = 20000; rm.gold = 10000; rm.stone = 10000; }
+  } else if (modeType === 'EmpireWars') {
+    for (const rm of teamRes) { rm.food = 500; rm.wood = 500; rm.gold = 250; rm.stone = 200; rm.age = Age.Castle; }
+  } else if (modeType === 'Turbo') {
+    for (const rm of teamRes) {
+      rm.techGatherFoodMult  = 3;
+      rm.techGatherWoodMult  = 3;
+      rm.techGatherGoldMult  = 3;
+      rm.techGatherStoneMult = 3;
+    }
+  } else if (modeType === 'Nomad') {
+    for (const rm of teamRes) { rm.wood = 350; } // extra wood to build first TC
+  }
+
   // ── Buildings ────────────────────────────────────────────────────────────
   const buildings: Building[] = [];
 
-  const playerTC = new Building(scene, new THREE.Vector3(p1x, 0, p1z), 0, BuildingType.TownCenter);
-  buildings.push(playerTC);
-  stampBuilding(playerTC);
+  // Nomad: teams start without a Town Center and must build their own.
+  if (modeType !== 'Nomad') {
+    const playerTC = new Building(scene, new THREE.Vector3(p1x, 0, p1z), 0, BuildingType.TownCenter);
+    buildings.push(playerTC);
+    stampBuilding(playerTC);
+  }
 
   const aiTCs: Building[] = [];
   for (let i = 0; i < opponents.length; i++) {
     const [bx, bz] = basePositions[(i + 1) % basePositions.length];
-    const aiTC = new Building(scene, new THREE.Vector3(bx, 0, bz), i + 1, BuildingType.TownCenter);
-    buildings.push(aiTC);
-    stampBuilding(aiTC);
-    aiTCs.push(aiTC);
-
+    if (modeType !== 'Nomad') {
+      const aiTC = new Building(scene, new THREE.Vector3(bx, 0, bz), i + 1, BuildingType.TownCenter);
+      buildings.push(aiTC);
+      stampBuilding(aiTC);
+      aiTCs.push(aiTC);
+    }
     const aiBarracks = new Building(scene, new THREE.Vector3(bx - 8, 0, bz + 10), i + 1, BuildingType.Barracks);
     buildings.push(aiBarracks);
     stampBuilding(aiBarracks);
@@ -311,6 +332,15 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     const [bx, bz] = basePositions[(ai + 1) % basePositions.length];
     for (let i = 0; i < 3; i++) {
       units.push(new Unit(scene, new THREE.Vector3(bx - 2 + i * 2, 0, bz - 6), ai + 1, UnitType.Villager));
+    }
+  }
+
+  // Regicide: each team starts with one King next to its Town Centre.
+  if (modeType === 'Regicide') {
+    units.push(new Unit(scene, new THREE.Vector3(p1x + 2, 0, p1z + 2), 0, UnitType.King));
+    for (let ai = 0; ai < opponents.length; ai++) {
+      const [bx, bz] = basePositions[(ai + 1) % basePositions.length];
+      units.push(new Unit(scene, new THREE.Vector3(bx + 2, 0, bz + 2), ai + 1, UnitType.King));
     }
   }
 
@@ -359,7 +389,16 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
       op.difficulty, op.personality, (i * 7) % 30, commandBus),
   );
   const victory     = new VictorySystem();
-  const gameMode    = new GameMode('Conquest'); // default; PreGameScreen v3 can set mode
+  const gameMode    = new GameMode(modeType);
+
+  // KingOfTheHill: golden disc at (0,0) marks the 15-unit control zone
+  if (modeType === 'KingOfTheHill') {
+    const markerGeo = new THREE.CylinderGeometry(15, 15, 0.15, 32);
+    const markerMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0x886600, roughness: 0.5 });
+    const marker = new THREE.Mesh(markerGeo, markerMat);
+    marker.position.set(0, 0.08, 0);
+    scene.add(marker);
+  }
   const projectiles = new ProjectileSystem(scene);
   const garrison    = new GarrisonSystem();
   const placement   = new BuildingPlacement(scene, rig.camera, renderer.domElement);
@@ -370,6 +409,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   const vfx         = new VisualEffectSystem(app);
   const ctrlGroups  = new ControlGroups();
   const conversion  = new ConversionSystem();
+  const medic       = new MedicSystem();
 
   // ── Replay driver + HUD (replay mode only) ───────────────────────────────
   const replayDriver = _watchRep ? new ReplayDriver(_watchRep, commandBus) : null;
@@ -433,8 +473,9 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     if (!rm || !rm.canAfford(0, def.costWood, def.costGold, def.costStone)) return;
     // Re-check walkability at execution time: a cell can become occupied between command
     // issue and execution (notably MP's ~8-tick inputDelay), which would otherwise stamp a
-    // building on top of another / on now-blocked terrain.
-    if (!navGrid.isWalkableWorld(x, z)) return;
+    // building on top of another / on now-blocked terrain. Fish Trap sits on water.
+    const placeDomain = type === BuildingType.FishTrap ? 'water' : 'land';
+    if (!navGrid.isWalkableWorld(x, z, placeDomain)) return;
     rm.deduct(0, def.costWood, def.costGold, def.costStone);
     const newBuilding = new Building(scene, new THREE.Vector3(x, 0, z), teamId, type);
     buildings.push(newBuilding);
@@ -445,6 +486,12 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
       farmNode.decayPerSecond = 2;
       farmNode.ownerTeamId = teamId;
       nodes.push(farmNode);
+    } else if (type === BuildingType.FishTrap) {
+      // Renewable water food source — FishingShips gather here and drop off at the Dock/FishTrap.
+      const fishNode = new ResourceNode(scene, newBuilding.pos.clone(), ResourceKind.Food, 700, 'water');
+      (fishNode as { destroyOnDeplete: boolean }).destroyOnDeplete = false;
+      fishNode.ownerTeamId = teamId;
+      nodes.push(fishNode);
     }
   }
 
@@ -686,6 +733,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
         gather.tick(units, buildings, teamRes, scene, step);
         gather.tickFarms(nodes, teamRes, step);
+        if (modeType === 'Treaty') combat.enabled = gameElapsed >= 15 * 60;
         combat.tick(units, buildings, step);
         combat.tickBuildings(buildings, units, step, b => garrison.garrisonCount(b));
         training.tick(buildings, units, scene, research, step);
@@ -715,6 +763,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
         for (const ai of aiInstances) ai.tick(units, buildings, nodes, scene, step, pathQueue);
         conversion.tick(units, step);
+        medic.tick(units, step);
         fog.tick(units, buildings, step);
         if (isMP || isReplay) {
           // MP: no local AI; Replay: commands come from log — tick all age systems passively

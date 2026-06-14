@@ -6,7 +6,9 @@ import type { Building } from "./Building";
 import type { Unit } from "./Unit";
 import { BuildingType, UnitType } from "../core/GameTypes";
 
-export type GameModeType = 'Conquest' | 'Wonder' | 'Relic' | 'Regicide';
+export type GameModeType =
+  | 'Conquest' | 'Wonder' | 'Relic' | 'Regicide'
+  | 'Deathmatch' | 'Nomad' | 'EmpireWars' | 'KingOfTheHill' | 'SuddenDeath' | 'Treaty' | 'Turbo';
 
 export interface GameModeResult {
   winner: number; // teamId of winner, -1 = no winner yet
@@ -47,10 +49,17 @@ export class GameMode {
     garrisonedRelics?: Map<number, number>, // teamId → relic count (from RelicSystem)
   ): GameModeResult {
     switch (this.type) {
-      case 'Conquest': return this._tickConquest(buildings, allTeams);
-      case 'Wonder':   return this._tickWonder(buildings, allTeams, dt);
-      case 'Relic':    return this._tickRelic(allTeams, dt, garrisonedRelics ?? new Map());
-      case 'Regicide': return this._tickRegicide(units, buildings, allTeams);
+      case 'Conquest':      return this._tickConquest(buildings, allTeams);
+      case 'Wonder':        return this._tickWonder(buildings, allTeams, dt);
+      case 'Relic':         return this._tickRelic(allTeams, dt, garrisonedRelics ?? new Map());
+      case 'Regicide':      return this._tickRegicide(units, buildings, allTeams);
+      case 'KingOfTheHill': return this._tickKingOfTheHill(units, allTeams, dt);
+      case 'SuddenDeath':   return this._tickSuddenDeath(buildings, allTeams);
+      case 'Deathmatch':
+      case 'Nomad':
+      case 'EmpireWars':
+      case 'Treaty':
+      case 'Turbo':         return NO_WINNER; // VictorySystem (Conquest rules) handles these
     }
   }
 
@@ -120,43 +129,102 @@ export class GameMode {
     return NO_WINNER;
   }
 
-  // ── Regicide: team whose King unit is killed is eliminated (King = special Scout unit with high HP)
+  // ── Regicide: a team whose King unit dies is eliminated. Last team with a living King wins.
   private _tickRegicide(units: Unit[], _buildings: Building[], allTeams: number[]): GameModeResult {
-    // A team is eliminated if their King (is marked by isKing flag, or falls back to: no alive units)
-    // Simple approach: each team needs at least one alive King (UnitType.Scout with high HP as proxy)
-    // We track via `unit.isKing` field if set, otherwise skip
+    // Track which teams have ever fielded a King so we don't declare a winner before
+    // kings are spawned (all-absent at frame 0 must NOT instantly end the match).
+    for (const u of units) {
+      if (u.unitType === UnitType.King) this._kingTeams.add(u.teamId);
+    }
+    if (this._kingTeams.size === 0) return NO_WINNER; // kings not spawned yet
+
     const teamsWithKing = new Set<number>();
     for (const u of units) {
-      if (u.alive && (u as { isKing?: boolean }).isKing) {
-        teamsWithKing.add(u.teamId);
-      }
+      if (u.alive && u.unitType === UnitType.King) teamsWithKing.add(u.teamId);
     }
-    // If a team has no King entry in set, they're eliminated
-    const surviving = allTeams.filter(t => teamsWithKing.has(t));
-    if (surviving.length === 1) {
-      return { winner: surviving[0], reason: "Regicide" };
-    }
-    if (surviving.length === 0) {
-      return { winner: allTeams[0] ?? -1, reason: "Regicide" }; // edge case
-    }
+    // Only consider teams that started with a king.
+    const surviving = allTeams.filter(t => this._kingTeams.has(t) && teamsWithKing.has(t));
+    if (surviving.length === 1) return { winner: surviving[0], reason: "Regicide" };
+    if (surviving.length === 0) return { winner: allTeams[0] ?? -1, reason: "Regicide" };
     return NO_WINNER;
   }
 
-  /** Wonder/Relic countdown remaining (0 if not active). */
+  /** Teams that have spawned a King at least once (guards the frame-0 all-absent case). */
+  private readonly _kingTeams = new Set<number>();
+
+  // ── KingOfTheHill ────────────────────────────────────────────────────────────
+  private _kothHoldTeam = -1;
+  private _kothTimer    = 0;
+  readonly kothDuration = 200;
+  private readonly KOTH_RADIUS = 15;
+
+  private _tickKingOfTheHill(units: Unit[], allTeams: number[], dt: number): GameModeResult {
+    const counts = new Map<number, number>();
+    for (const u of units) {
+      if (!u.alive) continue;
+      const dx = u.x; const dz = u.z; // center of map is (0, 0)
+      if (dx * dx + dz * dz <= this.KOTH_RADIUS * this.KOTH_RADIUS) {
+        counts.set(u.teamId, (counts.get(u.teamId) ?? 0) + 1);
+      }
+    }
+    let dominant = -1;
+    let maxCount = 0;
+    let contested = false;
+    for (const [team, cnt] of counts) {
+      if (cnt > maxCount) { dominant = team; maxCount = cnt; contested = false; }
+      else if (cnt === maxCount) { contested = true; }
+    }
+    if (dominant < 0 || contested || maxCount === 0) {
+      this._kothHoldTeam = -1;
+      this._kothTimer    = 0;
+      return NO_WINNER;
+    }
+    if (this._kothHoldTeam !== dominant) {
+      this._kothHoldTeam = dominant;
+      this._kothTimer    = this.kothDuration;
+      this.onTimerStart?.(dominant, this.kothDuration, 'KingOfTheHill');
+    }
+    this._kothTimer -= dt;
+    if (this._kothTimer <= 0) return { winner: this._kothHoldTeam, reason: "KingOfTheHill" };
+    return NO_WINNER;
+  }
+
+  // ── SuddenDeath ──────────────────────────────────────────────────────────────
+  private readonly _sdTeams = new Set<number>(); // teams that have ever had a TC
+
+  private _tickSuddenDeath(buildings: Building[], allTeams: number[]): GameModeResult {
+    for (const b of buildings) {
+      if (b.buildingType === BuildingType.TownCenter) this._sdTeams.add(b.teamId);
+    }
+    if (this._sdTeams.size === 0) return NO_WINNER;
+    const teamsWithTC = new Set<number>();
+    for (const b of buildings) {
+      if (b.alive && b.buildingType === BuildingType.TownCenter) teamsWithTC.add(b.teamId);
+    }
+    const surviving = allTeams.filter(t => this._sdTeams.has(t) && teamsWithTC.has(t));
+    if (surviving.length === 1) return { winner: surviving[0], reason: "SuddenDeath" };
+    if (surviving.length === 0) return { winner: allTeams[0] ?? -1, reason: "SuddenDeath" };
+    return NO_WINNER;
+  }
+
+  /** Wonder/Relic/KoTH countdown remaining (0 if not active). */
   get timerRemaining(): number {
-    if (this.type === 'Wonder') return Math.max(0, this._wonderTimer);
-    if (this.type === 'Relic')  return Math.max(0, this._relicTimer);
+    if (this.type === 'Wonder')        return Math.max(0, this._wonderTimer);
+    if (this.type === 'Relic')         return Math.max(0, this._relicTimer);
+    if (this.type === 'KingOfTheHill') return Math.max(0, this._kothTimer);
     return 0;
   }
 
   get timerActive(): boolean {
-    return (this.type === 'Wonder' && this._wonderTeam >= 0) ||
-           (this.type === 'Relic'  && this._relicHoldTeam >= 0);
+    return (this.type === 'Wonder'        && this._wonderTeam >= 0) ||
+           (this.type === 'Relic'         && this._relicHoldTeam >= 0) ||
+           (this.type === 'KingOfTheHill' && this._kothHoldTeam >= 0);
   }
 
   get timerTeam(): number {
-    if (this.type === 'Wonder') return this._wonderTeam;
-    if (this.type === 'Relic')  return this._relicHoldTeam;
+    if (this.type === 'Wonder')        return this._wonderTeam;
+    if (this.type === 'Relic')         return this._relicHoldTeam;
+    if (this.type === 'KingOfTheHill') return this._kothHoldTeam;
     return -1;
   }
 }

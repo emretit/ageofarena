@@ -3,7 +3,7 @@
  * Aggro detection, approach, attack timing, CombatMath damage.
  */
 import * as THREE from "three";
-import { ArmorClass, AttackStance, BuildingType, DamageType, UnitState } from "../core/GameTypes";
+import { ArmorClass, AttackStance, BuildingType, DamageType, UnitState, UnitType } from "../core/GameTypes";
 import { ArmorClassFlags } from "../core/GameTypes";
 import { SpatialHash } from "../sim/SpatialHash";
 import { diplomacy } from "../core/Diplomacy";
@@ -15,6 +15,8 @@ const BUILDING_COMBAT: Partial<Record<BuildingType, { range: number; dmg: number
   [BuildingType.TownCenter]: { range: 8, dmg: 5,  interval: 2.5 },
   [BuildingType.Castle]:     { range: 9, dmg: 18, interval: 1.5 },
   [BuildingType.WatchTower]: { range: 7, dmg: 6,  interval: 2.0 },
+  // Outpost has no attack (vision only — handled by FogOfWarSystem.buildingSight).
+  [BuildingType.BombardTower]: { range: 10, dmg: 25, interval: 2.0 }, // gunpowder
 };
 
 /** CombatMath.NetDamage equivalent. */
@@ -52,6 +54,9 @@ export class CombatSystem {
   /** Called when a building is destroyed (hp → 0). */
   onBuildingDestroyed: ((b: import("./Building").Building) => void) | null = null;
 
+  /** Treaty mode: set to false to suspend all combat (unit attacks + building fire). */
+  enabled = true;
+
   private readonly _bldTimers = new Map<Building, number>();
   private readonly _spatial = new SpatialHash<Unit>();
 
@@ -65,6 +70,7 @@ export class CombatSystem {
   }> = [];
 
   tick(units: Unit[], buildings: Building[], dt: number) {
+    if (!this.enabled) return;
     // Advance pending ranged hits (damage on arrival)
     for (let i = this._pending.length - 1; i >= 0; i--) {
       const p = this._pending[i];
@@ -245,11 +251,37 @@ export class CombatSystem {
     }
   }
 
+  /** DemoShip self-destruct: AoE blast around itself to nearby enemies, then dies. */
+  private _detonate(attacker: Unit): void {
+    const r = attacker.splashRadius;
+    const r2 = r * r;
+    const nearby: Unit[] = [];
+    this._spatial.query(attacker.x, attacker.z, r, nearby);
+    for (const t of nearby) {
+      if (t === attacker || !t.alive || t.isGarrisoned) continue;
+      if (!diplomacy.isEnemy(t.teamId, attacker.teamId)) continue;
+      const dx = t.x - attacker.x; const dz = t.z - attacker.z;
+      const d2 = dx * dx + dz * dz;
+      if (d2 > r2) continue;
+      const falloff = 1 - Math.sqrt(d2) / r;
+      const dmg = Math.max(1, Math.round(attacker.baseAtk * falloff));
+      t.takeDamage(dmg);
+      this.onHit?.(t.pos, dmg);
+      if (!t.alive) this.onUnitKilled?.(t);
+    }
+    // Self-destruct
+    attacker.takeDamage(attacker.maxHp);
+    if (!attacker.alive) this.onUnitKilled?.(attacker);
+  }
+
   private _applyDamage(
     attacker: Unit,
     target: Unit | null,
     targetB: Building | null,
   ) {
+    // DemoShip ignores normal damage — it blows up on contact.
+    if (attacker.unitType === UnitType.DemoShip) { this._detonate(attacker); return; }
+
     const PROJ_SPEED = 22; // world units/s — matches game/ProjectileSystem
 
     if (target) {
@@ -310,6 +342,7 @@ export class CombatSystem {
     buildings: Building[], units: Unit[], dt: number,
     garrisonCount?: (b: Building) => number,
   ) {
+    if (!this.enabled) return;
     for (const b of buildings) {
       if (!b.alive) continue;
       const stats = BUILDING_COMBAT[b.buildingType];
