@@ -57,10 +57,10 @@ export class ResourceManager {
   gain(kind: ResourceKind, amount: number) {
     if (amount === 0) return;
     switch (kind) {
-      case ResourceKind.Food:  this.food  = Math.max(0, this.food  + amount); this._accFood  += amount; break;
-      case ResourceKind.Wood:  this.wood  = Math.max(0, this.wood  + amount); this._accWood  += amount; break;
-      case ResourceKind.Gold:  this.gold  = Math.max(0, this.gold  + amount); this._accGold  += amount; break;
-      case ResourceKind.Stone: this.stone = Math.max(0, this.stone + amount); this._accStone += amount; break;
+      case ResourceKind.Food:  this.food  = Math.max(0, this.food  + amount); if (amount > 0) this._accFood  += amount; break;
+      case ResourceKind.Wood:  this.wood  = Math.max(0, this.wood  + amount); if (amount > 0) this._accWood  += amount; break;
+      case ResourceKind.Gold:  this.gold  = Math.max(0, this.gold  + amount); if (amount > 0) this._accGold  += amount; break;
+      case ResourceKind.Stone: this.stone = Math.max(0, this.stone + amount); if (amount > 0) this._accStone += amount; break;
     }
     this.onChange?.();
   }

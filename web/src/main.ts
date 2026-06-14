@@ -219,7 +219,10 @@ function unstampBuilding(b: Building): void {
 }
 
 // ── Game bootstrap ────────────────────────────────────────────────────────────
+let _activeRafId = 0; // cancel old loop when startGame() is called again
+
 function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentConfig[] = [{ civ: 0 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced }], _replaySetup?: ReplaySetup, net?: NetConfig, _watchRep?: AoaRep, modeType: GameModeType = 'Conquest'): void {
+  cancelAnimationFrame(_activeRafId);
   const arch = getMapArchetype(mapType);
   const rng  = mulberry32(42);
   const isMP = !!net;
@@ -912,7 +915,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     perfHud.setPathQueue(pathQueue.pendingCount);
     perfHud.setUnitCount(units.length);
     perfHud.flush();
-    requestAnimationFrame(frame);
+    _activeRafId = requestAnimationFrame(frame);
   }
-  requestAnimationFrame(frame);
+  _activeRafId = requestAnimationFrame(frame);
 }
