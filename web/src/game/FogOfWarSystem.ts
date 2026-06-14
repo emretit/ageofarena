@@ -43,7 +43,10 @@ function unitSight(t: UnitType): number {
 function buildingSight(t: BuildingType): number {
   switch (t) {
     case BuildingType.TownCenter:   return 14;
+    case BuildingType.Outpost:      return 12; // cheap eyes — wide vision, no attack
     case BuildingType.Castle:       return 10;
+    case BuildingType.BombardTower:
+    case BuildingType.WatchTower:
     case BuildingType.Barracks:
     case BuildingType.ArcheryRange:
     case BuildingType.Stable:       return 8;
@@ -207,5 +210,12 @@ export class FogOfWarSystem {
 
   isVisible(wx: number, wz: number): boolean {
     return this._isLit(wx, wz);
+  }
+
+  /** Cheat: mark entire map as explored + visible, reveal all enemies. */
+  revealAll(): void {
+    this.vis.fill(VISIBLE);
+    this.explored.fill(VISIBLE);
+    this._uploadTexture();
   }
 }

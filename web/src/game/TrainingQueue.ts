@@ -26,6 +26,45 @@ const UNIT_MIN_AGE: Partial<Record<UnitType, Age>> = {
   [UnitType.Mangonel]:    Age.Castle,
   [UnitType.Ram]:         Age.Castle,
   [UnitType.Galley]:      Age.Feudal,
+  [UnitType.Camel]:         Age.Castle,
+  [UnitType.CavalryArcher]: Age.Castle,
+  [UnitType.Medic]:         Age.Castle,
+  [UnitType.Scorpion]:      Age.Castle,
+  [UnitType.FireShip]:      Age.Castle,
+  [UnitType.DemoShip]:      Age.Castle,
+  // Civ-unique units (Castle Age; Eagle line is Barracks)
+  [UnitType.TeutonicKnight]: Age.Castle,
+  [UnitType.WarElephant]:    Age.Castle,
+  [UnitType.Mangudai]:       Age.Castle,
+  [UnitType.Samurai]:        Age.Castle,
+  [UnitType.ThrowingAxeman]: Age.Castle,
+  [UnitType.Cataphract]:     Age.Castle,
+  [UnitType.Berserk]:        Age.Castle,
+  [UnitType.Mameluke]:       Age.Castle,
+  [UnitType.WoadRaider]:     Age.Castle,
+  [UnitType.ChuKoNu]:        Age.Castle,
+  [UnitType.Huskarl]:        Age.Castle,
+  [UnitType.Janissary]:      Age.Castle,
+  [UnitType.Eagle]:          Age.Feudal,
+  [UnitType.EliteEagle]:     Age.Imperial,
+};
+
+/** Civ-unique units — only trainable by the listed civilization. */
+const UNIT_CIV_GATE: Partial<Record<UnitType, Civilization>> = {
+  [UnitType.TeutonicKnight]: Civilization.Teutons,
+  [UnitType.WarElephant]:    Civilization.Persians,
+  [UnitType.Mangudai]:       Civilization.Mongols,
+  [UnitType.Samurai]:        Civilization.Japanese,
+  [UnitType.ThrowingAxeman]: Civilization.Franks,
+  [UnitType.Cataphract]:     Civilization.Byzantines,
+  [UnitType.Berserk]:        Civilization.Vikings,
+  [UnitType.Mameluke]:       Civilization.Saracens,
+  [UnitType.WoadRaider]:     Civilization.Celts,
+  [UnitType.ChuKoNu]:        Civilization.Chinese,
+  [UnitType.Huskarl]:        Civilization.Goths,
+  [UnitType.Janissary]:      Civilization.Turks,
+  [UnitType.Eagle]:          Civilization.Aztecs,
+  [UnitType.EliteEagle]:     Civilization.Aztecs,
 };
 
 /** Units denied to specific civilizations (port of CivDefs.DENIED_UNITS). */
@@ -36,14 +75,32 @@ const DENIED_UNITS: Partial<Record<Civilization, ReadonlySet<UnitType>>> = {
 /** Which unit types a building can train. */
 export const TRAINABLE: Partial<Record<BuildingType, UnitType[]>> = {
   [BuildingType.TownCenter]: [UnitType.Villager],
-  [BuildingType.Barracks]:   [UnitType.Militia, UnitType.Spearman],
-  [BuildingType.ArcheryRange]: [UnitType.Archer, UnitType.Skirmisher, UnitType.Longbowman],
-  [BuildingType.Stable]:     [UnitType.Cavalry, UnitType.Scout],
-  [BuildingType.Monastery]:  [UnitType.Monk],
-  [BuildingType.Castle]:     [UnitType.Trebuchet],
+  [BuildingType.Barracks]:   [UnitType.Militia, UnitType.Spearman, UnitType.Eagle, UnitType.EliteEagle],
+  [BuildingType.ArcheryRange]: [UnitType.Archer, UnitType.Skirmisher, UnitType.Longbowman, UnitType.CavalryArcher],
+  [BuildingType.Stable]:     [UnitType.Cavalry, UnitType.Scout, UnitType.Camel],
+  [BuildingType.Monastery]:  [UnitType.Monk, UnitType.Medic],
+  [BuildingType.Castle]:     [
+    UnitType.Trebuchet,
+    // Civ-unique units — filtered to the building owner's civ via UNIT_CIV_GATE.
+    UnitType.TeutonicKnight, UnitType.WarElephant, UnitType.Mangudai, UnitType.Samurai,
+    UnitType.ThrowingAxeman, UnitType.Cataphract, UnitType.Berserk, UnitType.Mameluke,
+    UnitType.WoadRaider, UnitType.ChuKoNu, UnitType.Huskarl, UnitType.Janissary,
+  ],
+  [BuildingType.SiegeWorkshop]: [UnitType.Ram, UnitType.Mangonel, UnitType.Scorpion],
   [BuildingType.Market]:     [UnitType.TradeCart],
-  [BuildingType.Dock]:       [UnitType.FishingShip, UnitType.Galley],
+  [BuildingType.Dock]:       [UnitType.FishingShip, UnitType.Galley, UnitType.FireShip, UnitType.DemoShip],
 };
+
+/** Trainable units at a building, filtered to the owning team's civ (hides other civs' uniques). */
+export function trainableFor(buildingType: BuildingType, teamId: number): UnitType[] {
+  const all = TRAINABLE[buildingType];
+  if (!all) return [];
+  const civ = getTeamCiv(teamId);
+  return all.filter(t => {
+    const gate = UNIT_CIV_GATE[t];
+    return gate === undefined || gate === civ;
+  });
+}
 
 interface QueueEntry { type: UnitType; timer: number; total: number; }
 
@@ -59,8 +116,12 @@ export class TrainingQueue {
     if (rm.pop + inQueue >= rm.popCap) return false;
     const minAge = UNIT_MIN_AGE[type] ?? Age.Dark;
     if (rm.age < minAge) return false;
-    const denied = DENIED_UNITS[getTeamCiv(building.teamId)];
+    const teamCiv = getTeamCiv(building.teamId);
+    const denied = DENIED_UNITS[teamCiv];
     if (denied?.has(type)) return false;
+    // Civ-unique units: only the owning civ may train them.
+    const civGate = UNIT_CIV_GATE[type];
+    if (civGate !== undefined && civGate !== teamCiv) return false;
     if (!rm.canAfford(row.trainFood, row.trainWood, row.trainGold)) return false;
     const queue = this._queue(building);
     if (queue.length >= TrainingQueue.MAX_QUEUE) return false;

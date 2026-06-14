@@ -44,6 +44,9 @@ export const DEFS: Record<BuildingType, BuildingDef> = {
   [BuildingType.Dock]:         { hp: 350,  display: "Dock",            isDropoff: true,  dropoffMask: 0b0001, popProvided: 0,  armorMelee: 1, armorPierce: 3,  costWood: 150, costStone: 0,   costGold: 0 },
   [BuildingType.WatchTower]:   { hp: 500,  display: "Watch Tower",     isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 5, armorPierce: 8,  costWood: 0,   costStone: 125, costGold: 0 },
   [BuildingType.Gate]:         { hp: 700,  display: "Gate",            isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 8, armorPierce: 8,  costWood: 0,   costStone: 30,  costGold: 0 },
+  [BuildingType.Outpost]:      { hp: 500,  display: "Outpost",         isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 0, armorPierce: 3,  costWood: 25,  costStone: 5,   costGold: 0 },
+  [BuildingType.BombardTower]: { hp: 1500, display: "Bombard Tower",   isDropoff: false, dropoffMask: 0,      popProvided: 0,  armorMelee: 5, armorPierce: 8,  costWood: 100, costStone: 125, costGold: 0 },
+  [BuildingType.FishTrap]:     { hp: 50,   display: "Fish Trap",       isDropoff: true,  dropoffMask: 0b0001, popProvided: 0,  armorMelee: 0, armorPierce: 0,  costWood: 100, costStone: 0,   costGold: 0 },
 };
 
 // Building mesh colors by type
@@ -60,6 +63,9 @@ const BODY_COLORS: Partial<Record<BuildingType, number>> = {
   [BuildingType.SiegeWorkshop]:0x6a5040,
   [BuildingType.Dock]:         0x4a7a9e,
   [BuildingType.WatchTower]:   0x808070,
+  [BuildingType.Outpost]:      0x9a8a6a,
+  [BuildingType.BombardTower]: 0x6a6a6a,
+  [BuildingType.FishTrap]:     0x3a6a7a,
 };
 
 /** Dimensions per building type [width, height, depth] */
@@ -85,6 +91,9 @@ const DIMS: Partial<Record<BuildingType, [number, number, number]>> = {
   [BuildingType.Mill]:         [3, 2.5, 3],
   [BuildingType.Farm]:         [3, 1.5, 3],
   [BuildingType.Blacksmith]:   [3, 2.5, 3],
+  [BuildingType.Outpost]:      [1.5, 4, 1.5],
+  [BuildingType.BombardTower]: [2.5, 4.5, 2.5],
+  [BuildingType.FishTrap]:     [2, 0.6, 2],
 };
 
 export const BUILDING_ARMORCLASS: ArmorClassFlags = ArmorClass.Building;

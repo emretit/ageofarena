@@ -120,9 +120,11 @@ export class Unit {
     const row = getUnitRow(type);
     const civ = getTeamBonus(teamId);
 
-    const isCav      = type === UnitType.Cavalry || type === UnitType.Scout;
+    const isCav      = type === UnitType.Cavalry || type === UnitType.Scout
+                       || type === UnitType.Camel || type === UnitType.CavalryArcher;
     const isInfantry = type === UnitType.Militia || type === UnitType.Spearman;
-    const isArcher   = type === UnitType.Archer || type === UnitType.Longbowman;
+    const isArcher   = type === UnitType.Archer || type === UnitType.Longbowman
+                       || type === UnitType.CavalryArcher;
 
     this.moveSpeed    = row.moveSpeed * (isCav ? civ.cavalrySpeedMult : 1);
     this.hp           = Math.floor(row.hp * (isCav ? civ.cavalryHpMult : 1));
@@ -152,9 +154,13 @@ export class Unit {
     const baked = assetLoader.getBakedUnit(type);
     if (baked) {
       this._buildFromBaked(baked, team, type);
-    } else if (type === UnitType.FishingShip || type === UnitType.Galley) {
+    } else if (type === UnitType.FishingShip || type === UnitType.Galley
+               || type === UnitType.FireShip || type === UnitType.DemoShip) {
       this._buildShip(team, type);
-    } else if (type === UnitType.Cavalry || type === UnitType.Scout) {
+    } else if (type === UnitType.Cavalry || type === UnitType.Scout
+               || type === UnitType.Camel || type === UnitType.CavalryArcher
+               || type === UnitType.WarElephant || type === UnitType.Cataphract
+               || type === UnitType.Mameluke || type === UnitType.Mangudai) {
       this._buildMounted(team);
     } else if (type === UnitType.TradeCart) {
       this._buildCart(team);
@@ -187,7 +193,10 @@ export class Unit {
   private readonly _hpBarGroup: THREE.Group;
 
   private _hpBarHeight(t: UnitType): number {
-    return t === UnitType.Cavalry || t === UnitType.Scout ? 2.4 : 1.6;
+    return t === UnitType.Cavalry || t === UnitType.Scout
+        || t === UnitType.Camel || t === UnitType.CavalryArcher
+        || t === UnitType.WarElephant || t === UnitType.Cataphract
+        || t === UnitType.Mameluke || t === UnitType.Mangudai ? 2.4 : 1.6;
   }
 
   /** Clone a baked CC0 model into this unit's root, tinted toward the team colour. */
@@ -244,7 +253,7 @@ export class Unit {
 
     const teamMat = new THREE.MeshLambertMaterial({ color: team, side: THREE.DoubleSide });
     const mastMat = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
-    if (type === UnitType.Galley) {
+    if (type === UnitType.Galley || type === UnitType.FireShip || type === UnitType.DemoShip) {
       const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.4, 6), mastMat);
       mast.position.set(0, 1.0, 0);
       const sail = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.9), teamMat);
@@ -307,6 +316,16 @@ export class Unit {
       );
       staff.position.set(-0.4, 0.55, 0);
       this.root.add(robe, staff);
+    }
+
+    // King gets a golden crown
+    if (type === UnitType.King) {
+      const crown = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.2, 0.22, 0.16, 8),
+        new THREE.MeshLambertMaterial({ color: 0xffd700 }),
+      );
+      crown.position.y = bodyH + 0.32;
+      this.root.add(crown);
     }
 
     this.root.add(body, tunic, head);
@@ -393,6 +412,9 @@ export class Unit {
     this.hp = Math.max(0, this.hp - amount);
     this._refreshHpBar();
   }
+
+  /** Public HP-bar refresh — used by heal sources (MedicSystem, GarrisonSystem). */
+  refreshHpBar() { this._refreshHpBar(); }
 
   private _refreshHpBar() {
     const frac = this.hp / this.maxHp;

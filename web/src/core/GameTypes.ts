@@ -21,6 +21,30 @@ export enum UnitType {
   Trebuchet, Scout, Longbowman, Skirmisher, Mangonel, Ram,
   Monk, TradeCart,
   FishingShip, Galley, // naval (water domain) — Dock-trained
+  // ── P1 parity: base units missing from the web port (append-only to keep numeric
+  //    enum values stable for saves/replays) ──
+  Camel,         // anti-cavalry mounted (Stable, Castle)
+  CavalryArcher, // mounted ranged (ArcheryRange, Castle)
+  Medic,         // heals nearby allies (Monastery, Castle)
+  Scorpion,      // siege bolt, anti-infantry (SiegeWorkshop, Castle)
+  FireShip,      // naval anti-ship rapid fire (Dock, Castle)
+  DemoShip,      // naval self-destruct splash (Dock, Castle)
+  King,          // Regicide royal unit — not trainable; spawned per team at match start
+  // ── P1 parity: civilization unique units (Castle-trained, civ-gated; Eagle = Barracks) ──
+  TeutonicKnight, // Teutons   — slow heavy infantry, high melee armor
+  WarElephant,    // Persians  — massive HP, bonus vs buildings, splash
+  Mangudai,       // Mongols   — cavalry archer, bonus vs siege
+  Samurai,        // Japanese  — fast infantry, rapid attack
+  ThrowingAxeman, // Franks    — ranged infantry (throwing axes)
+  Cataphract,     // Byzantines— heavy cavalry, bonus vs infantry
+  Berserk,        // Vikings   — durable infantry
+  Mameluke,       // Saracens  — camel rider, ranged anti-cavalry
+  WoadRaider,     // Celts     — very fast infantry raider
+  ChuKoNu,        // Chinese   — rapid-fire archer
+  Huskarl,        // Goths     — infantry with high pierce armor (anti-archer)
+  Janissary,      // Turks     — gunpowder hand cannoneer (ranged)
+  Eagle,          // Aztecs    — fast scout-warrior (Barracks)
+  EliteEagle,     // Aztecs    — Eagle upgrade (Imperial)
 }
 
 export enum DamageType { Melee = 0, Pierce = 1, Siege = 2 }
@@ -44,6 +68,10 @@ export enum BuildingType {
   Castle, Wall, Wonder, Blacksmith, Monastery,
   University, SiegeWorkshop, Dock, WatchTower,
   Gate,
+  // ── P1 parity: buildings missing from the web port (append-only) ──
+  Outpost,      // cheap vision tower, no attack
+  BombardTower, // gunpowder defensive tower (Imperial)
+  FishTrap,     // placeable water food source (FishingShips gather)
 }
 
 /** Age advancement — Age.Dark=0 … Age.Imperial=3 (matches Unity enum Age). */

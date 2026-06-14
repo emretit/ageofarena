@@ -98,9 +98,10 @@ export class BuildingPlacement {
     const [w, , d] = this._dims(this._type);
     const hw = w / 2 - 0.1;
     const hd = d / 2 - 0.1;
+    // Fish Trap is a water building — its footprint must sit on open water, not land.
+    const domain = this._type === BuildingType.FishTrap ? 'water' : 'land';
     for (const [ox, oz] of [[-hw, -hd], [hw, -hd], [-hw, hd], [hw, hd]] as [number, number][]) {
-      const [cx, cz] = navGrid.worldToCell(pos.x + ox, pos.z + oz);
-      if (!navGrid.isWalkable(cx, cz)) return false;
+      if (!navGrid.isWalkableWorld(pos.x + ox, pos.z + oz, domain)) return false;
     }
     return true;
   }

@@ -50,6 +50,7 @@ import { GarrisonSystem } from "./game/GarrisonSystem";
 import { ControlGroups } from "./game/ControlGroups";
 import { ConversionSystem } from "./game/ConversionSystem";
 import { MedicSystem } from "./game/MedicSystem";
+import { isAction } from "./game/Hotkeys";
 import { TriggerSystem } from "./game/TriggerSystem";
 import { TutorialSystem } from "./game/TutorialSystem";
 import { ScenarioEditor } from "./game/ScenarioEditor";
@@ -455,9 +456,23 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   if (!isReplay) hud.setBus(lockstepClient);
   const settings = new SettingsPanel(app, postfx);
   settings.onResume = () => { _focusPaused = false; };
+  settings.onUiScale = (s) => { hud.setUiScale(s); };
 
   // ── Fog of War ───────────────────────────────────────────────────────────
   const fog = new FogOfWarSystem(scene);
+
+  // AoE2-style cheat codes (HKEY CHEATS port)
+  settings.onCheat = (code) => {
+    const rm = teamRes[PLAYER_TEAM];
+    switch (code) {
+      case "polo":            fog.revealAll(); hud.showSubtitle("Harita Açıldı", 3); break;
+      case "lumberjack":      rm.gain(ResourceKind.Wood, 10000);  hud.showSubtitle("+10000 Odun", 2); break;
+      case "cheese steak jimmys": rm.gain(ResourceKind.Food, 10000); hud.showSubtitle("+10000 Yiyecek", 2); break;
+      case "robin hood":      rm.gain(ResourceKind.Gold, 10000);  hud.showSubtitle("+10000 Altın", 2); break;
+      case "rock on":         rm.gain(ResourceKind.Stone, 10000); hud.showSubtitle("+10000 Taş", 2); break;
+      default:                hud.showSubtitle("Bilinmeyen hile: " + code, 2); break;
+    }
+  };
 
   // ── Damage popups ─────────────────────────────────────────────────────────
   const damagePopup = new DamagePopup(app);
@@ -627,20 +642,20 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     if (e.target instanceof HTMLInputElement) return;
     const key = e.key.toLowerCase();
 
-    // Attack-move (A key)
-    if (key === "a" && selection.selected.length > 0) {
+    // Attack-move
+    if (isAction('attackMove', key) && selection.selected.length > 0) {
       selection.attackMovePending = true;
       selection.patrolPending = false;
     }
 
-    // Patrol (Z key)
-    if (key === "z" && selection.selected.length > 0) {
+    // Patrol
+    if (isAction('patrol', key) && selection.selected.length > 0) {
       selection.patrolPending = true;
       selection.attackMovePending = false;
     }
 
     // Stop
-    if (key === "s") {
+    if (isAction('stop', key)) {
       selection.attackMovePending = false;
       for (const u of selection.selected) {
         u.attackTarget = null;
@@ -649,8 +664,8 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
       }
     }
 
-    // Cycle formation (F key)
-    if (key === "f" && selection.selected.length > 0) {
+    // Cycle formation
+    if (isAction('formation', key) && selection.selected.length > 0) {
       selection.cycleFormation();
     }
 
@@ -664,7 +679,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
       console.log(`[Stress] spawned ${perSide}v${perSide} (${units.length} units total)`);
     }
 
-    if (key === "g" && selection.selectedBuilding) {
+    if (isAction('garrison', key) && selection.selectedBuilding) {
       const b = selection.selectedBuilding;
       if (b.teamId === PLAYER_TEAM && garrison.canGarrison(b)) {
         for (const u of selection.selected) {
@@ -673,11 +688,11 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
       }
     }
 
-    if (key === "u" && selection.selectedBuilding) {
+    if (isAction('ungarrison', key) && selection.selectedBuilding) {
       garrison.ungarrisonAll(selection.selectedBuilding);
     }
 
-    if (key === ".") {
+    if (isAction('idleVillager', key)) {
       const idle = units.find(u => u.teamId === PLAYER_TEAM && u.alive && u.gathers && !u.gatherTarget && !u.attackTarget);
       if (idle) {
         for (const u of selection.selected) u.selected = false;
@@ -689,7 +704,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
       }
     }
 
-    if (key === "e" && !isMP && !isReplay) {
+    if (isAction('editor', key) && !isMP && !isReplay) {
       scenarioEditor.toggle();
     }
 

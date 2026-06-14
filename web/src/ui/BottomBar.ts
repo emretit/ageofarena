@@ -1,22 +1,33 @@
 /**
  * BottomBar — AoE2-style docked command bar pinned to the bottom of the screen.
  *
- * Three zones, left → right:
- *   • infoSlot    — selected entity portrait + stats
- *   • commandSlot — action buttons (build / train / research / market / garrison / age-up)
- *   • minimapSlot — minimap canvas
+ * Four zones, left → right (matches Unity HUD.cs BuildCommandBar order):
+ *   1. commandSlot  — action buttons (5×3 grid: build / train / research / garrison / age-up)
+ *   2. infoSlot     — selected entity portrait + name + HP + progress
+ *   3. centerSlot   — decorative "AGE OF ARENA" emblem (stretches with screen)
+ *   4. minimapSlot  — minimap canvas (diamond, rotated 45°)
  *
- * The bar is just chrome: other UI components (HUD, Minimap) mount their content into
- * the exposed slot elements. Always visible during play; slots empty when nothing is selected.
+ * Chrome only — other UI components (HUD, Minimap) mount their content into
+ * the exposed slot elements. Always visible during play.
  */
 export class BottomBar {
   readonly root: HTMLElement;
-  readonly infoSlot: HTMLElement;
+  /** Zone 1 (far left): command grid — build/train/research buttons. */
   readonly commandSlot: HTMLElement;
+  /** Zone 2: selected entity info — name, HP, progress, queue. */
+  readonly infoSlot: HTMLElement;
+  /** Zone 3 (flex): decorative centre emblem. */
+  readonly centerSlot: HTMLElement;
+  /** Zone 4 (far right): minimap canvas. */
   readonly minimapSlot: HTMLElement;
 
   /** Bar height in CSS pixels — used by callers that need to offset other bottom-anchored UI. */
-  static readonly HEIGHT = 156;
+  static readonly HEIGHT = 160;
+
+  /** Zone widths matching Unity's HUD.cs constants (CmdZoneW=352, LeftW=240, MinW=230). */
+  static readonly CMD_W  = 352;
+  static readonly INFO_W = 240;
+  static readonly MAP_W  = 230;
 
   constructor(container: HTMLElement) {
     this.root = document.createElement("div");
@@ -32,34 +43,52 @@ export class BottomBar {
       zIndex: "20",
     });
 
-    // ── Left: info / portrait ──────────────────────────────────────────────
+    // ── Zone 1 (far left): command card ───────────────────────────────────────
+    this.commandSlot = document.createElement("div");
+    Object.assign(this.commandSlot.style, {
+      width: `${BottomBar.CMD_W}px`, flexShrink: "0",
+      borderRight: "2px solid #4a3f22",
+      padding: "10px 14px", overflowY: "auto",
+      fontSize: "13px", color: "#eee",
+    });
+
+    // ── Zone 2: info / portrait ───────────────────────────────────────────────
     this.infoSlot = document.createElement("div");
     Object.assign(this.infoSlot.style, {
-      width: "320px", flexShrink: "0",
+      width: `${BottomBar.INFO_W}px`, flexShrink: "0",
       borderRight: "2px solid #4a3f22",
       padding: "10px 14px", overflowY: "auto",
       fontSize: "13px", color: "#eee",
       boxShadow: "inset 0 0 16px rgba(0,0,0,0.4)",
     });
 
-    // ── Center: command card ───────────────────────────────────────────────
-    this.commandSlot = document.createElement("div");
-    Object.assign(this.commandSlot.style, {
+    // ── Zone 3 (flex): decorative centre emblem ───────────────────────────────
+    this.centerSlot = document.createElement("div");
+    Object.assign(this.centerSlot.style, {
       flex: "1", minWidth: "0",
-      padding: "10px 14px", overflowY: "auto",
-      fontSize: "13px", color: "#eee",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      pointerEvents: "none",
     });
+    const emblem = document.createElement("div");
+    Object.assign(emblem.style, {
+      fontSize: "22px", fontWeight: "bold",
+      color: "#e8d4a0", letterSpacing: "3px",
+      textShadow: "0 1px 4px rgba(0,0,0,0.8)",
+      opacity: "0.85",
+    });
+    emblem.textContent = "AGE OF ARENA";
+    this.centerSlot.appendChild(emblem);
 
-    // ── Right: minimap ─────────────────────────────────────────────────────
+    // ── Zone 4 (far right): minimap ──────────────────────────────────────────
     this.minimapSlot = document.createElement("div");
     Object.assign(this.minimapSlot.style, {
-      width: "168px", flexShrink: "0",
+      width: `${BottomBar.MAP_W}px`, flexShrink: "0",
       borderLeft: "2px solid #4a3f22",
       display: "flex", alignItems: "center", justifyContent: "center",
       boxShadow: "inset 0 0 16px rgba(0,0,0,0.4)",
     });
 
-    this.root.append(this.infoSlot, this.commandSlot, this.minimapSlot);
+    this.root.append(this.commandSlot, this.infoSlot, this.centerSlot, this.minimapSlot);
     container.appendChild(this.root);
   }
 }

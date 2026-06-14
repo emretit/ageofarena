@@ -129,6 +129,149 @@ const table = new Map<UnitType, UnitRow>([
     trainFood: 0, trainWood: 90, trainGold: 30, trainTime: 60, gathers: false,
     domain: 'water',
   }],
+  // ── P1 parity: base units (AoE2:DE stats, speed ×4.375) ──────────────────
+  [UnitType.Camel, {
+    hp: 100, moveSpeed: 6.3, baseAtk: 6, baseRange: 1.4, attackInterval: 2.0,
+    aggroRadius: 8, armorClass: ArmorClass.Cavalry | ArmorClass.Camel, armorMelee: 0, armorPierce: 0,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0,
+    bonusVs: [bv(ArmorClass.Cavalry, 9)],
+    trainFood: 55, trainWood: 0, trainGold: 70, trainTime: 22, gathers: false,
+  }],
+  [UnitType.CavalryArcher, {
+    hp: 50, moveSpeed: 6.1, baseAtk: 6, baseRange: 6.0, attackInterval: 2.0,
+    aggroRadius: 9, armorClass: ArmorClass.Cavalry | ArmorClass.Archer, armorMelee: 0, armorPierce: 0,
+    damageKind: DamageType.Pierce, isRanged: true, splashRadius: 0, bonusVs: [],
+    trainFood: 0, trainWood: 40, trainGold: 70, trainTime: 34, gathers: false,
+  }],
+  [UnitType.Medic, {
+    hp: 35, moveSpeed: 3.5, baseAtk: 0, baseRange: 0, attackInterval: 999,
+    aggroRadius: 0, armorClass: ArmorClass.None, armorMelee: 0, armorPierce: 0,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0, bonusVs: [],
+    trainFood: 0, trainWood: 0, trainGold: 60, trainTime: 40, gathers: false,
+  }],
+  [UnitType.Scorpion, {
+    hp: 40, moveSpeed: 2.6, baseAtk: 12, baseRange: 9, attackInterval: 3.6,
+    aggroRadius: 11, armorClass: ArmorClass.Siege, armorMelee: 0, armorPierce: 5,
+    damageKind: DamageType.Pierce, isRanged: true, splashRadius: 0.7,
+    bonusVs: [bv(ArmorClass.Infantry, 4)],
+    trainFood: 0, trainWood: 75, trainGold: 75, trainTime: 30, gathers: false,
+  }],
+  // ── P1 parity: warships (water domain, Dock-trained) ─────────────────────
+  [UnitType.FireShip, {
+    hp: 120, moveSpeed: 6.0, baseAtk: 4, baseRange: 4.5, attackInterval: 0.6,
+    aggroRadius: 8, armorClass: ArmorClass.Ship, armorMelee: 0, armorPierce: 4,
+    damageKind: DamageType.Pierce, isRanged: true, splashRadius: 0,
+    bonusVs: [bv(ArmorClass.Ship, 6)],
+    trainFood: 0, trainWood: 75, trainGold: 25, trainTime: 60, gathers: false,
+    domain: 'water',
+  }],
+  [UnitType.DemoShip, {
+    // Self-destruct: CombatSystem detonates on contact (baseAtk = blast, splashRadius = blast radius).
+    hp: 60, moveSpeed: 6.5, baseAtk: 140, baseRange: 1.6, attackInterval: 1.0,
+    aggroRadius: 7, armorClass: ArmorClass.Ship, armorMelee: 0, armorPierce: 4,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 2.5, bonusVs: [],
+    trainFood: 0, trainWood: 70, trainGold: 50, trainTime: 31, gathers: false,
+    domain: 'water',
+  }],
+  // ── Regicide royal unit — not trainable; high HP, cannot attack (flee & protect) ──
+  [UnitType.King, {
+    hp: 150, moveSpeed: 5.0, baseAtk: 0, baseRange: 0, attackInterval: 999,
+    aggroRadius: 0, armorClass: ArmorClass.Infantry, armorMelee: 2, armorPierce: 2,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0, bonusVs: [],
+    trainFood: 0, trainWood: 0, trainGold: 0, trainTime: 0, gathers: false,
+  }],
+  // ── Civilization unique units (Castle/Barracks, civ-gated in TrainingQueue) ──────
+  [UnitType.TeutonicKnight, {
+    hp: 80, moveSpeed: 3.0, baseAtk: 12, baseRange: 1.3, attackInterval: 2.0,
+    aggroRadius: 7, armorClass: ArmorClass.Infantry, armorMelee: 5, armorPierce: 2,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0, bonusVs: [],
+    trainFood: 85, trainWood: 0, trainGold: 40, trainTime: 19, gathers: false,
+  }],
+  [UnitType.WarElephant, {
+    hp: 250, moveSpeed: 2.6, baseAtk: 15, baseRange: 1.5, attackInterval: 2.2,
+    aggroRadius: 8, armorClass: ArmorClass.Cavalry, armorMelee: 1, armorPierce: 2,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0.5,
+    bonusVs: [bv(ArmorClass.Building, 7)],
+    trainFood: 200, trainWood: 0, trainGold: 75, trainTime: 31, gathers: false,
+  }],
+  [UnitType.Mangudai, {
+    hp: 60, moveSpeed: 6.3, baseAtk: 6, baseRange: 6.0, attackInterval: 2.0,
+    aggroRadius: 9, armorClass: ArmorClass.Cavalry | ArmorClass.Archer, armorMelee: 0, armorPierce: 0,
+    damageKind: DamageType.Pierce, isRanged: true, splashRadius: 0,
+    bonusVs: [bv(ArmorClass.Siege, 5)],
+    trainFood: 0, trainWood: 55, trainGold: 65, trainTime: 26, gathers: false,
+  }],
+  [UnitType.Samurai, {
+    hp: 60, moveSpeed: 4.5, baseAtk: 8, baseRange: 1.3, attackInterval: 1.4,
+    aggroRadius: 7, armorClass: ArmorClass.Infantry, armorMelee: 1, armorPierce: 1,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0, bonusVs: [],
+    trainFood: 60, trainWood: 0, trainGold: 30, trainTime: 9, gathers: false,
+  }],
+  [UnitType.ThrowingAxeman, {
+    hp: 50, moveSpeed: 4.4, baseAtk: 7, baseRange: 4.0, attackInterval: 2.0,
+    aggroRadius: 8, armorClass: ArmorClass.Infantry, armorMelee: 0, armorPierce: 0,
+    damageKind: DamageType.Melee, isRanged: true, splashRadius: 0, bonusVs: [],
+    trainFood: 55, trainWood: 0, trainGold: 25, trainTime: 17, gathers: false,
+  }],
+  [UnitType.Cataphract, {
+    hp: 110, moveSpeed: 5.4, baseAtk: 9, baseRange: 1.4, attackInterval: 1.7,
+    aggroRadius: 8, armorClass: ArmorClass.Cavalry, armorMelee: 2, armorPierce: 1,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0,
+    bonusVs: [bv(ArmorClass.Infantry, 9)],
+    trainFood: 70, trainWood: 0, trainGold: 75, trainTime: 20, gathers: false,
+  }],
+  [UnitType.Berserk, {
+    hp: 62, moveSpeed: 4.4, baseAtk: 9, baseRange: 1.3, attackInterval: 2.0,
+    aggroRadius: 7, armorClass: ArmorClass.Infantry, armorMelee: 1, armorPierce: 1,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0, bonusVs: [],
+    trainFood: 65, trainWood: 0, trainGold: 25, trainTime: 16, gathers: false,
+  }],
+  [UnitType.Mameluke, {
+    hp: 65, moveSpeed: 6.0, baseAtk: 7, baseRange: 3.0, attackInterval: 2.0,
+    aggroRadius: 8, armorClass: ArmorClass.Cavalry | ArmorClass.Camel, armorMelee: 0, armorPierce: 0,
+    damageKind: DamageType.Melee, isRanged: true, splashRadius: 0,
+    bonusVs: [bv(ArmorClass.Cavalry, 10)],
+    trainFood: 55, trainWood: 0, trainGold: 85, trainTime: 23, gathers: false,
+  }],
+  [UnitType.WoadRaider, {
+    hp: 65, moveSpeed: 5.5, baseAtk: 8, baseRange: 1.3, attackInterval: 1.9,
+    aggroRadius: 7, armorClass: ArmorClass.Infantry, armorMelee: 0, armorPierce: 1,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0, bonusVs: [],
+    trainFood: 65, trainWood: 0, trainGold: 25, trainTime: 10, gathers: false,
+  }],
+  [UnitType.ChuKoNu, {
+    hp: 45, moveSpeed: 4.2, baseAtk: 4, baseRange: 6.0, attackInterval: 1.0,
+    aggroRadius: 9, armorClass: ArmorClass.Archer, armorMelee: 0, armorPierce: 0,
+    damageKind: DamageType.Pierce, isRanged: true, splashRadius: 0, bonusVs: [],
+    trainFood: 0, trainWood: 40, trainGold: 35, trainTime: 19, gathers: false,
+  }],
+  [UnitType.Huskarl, {
+    hp: 60, moveSpeed: 4.6, baseAtk: 10, baseRange: 1.3, attackInterval: 2.0,
+    aggroRadius: 7, armorClass: ArmorClass.Infantry, armorMelee: 0, armorPierce: 6,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0,
+    bonusVs: [bv(ArmorClass.Archer, 6)],
+    trainFood: 52, trainWood: 0, trainGold: 26, trainTime: 16, gathers: false,
+  }],
+  [UnitType.Janissary, {
+    hp: 50, moveSpeed: 4.2, baseAtk: 17, baseRange: 8.0, attackInterval: 3.0,
+    aggroRadius: 10, armorClass: ArmorClass.Archer, armorMelee: 1, armorPierce: 0,
+    damageKind: DamageType.Pierce, isRanged: true, splashRadius: 0, bonusVs: [],
+    trainFood: 60, trainWood: 0, trainGold: 55, trainTime: 17, gathers: false,
+  }],
+  [UnitType.Eagle, {
+    hp: 55, moveSpeed: 5.5, baseAtk: 7, baseRange: 1.3, attackInterval: 2.0,
+    aggroRadius: 8, armorClass: ArmorClass.Infantry, armorMelee: 0, armorPierce: 2,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0,
+    bonusVs: [bv(ArmorClass.Siege, 3)],
+    trainFood: 20, trainWood: 0, trainGold: 50, trainTime: 35, gathers: false,
+  }],
+  [UnitType.EliteEagle, {
+    hp: 60, moveSpeed: 5.5, baseAtk: 9, baseRange: 1.3, attackInterval: 2.0,
+    aggroRadius: 8, armorClass: ArmorClass.Infantry, armorMelee: 0, armorPierce: 4,
+    damageKind: DamageType.Melee, isRanged: false, splashRadius: 0,
+    bonusVs: [bv(ArmorClass.Siege, 5)],
+    trainFood: 20, trainWood: 0, trainGold: 50, trainTime: 20, gathers: false,
+  }],
 ]);
 
 const defaultRow: UnitRow = {

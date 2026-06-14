@@ -64,9 +64,8 @@ export const BUILDABLE: BuildingType[] = [
 export type BuildCallback = (type: BuildingType) => void;
 
 /**
- * One AoE2-style command button: a large glyph over a small sub-line (cost or label).
- * Disabled buttons render greyed and ignore clicks (the wiring's querySelectorAll still
- * matches them, but a disabled <button> fires no click event).
+ * One AoE2-style command button: 60×60 tile with a large glyph + small sub-label.
+ * Matches Unity HUD.cs BtnW=60/BtnH=60. Disabled = dark + not-allowed cursor.
  */
 function iconButton(
   attr: string, val: string | number, icon: string, sub: string,
@@ -74,23 +73,51 @@ function iconButton(
 ): string {
   return (
     `<button ${attr}="${val}" title="${o.title}"${o.enabled ? "" : " disabled"} style="` +
-    `width:58px;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;` +
-    `gap:1px;padding:2px;border-radius:5px;border:1px solid rgba(0,0,0,0.35);` +
-    `cursor:${o.enabled ? "pointer" : "not-allowed"};background:${o.bg};color:${o.fg};font-family:monospace;">` +
-    `<span style="font-size:22px;line-height:1">${icon}</span>` +
-    `<span style="font-size:8.5px;line-height:1.05;opacity:0.92;text-align:center;word-break:break-word;max-height:18px;overflow:hidden">${sub}</span>` +
+    `width:60px;height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;` +
+    `gap:2px;padding:3px;border-radius:3px;` +
+    `border:1px solid rgba(255,255,255,0.1);outline:1px solid rgba(0,0,0,0.5);outline-offset:-2px;` +
+    `cursor:${o.enabled ? "pointer" : "not-allowed"};background:${o.bg};color:${o.fg};font-family:monospace;` +
+    `box-shadow:inset 0 1px 0 rgba(255,255,255,0.07),0 2px 4px rgba(0,0,0,0.6);">` +
+    `<span style="font-size:24px;line-height:1">${icon}</span>` +
+    `<span style="font-size:8px;line-height:1.1;opacity:0.9;text-align:center;word-break:break-word;max-height:16px;overflow:hidden">${sub}</span>` +
     `</button>`
   );
 }
 
-/** Section header strip inside the command card. */
-function cmdHeader(text: string): string {
-  return `<div style="font-size:11px;color:#caa48a;letter-spacing:1px;margin:2px 0 5px">${text}</div>`;
+/** Empty command slot — always-visible dark frame matching AoE2's slot grid. */
+const SLOT_EMPTY = `<div style="width:60px;height:60px;background:#0d0f18;border:1px solid #1e2230;border-radius:3px;box-shadow:inset 0 1px 3px rgba(0,0,0,0.7)"></div>`;
+
+/**
+ * AoE2-style 5-column slot grid. Pads to the next full row with dark empty-slot divs
+ * so the grid always looks deliberate (Unity: Cols×Rows fixed slot frames).
+ */
+function cmdGrid(buttons: string, cols = 5): string {
+  const count = (buttons.match(/<button /g) ?? []).length;
+  const totalRows = Math.max(1, Math.ceil(count / cols));
+  const empty = Array(Math.max(0, totalRows * cols - count)).fill(SLOT_EMPTY).join("");
+  return `<div style="display:grid;grid-template-columns:repeat(${cols},60px);gap:4px;padding:8px 8px 4px">${buttons}${empty}</div>`;
 }
 
-/** Flex grid wrapper that lays icon buttons out in AoE2-style rows. */
-function cmdGrid(buttons: string): string {
-  return `<div style="display:flex;flex-wrap:wrap;gap:5px">${buttons}</div>`;
+/**
+ * AoE2-style info card for the infoSlot: emoji portrait box + bold name + colour-coded
+ * HP bar (green >66%, amber 33-66%, red <33%) + one-line sub-text.
+ */
+function infoCard(portrait: string, name: string, hp: number, maxHp: number, sub: string): string {
+  const pct  = maxHp > 0 ? Math.round((hp / maxHp) * 100) : 100;
+  const hpC  = pct > 66 ? "#4caf50" : pct > 33 ? "#f90" : "#e44";
+  return (
+    `<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 2px 6px">` +
+    `<div style="width:64px;height:64px;flex-shrink:0;background:#0c0e14;border:2px solid #2a2c3a;` +
+    `border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:30px">${portrait}</div>` +
+    `<div style="flex:1;min-width:0">` +
+    `<div style="font-size:14px;font-weight:bold;color:#e8d4a0;margin-bottom:4px;` +
+    `white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${name}</div>` +
+    `<div style="background:#14161e;border-radius:2px;height:8px;margin-bottom:3px">` +
+    `<div style="background:${hpC};height:100%;width:${pct}%;border-radius:2px"></div></div>` +
+    `<div style="font-size:11px;color:${hpC};margin-bottom:3px">${Math.ceil(hp)} / ${maxHp} HP</div>` +
+    `<div style="font-size:11px;color:#9a9caa">${sub}</div>` +
+    `</div></div>`
+  );
 }
 
 const ICONS: Record<ResourceKind, string> = {
@@ -336,16 +363,13 @@ export class HUD {
 
   showUnit(u: Unit, rm?: ResourceManager, onBuild?: BuildCallback) {
     const typeName = UNIT_NAMES[u.unitType] ?? "Unit";
-    const stats =
-      `<b>${typeName}</b> (Team ${u.teamId + 1})<br>` +
-      `HP: ${u.hp}/${u.maxHp}&nbsp;&nbsp;` +
-      `Atk: ${u.baseAtk}&nbsp;&nbsp;` +
-      (u.gathers && u.carryAmount > 0
-        ? `Carry: ${u.carryAmount}/10`
-        : `Spd: ${u.moveSpeed.toFixed(1)}`);
+    const portrait = UNIT_ICONS[u.unitType] ?? "🧍";
+    const subLine  = `Atk: ${u.baseAtk}  ` +
+      (u.gathers && u.carryAmount > 0 ? `Carry: ${u.carryAmount}/10` : `Spd: ${u.moveSpeed.toFixed(1)}`);
+    const stats = infoCard(portrait, typeName, u.hp, u.maxHp, subLine);
 
     // Build panel for player villagers — all building types always shown (locked ones
-    // greyed with their unlock age), AoE2-style icon buttons.
+    // greyed with their unlock age), AoE2-style 5-column slot grid.
     let cmds = "";
     if (u.teamId === this.localTeam && u.gathers && onBuild && rm) {
       let btns = "";
@@ -359,15 +383,15 @@ export class HUD {
           (def.costGold  > 0 ? `\u{1FA99}${def.costGold}` : "");
         const canAfford = ageOk && rm.wood >= def.costWood && rm.stone >= def.costStone && rm.gold >= def.costGold;
         const icon = BUILDING_ICONS[type] ?? "🏚️";
-        const bg = !ageOk ? "#1b1710" : canAfford ? "#35527a" : "#2a2a2a";
-        const fg = !ageOk ? "#6a6048" : canAfford ? "#dde" : "#888";
-        const sub = !ageOk ? AGE_NAMES[minAge] : (cost.trim() || "—");
+        const bg = !ageOk ? "#1b1710" : canAfford ? "#2a4a2a" : "#1e2030";
+        const fg = !ageOk ? "#5a5040" : canAfford ? "#cde" : "#666";
+        const sub = !ageOk ? AGE_NAMES[minAge] : (cost.trim() || "free");
         btns += iconButton("data-build", type, icon, sub, {
           bg, fg, enabled: canAfford,
           title: `${def.display}${cost.trim() ? ` — ${cost.trim()}` : " — free"}${ageOk ? "" : ` (${AGE_NAMES[minAge]})`}`,
         });
       }
-      cmds += cmdHeader("İNŞA ET") + cmdGrid(btns);
+      cmds += cmdGrid(btns);
     }
 
     this._render(stats, cmds);
@@ -382,11 +406,10 @@ export class HUD {
   }
 
   showBuilding(b: Building, training?: TrainingQueue, rm?: ResourceManager, ageSystem?: AgeSystem, research?: ResearchSystem, market?: MarketSystem, garrison?: GarrisonSystem) {
-    // Header
-    const ageName = rm ? ` — ${AGE_NAMES[rm.age]}` : "";
-    const header =
-      `<b>${b.def.display}</b> (Team ${b.teamId + 1})${b.buildingType === BuildingType.TownCenter ? ageName : ""}<br>` +
-      `HP: ${Math.ceil(b.hp)}/${b.maxHp}`;
+    const portrait = BUILDING_ICONS[b.buildingType] ?? "🏚️";
+    const ageName  = rm && b.buildingType === BuildingType.TownCenter ? AGE_NAMES[rm.age] : "";
+    const subLine  = ageName || "";
+    const header   = infoCard(portrait, b.def.display, Math.ceil(b.hp), b.maxHp, subLine);
 
     // Age-up card — only for player TC
     let ageCard = "";
@@ -424,13 +447,10 @@ export class HUD {
       if (trainable?.length) {
         const qLen = training.queueLength(b);
         const prog = training.progress(b);
-        card += `<div style="margin-top:8px;border-top:1px solid #555;padding-top:8px">`;
         if (qLen > 0) {
           const pct = Math.round(prog * 100);
-          card += `<div style="margin-bottom:6px;font-size:12px;color:#cca">`;
-          card += `Training... ${pct}%&nbsp;[${qLen}/5]</div>`;
-          card += `<div style="background:#333;border-radius:3px;height:6px;margin-bottom:8px">`;
-          card += `<div style="background:#4c4;height:100%;width:${pct}%;border-radius:3px"></div></div>`;
+          card += `<div style="font-size:11px;color:#cca;padding:4px 8px">Training ${pct}%&nbsp;[${qLen}/5]</div>`;
+          card += `<div style="background:#1a1a22;border-radius:2px;height:5px;margin:0 8px 4px"><div style="background:#4c4;height:100%;width:${pct}%;border-radius:2px"></div></div>`;
         }
         let btns = "";
         for (const type of trainable) {
@@ -441,14 +461,14 @@ export class HUD {
             (row.trainWood  > 0 ? `🪵${row.trainWood} ` : "") +
             (row.trainGold  > 0 ? `🪙${row.trainGold}` : "");
           const icon = UNIT_ICONS[type] ?? "🧍";
-          btns += iconButton("data-train", type, icon, cost.trim() || "—", {
-            bg: canAfford ? "#2a5a2a" : "#2a2a2a",
-            fg: canAfford ? "#dfd" : "#888",
+          btns += iconButton("data-train", type, icon, cost.trim() || "free", {
+            bg: canAfford ? "#1a4a1a" : "#1e2030",
+            fg: canAfford ? "#cde" : "#555",
             enabled: canAfford,
             title: `${UNIT_NAMES[type]}${cost.trim() ? ` — ${cost.trim()}` : ""}`,
           });
         }
-        card += cmdGrid(btns) + `</div>`;
+        card += cmdGrid(btns);
       }
     }
 
@@ -652,6 +672,13 @@ export class HUD {
     });
     banner.textContent = winner === this.localTeam ? "Victory!" : "Defeat";
     this.root.appendChild(banner);
+  }
+
+  /** Scale the HUD overlay (accessibility setting). 1.0 = normal. */
+  setUiScale(scale: number): void {
+    this.root.style.transform = `scale(${scale})`;
+    this.root.style.transformOrigin = "bottom left";
+    localStorage.setItem("uiScale", String(scale));
   }
 
   /** Show a temporary message overlay (TriggerSystem / Tutorial seam). */

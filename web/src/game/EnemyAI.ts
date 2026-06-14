@@ -206,9 +206,9 @@ export class EnemyAI {
         if (b.buildingType === BuildingType.Barracks) {
           trainTypes.push(UnitType.Militia, UnitType.Spearman);
         } else if (b.buildingType === BuildingType.ArcheryRange) {
-          trainTypes.push(UnitType.Archer);
+          trainTypes.push(UnitType.Archer, UnitType.CavalryArcher);
         } else if (b.buildingType === BuildingType.Stable) {
-          trainTypes.push(UnitType.Cavalry);
+          trainTypes.push(UnitType.Cavalry, UnitType.Camel);
         }
         for (const type of trainTypes) {
           if (this.bus) {

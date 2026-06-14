@@ -100,7 +100,16 @@ Kalan gap'ler 5 fazlık bir kapanış haritasına bağlandı (otonom uygulama, m
 - main.ts: TriggerSystem/TutorialSystem/ScenarioEditor wiring; campaign setup; "E" key editor toggle.
 - Build 0 hata + 30/30 test yeşil.
 
-**Faz P4 (hotkey/a11y/cheat):** açık.
+**Faz P4 (hotkey/a11y/cheat): TAMAM** (2026-06-14)
+
+- **Hotkeys.ts** yeni: `HotkeyAction` union, `getKey/setKey/isAction/resetHotkeys`, `ALL_ACTIONS`, `ACTION_LABELS`. localStorage persist.
+- **main.ts** keydown handler: tüm hardcoded key karşılaştırmaları (`"a"/"z"/"s"/"f"/"g"/"u"/"."/"e"`) `isAction(action, key)` ile değiştirildi.
+- **SettingsPanel.ts** genişletildi: Ses bölümü + **Erişilebilirlik** (UI ölçek slider, 0.7–1.5×) + **Görsel** (kalite/edge-scroll) + **Kısayollar** (tüm action'lar için rebind butonları, [ESC]=iptal, "Varsayılanları Yükle") + **Hile Kodları** (text input: POLO/LUMBERJACK/CHEESE STEAK JIMMYS/ROBIN HOOD/ROCK ON).
+- **HUD.setUiScale(scale)** eklendi: root transform scale, localStorage persist, `settings.onUiScale` callback'i.
+- **FogOfWarSystem.revealAll()** eklendi: vis+explored tüm hücreler VISIBLE, texture re-upload.
+- main.ts: `settings.onUiScale → hud.setUiScale`; `settings.onCheat → switch(code)` fog.revealAll + rm.gain.
+- HUD.ts: `b.underConstruction` stale referansı kaldırıldı (property Building'de yok).
+- Build 0 hata + 30/30 test yeşil.
 
 ---
 

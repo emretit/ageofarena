@@ -11,7 +11,8 @@ import type { CameraRig } from "../camera/CameraRig";
 import { ResourceKind } from "../core/GameTypes";
 
 const MAP_WORLD  = 180;   // world units captured (covers BaseDistance=84 bases)
-const SIDE       = 140;   // canvas pixels
+const SIDE       = 140;   // canvas backing resolution (pixels)
+const DOCK_SIDE  = 104;   // on-screen size when docked — rotated 45° → ~147px bbox fits the 168px slot
 const REFRESH    = 0.1;   // seconds between redraws
 
 const TEAM_COLORS = ["#3af", "#f44"];
@@ -45,28 +46,40 @@ export class Minimap {
    * @param docked When true, the canvas sits statically inside its container (e.g. the
    *   BottomBar minimap slot) instead of floating absolute in the bottom-right corner.
    */
+  /** On-screen display side: docked is smaller so its 45° rotation fits the bar slot. */
+  private readonly _display: number;
+  /** Whether the canvas is rotated 45° (diamond) — clicks must be un-rotated. */
+  private readonly _diamond: boolean;
+
+  /**
+   * @param docked When true, the canvas sits statically inside its container (e.g. the
+   *   BottomBar minimap slot) and is rotated 45° into an AoE2-style diamond. Otherwise it
+   *   floats absolute in the bottom-right corner as an axis-aligned square.
+   */
   constructor(container: HTMLElement, docked = false) {
+    this._diamond = docked;
+    this._display = docked ? DOCK_SIDE : SIDE;
+
     this.canvas = document.createElement("canvas");
     this.canvas.width  = SIDE;
     this.canvas.height = SIDE;
-    Object.assign(this.canvas.style, docked ? {
-      position:   "static",
-      width:      `${SIDE}px`,
-      height:     `${SIDE}px`,
-      border:     "2px solid #4a3f22",
+    // Shared look; docked adds the 45° rotation + bar-themed frame.
+    Object.assign(this.canvas.style, {
+      width:      `${this._display}px`,
+      height:     `${this._display}px`,
       borderRadius: "2px",
       cursor:     "crosshair",
       pointerEvents: "auto",
+    }, docked ? {
+      position:  "static",
+      transform: "rotate(45deg)",
+      border:    "2px solid #6b5a2e",
+      boxShadow: "0 2px 10px rgba(0,0,0,0.6)",
     } : {
-      position:   "absolute",
-      bottom:     "10px",
-      right:      "10px",
-      width:      `${SIDE}px`,
-      height:     `${SIDE}px`,
-      border:     "2px solid #444",
-      borderRadius: "2px",
-      cursor:     "crosshair",
-      pointerEvents: "auto",
+      position: "absolute",
+      bottom:   "10px",
+      right:    "10px",
+      border:   "2px solid #444",
     });
 
     this.ctx = this.canvas.getContext("2d")!;
@@ -79,12 +92,25 @@ export class Minimap {
 
     this.canvas.addEventListener("click", (e) => {
       const rect = this.canvas.getBoundingClientRect();
-      const px = e.clientX - rect.left;
-      const py = e.clientY - rect.top;
-      // Convert minimap pixel → world coordinate
-      const wx = (px / SIDE) * MAP_WORLD - MAP_WORLD / 2;
-      const wz = (py / SIDE) * MAP_WORLD - MAP_WORLD / 2;
-      this.onNavigate?.(wx, wz);
+      // Work from the canvas centre so the diamond rotation can be undone cleanly.
+      let dx = e.clientX - (rect.left + rect.width / 2);
+      let dy = e.clientY - (rect.top + rect.height / 2);
+      if (this._diamond) {
+        // Canvas is rotated +45°; rotate the click by -45° back into canvas-local space.
+        const c = Math.SQRT1_2; // cos(-45°) = cos(45°)
+        const lx = c * dx + c * dy; // -45° rotation: x' =  cx + cy
+        const ly = c * dy - c * dx; //               y' = -sx + cy
+        dx = lx; dy = ly;
+      }
+      const fracX = dx / this._display + 0.5;
+      const fracY = dy / this._display + 0.5;
+      const wx = fracX * MAP_WORLD - MAP_WORLD / 2;
+      const wz = fracY * MAP_WORLD - MAP_WORLD / 2;
+      const half = MAP_WORLD / 2;
+      this.onNavigate?.(
+        Math.max(-half, Math.min(half, wx)),
+        Math.max(-half, Math.min(half, wz)),
+      );
     });
   }
 
