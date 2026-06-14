@@ -37,7 +37,7 @@ export function gatherIntervalFor(kind: ResourceKind): number {
 export class GatherSystem {
   /** Called on each successful harvest tick (GatherHit SFX seam). */
   onGatherTick: (() => void) | null = null;
-  /** Called when a unit deposits resources — used by TriggerSystem to track total gathered. */
+  /** Called when a unit deposits resources. */
   onDeposit: ((teamId: number, kind: ResourceKind, amount: number) => void) | null = null;
 
   /** Per-villager gather timer (seconds until next harvest tick). */
