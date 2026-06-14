@@ -41,11 +41,23 @@ export class Minimap {
   /** Called when user clicks the minimap — world X and Z coordinates. */
   onNavigate: ((x: number, z: number) => void) | null = null;
 
-  constructor(container: HTMLElement) {
+  /**
+   * @param docked When true, the canvas sits statically inside its container (e.g. the
+   *   BottomBar minimap slot) instead of floating absolute in the bottom-right corner.
+   */
+  constructor(container: HTMLElement, docked = false) {
     this.canvas = document.createElement("canvas");
     this.canvas.width  = SIDE;
     this.canvas.height = SIDE;
-    Object.assign(this.canvas.style, {
+    Object.assign(this.canvas.style, docked ? {
+      position:   "static",
+      width:      `${SIDE}px`,
+      height:     `${SIDE}px`,
+      border:     "2px solid #4a3f22",
+      borderRadius: "2px",
+      cursor:     "crosshair",
+      pointerEvents: "auto",
+    } : {
       position:   "absolute",
       bottom:     "10px",
       right:      "10px",

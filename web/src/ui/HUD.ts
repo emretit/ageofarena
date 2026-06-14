@@ -15,6 +15,7 @@ import { BUILDING_TECHS, TECH_DEFS, type ResearchSystem, type TechId } from "../
 import type { MarketSystem } from "../game/MarketSystem";
 import type { GarrisonSystem } from "../game/GarrisonSystem";
 import type { CommandIssuer } from "../sim/CommandBus";
+import { BottomBar } from "./BottomBar";
 import { versionString } from "../../../shared/Versions";
 
 /** Minimum age required to construct each building type. */
@@ -84,7 +85,13 @@ const UNIT_NAMES: Record<UnitType, string> = {
 export class HUD {
   private readonly root: HTMLElement;
   private readonly resBar: HTMLElement;
-  private readonly infoPanel: HTMLElement;
+  /** Floating panel — only created when no BottomBar is provided (legacy / standalone). */
+  private readonly infoPanel: HTMLElement | null;
+  /** Selected-entity stats go here (BottomBar.infoSlot when docked, else infoPanel). */
+  private readonly infoTarget: HTMLElement;
+  /** Action buttons go here (BottomBar.commandSlot when docked, else infoPanel). */
+  private readonly cmdTarget: HTMLElement;
+  private readonly _docked: boolean;
   private readonly counters: Record<ResourceKind, HTMLElement>;
   private readonly popCell: HTMLElement;
   private _formationBadge!: HTMLDivElement;
@@ -102,7 +109,8 @@ export class HUD {
     this._formationBadge.style.display = "block";
   }
 
-  constructor(container: HTMLElement, rm: ResourceManager) {
+  constructor(container: HTMLElement, rm: ResourceManager, bar?: BottomBar) {
+    this._docked = !!bar;
     this.root = document.createElement("div");
     Object.assign(this.root.style, {
       position: "absolute", top: "0", left: "0",
@@ -120,10 +128,11 @@ export class HUD {
     versionBadge.textContent = `v${versionString()}`;
     this.root.appendChild(versionBadge);
 
-    // ── Formation badge (bottom-center, shown while units selected) ─────────
+    // ── Formation badge (just above the bottom bar, shown while units selected) ──
     this._formationBadge = document.createElement("div");
     Object.assign(this._formationBadge.style, {
-      position: "absolute", bottom: "6px", left: "50%", transform: "translateX(-50%)",
+      position: "absolute", bottom: this._docked ? `${BottomBar.HEIGHT + 6}px` : "6px",
+      left: "50%", transform: "translateX(-50%)",
       color: "rgba(255,255,255,0.7)", fontSize: "11px", pointerEvents: "none",
       background: "rgba(0,0,0,0.35)", padding: "2px 8px", borderRadius: "3px",
       display: "none",
@@ -153,20 +162,31 @@ export class HUD {
     this.resBar.appendChild(this.popCell);
 
     // ── Info panel ──────────────────────────────────────────────────────────
-    this.infoPanel = document.createElement("div");
-    Object.assign(this.infoPanel.style, {
-      position: "absolute", bottom: "10px", left: "50%",
-      transform: "translateX(-50%)",
-      minWidth: "260px",
-      background: "rgba(0,0,0,0.75)",
-      color: "#eee", fontSize: "13px",
-      padding: "10px 16px", borderRadius: "6px",
-      display: "none",
-      pointerEvents: "auto",
-    });
+    // Docked: stats → bar.infoSlot, buttons → bar.commandSlot (AoE2-style bottom bar).
+    // Standalone: a single floating panel holds both (legacy fallback).
+    if (bar) {
+      this.infoPanel  = null;
+      this.infoTarget = bar.infoSlot;
+      this.cmdTarget  = bar.commandSlot;
+    } else {
+      const panel = document.createElement("div");
+      Object.assign(panel.style, {
+        position: "absolute", bottom: "10px", left: "50%",
+        transform: "translateX(-50%)",
+        minWidth: "260px",
+        background: "rgba(0,0,0,0.75)",
+        color: "#eee", fontSize: "13px",
+        padding: "10px 16px", borderRadius: "6px",
+        display: "none",
+        pointerEvents: "auto",
+      });
+      this.infoPanel  = panel;
+      this.infoTarget = panel;
+      this.cmdTarget  = panel;
+    }
 
     this.root.appendChild(this.resBar);
-    this.root.appendChild(this.infoPanel);
+    if (this.infoPanel) this.root.appendChild(this.infoPanel);
     container.appendChild(this.root);
 
     rm.onChange = () => this._updateRes(rm);
@@ -180,9 +200,20 @@ export class HUD {
     this.popCell.textContent = `Pop ${rm.pop}/${rm.popCap}`;
   }
 
+  /** Render stats into the info zone and buttons into the command zone (or both in one panel). */
+  private _render(stats: string, cmds: string): void {
+    if (this._docked) {
+      this.infoTarget.innerHTML = stats;
+      this.cmdTarget.innerHTML  = cmds;
+    } else {
+      this.infoTarget.innerHTML = stats + cmds;
+      this.infoPanel!.style.display = "block";
+    }
+  }
+
   showUnit(u: Unit, rm?: ResourceManager, onBuild?: BuildCallback) {
     const typeName = UNIT_NAMES[u.unitType] ?? "Unit";
-    let html =
+    const stats =
       `<b>${typeName}</b> (Team ${u.teamId + 1})<br>` +
       `HP: ${u.hp}/${u.maxHp}&nbsp;&nbsp;` +
       `Atk: ${u.baseAtk}&nbsp;&nbsp;` +
@@ -191,9 +222,10 @@ export class HUD {
         : `Spd: ${u.moveSpeed.toFixed(1)}`);
 
     // Build panel for player villagers
+    let cmds = "";
     if (u.teamId === this.localTeam && u.gathers && onBuild && rm) {
-      html += `<div style="margin-top:8px;border-top:1px solid #555;padding-top:6px;font-size:11px;color:#aaa">BUILD</div>`;
-      html += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">`;
+      cmds += `<div style="font-size:11px;color:#aaa">BUILD</div>`;
+      cmds += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">`;
       for (const type of BUILDABLE) {
         const def = DEFS[type];
         const minAge = BUILDING_MIN_AGE[type] ?? Age.Dark;
@@ -207,18 +239,17 @@ export class HUD {
         const fgColor = !ageOk ? "#444" : canAfford ? "#dde" : "#555";
         const cursor  = canAfford ? "pointer" : "not-allowed";
         const label   = !ageOk ? `${def.display}<br><span style="font-size:10px;opacity:0.6">${AGE_NAMES[minAge]}</span>` : `${def.display}<br><span style="font-size:10px;opacity:0.75">${cost.trim() || "free"}</span>`;
-        html += `<button data-build="${type}" title="${cost.trim()}" style="cursor:${cursor};padding:3px 7px;border-radius:4px;border:none;font-family:monospace;font-size:11px;background:${bgColor};color:${fgColor}">`;
-        html += label;
-        html += `</button>`;
+        cmds += `<button data-build="${type}" title="${cost.trim()}" style="cursor:${cursor};padding:3px 7px;border-radius:4px;border:none;font-family:monospace;font-size:11px;background:${bgColor};color:${fgColor}">`;
+        cmds += label;
+        cmds += `</button>`;
       }
-      html += `</div>`;
+      cmds += `</div>`;
     }
 
-    this.infoPanel.innerHTML = html;
-    this.infoPanel.style.display = "block";
+    this._render(stats, cmds);
 
     if (onBuild) {
-      this.infoPanel.querySelectorAll<HTMLButtonElement>("[data-build]").forEach(btn => {
+      this.cmdTarget.querySelectorAll<HTMLButtonElement>("[data-build]").forEach(btn => {
         btn.addEventListener("click", () => {
           onBuild(parseInt(btn.dataset.build ?? "0") as BuildingType);
         });
@@ -373,12 +404,11 @@ export class HUD {
       ? `<div style="font-size:10px;color:#666;margin-top:6px">Right-click to set rally point${b.rallyPoint ? " (set)" : ""}</div>`
       : "";
 
-    this.infoPanel.innerHTML = header + ageCard + card + resCard + mktCard + garrisonCard + rallyHint;
-    this.infoPanel.style.display = "block";
+    this._render(header, ageCard + card + resCard + mktCard + garrisonCard + rallyHint);
 
     // Wire up age-up button
     if (ageSystem && rm) {
-      const ageBtn = this.infoPanel.querySelector<HTMLButtonElement>("#age-up-btn");
+      const ageBtn = this.cmdTarget.querySelector<HTMLButtonElement>("#age-up-btn");
       ageBtn?.addEventListener("click", () => {
         // Replicated command (MP-safe); falls back to direct call if no bus is wired.
         if (this._bus) this._bus.issue({ kind: 'ageUp', teamId: b.teamId, ai: false });
@@ -388,7 +418,7 @@ export class HUD {
 
     // Wire up training buttons
     if (training && rm) {
-      this.infoPanel.querySelectorAll<HTMLButtonElement>("[data-train]").forEach(btn => {
+      this.cmdTarget.querySelectorAll<HTMLButtonElement>("[data-train]").forEach(btn => {
         btn.addEventListener("click", () => {
           const type = parseInt(btn.dataset.train ?? "0") as UnitType;
           if (this._bus) {
@@ -403,7 +433,7 @@ export class HUD {
 
     // Wire up research buttons
     if (research && rm) {
-      this.infoPanel.querySelectorAll<HTMLButtonElement>("[data-research]").forEach(btn => {
+      this.cmdTarget.querySelectorAll<HTMLButtonElement>("[data-research]").forEach(btn => {
         btn.addEventListener("click", () => {
           const tech = btn.dataset.research! as TechId;
           if (this._bus) {
@@ -418,7 +448,7 @@ export class HUD {
 
     // Wire up market buttons
     if (market && rm) {
-      this.infoPanel.querySelectorAll<HTMLButtonElement>("[data-sell]").forEach(btn => {
+      this.cmdTarget.querySelectorAll<HTMLButtonElement>("[data-sell]").forEach(btn => {
         btn.addEventListener("click", () => {
           const kind = parseInt(btn.dataset.sell!) as ResourceKind;
           if (this._bus) {
@@ -428,7 +458,7 @@ export class HUD {
           }
         });
       });
-      this.infoPanel.querySelectorAll<HTMLButtonElement>("[data-buy]").forEach(btn => {
+      this.cmdTarget.querySelectorAll<HTMLButtonElement>("[data-buy]").forEach(btn => {
         btn.addEventListener("click", () => {
           const kind = parseInt(btn.dataset.buy!) as ResourceKind;
           if (this._bus) {
@@ -442,7 +472,7 @@ export class HUD {
 
     // Wire up garrison buttons
     if (garrison) {
-      this.infoPanel.querySelector<HTMLButtonElement>("#ungarrison-btn")
+      this.cmdTarget.querySelector<HTMLButtonElement>("#ungarrison-btn")
         ?.addEventListener("click", () => {
           if (this._bus) {
             this._bus.issue({ kind: 'ungarrison', teamId: b.teamId, ai: false, buildingId: b.id });
@@ -450,7 +480,7 @@ export class HUD {
             garrison.ungarrisonAll(b);
           }
         });
-      this.infoPanel.querySelector<HTMLButtonElement>("#ungarrison-one-btn")
+      this.cmdTarget.querySelector<HTMLButtonElement>("#ungarrison-one-btn")
         ?.addEventListener("click", () => garrison.ungarrisonOne(b));
     }
   }
@@ -476,16 +506,18 @@ export class HUD {
     const hpPct = totalMaxHp > 0 ? Math.round((totalHp / totalMaxHp) * 100) : 0;
     const hpColor = hpPct > 60 ? "#4c4" : hpPct > 30 ? "#fa0" : "#e44";
 
-    this.infoPanel.innerHTML =
+    this._render(
       `<b>${units.length} units selected</b><br>` +
       `<span style="font-size:11px;color:#aaa">${breakdown}</span><br>` +
-      `<span style="font-size:11px">HP: <span style="color:${hpColor}">${hpPct}%</span></span>`;
-    this.infoPanel.style.display = "block";
+      `<span style="font-size:11px">HP: <span style="color:${hpColor}">${hpPct}%</span></span>`,
+      "",
+    );
   }
 
   clearInfo() {
-    this.infoPanel.style.display = "none";
-    this.infoPanel.innerHTML = "";
+    this.infoTarget.innerHTML = "";
+    if (this._docked) this.cmdTarget.innerHTML = "";
+    else this.infoPanel!.style.display = "none";
   }
 
   showVictory(winner: number) {

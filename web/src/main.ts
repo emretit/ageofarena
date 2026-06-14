@@ -38,6 +38,7 @@ import { Selection, FORMATION_NAMES } from "./game/Selection";
 import { orderAttackMove } from "./game/Orders";
 import { HUD } from "./ui/HUD";
 import { Minimap } from "./ui/Minimap";
+import { BottomBar } from "./ui/BottomBar";
 import { DamagePopup } from "./ui/DamagePopup";
 import { PreGameScreen, type OpponentConfig } from "./ui/PreGameScreen";
 import { FogOfWarSystem } from "./game/FogOfWarSystem";
@@ -374,8 +375,11 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   const replayDriver = _watchRep ? new ReplayDriver(_watchRep, commandBus) : null;
   const replayHUD    = replayDriver ? new ReplayHUD(app, replayDriver) : null;
 
+  // ── Bottom bar (AoE2-style docked command bar) ────────────────────────────
+  const bottomBar = new BottomBar(app);
+
   // ── HUD ──────────────────────────────────────────────────────────────────
-  const hud = new HUD(app, teamRes[PLAYER_TEAM]);
+  const hud = new HUD(app, teamRes[PLAYER_TEAM], bottomBar);
   hud.localTeam = PLAYER_TEAM;
   // Replay: no bus — HUD buttons are display-only (commands come from replay log)
   if (!isReplay) hud.setBus(lockstepClient);
@@ -403,8 +407,8 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
     play(SoundId.Conversion);
   };
 
-  // ── Minimap ───────────────────────────────────────────────────────────────
-  const minimap = new Minimap(app);
+  // ── Minimap (docked into the bottom bar's right slot) ─────────────────────
+  const minimap = new Minimap(bottomBar.minimapSlot, true);
   minimap.localTeam = PLAYER_TEAM;
   minimap.onNavigate = (x, z) => rig.panTo(x, z);
 

@@ -3,6 +3,7 @@
  * Timeline bar (click to seek forward) + play/pause + speed selector.
  */
 import type { ReplayDriver } from '../replay/ReplayDriver';
+import { BottomBar } from './BottomBar';
 
 export class ReplayHUD {
   private readonly _root: HTMLElement;
@@ -13,7 +14,7 @@ export class ReplayHUD {
   constructor(container: HTMLElement, private readonly driver: ReplayDriver) {
     this._root = document.createElement('div');
     Object.assign(this._root.style, {
-      position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)',
+      position: 'absolute', bottom: `${BottomBar.HEIGHT + 12}px`, left: '50%', transform: 'translateX(-50%)',
       background: 'rgba(0,0,0,0.75)', borderRadius: '8px', padding: '8px 14px',
       display: 'flex', alignItems: 'center', gap: '10px', zIndex: '50',
       fontFamily: 'monospace', color: '#ddd', fontSize: '13px', userSelect: 'none',
