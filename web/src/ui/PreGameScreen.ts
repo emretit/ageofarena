@@ -22,6 +22,8 @@ export class PreGameScreen {
   onOnline: (() => void) | null = null;
   /** Fired when the player wants to watch a saved replay. */
   onWatchReplay: ((rep: AoaRep) => void) | null = null;
+  /** Fired when the player opens the Campaign screen. */
+  onCampaign: (() => void) | null = null;
 
   constructor(container: HTMLElement, private readonly _savedRep: AoaRep | null = null) {
     this._el = document.createElement("div");
@@ -211,6 +213,22 @@ export class PreGameScreen {
       this.onStart?.(this._civSel, opponents, this._mapSel, this._modeSel);
     });
     this._el.appendChild(startBtn);
+
+    // Campaign button
+    const campBtn = document.createElement("button");
+    campBtn.textContent = "KAMPANYA";
+    campBtn.style.cssText = `
+      padding:10px 40px; font-size:15px; font-weight:bold; font-family:monospace;
+      background:#2a1a06; color:#f5d060; border:2px solid #a87c28; border-radius:8px;
+      cursor:pointer; letter-spacing:2px; margin-top:8px;
+    `;
+    campBtn.addEventListener("mouseenter", () => { campBtn.style.background = "#3a2a0a"; });
+    campBtn.addEventListener("mouseleave", () => { campBtn.style.background = "#2a1a06"; });
+    campBtn.addEventListener("click", () => {
+      this._el.remove();
+      this.onCampaign?.();
+    });
+    this._el.appendChild(campBtn);
 
     // Online multiplayer button
     const onlineBtn = document.createElement("button");

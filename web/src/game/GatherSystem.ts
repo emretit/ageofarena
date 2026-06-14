@@ -37,6 +37,8 @@ export function gatherIntervalFor(kind: ResourceKind): number {
 export class GatherSystem {
   /** Called on each successful harvest tick (GatherHit SFX seam). */
   onGatherTick: (() => void) | null = null;
+  /** Called when a unit deposits resources — used by TriggerSystem to track total gathered. */
+  onDeposit: ((teamId: number, kind: ResourceKind, amount: number) => void) | null = null;
 
   /** Per-villager gather timer (seconds until next harvest tick). */
   private readonly timers = new Map<Unit, number>();
@@ -159,7 +161,10 @@ export class GatherSystem {
     // Deposit
     const rm = teamRes[v.teamId];
     if (rm) {
-      rm.gain(v.carryKind as ResourceKind, v.carryAmount);
+      const kind = v.carryKind as ResourceKind;
+      const amt  = v.carryAmount;
+      rm.gain(kind, amt);
+      this.onDeposit?.(v.teamId, kind, amt);
     }
     v.carryAmount = 0;
 

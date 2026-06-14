@@ -50,6 +50,14 @@ import { GarrisonSystem } from "./game/GarrisonSystem";
 import { ControlGroups } from "./game/ControlGroups";
 import { ConversionSystem } from "./game/ConversionSystem";
 import { MedicSystem } from "./game/MedicSystem";
+import { TriggerSystem } from "./game/TriggerSystem";
+import { TutorialSystem } from "./game/TutorialSystem";
+import { ScenarioEditor } from "./game/ScenarioEditor";
+import {
+  activeMissionId, setActiveMission, clearActiveMission,
+  setupCampaign, onCampaignWin, abortCampaign,
+} from "./game/CampaignSystem";
+import { CampaignScreen } from "./ui/CampaignScreen";
 import { BuildingPlacement } from "./game/BuildingPlacement";
 import { RelicSystem } from "./game/RelicSystem";
 import { VisualEffectSystem } from "./game/VisualEffectSystem";
@@ -130,6 +138,7 @@ const savedRep = loadRepFromSlot(1); // null if no replay saved yet
 const preScreen = new PreGameScreen(app, savedRep);
 preScreen.onStart = (playerCiv: Civilization, opponents: OpponentConfig[], mapType: MapType, mode: GameModeType) => {
   if (!assetLoader.isLoaded) return; // guard: never spawn units before models are baked
+  clearActiveMission(); // normal skirmish — no campaign
   setTeamCiv(0, playerCiv);
   opponents.forEach((op, i) => setTeamCiv(i + 1, op.civ));
   const simSeed = 1453;
@@ -140,6 +149,26 @@ preScreen.onStart = (playerCiv: Civilization, opponents: OpponentConfig[], mapTy
     opponents: opponents.map(op => ({ civ: op.civ, difficulty: op.difficulty, personality: op.personality })),
   };
   startGame(mapType, trees, opponents, replaySetup, undefined, undefined, mode);
+};
+
+// ── Campaign screen ───────────────────────────────────────────────────────────
+const campaignScreen = new CampaignScreen(app);
+preScreen.onCampaign = () => campaignScreen.show();
+campaignScreen.onStart = (missionId: number) => {
+  if (!assetLoader.isLoaded) return;
+  setActiveMission(missionId);
+  const playerCiv = 0 as Civilization;
+  setTeamCiv(0, playerCiv);
+  const opponents: OpponentConfig[] = [{ civ: 1 as Civilization, difficulty: Difficulty.Normal, personality: Personality.Balanced }];
+  opponents.forEach((op, i) => setTeamCiv(i + 1, op.civ));
+  const simSeed = 1453 + missionId;
+  initSimRng(simSeed);
+  const trees = buildForest(scene, MapType.Arabia, simSeed);
+  startGame(MapType.Arabia, trees, opponents, undefined, undefined, undefined, 'Conquest');
+};
+campaignScreen.onClose = () => {
+  // Re-show PreGameScreen by reloading (simplest approach)
+  location.reload();
 };
 preScreen.onWatchReplay = (rep: AoaRep) => {
   if (!assetLoader.isLoaded) return;
@@ -410,6 +439,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   const ctrlGroups  = new ControlGroups();
   const conversion  = new ConversionSystem();
   const medic       = new MedicSystem();
+  const triggerSys  = new TriggerSystem();
 
   // ── Replay driver + HUD (replay mode only) ───────────────────────────────
   const replayDriver = _watchRep ? new ReplayDriver(_watchRep, commandBus) : null;
@@ -435,6 +465,42 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   combat.onUnitKilled = (u) => { u.startDeathAnim(); play(SoundId.UnitDie); };
   combat.onBuildingDestroyed = (b) => { unstampBuilding(b); rig.shake(1.5, 0.4); play(SoundId.BuildingDie); };
   gather.onGatherTick = () => play(SoundId.GatherHit);
+  gather.onDeposit = (teamId, kind, amount) => triggerSys.onResourceDeposited(teamId, kind, amount);
+
+  // ── TriggerSystem callbacks ───────────────────────────────────────────────
+  triggerSys.onWin  = (msg) => { hud.showVictory(PLAYER_TEAM); if (msg) hud.showSubtitle(msg, 5); onCampaignWin(); };
+  triggerSys.onLose = (msg) => { hud.showVictory(1);           if (msg) hud.showSubtitle(msg, 5); abortCampaign(); };
+  triggerSys.onMessage = (text, dur) => hud.showSubtitle(text, dur);
+
+  // ── Campaign setup (inject triggers + starting resources) ─────────────────
+  if (activeMissionId >= 0 && !isReplay) {
+    const objective = setupCampaign(teamRes, triggerSys);
+    if (objective) hud.showSubtitle(objective, 6);
+  }
+
+  // ── Tutorial (auto-starts on first normal SP game) ────────────────────────
+  const tutorial = (!isMP && !isReplay && activeMissionId < 0) ? new TutorialSystem(app) : null;
+  if (tutorial) tutorial.init();
+
+  // ── Scenario Editor ───────────────────────────────────────────────────────
+  const scenarioEditor = new ScenarioEditor(app, rig.camera, renderer.domElement, {
+    spawnUnit:     (type, x, z, team) => {
+      const u = new Unit(scene, new THREE.Vector3(x, 0, z), team, type);
+      units.push(u);
+      return u;
+    },
+    placeBuilding: (type, x, z, team) => placeBuildingForTeam(type, x, z, team),
+    placeResource: (kind, amount, x, z) => {
+      const n = new ResourceNode(scene, new THREE.Vector3(x, 0, z), kind, amount);
+      nodes.push(n);
+    },
+    removeUnit:     (u) => { u.takeDamage(u.maxHp * 999); },
+    removeBuilding: (b) => { b.takeDamage(b.maxHp * 999); },
+    removeResource: (n) => { n.amount = 0; n.remove(scene); },
+    getUnits:       () => units,
+    getBuildings:   () => buildings,
+    getResources:   () => nodes,
+  });
 
   // ── Audio hooks (cosmetic seam: sim → sound) ──────────────────────────────
   localAge.onAgeUp = () => play(SoundId.AgeUp);
@@ -623,6 +689,10 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
       }
     }
 
+    if (key === "e" && !isMP && !isReplay) {
+      scenarioEditor.toggle();
+    }
+
     if (key === "escape") {
       if (settings.isVisible) {
         settings.hide();
@@ -765,6 +835,8 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
         conversion.tick(units, step);
         medic.tick(units, step);
         fog.tick(units, buildings, step);
+        if (!isReplay) triggerSys.tick(units, buildings, teamRes, (tid, tech) => research.isResearched(tid, tech as never), step);
+        tutorial?.tick(units, buildings, teamRes[PLAYER_TEAM]);
         if (isMP || isReplay) {
           // MP: no local AI; Replay: commands come from log — tick all age systems passively
           for (let i = 0; i < ageSystems.length; i++) ageSystems[i].tick(teamRes[i], step);

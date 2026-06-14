@@ -6,7 +6,7 @@ import { Age, BuildingType, ResourceKind, UnitType } from "../core/GameTypes";
 import { play, SoundId } from "../game/AudioManager";
 import { ResourceManager } from "../core/ResourceManager";
 import { getUnitRow } from "../core/UnitRegistry";
-import { TRAINABLE } from "../game/TrainingQueue";
+import { TRAINABLE, trainableFor } from "../game/TrainingQueue";
 import type { TrainingQueue } from "../game/TrainingQueue";
 import type { Unit } from "../game/Unit";
 import { Building, DEFS } from "../game/Building";
@@ -34,6 +34,9 @@ const BUILDING_MIN_AGE: Partial<Record<BuildingType, Age>> = {
   [BuildingType.WatchTower]:   Age.Feudal,
   [BuildingType.Castle]:       Age.Castle,
   [BuildingType.Gate]:         Age.Feudal,
+  [BuildingType.Outpost]:      Age.Feudal,
+  [BuildingType.BombardTower]: Age.Imperial,
+  [BuildingType.FishTrap]:     Age.Feudal,
 };
 
 /** Buildings the player can construct (ordered by tech progression). */
@@ -48,20 +51,119 @@ export const BUILDABLE: BuildingType[] = [
   BuildingType.Market,
   BuildingType.Blacksmith,
   BuildingType.WatchTower,
+  BuildingType.Outpost,
   BuildingType.Gate,
   BuildingType.Monastery,
   BuildingType.University,
   BuildingType.SiegeWorkshop,
+  BuildingType.BombardTower,
   BuildingType.Castle,
+  BuildingType.FishTrap,
 ];
 
 export type BuildCallback = (type: BuildingType) => void;
+
+/**
+ * One AoE2-style command button: a large glyph over a small sub-line (cost or label).
+ * Disabled buttons render greyed and ignore clicks (the wiring's querySelectorAll still
+ * matches them, but a disabled <button> fires no click event).
+ */
+function iconButton(
+  attr: string, val: string | number, icon: string, sub: string,
+  o: { bg: string; fg: string; enabled: boolean; title: string },
+): string {
+  return (
+    `<button ${attr}="${val}" title="${o.title}"${o.enabled ? "" : " disabled"} style="` +
+    `width:58px;height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;` +
+    `gap:1px;padding:2px;border-radius:5px;border:1px solid rgba(0,0,0,0.35);` +
+    `cursor:${o.enabled ? "pointer" : "not-allowed"};background:${o.bg};color:${o.fg};font-family:monospace;">` +
+    `<span style="font-size:22px;line-height:1">${icon}</span>` +
+    `<span style="font-size:8.5px;line-height:1.05;opacity:0.92;text-align:center;word-break:break-word;max-height:18px;overflow:hidden">${sub}</span>` +
+    `</button>`
+  );
+}
+
+/** Section header strip inside the command card. */
+function cmdHeader(text: string): string {
+  return `<div style="font-size:11px;color:#caa48a;letter-spacing:1px;margin:2px 0 5px">${text}</div>`;
+}
+
+/** Flex grid wrapper that lays icon buttons out in AoE2-style rows. */
+function cmdGrid(buttons: string): string {
+  return `<div style="display:flex;flex-wrap:wrap;gap:5px">${buttons}</div>`;
+}
 
 const ICONS: Record<ResourceKind, string> = {
   [ResourceKind.Food]:  "🌾",
   [ResourceKind.Wood]:  "🪵",
   [ResourceKind.Gold]:  "🪙",
   [ResourceKind.Stone]: "🪨",
+};
+
+/** Emoji glyphs for command buttons — mirrors Unity's CommandIconFactory silhouettes. */
+const BUILDING_ICONS: Partial<Record<BuildingType, string>> = {
+  [BuildingType.TownCenter]:   "🏛️",
+  [BuildingType.House]:        "🏠",
+  [BuildingType.Barracks]:     "⚔️",
+  [BuildingType.ArcheryRange]: "🏹",
+  [BuildingType.Stable]:       "🐎",
+  [BuildingType.Farm]:         "🌽",
+  [BuildingType.LumberCamp]:   "🪵",
+  [BuildingType.MiningCamp]:   "⛏️",
+  [BuildingType.Mill]:         "🌾",
+  [BuildingType.Market]:       "💰",
+  [BuildingType.Castle]:       "🏰",
+  [BuildingType.Wall]:         "🧱",
+  [BuildingType.Wonder]:       "🏯",
+  [BuildingType.Blacksmith]:   "⚒️",
+  [BuildingType.Monastery]:    "⛪",
+  [BuildingType.University]:   "🎓",
+  [BuildingType.SiegeWorkshop]:"🛠️",
+  [BuildingType.Dock]:         "⚓",
+  [BuildingType.WatchTower]:   "🗼",
+  [BuildingType.Gate]:         "🚪",
+  [BuildingType.Outpost]:      "🔭",
+  [BuildingType.BombardTower]: "💣",
+  [BuildingType.FishTrap]:     "🎏",
+};
+
+const UNIT_ICONS: Partial<Record<UnitType, string>> = {
+  [UnitType.Villager]:      "🧑‍🌾",
+  [UnitType.Militia]:       "⚔️",
+  [UnitType.Archer]:        "🏹",
+  [UnitType.Cavalry]:       "🐎",
+  [UnitType.Spearman]:      "🔱",
+  [UnitType.Scout]:         "🐴",
+  [UnitType.Trebuchet]:     "🏗️",
+  [UnitType.Longbowman]:    "🏹",
+  [UnitType.Skirmisher]:    "🗡️",
+  [UnitType.Mangonel]:      "🪨",
+  [UnitType.Ram]:           "🐏",
+  [UnitType.Monk]:          "✝️",
+  [UnitType.TradeCart]:     "🛒",
+  [UnitType.FishingShip]:   "🎣",
+  [UnitType.Galley]:        "⛵",
+  [UnitType.Camel]:         "🐫",
+  [UnitType.CavalryArcher]: "🏹",
+  [UnitType.Medic]:         "⚕️",
+  [UnitType.Scorpion]:      "🦂",
+  [UnitType.FireShip]:      "🔥",
+  [UnitType.DemoShip]:      "💥",
+  [UnitType.King]:          "👑",
+  [UnitType.TeutonicKnight]:"🛡️",
+  [UnitType.WarElephant]:   "🐘",
+  [UnitType.Mangudai]:      "🏹",
+  [UnitType.Samurai]:       "🗡️",
+  [UnitType.ThrowingAxeman]:"🪓",
+  [UnitType.Cataphract]:    "🐎",
+  [UnitType.Berserk]:       "⚔️",
+  [UnitType.Mameluke]:      "🐫",
+  [UnitType.WoadRaider]:    "🏃",
+  [UnitType.ChuKoNu]:       "🎯",
+  [UnitType.Huskarl]:       "🛡️",
+  [UnitType.Janissary]:     "🔫",
+  [UnitType.Eagle]:         "🦅",
+  [UnitType.EliteEagle]:    "🦅",
 };
 
 const UNIT_NAMES: Record<UnitType, string> = {
@@ -80,6 +182,27 @@ const UNIT_NAMES: Record<UnitType, string> = {
   [UnitType.TradeCart]:  "Trade Cart",
   [UnitType.FishingShip]:"Fishing Ship",
   [UnitType.Galley]:     "Galley",
+  [UnitType.Camel]:         "Camel",
+  [UnitType.CavalryArcher]: "Cavalry Archer",
+  [UnitType.Medic]:         "Medic",
+  [UnitType.Scorpion]:      "Scorpion",
+  [UnitType.FireShip]:      "Fire Ship",
+  [UnitType.DemoShip]:      "Demolition Ship",
+  [UnitType.King]:          "King",
+  [UnitType.TeutonicKnight]:"Teutonic Knight",
+  [UnitType.WarElephant]:   "War Elephant",
+  [UnitType.Mangudai]:      "Mangudai",
+  [UnitType.Samurai]:       "Samurai",
+  [UnitType.ThrowingAxeman]:"Throwing Axeman",
+  [UnitType.Cataphract]:    "Cataphract",
+  [UnitType.Berserk]:       "Berserk",
+  [UnitType.Mameluke]:      "Mameluke",
+  [UnitType.WoadRaider]:    "Woad Raider",
+  [UnitType.ChuKoNu]:       "Chu Ko Nu",
+  [UnitType.Huskarl]:       "Huskarl",
+  [UnitType.Janissary]:     "Janissary",
+  [UnitType.Eagle]:         "Eagle Warrior",
+  [UnitType.EliteEagle]:    "Elite Eagle Warrior",
 };
 
 export class HUD {
@@ -221,11 +344,11 @@ export class HUD {
         ? `Carry: ${u.carryAmount}/10`
         : `Spd: ${u.moveSpeed.toFixed(1)}`);
 
-    // Build panel for player villagers
+    // Build panel for player villagers — all building types always shown (locked ones
+    // greyed with their unlock age), AoE2-style icon buttons.
     let cmds = "";
     if (u.teamId === this.localTeam && u.gathers && onBuild && rm) {
-      cmds += `<div style="font-size:11px;color:#aaa">BUILD</div>`;
-      cmds += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">`;
+      let btns = "";
       for (const type of BUILDABLE) {
         const def = DEFS[type];
         const minAge = BUILDING_MIN_AGE[type] ?? Age.Dark;
@@ -235,15 +358,16 @@ export class HUD {
           (def.costStone > 0 ? `\u{1FAA8}${def.costStone} ` : "") +
           (def.costGold  > 0 ? `\u{1FA99}${def.costGold}` : "");
         const canAfford = ageOk && rm.wood >= def.costWood && rm.stone >= def.costStone && rm.gold >= def.costGold;
-        const bgColor = canAfford ? "#35527a" : "#2a2a2a";
-        const fgColor = !ageOk ? "#444" : canAfford ? "#dde" : "#555";
-        const cursor  = canAfford ? "pointer" : "not-allowed";
-        const label   = !ageOk ? `${def.display}<br><span style="font-size:10px;opacity:0.6">${AGE_NAMES[minAge]}</span>` : `${def.display}<br><span style="font-size:10px;opacity:0.75">${cost.trim() || "free"}</span>`;
-        cmds += `<button data-build="${type}" title="${cost.trim()}" style="cursor:${cursor};padding:3px 7px;border-radius:4px;border:none;font-family:monospace;font-size:11px;background:${bgColor};color:${fgColor}">`;
-        cmds += label;
-        cmds += `</button>`;
+        const icon = BUILDING_ICONS[type] ?? "🏚️";
+        const bg = !ageOk ? "#1b1710" : canAfford ? "#35527a" : "#2a2a2a";
+        const fg = !ageOk ? "#6a6048" : canAfford ? "#dde" : "#888";
+        const sub = !ageOk ? AGE_NAMES[minAge] : (cost.trim() || "—");
+        btns += iconButton("data-build", type, icon, sub, {
+          bg, fg, enabled: canAfford,
+          title: `${def.display}${cost.trim() ? ` — ${cost.trim()}` : " — free"}${ageOk ? "" : ` (${AGE_NAMES[minAge]})`}`,
+        });
       }
-      cmds += `</div>`;
+      cmds += cmdHeader("İNŞA ET") + cmdGrid(btns);
     }
 
     this._render(stats, cmds);
@@ -296,7 +420,7 @@ export class HUD {
     // Training card — only for player-owned buildings with trainable units
     let card = "";
     if (b.teamId === this.localTeam && training && rm) {
-      const trainable = TRAINABLE[b.buildingType];
+      const trainable = trainableFor(b.buildingType, b.teamId);
       if (trainable?.length) {
         const qLen = training.queueLength(b);
         const prog = training.progress(b);
@@ -308,7 +432,7 @@ export class HUD {
           card += `<div style="background:#333;border-radius:3px;height:6px;margin-bottom:8px">`;
           card += `<div style="background:#4c4;height:100%;width:${pct}%;border-radius:3px"></div></div>`;
         }
-        card += `<div style="display:flex;flex-wrap:wrap;gap:5px">`;
+        let btns = "";
         for (const type of trainable) {
           const row = getUnitRow(type);
           const canAfford = rm.canAfford(row.trainFood, row.trainWood, row.trainGold);
@@ -316,18 +440,15 @@ export class HUD {
             (row.trainFood  > 0 ? `🌾${row.trainFood} ` : "") +
             (row.trainWood  > 0 ? `🪵${row.trainWood} ` : "") +
             (row.trainGold  > 0 ? `🪙${row.trainGold}` : "");
-          const btnStyle = [
-            "cursor:pointer;padding:4px 8px;border-radius:4px;border:none;",
-            "font-family:monospace;font-size:12px;",
-            canAfford
-              ? "background:#2a5;color:#fff;"
-              : "background:#444;color:#888;cursor:not-allowed;",
-          ].join("");
-          card += `<button data-train="${type}" style="${btnStyle}" title="${cost.trim()}">`;
-          card += `${UNIT_NAMES[type]}<br><span style="font-size:10px;opacity:0.8">${cost.trim()}</span>`;
-          card += `</button>`;
+          const icon = UNIT_ICONS[type] ?? "🧍";
+          btns += iconButton("data-train", type, icon, cost.trim() || "—", {
+            bg: canAfford ? "#2a5a2a" : "#2a2a2a",
+            fg: canAfford ? "#dfd" : "#888",
+            enabled: canAfford,
+            title: `${UNIT_NAMES[type]}${cost.trim() ? ` — ${cost.trim()}` : ""}`,
+          });
         }
-        card += `</div></div>`;
+        card += cmdGrid(btns) + `</div>`;
       }
     }
 
@@ -344,7 +465,7 @@ export class HUD {
           resCard += `<div style="font-size:12px;color:#acf">${def.label}... ${pct}%</div>`;
           resCard += `<div style="background:#333;border-radius:3px;height:5px;margin:4px 0"><div style="background:#4af;height:100%;width:${pct}%;border-radius:3px"></div></div>`;
         }
-        resCard += `<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">`;
+        let btns = "";
         for (const tech of avail) {
           const def = TECH_DEFS[tech];
           const costStr =
@@ -352,14 +473,14 @@ export class HUD {
             (def.wood > 0 ? `🪵${def.wood} ` : "") +
             (def.gold > 0 ? `🪙${def.gold}` : "");
           const canAfford = rm.canAfford(def.food, def.wood, def.gold);
-          const bg  = canAfford ? "#2a4a6a" : "#2a2a2a";
-          const col = canAfford ? "#adf" : "#555";
-          const cur = canAfford ? "pointer" : "not-allowed";
-          resCard += `<button data-research="${tech}" style="cursor:${cur};padding:3px 7px;border-radius:4px;border:none;font-family:monospace;font-size:11px;background:${bg};color:${col}">`;
-          resCard += `${def.label}<br><span style="font-size:10px;opacity:0.75">${costStr.trim() || "free"}</span>`;
-          resCard += `</button>`;
+          btns += iconButton("data-research", tech, "📜", def.label, {
+            bg: canAfford ? "#2a4a6a" : "#2a2a2a",
+            fg: canAfford ? "#adf" : "#888",
+            enabled: canAfford,
+            title: `${def.label}${costStr.trim() ? ` — ${costStr.trim()}` : ""}`,
+          });
         }
-        resCard += `</div>`;
+        resCard += cmdGrid(btns);
       }
     }
 
@@ -531,5 +652,21 @@ export class HUD {
     });
     banner.textContent = winner === this.localTeam ? "Victory!" : "Defeat";
     this.root.appendChild(banner);
+  }
+
+  /** Show a temporary message overlay (TriggerSystem / Tutorial seam). */
+  showSubtitle(text: string, duration: number): void {
+    const el = document.createElement("div");
+    Object.assign(el.style, {
+      position: "absolute", top: "18%", left: "50%",
+      transform: "translateX(-50%)",
+      background: "rgba(4,8,18,0.88)", color: "#f5d060",
+      fontSize: "18px", padding: "12px 28px", borderRadius: "7px",
+      border: "1px solid #886600", textAlign: "center",
+      pointerEvents: "none", maxWidth: "640px", whiteSpace: "pre-wrap",
+    });
+    el.textContent = text;
+    this.root.appendChild(el);
+    window.setTimeout(() => el.remove(), duration * 1000);
   }
 }

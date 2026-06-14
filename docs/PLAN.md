@@ -82,7 +82,25 @@ Kalan gap'ler 5 fazlık bir kapanış haritasına bağlandı (otonom uygulama, m
 - **startGame:** 7. parametre `modeType: GameModeType = 'Conquest'`; URL param parsing kaldırıldı.
 - Build 0 hata + 30/30 test yeşil.
 
-**Faz P3 (Trigger/Campaign/Tutorial/Editor), P4 (hotkey/a11y/cheat):** açık.
+**Faz P3 — İçerik Araçları ✅ (2026-06-14):**
+- **TriggerSystem** (`web/src/game/TriggerSystem.ts`): 7 koşul (Timer/OwnUnits/OwnBuildings/ResourceGathered/
+  EnemyEliminated/TechResearched/AgeReached) + 8 efekt (YouWin/YouLose/ShowMessage/ShowObjective/AddResource/
+  Activate/DeactivateTrigger/SetGameOver). `onDeposit` callback → GatherSystem; `isResearched` lambda.
+- **CampaignSystem** (`web/src/game/CampaignSystem.ts`): 3 misyon (İlk Savaş/Kaynak Savaşı/İmparatorun Seferi),
+  localStorage ilerleme, `setupCampaign()` trigger enjeksiyonu + kaynak kurulumu.
+- **CampaignScreen** (`web/src/ui/CampaignScreen.ts`): kilitli/açık/tamamlanmış kart listesi,
+  "Başlat"/"Tekrar Oyna" butonu, ilerleme sıfırlama.
+- **TutorialSystem** (`web/src/game/TutorialSystem.ts`): 7 adım auto-progress (köylü seç/topla/ev/kışla/
+  nefer/tebrik), "İleri"/"Atla" UI, localStorage done-key, tick() koşul kontrolü.
+- **ScenarioEditor** (`web/src/game/ScenarioEditor.ts`): E-key toggle, 13-öğe palet
+  (birim/bina/kaynak), THREE.Raycaster klik-to-place, sil modu, JSON save/load localStorage.
+- **HUD.showSubtitle** eklendi (TriggerSystem/Tutorial mesaj overlay).
+- **PreGameScreen** "KAMPANYA" butonu + `onCampaign` callback.
+- GatherSystem `onDeposit` callback (TriggerSystem ResourceGathered koşulu için).
+- main.ts: TriggerSystem/TutorialSystem/ScenarioEditor wiring; campaign setup; "E" key editor toggle.
+- Build 0 hata + 30/30 test yeşil.
+
+**Faz P4 (hotkey/a11y/cheat):** açık.
 
 ---
 
