@@ -470,21 +470,36 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
       case "cheese steak jimmys": rm.gain(ResourceKind.Food, 10000); hud.showSubtitle("+10000 Yiyecek", 2); break;
       case "robin hood":      rm.gain(ResourceKind.Gold, 10000);  hud.showSubtitle("+10000 Altın", 2); break;
       case "rock on":         rm.gain(ResourceKind.Stone, 10000); hud.showSubtitle("+10000 Taş", 2); break;
+      case "aegis":
+        TrainingQueue.aegisMode = !TrainingQueue.aegisMode;
+        hud.showSubtitle(TrainingQueue.aegisMode ? "AEGIS Açık — Anında Eğitim" : "AEGIS Kapalı", 2);
+        break;
       default:                hud.showSubtitle("Bilinmeyen hile: " + code, 2); break;
     }
   };
 
-  // ── Damage popups ─────────────────────────────────────────────────────────
+  // ── Damage popups + stats tracking ────────────────────────────────────────
   const damagePopup = new DamagePopup(app);
+  const playerStats = { kills: 0, buildingsDestroyed: 0, resourcesGathered: 0 };
   combat.onHit = (pos, dmg) => { damagePopup.show(pos, dmg); play(SoundId.UnitAttack); };
-  combat.onUnitKilled = (u) => { u.startDeathAnim(); play(SoundId.UnitDie); };
-  combat.onBuildingDestroyed = (b) => { unstampBuilding(b); rig.shake(1.5, 0.4); play(SoundId.BuildingDie); };
+  combat.onUnitKilled = (u) => {
+    u.startDeathAnim();
+    play(SoundId.UnitDie);
+    if (u.teamId !== PLAYER_TEAM) playerStats.kills++;
+  };
+  combat.onBuildingDestroyed = (b) => {
+    unstampBuilding(b); rig.shake(1.5, 0.4); play(SoundId.BuildingDie);
+    if (b.teamId !== PLAYER_TEAM) playerStats.buildingsDestroyed++;
+  };
   gather.onGatherTick = () => play(SoundId.GatherHit);
-  gather.onDeposit = (teamId, kind, amount) => triggerSys.onResourceDeposited(teamId, kind, amount);
+  gather.onDeposit = (teamId, kind, amount) => {
+    triggerSys.onResourceDeposited(teamId, kind, amount);
+    if (teamId === PLAYER_TEAM) playerStats.resourcesGathered += amount;
+  };
 
   // ── TriggerSystem callbacks ───────────────────────────────────────────────
-  triggerSys.onWin  = (msg) => { hud.showVictory(PLAYER_TEAM); if (msg) hud.showSubtitle(msg, 5); onCampaignWin(); };
-  triggerSys.onLose = (msg) => { hud.showVictory(1);           if (msg) hud.showSubtitle(msg, 5); abortCampaign(); };
+  triggerSys.onWin  = (msg) => { hud.showVictory(PLAYER_TEAM, playerStats); if (msg) hud.showSubtitle(msg, 5); onCampaignWin(); };
+  triggerSys.onLose = (msg) => { hud.showVictory(1, playerStats);           if (msg) hud.showSubtitle(msg, 5); abortCampaign(); };
   triggerSys.onMessage = (text, dur) => hud.showSubtitle(text, dur);
 
   // ── Campaign setup (inject triggers + starting resources) ─────────────────
@@ -819,6 +834,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
         gather.tick(units, buildings, teamRes, scene, step);
         gather.tickFarms(nodes, teamRes, step);
+        for (const rm of teamRes) rm.tickRate(step);
         if (modeType === 'Treaty') combat.enabled = gameElapsed >= 15 * 60;
         combat.tick(units, buildings, step);
         combat.tickBuildings(buildings, units, step, b => garrison.garrisonCount(b));
@@ -888,8 +904,15 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
           // Conquest: VictorySystem handles TC elimination
           const victoryWinner = victory.tick(buildings, allTeams);
+          // Build garrisonedRelics map for Relic game mode
+          const garrisonedRelics = new Map<number, number>();
+          for (const r of relics) {
+            if (r.heldInMonastery && r.teamId >= 0) {
+              garrisonedRelics.set(r.teamId, (garrisonedRelics.get(r.teamId) ?? 0) + 1);
+            }
+          }
           // Other modes: GameMode
-          const modeResult = gameMode.tick(buildings, units, allTeams, step);
+          const modeResult = gameMode.tick(buildings, units, allTeams, step, garrisonedRelics);
           const winner = victoryWinner >= 0 ? victoryWinner : modeResult.winner;
 
           if (winner >= 0) {
@@ -897,9 +920,11 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
             if (winner === PLAYER_TEAM) {
               hud.showVictory(0);
               play(SoundId.Victory);
+              if (activeMissionId >= 0) onCampaignWin();
             } else {
               hud.showVictory(winner);
               play(SoundId.Defeat);
+              if (activeMissionId >= 0) abortCampaign();
             }
           }
         }

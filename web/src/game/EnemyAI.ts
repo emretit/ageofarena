@@ -108,7 +108,7 @@ const TECH_PRIORITY: TechId[] = [
   // Castle university
   TechId.Masonry, TechId.Ballistics,
   // Castle monk
-  TechId.Sanctity, TechId.BlockPrinting,
+  TechId.Sanctity, TechId.BlockPrinting, TechId.Redemption,
   // Imperial eco
   TechId.CropRotation, TechId.TwoManSaw,
   // Imperial market
@@ -226,14 +226,26 @@ export class EnemyAI {
                           : this.personality === Personality.Boomer   ? BOOMER_TRAIN_PRIORITY
                           : BALANCED_TRAIN_PRIORITY;
       for (const b of myBuildings) {
+        // Islands map: skip land cavalry — naval units are the primary force
+        if (this.mapType === MapType.Islands && b.buildingType === BuildingType.Stable) continue;
         if (!trainPriority.includes(b.buildingType)) continue;
         const trainTypes: UnitType[] = [];
         if (b.buildingType === BuildingType.Barracks) {
           trainTypes.push(UnitType.Militia, UnitType.Spearman);
         } else if (b.buildingType === BuildingType.ArcheryRange) {
-          trainTypes.push(UnitType.Archer, UnitType.CavalryArcher);
+          // Arabia/open maps: prefer CavalryArcher; coastal/land maps: standard archers
+          if (this.mapType === MapType.Arabia) {
+            trainTypes.push(UnitType.CavalryArcher, UnitType.Archer);
+          } else {
+            trainTypes.push(UnitType.Archer, UnitType.Skirmisher);
+          }
         } else if (b.buildingType === BuildingType.Stable) {
-          trainTypes.push(UnitType.Cavalry, UnitType.Camel);
+          // Arabia: cavalry-heavy composition (Camel anti-cav, Cavalry main force)
+          if (this.mapType === MapType.Arabia) {
+            trainTypes.push(UnitType.Cavalry, UnitType.Camel, UnitType.Scout);
+          } else {
+            trainTypes.push(UnitType.Cavalry, UnitType.Camel);
+          }
         }
         for (const type of trainTypes) {
           if (this.bus) {

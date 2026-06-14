@@ -26,6 +26,25 @@ export class ResourceManager {
 
   onChange: (() => void) | null = null;
 
+  /** Rolling income rates (per second) — updated every ~2s via tickRate(). */
+  rateFood = 0; rateWood = 0; rateGold = 0; rateStone = 0;
+  private _accFood = 0; private _accWood = 0; private _accGold = 0; private _accStone = 0;
+  private _rateWindow = 0;
+  private static readonly RATE_INTERVAL = 2;
+
+  /** Call from the sim loop each tick to maintain rolling income display. */
+  tickRate(dt: number): void {
+    this._rateWindow += dt;
+    if (this._rateWindow >= ResourceManager.RATE_INTERVAL) {
+      this.rateFood  = this._accFood  / this._rateWindow;
+      this.rateWood  = this._accWood  / this._rateWindow;
+      this.rateGold  = this._accGold  / this._rateWindow;
+      this.rateStone = this._accStone / this._rateWindow;
+      this._accFood = this._accWood = this._accGold = this._accStone = 0;
+      this._rateWindow = 0;
+    }
+  }
+
   get(kind: ResourceKind): number {
     switch (kind) {
       case ResourceKind.Food:  return this.food;
@@ -38,10 +57,10 @@ export class ResourceManager {
   gain(kind: ResourceKind, amount: number) {
     if (amount === 0) return;
     switch (kind) {
-      case ResourceKind.Food:  this.food  = Math.max(0, this.food  + amount); break;
-      case ResourceKind.Wood:  this.wood  = Math.max(0, this.wood  + amount); break;
-      case ResourceKind.Gold:  this.gold  = Math.max(0, this.gold  + amount); break;
-      case ResourceKind.Stone: this.stone = Math.max(0, this.stone + amount); break;
+      case ResourceKind.Food:  this.food  = Math.max(0, this.food  + amount); this._accFood  += amount; break;
+      case ResourceKind.Wood:  this.wood  = Math.max(0, this.wood  + amount); this._accWood  += amount; break;
+      case ResourceKind.Gold:  this.gold  = Math.max(0, this.gold  + amount); this._accGold  += amount; break;
+      case ResourceKind.Stone: this.stone = Math.max(0, this.stone + amount); this._accStone += amount; break;
     }
     this.onChange?.();
   }

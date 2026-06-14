@@ -12,6 +12,7 @@ import {
 export class SettingsPanel {
   private readonly _el: HTMLDivElement;
   private _visible = false;
+  private _hotkeyCleanup: (() => void) | null = null;
   onResume: (() => void) | null = null;
   onUiScale: ((scale: number) => void) | null = null;
   onCheat: ((code: string) => void) | null = null;
@@ -63,7 +64,7 @@ export class SettingsPanel {
     const savedScale = parseFloat(localStorage.getItem("uiScale") ?? "1");
     const scaleRow = this._buildSliderRaw("ARAYÜZ BOYUTU", 0.7, 1.5, 0.05, savedScale, v => {
       this.onUiScale?.(v);
-    });
+    }, v => `${Math.round(v * 100)}%`);
     panel.appendChild(scaleRow);
 
     // ── Quality & edge scroll ───────────────────────────────────────────────
@@ -120,15 +121,16 @@ export class SettingsPanel {
   private _buildSliderRaw(
     label: string, min: number, max: number, step: number,
     initial: number, onChange: (v: number) => void,
+    displayFn?: (v: number) => string,
   ): HTMLElement {
+    const fmt = displayFn ?? ((v: number) => `${Math.round(((v - min) / (max - min)) * 100)}%`);
     const row = document.createElement("div");
     row.style.cssText = "display:flex;flex-direction:column;gap:4px;";
 
     const top = document.createElement("div");
     top.style.cssText = "display:flex;justify-content:space-between;font-size:11px;color:#888;";
     const lbl = document.createElement("span"); lbl.textContent = label;
-    const pct = Math.round(((initial - min) / (max - min)) * 100);
-    const val = document.createElement("span"); val.textContent = pct + "%";
+    const val = document.createElement("span"); val.textContent = fmt(initial);
     top.appendChild(lbl); top.appendChild(val);
     row.appendChild(top);
 
@@ -141,8 +143,7 @@ export class SettingsPanel {
     slider.style.cssText = "width:100%;accent-color:#f5d060;";
     slider.addEventListener("input", () => {
       const v = parseFloat(slider.value);
-      const p = Math.round(((v - min) / (max - min)) * 100);
-      val.textContent = p + "%";
+      val.textContent = fmt(v);
       onChange(v);
     });
     row.appendChild(slider);
@@ -239,7 +240,10 @@ export class SettingsPanel {
       listening.btn.style.borderColor = "#444";
       listening = null;
     };
+    // Remove previous listener before adding new one to prevent accumulation on rebuild
+    this._hotkeyCleanup?.();
     document.addEventListener("keydown", onKey, true);
+    this._hotkeyCleanup = () => document.removeEventListener("keydown", onKey, true);
 
     for (const action of ALL_ACTIONS) {
       const row = document.createElement("div");
@@ -295,7 +299,7 @@ export class SettingsPanel {
 
     const hint = document.createElement("div");
     hint.style.cssText = "font-size:10px;color:#555;";
-    hint.textContent = "POLO · LUMBERJACK · CHEESE STEAK JIMMYS · ROBIN HOOD · ROCK ON · AEGIS";
+    hint.textContent = "POLO · LUMBERJACK · CHEESE STEAK JIMMYS · ROBIN HOOD · ROCK ON · AEGIS (toggle)";
     wrap.appendChild(hint);
 
     const row = document.createElement("div");

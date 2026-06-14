@@ -12,6 +12,7 @@ import type { Unit } from "../game/Unit";
 import { Building, DEFS } from "../game/Building";
 import { AGE_NAMES, AgeSystem } from "../game/AgeSystem";
 import { BUILDING_TECHS, TECH_DEFS, type ResearchSystem, type TechId } from "../game/ResearchSystem";
+import { CIVILIZATION_DEFS } from "../core/CivilizationDefs";
 import type { MarketSystem } from "../game/MarketSystem";
 import type { GarrisonSystem } from "../game/GarrisonSystem";
 import type { CommandIssuer } from "../sim/CommandBus";
@@ -261,6 +262,13 @@ export class HUD {
 
   constructor(container: HTMLElement, rm: ResourceManager, bar?: BottomBar) {
     this._docked = !!bar;
+    // Inject pop-flash CSS keyframe once
+    if (!document.getElementById("aoa-hud-styles")) {
+      const style = document.createElement("style");
+      style.id = "aoa-hud-styles";
+      style.textContent = `@keyframes pop-flash { from { opacity: 1; } to { opacity: 0.4; } }`;
+      document.head.appendChild(style);
+    }
     this.root = document.createElement("div");
     Object.assign(this.root.style, {
       position: "absolute", top: "0", left: "0",
@@ -344,10 +352,25 @@ export class HUD {
   }
 
   private _updateRes(rm: ResourceManager) {
-    for (const kind of [ResourceKind.Food, ResourceKind.Wood, ResourceKind.Gold, ResourceKind.Stone]) {
-      this.counters[kind].textContent = `${ICONS[kind]} ${rm.get(kind)}`;
+    const rateKinds = [ResourceKind.Food, ResourceKind.Wood, ResourceKind.Gold, ResourceKind.Stone];
+    const rates = [rm.rateFood, rm.rateWood, rm.rateGold, rm.rateStone];
+    const hasIncome = rates.some(r => r > 0.1);
+    for (let i = 0; i < rateKinds.length; i++) {
+      const kind = rateKinds[i];
+      const base = `${ICONS[kind]} ${rm.get(kind)}`;
+      if (hasIncome && rates[i] > 0.1) {
+        this.counters[kind].innerHTML = base + ` <span style="font-size:10px;color:#8a8;opacity:0.85">+${rates[i].toFixed(1)}/s</span>`;
+      } else {
+        this.counters[kind].textContent = base;
+      }
     }
+    // Pop cap warning: red flash at cap, orange near cap
+    const popFull = rm.pop >= rm.popCap;
+    const popNear = !popFull && rm.pop >= rm.popCap - 2;
     this.popCell.textContent = `Pop ${rm.pop}/${rm.popCap}`;
+    this.popCell.style.color = popFull ? "#ff4444" : popNear ? "#ffaa22" : "#adf";
+    this.popCell.style.fontWeight = popFull ? "bold" : "normal";
+    this.popCell.style.animation = popFull ? "pop-flash 0.6s infinite alternate" : "";
   }
 
   /** Render stats into the info zone and buttons into the command zone (or both in one panel). */
@@ -364,9 +387,12 @@ export class HUD {
   showUnit(u: Unit, rm?: ResourceManager, onBuild?: BuildCallback) {
     const typeName = UNIT_NAMES[u.unitType] ?? "Unit";
     const portrait = UNIT_ICONS[u.unitType] ?? "🧍";
+    const grpBadge = u.controlGroupNum > 0
+      ? ` <span style="display:inline-block;background:#333;color:#f5d060;border:1px solid #666;border-radius:3px;padding:0 4px;font-size:10px;vertical-align:middle;">[${u.controlGroupNum}]</span>`
+      : "";
     const subLine  = `Atk: ${u.baseAtk}  ` +
       (u.gathers && u.carryAmount > 0 ? `Carry: ${u.carryAmount}/10` : `Spd: ${u.moveSpeed.toFixed(1)}`);
-    const stats = infoCard(portrait, typeName, u.hp, u.maxHp, subLine);
+    const stats = infoCard(portrait, typeName + grpBadge, u.hp, u.maxHp, subLine);
 
     // Build panel for player villagers — all building types always shown (locked ones
     // greyed with their unlock age), AoE2-style 5-column slot grid.
@@ -408,8 +434,13 @@ export class HUD {
   showBuilding(b: Building, training?: TrainingQueue, rm?: ResourceManager, ageSystem?: AgeSystem, research?: ResearchSystem, market?: MarketSystem, garrison?: GarrisonSystem) {
     const portrait = BUILDING_ICONS[b.buildingType] ?? "🏚️";
     const ageName  = rm && b.buildingType === BuildingType.TownCenter ? AGE_NAMES[rm.age] : "";
-    const subLine  = ageName || "";
-    const header   = infoCard(portrait, b.def.display, Math.ceil(b.hp), b.maxHp, subLine);
+    // UI-6: building condition indicator
+    const hpPct = Math.round((b.hp / b.maxHp) * 100);
+    const condition = hpPct >= 100 ? "" : hpPct >= 66 ? " [OK]" : hpPct >= 33 ? " [Dam]" : " [Crit]";
+    const condColor = hpPct >= 66 ? "#8a8" : hpPct >= 33 ? "#fa0" : "#f44";
+    const condBadge = hpPct < 100 ? ` <span style="color:${condColor};font-size:10px">${condition}</span>` : "";
+    const subLine  = ageName || (hpPct < 100 ? `<span style="color:${condColor}">${hpPct}% kondisyon</span>` : "");
+    const header   = infoCard(portrait, b.def.display + condBadge, Math.ceil(b.hp), b.maxHp, subLine);
 
     // Age-up card — only for player TC
     let ageCard = "";
@@ -475,9 +506,10 @@ export class HUD {
     // ── Research card ──────────────────────────────────────────────────────
     let resCard = "";
     if (b.teamId === this.localTeam && research && rm) {
-      const avail = research.available(b, rm);
+      const avail  = research.available(b, rm);
+      const locked = research.locked(b, rm);
       const active = research.active(b);
-      if (avail.length > 0 || active) {
+      if (avail.length > 0 || active || locked.length > 0) {
         resCard += `<div style="margin-top:8px;border-top:1px solid #555;padding-top:6px;font-size:11px;color:#aaa">RESEARCH</div>`;
         if (active) {
           const pct = Math.round((1 - active.timer / active.total) * 100);
@@ -497,7 +529,18 @@ export class HUD {
             bg: canAfford ? "#2a4a6a" : "#2a2a2a",
             fg: canAfford ? "#adf" : "#888",
             enabled: canAfford,
-            title: `${def.label}${costStr.trim() ? ` — ${costStr.trim()}` : ""}`,
+            title: `${def.label}${def.civGate !== undefined ? ` [${CIVILIZATION_DEFS[def.civGate].display}]` : ""}${costStr.trim() ? ` — ${costStr.trim()}` : ""}`,
+          });
+        }
+        // Locked/blocked techs: shown greyed with lock reason
+        for (const { tech, reason } of locked) {
+          const def = TECH_DEFS[tech];
+          const reasonLabel = reason === 'age' ? `(${AGE_NAMES[def.minAge]})` : reason === 'prereq' ? '(prereq)' : reason === 'done' ? '(done)' : '';
+          btns += iconButton("data-research-locked", tech, reason === 'done' ? "✓" : "🔒", reasonLabel || def.label, {
+            bg: reason === 'done' ? "#1a2a1a" : "#1a1a1a",
+            fg: reason === 'done' ? "#4a6a4a" : "#444",
+            enabled: false,
+            title: `${def.label} — ${reason === 'done' ? 'researched' : reason === 'age' ? `requires ${AGE_NAMES[def.minAge]}` : reason === 'prereq' ? 'prerequisite missing' : 'locked'}`,
           });
         }
         resCard += cmdGrid(btns);
@@ -661,7 +704,7 @@ export class HUD {
     else this.infoPanel!.style.display = "none";
   }
 
-  showVictory(winner: number) {
+  showVictory(winner: number, stats?: { kills: number; buildingsDestroyed: number; resourcesGathered: number }) {
     const banner = document.createElement("div");
     Object.assign(banner.style, {
       position: "absolute", top: "40%", left: "50%",
@@ -670,7 +713,16 @@ export class HUD {
       color: "#fff", fontSize: "32px", padding: "24px 40px",
       borderRadius: "10px", textAlign: "center", pointerEvents: "none",
     });
-    banner.textContent = winner === this.localTeam ? "Victory!" : "Defeat";
+    const title = winner === this.localTeam ? "Victory!" : "Defeat";
+    if (stats) {
+      banner.innerHTML =
+        `<div>${title}</div>` +
+        `<div style="font-size:14px;margin-top:12px;color:rgba(255,255,255,0.85);line-height:1.8">` +
+        `Kills: ${stats.kills} &nbsp;|&nbsp; Buildings: ${stats.buildingsDestroyed} &nbsp;|&nbsp; Resources: ${stats.resourcesGathered}` +
+        `</div>`;
+    } else {
+      banner.textContent = title;
+    }
     this.root.appendChild(banner);
   }
 

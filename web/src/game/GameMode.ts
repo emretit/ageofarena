@@ -100,23 +100,25 @@ export class GameMode {
     return NO_WINNER;
   }
 
-  // ── Relic: hold all relics in TCs for 200s
+  // ── Relic: hold all relics in Monasteries for 200s
   private _tickRelic(allTeams: number[], dt: number, relicCounts: Map<number, number>): GameModeResult {
     const totalRelics = [...relicCounts.values()].reduce((a, b) => a + b, 0);
     if (totalRelics === 0) return NO_WINNER;
 
-    // Find team holding all relics
+    // Find the single team holding ALL relics (read-only scan, no state mutation inside loop)
+    let holdingTeam = -1;
     for (const [team, count] of relicCounts) {
-      if (count === totalRelics) {
-        if (this._relicHoldTeam !== team) {
-          this._relicHoldTeam = team;
-          this._relicTimer    = this.relicDuration;
-          this.onTimerStart?.(team, this.relicDuration, 'Relic');
-        }
-        break;
+      if (count === totalRelics) { holdingTeam = team; break; }
+    }
+
+    // State transition: switch holding team or clear if nobody holds all
+    if (holdingTeam !== this._relicHoldTeam) {
+      this._relicHoldTeam = holdingTeam;
+      if (holdingTeam >= 0) {
+        this._relicTimer = this.relicDuration;
+        this.onTimerStart?.(holdingTeam, this.relicDuration, 'Relic');
       } else {
-        this._relicHoldTeam = -1;
-        this._relicTimer    = 0;
+        this._relicTimer = 0;
       }
     }
 

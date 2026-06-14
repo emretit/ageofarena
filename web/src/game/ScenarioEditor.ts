@@ -240,6 +240,7 @@ export class ScenarioEditor {
     const data = {
       units:     this._callbacks.getUnits().filter(u => u.alive).map(u => ({ type: u.unitType, x: u.x, z: u.z, team: u.teamId })),
       buildings: this._callbacks.getBuildings().filter(b => b.alive).map(b => ({ type: b.buildingType, x: b.pos.x, z: b.pos.z, team: b.teamId })),
+      resources: this._callbacks.getResources().filter(n => !n.depleted).map(n => ({ rtype: n.kind, amount: n.amount, x: n.root.position.x, z: n.root.position.z })),
     };
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
     console.info("[ScenarioEditor] kaydedildi");
@@ -249,9 +250,14 @@ export class ScenarioEditor {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) { console.warn("[ScenarioEditor] kayıtlı senaryo yok"); return; }
     try {
-      const data = JSON.parse(raw) as { units: Array<{type: UnitType; x: number; z: number; team: number}>; buildings: Array<{type: BuildingType; x: number; z: number; team: number}> };
+      const data = JSON.parse(raw) as {
+        units:     Array<{type: UnitType; x: number; z: number; team: number}>;
+        buildings: Array<{type: BuildingType; x: number; z: number; team: number}>;
+        resources: Array<{rtype: ResourceKind; amount: number; x: number; z: number}>;
+      };
       for (const u of data.units ?? []) this._callbacks.spawnUnit(u.type, u.x, u.z, u.team);
       for (const b of data.buildings ?? []) this._callbacks.placeBuilding(b.type, b.x, b.z, b.team);
+      for (const r of data.resources ?? []) this._callbacks.placeResource(r.rtype, r.amount, r.x, r.z);
       console.info("[ScenarioEditor] yüklendi");
     } catch { console.error("[ScenarioEditor] JSON parse hatası"); }
   }
