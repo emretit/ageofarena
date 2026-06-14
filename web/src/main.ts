@@ -523,6 +523,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   combat.onRangedFire = (from, to, splash) => projectiles.fire(from, to, splash);
 
   // ── Conversion callbacks ──────────────────────────────────────────────────
+  conversion.research = research; // Theocracy effect: recharge halved when researched
   conversion.onConverted = (u, newTeam) => {
     u.setTeamColor(TeamColors[newTeam % TeamColors.length]); // re-colours model tint + ground disc
     play(SoundId.Conversion);

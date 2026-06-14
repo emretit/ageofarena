@@ -335,7 +335,7 @@ paritesi" hedefini kod tarafında başlatan temel dalga olarak kayda geçti.
 14. ✔️ Dock tech zincirinde Galley → War Galley → Galleon geçişini smoke test'e bağla.
 15. ✔️ Fishing Ship gather loop'unu FishTrap ve FishPond için ayrı doğrula.
 16. ✔️ Monastery gold trickle'ını relic deposit sonrası uzun süreli testle ölç.
-17. 🟡 Monk conversion başarısızlık durumlarında faith reset davranışını test et.
+17. ✅ Monk conversion başarısızlık durumlarında faith reset davranışını test et. (faithGoal her conversion'da bir kez roll edilecek şekilde düzeltildi + cancel'da temizlendi — commit 832927c)
 18. ⬜ Theocracy etkisinin grup convert sırasında faith tüketimini ölç.
 19. ⬜ Redemption ile siege/building conversion iznini negatif/pozitif senaryolarda doğrula.
 20. ⬜ Sanctity'nin Monk HP artışını UI ve stat testinde sabitle.

@@ -5,6 +5,8 @@
 import { UnitType, UnitState } from '../core/GameTypes';
 import { simRng } from '../sim/SimRng';
 import type { Unit } from './Unit';
+import type { ResearchSystem } from './ResearchSystem';
+import { TechId } from './ResearchSystem';
 
 const FAITH_MIN     = 4;   // minimum seconds to convert
 const FAITH_MAX     = 10;  // maximum seconds (longer if target near allies)
@@ -14,6 +16,9 @@ const MONK_RANGE    = 5;   // world units — must be within this to convert
 export class ConversionSystem {
   /** Called when a unit is converted — view layer re-tints */
   onConverted: ((u: Unit, newTeam: number) => void) | null = null;
+
+  /** Injected after construction so tick can check Theocracy state. */
+  research: ResearchSystem | null = null;
 
   /** faith[monk] → accumulated seconds of current conversion */
   private readonly _faith = new Map<Unit, number>();
@@ -56,10 +61,11 @@ export class ConversionSystem {
       this._faith.set(monk, faith);
 
       if (faith >= faithTime) {
-        // Convert!
+        // Convert! Theocracy: halve recharge time for the converting monk's team.
+        const theocracy = this.research?.isResearched(monk.teamId, TechId.Theocracy) ?? false;
         this._faith.delete(monk);
         this._faithGoal.delete(monk);
-        this._recharge.set(monk, RECHARGE_TIME);
+        this._recharge.set(monk, theocracy ? RECHARGE_TIME * 0.5 : RECHARGE_TIME);
         (target as { teamId: number }).teamId = monk.teamId;
         target.attackTarget = null;
         target.attackTargetBuilding = null;

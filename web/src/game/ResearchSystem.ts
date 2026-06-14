@@ -562,12 +562,9 @@ export function applyTechBonus(u: Unit, tech: TechId) {
         (u as { attackRange: number }).attackRange += 1;
       }
       break;
-    // ── Theocracy (Monk +10% speed) ───────────────────────────────────────
+    // ── Theocracy — recharge halved on next conversion (handled in ConversionSystem) ──
     case TechId.Theocracy:
-      if (u.unitType === UnitType.Monk) {
-        (u as { moveSpeed: number }).moveSpeed *= 1.1;
-      }
-      break;
+      break; // effect is team-level, not per-unit — ConversionSystem checks isResearched()
     // ── Civ unique techs (Castle) ─────────────────────────────────────────
     case TechId.Chivalry:       // Franks: cavalry +1 melee armor
       if (u.armorClass & ArmorClass.Cavalry) (u as { armorMelee: number }).armorMelee += 1;
