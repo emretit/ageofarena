@@ -191,15 +191,15 @@ export class CombatSystem {
     const target = u.attackTarget;
     const targetB = u.attackTargetBuilding;
 
-    // Validate target still alive
-    if (target && !target.alive) {
+    // Validate target still alive and still an enemy (conversion may have changed teamId)
+    if (target && (!target.alive || !diplomacy.isEnemy(target.teamId, u.teamId))) {
       u.attackTarget = null;
       u.gatherTarget = null;
       // Preserve AttackMove/Patrol state; revert Attacking→Idle
       if (u.state === UnitState.Attacking) u.state = UnitState.Idle;
       return;
     }
-    if (targetB && !targetB.alive) {
+    if (targetB && (!targetB.alive || !diplomacy.isEnemy(targetB.teamId, u.teamId))) {
       u.attackTargetBuilding = null;
       u.gatherTarget = null;
       if (u.state === UnitState.Attacking) u.state = UnitState.Idle;

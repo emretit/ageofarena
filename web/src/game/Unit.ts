@@ -31,6 +31,9 @@ const BAR_BG_MAT  = new THREE.MeshBasicMaterial({ color: 0x330000 });
 const SHARED_MATS: ReadonlySet<THREE.Material> = new Set<THREE.Material>([RING_MAT, BAR_BG_MAT]);
 
 export class Unit {
+  /** Set once by main.ts — same as Building.localTeam. Used for HP bar coloring. */
+  static localTeam = 0;
+
   readonly id: EntityId = allocId();
   readonly root: THREE.Group;
   readonly teamId: number;
@@ -423,10 +426,15 @@ export class Unit {
     const frac = this.hp / this.maxHp;
     this.hpFg.scale.x = frac;
     this.hpFg.position.x = (frac - 1) * 0.5; // left-align
-    // Color: green → yellow → red
-    const r = frac < 0.5 ? 1 : (1 - frac) * 2;
-    const g = frac < 0.5 ? frac * 2 : 1;
-    this.hpFgMat.color.setRGB(r, g, 0);
+    if (this.teamId === Unit.localTeam) {
+      // Allied: green→yellow→red gradient
+      const r = frac < 0.5 ? 1 : (1 - frac) * 2;
+      const g = frac < 0.5 ? frac * 2 : 1;
+      this.hpFgMat.color.setRGB(r, g, 0);
+    } else {
+      // Enemy: always red, darkens at low HP
+      this.hpFgMat.color.setRGB(0.8 + frac * 0.2, 0, 0);
+    }
   }
 
   // ── Sim tick ───────────────────────────────────────────────────────────────

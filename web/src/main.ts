@@ -231,6 +231,7 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
 
   // Propagate local team to systems that need it for rendering (HP bars, FOW).
   Building.localTeam = PLAYER_TEAM;
+  Unit.localTeam     = PLAYER_TEAM;
 
   // Reset entity IDs + NavGrid for new game (avoid stamp carry-over across rematches)
   resetIds();
@@ -503,6 +504,12 @@ function startGame(mapType: MapType, trees: TreeInstance[], opponents: OpponentC
   conversion.research = research; // Theocracy effect: recharge halved when researched
   conversion.onConverted = (u, newTeam) => {
     u.setTeamColor(TeamColors[newTeam % TeamColors.length]); // re-colours model tint + ground disc
+    u.refreshHpBar(); // HP bar colour reflects new team alignment
+    play(SoundId.Conversion);
+  };
+  conversion.onBuildingConverted = (b, newTeam) => {
+    b.setTeamColor(TeamColors[newTeam % TeamColors.length]);
+    b.refreshHpBar(); // HP bar colour reflects new team alignment
     play(SoundId.Conversion);
   };
 

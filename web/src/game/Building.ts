@@ -127,6 +127,7 @@ export class Building {
   private readonly _hpBarGroup: THREE.Group;
   private readonly _hpFgMat: THREE.MeshBasicMaterial;
   private readonly _hpFg: THREE.Mesh;
+  private readonly _teamMats: THREE.MeshLambertMaterial[] = [];
 
   get pos(): THREE.Vector3 { return this.root.position; }
   get alive(): boolean { return this.hp > 0; }
@@ -186,10 +187,9 @@ export class Building {
     const poleH = Math.max(1.5, topY * 0.6);
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, poleH, 6), POLE_MAT);
     pole.position.set(targetW * 0.42, topY + poleH / 2, targetW * 0.42);
-    const flag = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.1, 0.65),
-      new THREE.MeshLambertMaterial({ color: teamColor, side: THREE.DoubleSide }),
-    );
+    const flagMat = new THREE.MeshLambertMaterial({ color: teamColor, side: THREE.DoubleSide });
+    this._teamMats.push(flagMat);
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.65), flagMat);
     flag.position.set(targetW * 0.42 + 0.55, topY + poleH - 0.4, targetW * 0.42);
     this.root.add(pole, flag);
     return topY;
@@ -207,19 +207,17 @@ export class Building {
     body.castShadow = true;
     body.receiveShadow = true;
 
-    const roof = new THREE.Mesh(
-      new THREE.BoxGeometry(w + 0.2, 0.3, d + 0.2),
-      new THREE.MeshLambertMaterial({ color: teamColor }),
-    );
+    const roofMat = new THREE.MeshLambertMaterial({ color: teamColor });
+    this._teamMats.push(roofMat);
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.3, d + 0.2), roofMat);
     roof.position.y = h + 0.15;
 
     if (type === BuildingType.TownCenter) {
       const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 4, 6), POLE_MAT);
       pole.position.set(w / 2 - 0.3, h + 2.15, d / 2 - 0.3);
-      const flag = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.2, 0.7),
-        new THREE.MeshLambertMaterial({ color: teamColor, side: THREE.DoubleSide }),
-      );
+      const tcFlagMat = new THREE.MeshLambertMaterial({ color: teamColor, side: THREE.DoubleSide });
+      this._teamMats.push(tcFlagMat);
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 0.7), tcFlagMat);
       flag.position.set(w / 2 - 0.3 + 0.6, h + 3.9, d / 2 - 0.3);
       this.root.add(pole, flag);
     }
@@ -242,6 +240,14 @@ export class Building {
     this._refreshHpBar();
   }
 
+  /** Re-tint all team-coloured visuals (flag, roof) — called after Redemption conversion. */
+  setTeamColor(hex: number): void {
+    for (const m of this._teamMats) m.color.setHex(hex);
+  }
+
+  /** Force-refresh HP bar colour (e.g. after team conversion). */
+  refreshHpBar() { this._refreshHpBar(); }
+
   /** Call once per render frame with current camera so the bar billboards. */
   refreshHpBarCamera(camera: THREE.Camera) {
     this._hpBarGroup.lookAt(
@@ -255,9 +261,15 @@ export class Building {
     const frac = this.hp / this.maxHp;
     this._hpFg.scale.x = frac;
     this._hpFg.position.x = (frac - 1) * 0.6; // left-align (half of bar width 1.2)
-    const r = frac < 0.5 ? 1 : (1 - frac) * 2;
-    const g = frac < 0.5 ? frac * 2 : 1;
-    this._hpFgMat.color.setRGB(r, g, 0);
+    if (this.teamId === Building.localTeam) {
+      // Allied: green→yellow→red gradient
+      const r = frac < 0.5 ? 1 : (1 - frac) * 2;
+      const g = frac < 0.5 ? frac * 2 : 1;
+      this._hpFgMat.color.setRGB(r, g, 0);
+    } else {
+      // Enemy: always red, darkens at low HP
+      this._hpFgMat.color.setRGB(0.8 + frac * 0.2, 0, 0);
+    }
   }
 
   remove(scene: THREE.Scene) {
