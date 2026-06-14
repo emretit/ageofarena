@@ -2,7 +2,7 @@
  * CampaignSystem.ts — Port of CampaignSystem.cs (N13.camp).
  * Ordered sequence of scenarios; progress persisted in localStorage.
  */
-import { Age, ResourceKind } from "../core/GameTypes";
+import { Age, BuildingType, ResourceKind } from "../core/GameTypes";
 import type { ResourceManager } from "../core/ResourceManager";
 import { makeTrigger, TriggerSystem } from "./TriggerSystem";
 
@@ -40,6 +40,34 @@ export const MISSIONS: Mission[] = [
     briefing: "İmparatorluk Çağı'na ulaş ve düşmanın kalesini yık. Bu sefer ne pahasına olursa olsun kazanmalısın.",
     objective:"Hedef: Imperial Çağ'a ulaş, ardından tüm düşmanları yok et.",
     startFood: 800, startWood: 600, startGold: 400, castleAge: true,
+  },
+  {
+    id:       3,
+    name:     "Deniz Savaşı",
+    briefing: "Adalarda düşman bir donanma üssü kuruldu. Filo gönder, düşman Dock ve tüm deniz kuvvetlerini yok et.",
+    objective:"Hedef: Tüm düşman gemileri ve Dock'u yok et.",
+    startFood: 600, startWood: 800, startGold: 300, castleAge: false,
+  },
+  {
+    id:       4,
+    name:     "İmparator'un Kalkını",
+    briefing: "Bir Wonder inşa et ve 300 saniye boyunca düşman saldırılarına dayanarak zafer kazan.",
+    objective:"Hedef: Wonder inşa et ve 300 saniye boyunca koru.",
+    startFood: 1000, startWood: 1000, startGold: 800, castleAge: true,
+  },
+  {
+    id:       5,
+    name:     "[AoW] Okçuluk",
+    briefing: "Savaş Sanatı — Okçuluk: 10 Okçu ile düşman piyade kuvvetini 3 dakika içinde yok et. Birim kaybını minimumda tut.",
+    objective:"Hedef: Tüm düşman birimi yok et (3 dk limit). Kayıp sayısını azalt.",
+    startFood: 800, startWood: 500, startGold: 400, castleAge: false,
+  },
+  {
+    id:       6,
+    name:     "[AoW] Süvari Akını",
+    briefing: "Savaş Sanatı — Süvari Akını: 6 Süvari ile düşmanın eko binalarını (Değirmen, Odun Kampı) yak. 5 bina yık.",
+    objective:"Hedef: 5 düşman eko binasını yık (10 dk limit).",
+    startFood: 1200, startWood: 0, startGold: 600, castleAge: true,
   },
 ];
 
@@ -146,6 +174,78 @@ function _buildTriggers(id: number, ts: TriggerSystem): void {
       ts.add(makeTrigger({
         id: 21, enabled: false, conditionType: 'EnemyEliminated',
         effectType: 'YouWin', effectStr1: "Sefer başarıyla tamamlandı! İmparatorluk hüküm sürdü.",
+      }));
+      break;
+
+    case 3: // Naval: destroy all enemy ships and their Dock (EnemyEliminated covers all units+buildings)
+      ts.add(makeTrigger({
+        id: 30, conditionType: 'Timer', condFloat1: 30,
+        effectType: 'ShowMessage', effect2Str1: "",
+        effectStr1: "Deniz Savaşı başlıyor! Dock inşa et, Galley eğit ve düşman donanmasını yok et.",
+      }));
+      ts.add(makeTrigger({
+        id: 31, conditionType: 'EnemyEliminated',
+        effectType: 'YouWin', effectStr1: "Deniz zafer! Düşman donanması yok edildi.",
+      }));
+      ts.add(makeTrigger({
+        id: 32, conditionType: 'Timer', condFloat1: 720,
+        effectType: 'YouLose', effectStr1: "Süre doldu — düşman donanması hâlâ denizde!",
+      }));
+      break;
+
+    case 4: {
+      // Wonder: build Wonder, then defend until 1200s game time (20 min with Castle Age start)
+      // Chain: Wonder built → activate win-timer trigger; absolute 1500s timeout = fail
+      ts.add(makeTrigger({
+        id: 40, conditionType: 'Timer', condFloat1: 10,
+        effectType: 'ShowMessage', effectStr1: "Wonder inşa et ve 300 saniye boyunca koru — düşman saldıracak!",
+      }));
+      ts.add(makeTrigger({
+        // Wonder built (condInt2 = BuildingType.Wonder = 12, condFloat1 = 1 = min count)
+        id: 41, conditionType: 'OwnBuildings', condInt1: 0,
+        condInt2: BuildingType.Wonder, condFloat1: 1,
+        effectType: 'ActivateTrigger', effectInt1: 43,
+        effect2Type: 'ShowMessage', effect2Str1: "Wonder tamamlandı! Şimdi 300 saniye boyunca savun.",
+      }));
+      ts.add(makeTrigger({
+        // Win if Wonder still standing AND enough time has passed (fires when timer hits 1200s)
+        id: 43, enabled: false, conditionType: 'Timer', condFloat1: 1200,
+        effectType: 'YouWin', effectStr1: "Wonder savunuldu! İmparatorluk zaferi kazanıldı.",
+      }));
+      ts.add(makeTrigger({
+        id: 44, conditionType: 'Timer', condFloat1: 1500,
+        effectType: 'YouLose', effectStr1: "Süre doldu — Wonder tamamlanamadı!",
+      }));
+      break;
+    }
+
+    case 5: // Art of War — Archery: eliminate enemies in 3 minutes
+      ts.add(makeTrigger({
+        id: 50, conditionType: 'Timer', condFloat1: 5,
+        effectType: 'ShowMessage', effectStr1: "10 Okçunla düşman piyade kuvvetini yok et! Hız ve kayıp sayısı önemli.",
+      }));
+      ts.add(makeTrigger({
+        id: 51, conditionType: 'EnemyEliminated',
+        effectType: 'YouWin', effectStr1: "Mükemmel! Okçuluk taktigi ustalandi.",
+      }));
+      ts.add(makeTrigger({
+        id: 52, conditionType: 'Timer', condFloat1: 180,
+        effectType: 'YouLose', effectStr1: "3 dakika doldu! Düşman hâlâ sahada.",
+      }));
+      break;
+
+    case 6: // Art of War — Cavalry Raid: destroy 5 eco buildings
+      ts.add(makeTrigger({
+        id: 60, conditionType: 'Timer', condFloat1: 5,
+        effectType: 'ShowMessage', effectStr1: "Süvarilerle düşmanın eko binalarına sal! Değirmen ve Odun Kampları hedef.",
+      }));
+      ts.add(makeTrigger({
+        id: 61, conditionType: 'EnemyEliminated',
+        effectType: 'YouWin', effectStr1: "Hasar verildi! Düşman ekonomisi çöktü.",
+      }));
+      ts.add(makeTrigger({
+        id: 62, conditionType: 'Timer', condFloat1: 600,
+        effectType: 'YouLose', effectStr1: "Süre doldu! Süvari akını yetersiz kaldı.",
       }));
       break;
   }

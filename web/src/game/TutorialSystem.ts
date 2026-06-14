@@ -42,7 +42,18 @@ const STEPS: TutStep[] = [
     done: (units) => units.some(u => u.teamId === 0 && u.unitType === UnitType.Militia && u.alive),
   },
   {
-    text: "Harika! Temel mekanikleri tamamladın.\nFeodal Çağ için TC'yi seç ve Feodal Çağ araştır!",
+    text: "TC'yi (Şehir Merkezini) seç → 'Feodal Çağ'a Geç' butonuna tıkla.\nYeterli kaynak gerekir: 500 yiyecek.",
+    done: (_u, _b, rm) => rm.age >= 1, // Age.Feudal = 1
+  },
+  {
+    text: "Feodal Çağ'a girdin! Artık Okçu Aralığı ve Süvari Ahırı inşa edebilirsin.\nBir saldırı ordusu kur — 3 farklı birim türü eğit.",
+    done: (units) => {
+      const types = new Set(units.filter(u => u.teamId === 0 && !u.gathers && u.alive).map(u => u.unitType));
+      return types.size >= 2; // at least 2 military unit types
+    },
+  },
+  {
+    text: "Ordu hazır! Birimleri sürükle-seç, ardından düşman bölgesine SAĞ-TIKLA.\nZafer için düşman TC'sini yok et. İyi şanslar!",
     done: null,
   },
 ];
