@@ -15,8 +15,10 @@ export class ConversionSystem {
   /** Called when a unit is converted — view layer re-tints */
   onConverted: ((u: Unit, newTeam: number) => void) | null = null;
 
-  /** faith[unit] → seconds remaining to complete conversion */
+  /** faith[monk] → accumulated seconds of current conversion */
   private readonly _faith = new Map<Unit, number>();
+  /** faithGoal[monk] → required seconds for this conversion (rolled once on start) */
+  private readonly _faithGoal = new Map<Unit, number>();
   /** recharge[unit] → seconds until next conversion available */
   private readonly _recharge = new Map<Unit, number>();
 
@@ -32,24 +34,31 @@ export class ConversionSystem {
       // Must be targeting an enemy unit
       const target = monk.attackTarget;
       if (!target || !target.alive || target.teamId === monk.teamId) {
+        // Conversion cancelled — reset faith for this monk
         this._faith.delete(monk);
+        this._faithGoal.delete(monk);
         continue;
       }
 
       const dx = target.x - monk.x; const dz = target.z - monk.z;
       if (Math.sqrt(dx * dx + dz * dz) > MONK_RANGE) {
         this._faith.delete(monk);
+        this._faithGoal.delete(monk);
         continue;
       }
 
-      // Advance faith timer
-      const faithTime = FAITH_MIN + simRng.range(0, FAITH_MAX - FAITH_MIN);
-      let faith = (this._faith.get(monk) ?? 0) + dt;
+      // Roll faithGoal once when conversion begins (not every tick)
+      if (!this._faithGoal.has(monk)) {
+        this._faithGoal.set(monk, FAITH_MIN + simRng.range(0, FAITH_MAX - FAITH_MIN));
+      }
+      const faithTime = this._faithGoal.get(monk)!;
+      const faith = (this._faith.get(monk) ?? 0) + dt;
       this._faith.set(monk, faith);
 
       if (faith >= faithTime) {
         // Convert!
         this._faith.delete(monk);
+        this._faithGoal.delete(monk);
         this._recharge.set(monk, RECHARGE_TIME);
         (target as { teamId: number }).teamId = monk.teamId;
         target.attackTarget = null;
