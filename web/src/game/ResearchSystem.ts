@@ -291,7 +291,7 @@ export const BUILDING_TECHS: Partial<Record<BuildingType, TechId[]>> = {
 };
 
 /** Per-civ denied techs — N0.7 port. Only includes techs present in this web port. */
-const DENIED_TECHS: Partial<Record<Civilization, ReadonlySet<TechId>>> = {
+export const DENIED_TECHS_TEST: Partial<Record<Civilization, ReadonlySet<TechId>>> = {
   [Civilization.Franks]:   new Set([TechId.Halberdier, TechId.Arbalest]),
   [Civilization.Britons]:  new Set([TechId.Paladin]),
   [Civilization.Mongols]:  new Set([TechId.Halberdier, TechId.Paladin]),
@@ -327,7 +327,7 @@ export class ResearchSystem {
   available(b: Building, rm: ResourceManager): TechId[] {
     const list = BUILDING_TECHS[b.buildingType] ?? [];
     const teamCiv = getTeamCiv(b.teamId);
-    const denied = DENIED_TECHS[teamCiv];
+    const denied = DENIED_TECHS_TEST[teamCiv];
     return list.filter(t => {
       if (this.isResearched(b.teamId, t)) return false;
       if (denied?.has(t)) return false;
@@ -346,7 +346,7 @@ export class ResearchSystem {
     if (rm.age < def.minAge) return false;
     if (def.prereq && !this.isResearched(b.teamId, def.prereq)) return false;
     const teamCiv = getTeamCiv(b.teamId);
-    if (DENIED_TECHS[teamCiv]?.has(tech)) return false;
+    if (DENIED_TECHS_TEST[teamCiv]?.has(tech)) return false;
     if (def.civGate !== undefined && def.civGate !== teamCiv) return false;
     if (!rm.canAfford(def.food, def.wood, def.gold)) return false;
     rm.deduct(def.food, def.wood, def.gold);

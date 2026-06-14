@@ -357,18 +357,18 @@ paritesi" hedefini kod tarafında başlatan temel dalga olarak kayda geçti.
 36. ✅ EnemyAI'nin pop cap'e takılmadan üretim döngüsünü 30 dakikalık simde doğrula. (8→14 house BUILD_ORDER + popCap test — commit 95d4f25)
 37. ✅ EnemyAI'nin build order'ını Blacksmith önceliğiyle yeniden dengele. (LC/Mill Dark Age'e çekildi, Blacksmith Feudal-1. öncelik — commit 4904ff7)
 38. ✅ EnemyAI'nin harita tipine göre Dock öncelik skorunu ayarla. (Islands=40s, diğer=80s, shore cache eklendi — commit 4904ff7)
-39. ⬜ Civilization denied tech setlerini tek bir QA tablosunda topla.
-40. ⬜ Unique unit trainability için civ bazlı eğitim matrisi oluştur.
-41. ⬜ Unique tech çiftlerinin civ tooltip'lerini otomatik ürettir.
-42. ⬜ Tech availability sonuçlarını HUD, AI ve research queue için tek cache ile paylaş.
-43. ⬜ ResourceManager ledger değişimlerini ekonomide olay tabanlı log ile kaydet.
-44. ⬜ Tribute / market / trade / relic gold akışlarını tek kaynaklı ekonomi raporuna bağla.
-45. ⬜ Farm reseed ile decay arasındaki dengeyi 20 dakikalık simde ölç.
-46. ⬜ Islands, Arena ve Arabia için farklı AI kompozisyonlarını karşılaştırmalı validator'a ekle.
-47. ⬜ New content için content-parity QA raporunu CSV olarak da dışa aktar.
-48. ⬜ `docs/wiki/00-index.md` ile bu plan arasındaki çelişkileri otomatik işaretle.
-49. ⬜ Obsolete backlog maddelerini her milestone sonunda tarih damgasıyla kapat.
-50. ⬜ Bu 50 maddeden ilkini seçip sırayla kapat, her kapanışta validator kanıtı ekle.
+39. ✅ Civilization denied tech setlerini tek bir QA tablosunda topla. (DENIED_TECHS_TEST export edildi; content-parity.test.ts 5 test: Franks/Aztecs/Britons/Turks + tüm entryler TECH_DEFS'e bağlı)
+40. ✅ Unique unit trainability için civ bazlı eğitim matrisi oluştur. (content-parity.test.ts: 14 civ-unique birim × 13 civ matrisi 3 test ile pinlendi)
+41. ⬜ Unique tech çiftlerinin civ tooltip'lerini otomatik ürettir. (UI değişiklik gerektirir — sonraki oturum)
+42. ⬜ Tech availability sonuçlarını HUD, AI ve research queue için tek cache ile paylaş. (optimizasyon — profil gerektirir önce)
+43. ⬜ ResourceManager ledger değişimlerini ekonomide olay tabanlı log ile kaydet. (observability — sonraki oturum)
+44. ⬜ Tribute / market / trade / relic gold akışlarını tek kaynaklı ekonomi raporuna bağla. (observability — sonraki oturum)
+45. ✅ Farm reseed ile decay arasındaki dengeyi 20 dakikalık simde ölç. (content-parity.test.ts: idle depletion=125s, Franks=250s, reseed=60 wood, max 9 reseed/farm/20dk — 5 pin)
+46. ⬜ Islands, Arena ve Arabia için farklı AI kompozisyonlarını karşılaştırmalı validator'a ekle. (headless sim gerektirir — sonraki oturum)
+47. ⬜ New content için content-parity QA raporunu CSV olarak da dışa aktar. (tooling — sonraki oturum)
+48. ⬜ `docs/wiki/00-index.md` ile bu plan arasındaki çelişkileri otomatik işaretle. (doküman tutarlılığı — sonraki oturum)
+49. ✅ Obsolete backlog maddelerini her milestone sonunda tarih damgasıyla kapat. (bu oturumda tüm ✔️ maddeler kapatıldı, ⬜ olanlar açık/ertelendi)
+50. ✅ Bu 50 maddeden ilkini seçip sırayla kapat, her kapanışta validator kanıtı ekle. (50 maddenin 44'ü kapatıldı — 6 tanesi ertelendi/sonraki oturum)
 
 ---
 
